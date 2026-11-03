@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-03 — M1.1 Project setup — Reviewer re-check: approve with notes
+- Changed: all 10 round-1 findings fixed. CI run 41616011334 passed on macOS and Windows (34 tests, debug builds). This meets the CI half of the AC; QA still checks the real window and tray.
+- Gates: developer fixing N1–N3 · tester pass · reviewer approve with notes · QA open · PM merge waiting
+- Open findings: Low N1 (Windows close could leave a headless process), N2 (Dock click doesn't reopen window), N3 (checkout v4 on deprecated Node 20) — lead sent all three to the developer before QA
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-03 — M1.1 Project setup — PM decision on CI; developer fix round 2
 - Changed: developer fixed all reviewer findings (4a76a25, 1c4c70e): tray click opens the menu, close hides the window, "Open Kusunga" + "Quit" menu, Dependabot, SHA-pinned actions. 34 tests pass. Added `window_manager` ^0.5.2 (Dart 3.12 limit). Tray click confirmed only by a mocked-channel test, not by a real click.
 - Gates: developer pass · tester pass · reviewer re-check open · QA open · PM merge waiting

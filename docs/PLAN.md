@@ -38,6 +38,7 @@ Everything stays on the device. No account, no server.
   - AC: history keeps the newest N items; N is set in settings (default 200, range 10–5,000); the oldest item is removed when the limit is reached.
   - AC: duplicates move to the top instead of being saved twice.
   - AC: history is stored encrypted on disk, with the key in the OS keychain (Mac Keychain / Windows Credential Manager).
+  - Brief note: save data safely on every exit path (tray Quit, Cmd+Q, Dock Quit, Windows logoff/WM_ENDSESSION), not only Dart's onQuit (reviewer note, 2026-11-03).
 - [ ] **M1.3 History picker and paste** — large (OS permissions, UI).
   - Before start: ADR on macOS distribution channel (direct notarised vs Mac App Store) and App Sandbox, because synthetic paste and keystroke monitoring need Accessibility and are restricted in the sandbox (reviewer note, 2026-11-03).
   - AC: a global shortcut (default Cmd+Shift+V / Ctrl+Shift+V, changeable) opens a picker over the current app.
