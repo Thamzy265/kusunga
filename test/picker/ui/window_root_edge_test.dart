@@ -80,6 +80,9 @@ void main() {
     tester,
   ) async {
     // BUG-U1, keyboard form.
+    // With only one item the focus is lost by the delete itself (also without
+    // a trip), so there is an older item whose row takes the focus.
+    source.copy('older text');
     source.copy('precious text');
     await pumpApp(tester);
     await tester.tap(find.widgetWithText(TextButton, 'Delete').first);
@@ -89,7 +92,10 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
     await tester.pump();
-    expect([for (final i in history.items) i.preview], ['precious text']);
+    expect(
+      [for (final i in history.items) i.preview],
+      ['precious text', 'older text'],
+    );
     await tester.pump(const Duration(seconds: 6));
   });
 

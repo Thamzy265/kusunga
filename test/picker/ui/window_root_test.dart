@@ -141,6 +141,7 @@ void main() {
     await tester.pump();
     expect(find.text('Opening your history…'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'abc');
+    await tester.pumpWidget(const SizedBox());
     controller.dispose();
     await tester.pump(const Duration(seconds: 31));
   });
