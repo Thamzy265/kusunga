@@ -9,6 +9,7 @@ Phase: MVP. Approved by the PM on 2026-11-03 (deck: `docs/slides/mvp-plan.html`)
 - D3 crash reports and usage stats: none in M1.
 - DPIA: a short DPIA before the beta (added to M1.9).
 - Plan approved; M1.1 starts.
+- M1.2 (2026-11-03): Mac key in the login keychain until M1.9 signed builds.
 - M1.2 (2026-11-03): default history 200 items (range 10–5,000); keychain failure → memory only with a warning; Apple Developer account only if unsigned builds cannot use the Keychain; scope change approved.
 Research behind this plan: `docs/marketing/competitor-research.md`.
 
@@ -71,6 +72,7 @@ Everything stays on the device. No account, no server.
 - [ ] **M1.9 Signed installers and first beta** — large (release).
   - AC: a notarised Mac build and a signed Windows installer install and launch without OS security warnings.
   - AC: Hardened Runtime enabled for the macOS build (notarisation needs it).
+  - AC: the Mac history key moves from the login keychain to the data-protection keychain, with a key move (read old item, write new, delete old) so no user's history is moved aside; must be done before the first external beta (PM decision 2026-11-03).
   - AC: release notes and a rollback plan exist; the PM approves the release.
   - AC: a short DPIA is written in `docs/design/dpia.md` and the PM signs it off before the beta.
 

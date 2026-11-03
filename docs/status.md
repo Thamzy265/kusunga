@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-03 — M1.2 Mac Keychain — PM decision
+- Changed: plan M1.9 gets a must-do AC to move the key to the data-protection keychain with a key move before the first external beta.
+- Gates: n/a — decision
+- Open findings: none new
+- Decisions: PM said (2026-11-03): "Login keychain for now" — in answer to "Which Mac Keychain approach should step 2 use?" (options: login keychain for now, or buy the Apple Developer account now).
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-03 — M1.2 Clipboard history — Reviewer: block
 - Changed: reviewer blocked 55750fc. CI run 41648582715 passed on macOS and Windows (first Windows compile of the bridge). No high-confidence security vulnerabilities; supply chain OK (sqlite3mc binary SHA-256 pinned via the package).
 - Gates: developer fixing · tester pass · reviewer block · QA open · PM merge waiting
