@@ -151,7 +151,8 @@ void runStoreContract(String name, HistoryStore Function() create) {
     });
 
     test('keeps odd text exactly: quotes, NUL-free control chars, emoji', () {
-      const odd = "it's \"quoted\"; DROP TABLE clip_items;--‮ \u{1F600}\n\t";
+      const odd =
+          "it's \"quoted\"; DROP TABLE clip_items;--\u202E \u{1F600}\n\t";
       store.insertOrBump(odd, ClipKind.text, tick());
       expect(store.contentOf(store.list().single.id), odd);
     });
