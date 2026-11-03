@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-03 — Owner name — PM decision
+- Changed: none yet; developer applies it with the identifier change.
+- Gates: n/a — decision
+- Open findings: none
+- Decisions: PM said (2026-11-03): "William Nasoni" — in answer to "What name should show as the app's owner in the copyright and Windows company fields?"
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead waiting for PM: Mac Keychain approach
+
 ## 2026-11-03 — App identifier — PM decision
 - Changed: none yet. Developer changes the identifier on `feat/clipboard-history` after the tester hands off (to avoid two writers on one branch).
 - Gates: n/a — decision
