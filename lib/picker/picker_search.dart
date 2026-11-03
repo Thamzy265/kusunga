@@ -26,14 +26,16 @@ class PickerSearch {
   static String normaliseQuery(String query) =>
       query.replaceAll(_white, ' ').toLowerCase();
 
-  /// The items that contain [query], in the same order.
+  /// The items that contain [query], in the same order. An empty query (or
+  /// one of only white space) returns [items] as they are, with no work per
+  /// item.
   List<ClipItem> filter(List<ClipItem> items, String query) {
-    _sync(items);
     final q = normaliseQuery(query);
-    if (q.isEmpty) {
-      _remember(items, q, items);
+    if (q.trim().isEmpty) {
+      _remember(items, '', items);
       return items;
     }
+    _sync(items);
     final canNarrow =
         identical(_resultFor, items) &&
         _lastQuery.isNotEmpty &&
@@ -53,6 +55,27 @@ class PickerSearch {
     _lastResult = result;
   }
 
+  /// Builds the lower-case text of up to [maxItems] items that are not indexed
+  /// yet. The picker calls it in small steps after it opens, so the first
+  /// keystroke finds the index ready. Returns true if more is left to do.
+  bool warm(List<ClipItem> items, {int maxItems = 200}) {
+    var built = 0;
+    var left = false;
+    for (final i in items) {
+      final old = _index[i.id];
+      if (old != null && old.preview == i.preview) continue;
+      if (built >= maxItems) {
+        left = true;
+        break;
+      }
+      _index[i.id] = _Entry(i.preview, display(i.preview).toLowerCase());
+      built++;
+    }
+    return left;
+  }
+
+  // Only items that are new (or changed) are indexed; the rest of the index is
+  // reused, and entries of deleted items are dropped.
   void _sync(List<ClipItem> items) {
     if (identical(_indexedFor, items)) return;
     final next = <int, _Entry>{};
@@ -81,11 +104,27 @@ class PickerSearch {
     while (true) {
       final at = lower.indexOf(q, from);
       if (at < 0) break;
-      out.add((at, at + q.length));
-      from = at + q.length;
+      final end = at + q.length;
+      from = end;
+      // Never start or end inside a surrogate pair (a half emoji as a query).
+      if (_isLow(lower, at) || (end < lower.length && _isLow(lower, end))) {
+        continue;
+      }
+      if (_isHigh(lower, end - 1) && end < lower.length) continue;
+      out.add((at, end));
     }
     return out;
   }
+}
+
+bool _isLow(String s, int i) {
+  final u = s.codeUnitAt(i);
+  return u >= 0xDC00 && u <= 0xDFFF;
+}
+
+bool _isHigh(String s, int i) {
+  final u = s.codeUnitAt(i);
+  return u >= 0xD800 && u <= 0xDBFF;
 }
 
 class _Entry {

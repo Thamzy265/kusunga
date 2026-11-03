@@ -48,6 +48,7 @@ class _PickerPanelState extends State<PickerPanel>
 
   late String _spokenCount = _countText();
   Timer? _countTimer;
+  Timer? _warmTimer;
   var _countHold = false;
   var _countDirty = false;
 
@@ -81,11 +82,22 @@ class _PickerPanelState extends State<PickerPanel>
     _controller.removeListener(_onController);
     _bound?.removeListener(_onItems);
     _countTimer?.cancel();
+    _warmTimer?.cancel();
     _fade?.dispose();
     _node.dispose();
     _text.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  // Builds the search index in small steps, so typing never waits for it.
+  void _scheduleWarm() {
+    if (_warmTimer != null || _bound == null) return;
+    _warmTimer = Timer(const Duration(milliseconds: 1), () {
+      _warmTimer = null;
+      if (!mounted) return;
+      if (_search.warm(_bound?.items ?? const [])) _scheduleWarm();
+    });
   }
 
   void _bind() {
@@ -111,6 +123,7 @@ class _PickerPanelState extends State<PickerPanel>
     final all = _bound?.items ?? const <ClipItem>[];
     _total = all.length;
     _filtered = _search.filter(all, _query);
+    _scheduleWarm();
     final id = _selectedId;
     if (_filtered.isEmpty) {
       _selectedId = null;
@@ -261,7 +274,7 @@ class _PickerPanelState extends State<PickerPanel>
         detail: 'Copy some text in any app and it will appear here.',
       );
     } else if (_filtered.isEmpty) {
-      final shown = _query.length > 40 ? '${_query.substring(0, 40)}…' : _query;
+      final shown = _query.length > 40 ? '${cutUnits(_query, 40)}…' : _query;
       body = _Message(
         title: 'No matches for "$shown"',
         detail: 'Try fewer letters.',
