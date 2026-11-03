@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-03 — M1.2 Clipboard history — Design
+- Changed: on branch `design/clipboard-history`: design note `docs/design/clipboard-history.md`, ADR 0002 (encrypted SQLite, key in keychain), UI spec `docs/ui/clipboard-history.md`, deck `docs/slides/clipboard-history.html`. Size: large — new data store, personal data, native code. Proposed scope change: secret-marker skip (from M1.6) and delete/clear (from M1.8) move into M1.2.
+- Gates: n/a — design; PM deck approval waiting
+- Open findings: none
+- Decisions: waiting — default limit, keychain failure behaviour, Apple Developer account timing, scope change and approval
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead waiting for PM deck approval
+- Sources: macOS pasteboard privacy status https://mjtsai.com/blog/2025/05/12/pasteboard-privacy-preview-in-macos-15-4/ ; sqlcipher_flutter_libs EOL https://pub.dev/packages/sqlcipher_flutter_libs
+
 ## 2026-11-03 — M1.1 Project setup — Merged
 - Changed: PR https://github.com/Thamzy265/kusunga/pull/1 merged to main (7f26136) after CI run 41618587160 passed on macOS and Windows. M1.1 ticked in the plan.
 - Gates: developer pass · tester pass · reviewer approve with notes · QA pass · PM merge approved
