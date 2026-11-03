@@ -31,7 +31,7 @@ One app that keeps your clipboard history and your saved snippets, and pastes th
 
 Everything stays on the device. No account, no server.
 
-- [ ] **M1.1 Project setup** — small. Repo, chosen stack, check command, CI on Mac and Windows, `qa-artifacts/` git-ignored.
+- [x] **M1.1 Project setup** — small. Repo, chosen stack, check command, CI on Mac and Windows, `qa-artifacts/` git-ignored.
   - AC: the check command runs on both OSes in CI and passes on an empty app that opens a window and a tray/menu-bar icon.
 - [ ] **M1.2 Clipboard history capture** — large (new local data store, personal data).
   - AC: text and links copied in any app appear in history within 1 second.

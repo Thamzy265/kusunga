@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-03 — M1.1 Project setup — Merged
+- Changed: PR https://github.com/Thamzy265/kusunga/pull/1 merged to main (7f26136) after CI run 41618587160 passed on macOS and Windows. M1.1 ticked in the plan.
+- Gates: developer pass · tester pass · reviewer approve with notes · QA pass · PM merge approved
+- Open findings: Minor — status item accessibility label is generic (polish later)
+- Decisions: PM said (2026-11-03): "Approve merge" — in answer to "Do you approve merging step 1 through the GitHub pull request?"
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+- Lessons: unit tests with fake plugins missed that the tray menu never opened; for native plugin code, add a mocked-channel test and a real-app click by QA
+
 ## 2026-11-03 — M1.1 Project setup — QA pass; waiting for PM merge approval
 - Changed: developer fixed N1–N3 (3aaac53). QA (8dc3f2b) ran the real macOS app: window, menu-bar icon, menu "Open Kusunga"/"Quit", close hides, reopen, Quit — all pass. CI run 41617801471 passed on macOS and Windows (34 tests, debug builds). No network use in the release build; files only in the app container. Evidence: `docs/qa/m1.md`, 3 screenshots in `docs/qa/m1/screens/`. No video (could not crop to the app without capturing the desktop).
 - Gates: developer pass · tester pass · reviewer approve with notes (N1–N3 fixed) · QA pass (light mode and Windows runtime not observed — optional PM checks) · PM merge waiting
