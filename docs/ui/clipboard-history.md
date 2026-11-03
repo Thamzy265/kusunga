@@ -1,6 +1,6 @@
 # M1.2 History list (main window) — UI spec
 
-Date: 2026-11-03 — Design note: `docs/design/clipboard-history.md` — Status: draft, waiting for PM
+Date: 2026-11-03 — Design note: `docs/design/clipboard-history.md` — Status: approved by PM 2026-11-03
 
 ## User and task
 

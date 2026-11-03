@@ -1,6 +1,6 @@
 # M1.2 Clipboard history capture — design note
 
-Date: 2026-11-03 — Size: large — new local data store, personal data (everything the user copies), new native code — Phase: MVP — Status: draft, waiting for PM
+Date: 2026-11-03 — Size: large — new local data store, personal data (everything the user copies), new native code — Phase: MVP — Status: approved by PM 2026-11-03
 
 ## Context
 

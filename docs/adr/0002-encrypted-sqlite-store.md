@@ -4,7 +4,7 @@ Date: 2026-11-03
 
 ## Status
 
-Proposed (accepted when the PM approves the M1.2 deck)
+Accepted (PM, 2026-11-03)
 
 ## Context
 
