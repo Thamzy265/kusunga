@@ -15,6 +15,8 @@ import 'history/memory_history_store.dart';
 import 'lifecycle/app_lifecycle.dart';
 import 'lifecycle/quit_flow.dart';
 import 'log/app_log.dart';
+import 'picker/channel_picker_port.dart';
+import 'picker/picker_controller.dart';
 import 'tray/tray_manager_port.dart';
 import 'tray/tray_service.dart';
 import 'window/window_manager_port.dart';
@@ -23,13 +25,16 @@ import 'window/window_service.dart';
 /// Opens the encrypted history and starts listening for copies. It never
 /// throws: if anything is wrong the history runs in memory only, with a
 /// banner, and nothing is written to disk.
-Future<HistoryService> _openHistory() async {
+Future<HistoryService> _openHistory(DeferredErrorLog deferred) async {
   ErrorLog log = const NullErrorLog();
   OpenedHistory opened;
   try {
     final dir = await getApplicationSupportDirectory();
     await dir.create(recursive: true);
     log = FileErrorLog(File('${dir.path}${Platform.pathSeparator}kusunga.log'));
+    // Codes logged before the data folder was known (a shortcut that could
+    // not be registered) are written now.
+    deferred.attach(log);
     opened = await openHistory(
       keys: keyStoreFor(isWindows: Platform.isWindows),
       directory: dir.path,
@@ -50,14 +55,26 @@ Future<HistoryService> _openHistory() async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final history = _openHistory();
+  final deferredLog = DeferredErrorLog();
+  final history = _openHistory(deferredLog);
   final handle = HistoryHandle(history);
-  runApp(KusungaApp(history: history));
 
   final isDesktop =
       defaultTargetPlatform == TargetPlatform.macOS ||
       defaultTargetPlatform == TargetPlatform.windows;
+  // The picker shortcut is registered at once with the default; the saved
+  // one is read when the history has opened (it never waits for the keychain).
+  final picker = isDesktop
+      ? PickerController(
+          port: ChannelPickerPort(),
+          log: deferredLog,
+          isMac: defaultTargetPlatform == TargetPlatform.macOS,
+        )
+      : null;
+  runApp(KusungaApp(history: history, picker: picker));
   if (!isDesktop) return;
+  unawaited(picker!.start());
+  history.then<void>(picker.attach, onError: (Object _) {});
 
   // Both services log and swallow their own failures, so the window always
   // opens. The tray starts after runApp so it can never delay the window.
@@ -74,6 +91,7 @@ Future<void> main() async {
     iconPath: defaultTargetPlatform == TargetPlatform.windows
         ? 'assets/tray/tray_icon.ico'
         : 'assets/tray/tray_icon.png',
+    onOpenPicker: picker.openFromTray,
     onOpen: () => unawaited(window.show()),
     // Tray Quit closes the history first, then asks native to end the app.
     onQuit: () => unawaited(quit.quitFromTray().catchError((Object _) {})),

@@ -18,6 +18,7 @@ void main() {
     service = TrayService(
       port: port,
       iconPath: 'i.png',
+      onOpenPicker: () {},
       onOpen: () {},
       onQuit: () => quits++,
     );
@@ -122,6 +123,7 @@ void main() {
     final s = TrayService(
       port: _DestroyAlsoFails(),
       iconPath: 'i.png',
+      onOpenPicker: () {},
       onOpen: () {},
       onQuit: () {},
     );

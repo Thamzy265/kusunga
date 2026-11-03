@@ -13,9 +13,17 @@ import 'limit_field.dart';
 /// The home view: what Kusunga has saved, with Copy, Delete (with Undo),
 /// Clear history and the limit. Spec: `docs/ui/clipboard-history.md`.
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key, required this.service, this.now});
+  const HistoryScreen({
+    super.key,
+    required this.service,
+    this.now,
+    this.topSlot,
+  });
 
   final HistoryService service;
+
+  /// Extra content under the header and banners (the picker settings).
+  final Widget? topSlot;
 
   /// Unix milliseconds; replaced in tests.
   final int Function()? now;
@@ -330,6 +338,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     onDismiss: () => _service.dismiss(b),
                                   ),
                                 if (setupCard) _SetupCard(service: _service),
+                                if (widget.topSlot != null) widget.topSlot!,
                               ],
                             ),
                           ),

@@ -25,21 +25,24 @@ abstract interface class TrayPort {
   Future<void> dispose();
 }
 
-/// Shows the menu-bar icon (Mac) or tray icon (Windows) with Open Kusunga and
-/// Quit items.
+/// Shows the menu-bar icon (Mac) or tray icon (Windows) with Open picker, Open
+/// Kusunga and Quit items.
 class TrayService {
   TrayService({
     required this.port,
     required this.iconPath,
+    required this.onOpenPicker,
     required this.onOpen,
     required this.onQuit,
   });
 
+  static const pickerKey = 'picker';
   static const openKey = 'open';
   static const quitKey = 'quit';
 
   final TrayPort port;
   final String iconPath;
+  final void Function() onOpenPicker;
   final void Function() onOpen;
   final void Function() onQuit;
   StreamSubscription<String>? _clicks;
@@ -61,12 +64,15 @@ class TrayService {
       await port.setToolTip('Kusunga');
       if (await _stopIfDisposed()) return;
       await port.setMenu(const [
+        TrayMenuEntry(key: pickerKey, label: 'Open picker'),
         TrayMenuEntry(key: openKey, label: 'Open Kusunga'),
         TrayMenuEntry(key: quitKey, label: 'Quit'),
       ]);
       if (await _stopIfDisposed()) return;
       _clicks = port.menuItemClicks.listen((key) {
         switch (key) {
+          case pickerKey:
+            onOpenPicker();
           case openKey:
             onOpen();
           case quitKey:
