@@ -1,6 +1,6 @@
 # M1.3 History picker and paste — design note
 
-Date: 2026-11-04 — Size: large — new OS permission (posting key events), global shortcut, focus handling across apps, new UI — Phase: MVP — Status: draft, waiting for PM
+Date: 2026-11-04 — Size: large — new OS permission (posting key events), global shortcut, focus handling across apps, new UI — Phase: MVP — Status: approved by PM 2026-11-04
 
 ## Context
 

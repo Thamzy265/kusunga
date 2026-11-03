@@ -10,6 +10,7 @@ Phase: MVP. Approved by the PM on 2026-11-03 (deck: `docs/slides/mvp-plan.html`)
 - DPIA: a short DPIA before the beta (added to M1.9).
 - Plan approved; M1.1 starts.
 - M1.2 (2026-11-03): Mac key in the login keychain until M1.9 signed builds.
+- M1.3 (2026-11-04): direct notarised Mac download with the App Sandbox on (ADR 0003); default picker shortcut ⌘⇧V / Ctrl+Shift+V; pasted item stays on the clipboard; design approved.
 - M1.2 (2026-11-03): default history 200 items (range 10–5,000); keychain failure → memory only with a warning; Apple Developer account only if unsigned builds cannot use the Keychain; scope change approved.
 Research behind this plan: `docs/marketing/competitor-research.md`.
 
@@ -46,11 +47,15 @@ Everything stays on the device. No account, no server.
   - Design: `docs/design/clipboard-history.md`, ADR 0002, UI spec `docs/ui/clipboard-history.md`, deck `docs/slides/clipboard-history.html` (approved 2026-11-03).
   - Brief note: save data safely on every exit path (tray Quit, Cmd+Q, Dock Quit, Windows logoff/WM_ENDSESSION), not only Dart's onQuit (reviewer note, 2026-11-03).
 - [ ] **M1.3 History picker and paste** — large (OS permissions, UI).
-  - Before start: ADR on macOS distribution channel (direct notarised vs Mac App Store) and App Sandbox, because synthetic paste and keystroke monitoring need Accessibility and are restricted in the sandbox (reviewer note, 2026-11-03).
+  - Done: ADR 0003 — direct notarised Mac download, App Sandbox on, PostEvent only (PM 2026-11-04).
+  - Design: `docs/design/history-picker.md`, UI spec `docs/ui/history-picker.md`, deck `docs/slides/history-picker.html` (approved 2026-11-04).
   - AC: a global shortcut (default Cmd+Shift+V / Ctrl+Shift+V, changeable) opens a picker over the current app.
   - AC: type to search; arrow keys and Enter paste the item into the app that was in focus; Esc closes.
   - AC: the picker works with keyboard only and with a screen reader (VoiceOver, Narrator).
   - AC: if the Mac Accessibility permission is missing, the app explains why it is needed and how to grant it.
+  - AC: Kusunga posts the paste keystroke only after confirming the app that had focus is in front again (up to 500 ms); otherwise, and for Windows admin windows, it copies the item and says "press ⌘V / Ctrl+V".
+  - AC: after pasting, the pasted item stays on the clipboard (PM 2026-11-04).
+  - AC: a shortcut taken by another app is reported and the user can choose another.
 - [ ] **M1.4 Saved snippets** — large (new data store, personal data).
   - AC: create, edit, delete and reorder snippets with a name, content and type (phone, email, link, address, other).
   - AC: snippets show in the picker in their own tab, and pinning a history item turns it into a snippet.
@@ -108,5 +113,8 @@ Needs its own design note and deck. Mobile cannot record clipboard history in th
 - Opt-in crash reports — not needed while the beta is small — trigger: > 200 active beta users — noted 2026-11-03 by lead
 - Lock Kusunga with Touch ID / Windows Hello — protects history at an unlocked computer — trigger: > 10 beta users ask, or the M2 vault ships — noted 2026-11-03 by lead
 - Rich text in history (keep formatting) — plain text covers the main use — trigger: > 20 requests — noted 2026-11-03 by lead
+- Hide picker previews while the screen is shared or recorded — trigger: ≥ 5 beta users ask, or the M2 vault ships — noted 2026-11-04 by lead
+- Mac App Store build — App Review risk for posting ⌘V (ADR 0003) — trigger: ≥ 50 requests for an App Store version, or > 20% of website visitors leave at the download step — noted 2026-11-04 by lead
+- Typo-tolerant picker search — trigger: ≥ 10 beta users report "can't find" in feedback — noted 2026-11-04 by lead
 - Sharing snippets with a team — not part of the personal use case — trigger: > 20 requests from teams — noted 2026-11-03 by lead
 - Refresh only the changed rows of the history list — the list reloads all rows (up to 2,000 characters each) after every copy, which is fine for 200 items — trigger: the list takes longer than 100 ms to refresh with 5,000 items, or idle CPU above 1% while copying — noted 2026-11-03 by developer

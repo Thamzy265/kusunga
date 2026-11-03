@@ -1,6 +1,6 @@
 # M1.3 History picker — UI spec
 
-Date: 2026-11-04 — Design note: `docs/design/history-picker.md` — Status: draft, waiting for PM
+Date: 2026-11-04 — Design note: `docs/design/history-picker.md` — Status: approved by PM 2026-11-04
 
 ## User and task
 
