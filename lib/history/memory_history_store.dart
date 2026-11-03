@@ -90,12 +90,32 @@ class MemoryHistoryStore implements HistoryStore {
 
   @override
   void restore(ClipRecord record) {
-    _items.removeWhere((e) => e.record.content == record.content);
-    final entry = _Entry(_nextId++, record);
+    checkContent(record.content);
+    var merged = record;
+    var id = _nextId;
+    final i = _items.indexWhere((e) => e.record.content == record.content);
+    if (i >= 0) {
+      // The same text was copied again meanwhile: keep the newer time and the
+      // first time, like the SQLite store.
+      final old = _items.removeAt(i);
+      id = old.id;
+      merged = ClipRecord(
+        content: record.content,
+        kind: old.record.kind,
+        createdAt: old.record.createdAt < record.createdAt
+            ? old.record.createdAt
+            : record.createdAt,
+        lastCopiedAt: old.record.lastCopiedAt > record.lastCopiedAt
+            ? old.record.lastCopiedAt
+            : record.lastCopiedAt,
+      );
+    } else {
+      _nextId++;
+    }
     final at = _items.indexWhere(
-      (e) => e.record.lastCopiedAt <= record.lastCopiedAt,
+      (e) => e.record.lastCopiedAt <= merged.lastCopiedAt,
     );
-    _items.insert(at < 0 ? _items.length : at, entry);
+    _items.insert(at < 0 ? _items.length : at, _Entry(id, merged));
     _trim();
   }
 

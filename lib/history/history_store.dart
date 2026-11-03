@@ -19,7 +19,7 @@ abstract interface class HistoryStore {
 
   /// Saves [content], or moves it to the top if it is already there, then
   /// trims to [limit]. All of it is one transaction. Returns the item id.
-  /// Throws [ArgumentError] for empty text or text over 1 MB.
+  /// Throws [ArgumentError] for empty text or text over 1 MiB of UTF-8.
   int insertOrBump(String content, ClipKind kind, int nowMs);
 
   /// Removes one item and returns it so it can be restored, or null.
@@ -42,7 +42,7 @@ abstract interface class HistoryStore {
 }
 
 void checkContent(String content) {
-  if (content.isEmpty || content.length > ClipItem.maxContentLength) {
+  if (content.isEmpty || isOverCap(content)) {
     throw ArgumentError.value(content.length, 'content.length');
   }
 }

@@ -17,10 +17,13 @@ void main() {
   runStoreContract('SqliteHistoryStore', () {
     final dir = Directory.systemTemp.createTempSync('kusunga_contract_');
     addTearDown(() => dir.deleteSync(recursive: true));
-    return SqliteHistoryStore.open(
+    final store = SqliteHistoryStore.open(
       path: '${dir.path}/kusunga.db',
       keyHex: _key,
     );
+    // Windows cannot delete an open file: close before the folder goes.
+    addTearDown(store.close);
+    return store;
   });
 
   group('SqliteHistoryStore on disk', () {

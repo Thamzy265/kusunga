@@ -21,6 +21,9 @@ String visibleText(String text) {
 
 bool _isInvisible(int r) =>
     (r >= 0x80 && r <= 0x9F) || // C1 controls
+    r == 0x2028 || // line separator
+    r == 0x2029 || // paragraph separator
+    (r >= 0xE0000 && r <= 0xE007F) || // tag characters (invisible text)
     r == 0x061C || // Arabic letter mark
     (r >= 0x200B && r <= 0x200F) || // zero width, LRM, RLM
     (r >= 0x202A && r <= 0x202E) || // bidi embeddings and overrides

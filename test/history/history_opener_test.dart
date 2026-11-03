@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+import 'package:kusunga/history/history_store.dart';
 import 'package:kusunga/history/clip_item.dart';
 import 'package:kusunga/history/history_opener.dart';
 import 'package:kusunga/history/memory_history_store.dart';
@@ -16,27 +18,40 @@ void main() {
   late FakeKeyStore keys;
   late FakeLog log;
 
+  final stores = <HistoryStore>[];
+
   Future<OpenedHistory> open({
     bool Function(dynamic)? cipherActive,
     int seed = 1,
-  }) => openHistory(
-    keys: keys,
-    directory: dir.path,
-    log: log,
-    random: Random(seed),
-    today: () => DateTime(2026, 11, 3),
-    cipherActive: cipherActive,
-  );
+  }) async {
+    final opened = await openHistory(
+      keys: keys,
+      directory: dir.path,
+      log: log,
+      random: Random(seed),
+      today: () => DateTime(2026, 11, 3),
+      cipherActive: cipherActive,
+    );
+    stores.add(opened.store);
+    return opened;
+  }
 
   List<String> files() =>
-      dir.listSync().map((e) => e.path.split('/').last).toList()..sort();
+      dir.listSync().map((e) => p.basename(e.path)).toList()..sort();
 
   setUp(() {
     dir = Directory.systemTemp.createTempSync('kusunga_open_');
     keys = FakeKeyStore();
     log = FakeLog();
   });
-  tearDown(() => dir.deleteSync(recursive: true));
+  tearDown(() {
+    // Windows cannot delete an open file: close every store first.
+    for (final s in stores) {
+      s.close();
+    }
+    stores.clear();
+    dir.deleteSync(recursive: true);
+  });
 
   test('first run makes a 256-bit key, stores it and opens the file', () async {
     final opened = await open();

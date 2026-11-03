@@ -22,7 +22,7 @@ const kMigrations = <Migration>[
       '''
 CREATE TABLE clip_items (
   id INTEGER PRIMARY KEY,
-  content TEXT NOT NULL CHECK (length(content) BETWEEN 1 AND 1048576),
+  content TEXT NOT NULL CHECK (length(CAST(content AS BLOB)) BETWEEN 1 AND 1048576),
   kind TEXT NOT NULL CHECK (kind IN ('text', 'link')),
   content_hash BLOB NOT NULL UNIQUE,
   created_at INTEGER NOT NULL,

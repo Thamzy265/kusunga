@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// What kind of text an item is. Images, files and rich text are not kept.
 enum ClipKind {
   text,
@@ -23,7 +25,7 @@ class ClipItem {
   /// Longest text kept in the list view, in UTF-16 code units.
   static const previewLength = 2000;
 
-  /// Longest text the store accepts (1 MB of characters).
+  /// Longest text the store accepts: 1 MiB of UTF-8 bytes.
   static const maxContentLength = 1048576;
 
   final int id;
@@ -51,11 +53,21 @@ class ClipRecord {
   final int lastCopiedAt;
 }
 
-/// The part of [content] shown in the list. Never cuts a surrogate pair.
-String previewOf(String content) {
-  if (content.length <= ClipItem.previewLength) return content;
-  var end = ClipItem.previewLength;
-  final last = content.codeUnitAt(end - 1);
+/// The first [units] UTF-16 units of [text], never ending in half a
+/// surrogate pair.
+String cutUnits(String text, int units) {
+  if (text.length <= units) return text;
+  var end = units;
+  final last = text.codeUnitAt(end - 1);
   if (last >= 0xD800 && last <= 0xDBFF) end--;
-  return content.substring(0, end);
+  return text.substring(0, end);
 }
+
+/// The part of [content] shown in the list.
+String previewOf(String content) => cutUnits(content, ClipItem.previewLength);
+
+/// True if [text] is over the 1 MiB UTF-8 cap. A text with more UTF-16 units
+/// than the cap has at least that many bytes, so it is not even encoded.
+bool isOverCap(String text) =>
+    text.length > ClipItem.maxContentLength ||
+    utf8.encode(text).length > ClipItem.maxContentLength;

@@ -227,28 +227,26 @@ void main() {
           expect(log.codes, [LogCode.clipboardTooLarge]);
         });
 
-        test('two characters wide emoji count by UTF-16 units, as native '
-            'does (524,288 fit, 524,289 do not)', () {
-          source.copy('\u{1F600}' * 524288);
+        // Lead decision (M1.2 fixes): the cap is 1 MiB of UTF-8 bytes, not
+        // characters, so the design's 50 MB worst case holds. These two tests
+        // assumed characters; they now count bytes.
+        test('4-byte emoji: 262,144 fit (1 MiB of UTF-8), 262,145 do not', () {
+          source.copy('\u{1F600}' * 262144);
           expect(store.count, 1);
-          source.copy('\u{1F601}' * 524289);
+          source.copy('\u{1F601}' * 262145);
           expect(store.count, 1);
           expect(log.codes, [LogCode.clipboardTooLarge]);
         });
 
-        test(
-          'three-byte characters: the limit counts characters, not bytes',
-          () {
-            // Regression lock. 1,048,576 euro signs are 3 MiB in UTF-8; the
-            // limit is in characters (design Data table), the same on the
-            // Mac and Windows sides. If this is changed to bytes it must be
-            // changed in all three places at once.
-            final big = '€' * ClipItem.maxContentLength;
-            source.copy(big);
-            expect(store.count, 1);
-            expect(store.contentOf(store.list().single.id), big);
-          },
-        );
+        test('3-byte characters: 349,525 fit, 349,526 do not', () {
+          final fits = '€' * 349525;
+          source.copy(fits);
+          expect(store.count, 1);
+          expect(store.contentOf(store.list().single.id), fits);
+          source.copy('€' * 349526);
+          expect(store.count, 1);
+          expect(log.codes, [LogCode.clipboardTooLarge]);
+        });
 
         test('a huge copy leaves the history and the log untouched', () {
           source.copy('keep me');
