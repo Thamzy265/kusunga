@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-04 — M1.3 History picker and paste — Reviewer: approve with notes
+- Changed: D1, W3, W4 fixed (0c37d35, 4147f9b). CI run 41726239937 green on macOS and Windows. All 12 findings across the rounds fixed (1 withdrawn). Note: a maximised history window comes back at normal size when the picker closes without activating Kusunga (accepted trade-off).
+- Gates: developer pass · tester pass · reviewer approve with notes · QA open · PM merge waiting
+- Open findings: none
+- Decisions: none
+- Blockers: QA needs the PM for the keychain prompt and to allow pasting (System Settings) on the real app; Windows runtime has no machine (CI only)
+
 ## 2026-11-04 — M1.3 History picker and paste — Reviewer re-check: block
 - Changed: reviewer confirmed the earlier findings fixed (each repro fails on old code). CI run 41723751606 green on both OSes; the new Windows bridge compiles and links.
 - Gates: developer fixing · tester pass · reviewer block · QA open · PM merge waiting
