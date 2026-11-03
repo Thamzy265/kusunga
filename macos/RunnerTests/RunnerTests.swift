@@ -702,6 +702,47 @@ class ClipboardPollerRetryTests: XCTestCase {
     XCTAssertNil(events[0]["text"])
   }
 
+  func testTypesThatChangeOnTheConfirmingTickAreReheldAndSentOneTickLater() {
+    pasteboard.copy(nil, types: [textType])
+    poller.tick()  // no text yet
+    pasteboard.text = "with html later"
+    poller.tick()  // read on the retry, held
+    pasteboard.typeIdentifiers = [textType, "public.html"]  // a writer adds a type
+    poller.tick()  // confirming tick: types moved, no marker: hold again
+    XCTAssertTrue(events.isEmpty)
+    poller.tick()  // now unchanged: sent
+    XCTAssertEqual(events.count, 1)
+    XCTAssertEqual(events[0]["text"] as? String, "with html later")
+  }
+
+  func testMarkerThatAppearsWhileTheHeldCopyIsReheldIsConcealed() {
+    pasteboard.copy(nil, types: [textType])
+    poller.tick()
+    pasteboard.text = "hunter2"
+    poller.tick()  // held
+    pasteboard.typeIdentifiers = [textType, "public.html"]
+    poller.tick()  // reheld
+    pasteboard.typeIdentifiers = [textType, "public.html", "org.nspasteboard.TransientType"]
+    poller.tick()
+    XCTAssertEqual(events.count, 1)
+    XCTAssertEqual(events[0]["type"] as? String, "concealed")
+    XCTAssertNil(events[0]["text"])
+  }
+
+  func testTypesThatKeepChangingGiveUpAtTheBound() {
+    pasteboard.copy(nil, types: [textType])
+    poller.tick()
+    pasteboard.text = "never settles"
+    for i in 0..<(ClipboardPoller.maxTicksToWait + 4) {
+      pasteboard.typeIdentifiers = [textType, "public.x\(i)"]
+      poller.tick()
+    }
+    XCTAssertTrue(events.isEmpty)
+    pasteboard.typeIdentifiers = [textType]
+    for _ in 0..<3 { poller.tick() }
+    XCTAssertTrue(events.isEmpty, "gave up; nothing arrives late")
+  }
+
   func testWhenAccessIsAskOrDenyACopyIsReadOnlyOnce() {
     var reads = 0
     let p = ClipboardPoller(pasteboard: pasteboard, mayRetry: { false }) { _ in reads += 1 }

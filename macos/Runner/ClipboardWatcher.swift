@@ -96,9 +96,25 @@ final class ClipboardPoller {
 
     if let held = held {
       // The confirming tick: nothing moved since the text was read, so send it.
-      waiting = false
+      if held.types == types {
+        waiting = false
+        self.held = nil
+        send(held.text)
+        return
+      }
+      // The types changed without a secret marker (a writer added a type):
+      // read again and confirm one tick later, within the same bound.
       self.held = nil
-      if held.types == types { send(held.text) }
+      ticksLeft -= 1
+      if ticksLeft <= 0 {
+        waiting = false
+        return
+      }
+      if types.contains(ClipboardPolicy.plainTextType) {
+        let text = pasteboard.plainString()
+        if pasteboard.changeCount != count { return }
+        if let text = text { self.held = (text, types) }
+      }
       return
     }
 
