@@ -36,6 +36,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
   static const _footerEvery = Duration(seconds: 2);
 
   final _nodes = <int, FocusNode>{};
+
+  /// A node that is always there, inside the Undo shortcut. After the last row
+  /// is deleted the focus goes here, so Cmd/Ctrl+Z still works.
+  final _screenFocus = FocusNode(
+    debugLabel: 'history screen',
+    skipTraversal: true,
+  );
   final _seen = <int>{};
   final _newIds = <int>{};
   final _messenger = GlobalKey<ScaffoldMessengerState>();
@@ -69,6 +76,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _clock?.cancel();
     _footerTimer?.cancel();
     _scroll.dispose();
+    _screenFocus.dispose();
     for (final n in _nodes.values) {
       n.dispose();
     }
@@ -174,6 +182,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     controller?.closed.then((_) {
       if (identical(_pendingUndo, record)) _pendingUndo = null;
     });
+    if (neighbour == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _screenFocus.requestFocus();
+      });
+    }
     if (hadFocus && neighbour != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _nodes[neighbour]?.requestFocus();
@@ -304,65 +317,68 @@ class _HistoryScreenState extends State<HistoryScreen> {
               onUndo: _undo,
             ),
           },
-          child: Scaffold(
-            backgroundColor: t.surface,
-            body: SafeArea(
-              child: Padding(
-                padding: EdgeInsets.all(KusungaTokens.space4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Header, banners and the setup card scroll with the list, so
-                    // nothing is cut off at 200% text on a small window.
-                    Expanded(
-                      child: CustomScrollView(
-                        controller: _scroll,
-                        slivers: [
-                          SliverToBoxAdapter(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                _Header(
-                                  service: _service,
-                                  count: items.length,
-                                  onClear: _confirmClear,
-                                  confirmLower: _confirmLower,
-                                  onSaveFailed: () => _toast(
-                                    "Couldn't save that number. Try again.",
+          child: Focus(
+            focusNode: _screenFocus,
+            child: Scaffold(
+              backgroundColor: t.surface,
+              body: SafeArea(
+                child: Padding(
+                  padding: EdgeInsets.all(KusungaTokens.space4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Header, banners and the setup card scroll with the list, so
+                      // nothing is cut off at 200% text on a small window.
+                      Expanded(
+                        child: CustomScrollView(
+                          controller: _scroll,
+                          slivers: [
+                            SliverToBoxAdapter(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _Header(
+                                    service: _service,
+                                    count: items.length,
+                                    onClear: _confirmClear,
+                                    confirmLower: _confirmLower,
+                                    onSaveFailed: () => _toast(
+                                      "Couldn't save that number. Try again.",
+                                    ),
                                   ),
-                                ),
-                                SizedBox(height: KusungaTokens.space3),
-                                for (final b in _service.banners)
-                                  _Banner(
-                                    banner: b,
-                                    onDismiss: () => _service.dismiss(b),
-                                  ),
-                                if (setupCard) _SetupCard(service: _service),
-                                if (widget.topSlot != null) widget.topSlot!,
-                              ],
+                                  SizedBox(height: KusungaTokens.space3),
+                                  for (final b in _service.banners)
+                                    _Banner(
+                                      banner: b,
+                                      onDismiss: () => _service.dismiss(b),
+                                    ),
+                                  if (setupCard) _SetupCard(service: _service),
+                                  if (widget.topSlot != null) widget.topSlot!,
+                                ],
+                              ),
                             ),
-                          ),
-                          if (items.isEmpty)
-                            const SliverFillRemaining(
-                              hasScrollBody: false,
-                              child: _EmptyState(),
-                            )
-                          else
-                            _list(items, setupCard),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: KusungaTokens.space2),
-                    Semantics(
-                      liveRegion: true,
-                      child: Text(
-                        _footer,
-                        style: KusungaTokens.caption.copyWith(
-                          color: t.textMuted,
+                            if (items.isEmpty)
+                              const SliverFillRemaining(
+                                hasScrollBody: false,
+                                child: _EmptyState(),
+                              )
+                            else
+                              _list(items, setupCard),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
+                      SizedBox(height: KusungaTokens.space2),
+                      Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          _footer,
+                          style: KusungaTokens.caption.copyWith(
+                            color: t.textMuted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
