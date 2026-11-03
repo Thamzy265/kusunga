@@ -74,7 +74,7 @@ Future<void> main() async {
         : 'assets/tray/tray_icon.png',
     onOpen: () => unawaited(window.show()),
     // Tray Quit closes the history first, then asks native to end the app.
-    onQuit: () => unawaited(quit.quitFromTray()),
+    onQuit: () => unawaited(quit.quitFromTray().catchError((Object _) {})),
   );
   unawaited(window.start());
   unawaited(tray.start());

@@ -40,7 +40,11 @@ class WindowService {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
-    await _closes?.cancel();
-    await port.dispose();
+    try {
+      await _closes?.cancel();
+      await port.dispose();
+    } catch (error) {
+      debugPrint('Kusunga: window cleanup failed');
+    }
   }
 }

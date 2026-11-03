@@ -37,9 +37,22 @@ class QuitFlow {
   Future<void> quitFromTray() => _quitting ??= _quit();
 
   Future<void> _quit() async {
-    await stopTray();
-    await stopWindow();
+    // A tray or window that fails to stop must not keep the history open or
+    // stop the app from quitting.
+    try {
+      await stopTray();
+    } catch (_) {}
+    try {
+      await stopWindow();
+    } catch (_) {}
     await flush();
-    await lifecycle.quit();
+    try {
+      await lifecycle.quit();
+    } catch (_) {
+      // Native could not quit: forget this attempt so choosing Quit again
+      // tries again.
+      _quitting = null;
+      rethrow;
+    }
   }
 }
