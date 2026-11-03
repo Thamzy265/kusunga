@@ -7,7 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 dir="$(mktemp -d)"
-for name in clipboard_policy_test picker_policy_test; do
+for name in clipboard_policy_test picker_policy_test picker_policy_edge_test; do
   # shellcheck disable=SC2086
   ${CXX:-clang++} -std=c++17 -Wall -Wextra -Werror "windows/runner/$name.cpp" -o "$dir/$name"
   "$dir/$name"
