@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kusunga Picker and Paste</title>
+<!--
+  Deck template: one self-contained file. No external scripts, fonts or trackers.
+  Each <section class="slide"> is one slide. Keys: → ↓ Space PageDown = next; ← ↑ PageUp = back;
+  Home/End = first/last. URL hash (#3) links to a slide. Print (Cmd/Ctrl+P) gives one slide per page.
+-->
+<style>
+  :root {
+    --bg: #f7f6f2; --surface: #ffffff; --text: #1d1d1b; --muted: #5f5e58;
+    --line: #dedcd3; --accent: #c2512f; --accent-soft: #f6e3dc;
+    --ok: #2f7a4f; --ok-soft: #dcefe3; --warn: #9a6a00; --warn-soft: #f7ecd2;
+    --no: #a33a3a; --no-soft: #f6dcdc;
+    --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161614; --surface: #201f1c; --text: #ecebe6; --muted: #a8a69e;
+      --line: #36352f; --accent: #e8805f; --accent-soft: #3a2620;
+      --ok: #6cc290; --ok-soft: #1d3326; --warn: #e0b04d; --warn-soft: #3a3020;
+      --no: #e57f7f; --no-soft: #3d2222;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161614; --surface: #201f1c; --text: #ecebe6; --muted: #a8a69e;
+    --line: #36352f; --accent: #e8805f; --accent-soft: #3a2620;
+    --ok: #6cc290; --ok-soft: #1d3326; --warn: #e0b04d; --warn-soft: #3a3020;
+    --no: #e57f7f; --no-soft: #3d2222;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.45; }
+
+  .slide { display: none; min-height: 100vh; padding: clamp(24px, 6vh, 64px) clamp(16px, 7vw, 96px) 88px; flex-direction: column; justify-content: center; }
+  .slide.active { display: flex; }
+  .slide > .inner { width: 100%; max-width: 1080px; margin: 0 auto; }
+
+  .kicker { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin: 0 0 10px; }
+  h1 { font-size: clamp(34px, 6vw, 64px); line-height: 1.05; margin: 0 0 18px; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(26px, 4vw, 40px); line-height: 1.12; margin: 0 0 22px; letter-spacing: -0.01em; }
+  h3 { font-size: 17px; margin: 0 0 8px; }
+  p, li { font-size: clamp(16px, 1.6vw, 20px); }
+  p.lead { font-size: clamp(18px, 2.1vw, 24px); color: var(--muted); max-width: 46ch; }
+  ul { margin: 0; padding-left: 1.2em; } li { margin: 6px 0; }
+  .small { font-size: 14px; color: var(--muted); }
+  code { font-family: var(--mono); font-size: .9em; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @media (max-width: 760px) { .g2, .g3 { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  .card p, .card li { font-size: 16px; margin: 4px 0; }
+  .card.ok { background: var(--ok-soft); border-color: transparent; }
+  .card.warn { background: var(--warn-soft); border-color: transparent; }
+  .card.no { background: var(--no-soft); border-color: transparent; }
+  .card.accent { background: var(--accent-soft); border-color: transparent; }
+  .tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); margin-right: 6px; }
+
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 14px; }
+  .flow .step { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font-size: 16px; }
+  .flow .step b { color: var(--accent); }
+  .flow .arrow { color: var(--muted); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 16px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+  .table-wrap { overflow-x: auto; }
+
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--bg); border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+  .bar button { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; min-width: 44px; min-height: 36px; }
+  .bar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .bar .title { margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .progress { position: fixed; left: 0; top: 0; height: 3px; background: var(--accent); transition: width .2s ease; }
+
+  @media print {
+    .bar, .progress { display: none; }
+    .slide { display: flex !important; min-height: 0; height: 100vh; page-break-after: always; break-after: page; padding: 40px 56px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .progress { transition: none; } }
+</style>
+</head>
+<body>
+<div class="progress" id="progress" aria-hidden="true"></div>
+<main id="deck">
+
+<section class="slide" aria-label="Title">
+  <div class="inner">
+    <p class="kicker">Kusunga · M1.3 Picker and paste · 4 November 2026</p>
+    <h1>One shortcut to paste anything you copied</h1>
+    <p class="lead">Press ⌘⇧V in any app, type a few letters, press Enter, and it's pasted where you were typing.</p>
+    <p class="small">Use the arrow keys to move between slides · Print to save as PDF</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="Problem and users">
+  <div class="inner">
+    <p class="kicker">Problem and users</p>
+    <h2>Today it takes five steps to paste from history</h2>
+    <div class="grid g2">
+      <div class="card"><h3>Who</h3><p>Anyone typing in any app on Mac or Windows who copied something earlier.</p></div>
+      <div class="card"><h3>The job they are doing</h3><p>Paste an older copy without leaving the app they're in.</p></div>
+      <div class="card warn"><h3>Today's pain</h3><p>Open Kusunga, find the item, click Copy, go back, press ⌘V.</p></div>
+      <div class="card ok"><h3>Success measure</h3><p>Shortcut to pasted in under 3 seconds, and never into the wrong app.</p></div>
+    </div>
+    <p class="small">Plan item M1.3. Design: docs/design/history-picker.md · Screen spec: docs/ui/history-picker.md · ADR 0003.</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="Scope for this phase">
+  <div class="inner">
+    <p class="kicker">Scope for this step</p>
+    <h2>The picker, paste, and a safe fallback</h2>
+    <div class="grid g2">
+      <div class="card ok"><h3>In M1.3</h3><ul><li>Shortcut opens a picker over any app (you can change it)</li><li>Type to search; Enter or ⌘1–9 pastes</li><li>Keyboard only, VoiceOver and Narrator</li><li>If pasting isn't allowed: copies it and says "press ⌘V"</li><li>"Open picker" in the menu-bar menu</li></ul></div>
+      <div class="card warn"><h3>Not in this step</h3><ul><li>Snippets in the picker: M1.4 · Typed shortcuts: M1.5</li><li>Hide previews while screen sharing, trigger: ≥ 5 beta users ask or M2 vault ships</li><li>Mac App Store version, trigger: ≥ 50 requests</li><li>Typo-tolerant search, trigger: ≥ 10 "can't find" reports</li></ul></div>
+    </div>
+    <p class="small">All slides apply.</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="Options">
+  <div class="inner">
+    <p class="kicker">Options</p>
+    <h2>How to ship the Mac app, and how to build the picker</h2>
+    <div class="grid g2">
+      <div class="card"><h3>Mac: direct download, sandbox kept on (A)</h3><ul><li>Paste and typed shortcuts work, no App Store review risk</li><li>Data stays where it is; sandbox still limits damage</li><li>We handle updates ourselves later</li></ul></div>
+      <div class="card"><h3>Mac: App Store (B)</h3><ul><li>Easy to find and install</li><li>Apple has rejected clipboard managers that paste for you; we might have to make you press ⌘V</li><li>Typed shortcuts at risk too</li></ul></div>
+    </div>
+    <div class="card accent" style="margin-top:14px"><h3>Recommendation</h3><p>Direct download (A), notarised by Apple, with the sandbox on (ADR 0003). The picker reuses Kusunga's one window in a small "picker mode", so there's still only one connection to your encrypted history.</p></div>
+  </div>
+</section>
+
+<section class="slide" aria-label="Data and privacy">
+  <div class="inner">
+    <p class="kicker">Data and privacy</p>
+    <h2>Nothing new is stored about what you copy</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Data</th><th>Purpose</th><th>Retention</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Picker shortcut, paste setting</td><td>Your settings</td><td>Until app data is deleted</td><td>Not personal</td></tr>
+        <tr><td>Which app had focus</td><td>Paste back into it</td><td>Only while the picker is open</td><td>Never stored or logged; no window titles read</td></tr>
+      </tbody>
+    </table></div>
+    <div class="card warn" style="margin-top:14px"><h3>Needs PM</h3><p>Lawful basis: n/a — nothing leaves your device · DPIA: no new triggers; your short DPIA before the beta stands · New permission: macOS "send keystrokes" (listed under Accessibility), asked only when you click "Allow pasting"</p></div>
+  </div>
+</section>
+
+<section class="slide" aria-label="Security">
+  <div class="inner">
+    <p class="kicker">Security</p>
+    <h2>Paste only into the app you were using</h2>
+    <div class="grid g3">
+      <div class="card"><h3>Trust boundaries</h3><ul><li>Other apps receiving our ⌘V</li><li>The macOS keystroke permission</li><li>The clipboard after we paste</li><li>Screen sharing while the picker shows</li></ul></div>
+      <div class="card no"><h3>Abuse cases</h3><ul><li>An app grabs focus to receive the paste</li><li>An app fakes Kusunga's "this is mine" marker</li><li>Someone watches the picker on a shared screen</li><li>An admin window is targeted</li></ul></div>
+      <div class="card ok"><h3>Mitigations</h3><ul><li>Paste only after confirming your app is in front, else copy only</li><li>Marker only moves items already in history</li><li>One-line previews; nothing until you press the shortcut</li><li>Never send keys to admin windows (Windows)</li></ul></div>
+    </div>
+    <p class="small">Kusunga never asks for the permission to read other apps' screens. Apple DTS: posting key events works in the sandbox (Developer Forums 820594, March 2026).</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="Risks">
+  <div class="inner">
+    <p class="kicker">Risks</p>
+    <h2>The main risks</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td>⌘⇧V is already "Paste and Match Style" in many Mac apps</td><td>That shortcut does Kusunga's picker instead while Kusunga runs</td><td>Kusunga pastes plain text anyway; you can change the shortcut (decision 2)</td></tr>
+        <tr><td>The macOS permission asks you each new unsigned test build</td><td>QA rounds need you once per build</td><td>One build per QA round; goes away with signed builds (M1.9)</td></tr>
+        <tr><td>Focus doesn't return in time</td><td>Paste could land in the wrong place</td><td>Wait up to 0.5 s and confirm; otherwise copy only and tell you</td></tr>
+        <tr><td>GitHub Mac checks keep getting cancelled</td><td>No Mac CI evidence</td><td>Switch to a pinned macos-15 machine type in this step</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<section class="slide" aria-label="Plan and how you'll check it">
+  <div class="inner">
+    <p class="kicker">Plan and how you'll check it</p>
+    <h2>How it gets built</h2>
+    <div class="flow">
+      <span class="step"><b>1</b> Shortcut on Mac and Windows</span><span class="arrow">→</span>
+      <span class="step"><b>2</b> Picker mode and search</span><span class="arrow">→</span>
+      <span class="step"><b>3</b> Paste back, with fallback</span><span class="arrow">→</span>
+      <span class="step"><b>4</b> Test, review, QA</span>
+    </div>
+    <div class="card accent"><h3>How we will check it</h3><ul><li>Tests: search speed at 5,000 items, keyboard paths, screen-reader labels, focus checks, shortcut conflicts, admin-window refusal (Windows)</li><li>QA on the real Mac app: paste into TextEdit, a browser and Terminal; timing; the "press ⌘V" fallback; screenshots</li><li>CI on Mac and Windows</li><li>What only you can check: clicking "Allow pasting" and turning Kusunga on in System Settings; VoiceOver; whether it feels fast</li></ul></div>
+  </div>
+</section>
+
+<section class="slide" aria-label="Decisions needed">
+  <div class="inner">
+    <p class="kicker">Decisions needed</p>
+    <h2>4 decisions for you</h2>
+    <div class="grid g2">
+      <div class="card warn"><h3>1. How to ship the Mac app</h3><p>Options: direct download (notarised, sandbox on), or Mac App Store</p><p><b>Recommendation:</b> direct download, so pasting for you works without App Store risk</p></div>
+      <div class="card warn"><h3>2. Default picker shortcut</h3><p>Options: ⌘⇧V / Ctrl+Shift+V (familiar, replaces "paste as plain text"), or ⌥⌘V / Ctrl+Alt+V (free, less familiar)</p><p><b>Recommendation:</b> ⌘⇧V / Ctrl+Shift+V, because Kusunga pastes plain text anyway and you can change it</p></div>
+      <div class="card warn"><h3>3. After pasting, what's on the clipboard?</h3><p>Options: the pasted item stays on the clipboard, or Kusunga puts back what was there before</p><p><b>Recommendation:</b> the pasted item stays — simpler and what most people expect</p></div>
+      <div class="card warn"><h3>4. Approve the design and screen spec</h3><p>Options: approve, or tell me what to change</p><p><b>Recommendation:</b> approve, so the developer can start</p></div>
+    </div>
+    <p class="small">Assumed unless you say otherwise: the picker opens near the mouse pointer; the CI Mac job moves to the macos-15 machine type.</p>
+  </div>
+</section>
+
+</main>
+
+<nav class="bar" aria-label="Slide controls">
+  <span class="title" id="title">Picker and paste</span>
+  <span id="count" aria-live="polite"></span>
+  <button type="button" id="prev" aria-label="Previous slide">←</button>
+  <button type="button" id="next" aria-label="Next slide">→</button>
+  <button type="button" id="theme" aria-label="Switch light or dark theme">◐</button>
+</nav>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var i = 0;
+  function fromHash() {
+    var n = parseInt(location.hash.slice(1), 10);
+    return isNaN(n) ? 0 : Math.min(Math.max(n - 1, 0), slides.length - 1);
+  }
+  function show(n) {
+    i = Math.min(Math.max(n, 0), slides.length - 1);
+    slides.forEach(function (s, k) { s.classList.toggle('active', k === i); });
+    document.getElementById('count').textContent = (i + 1) + ' / ' + slides.length;
+    document.getElementById('progress').style.width = ((i + 1) / slides.length * 100) + '%';
+    document.getElementById('title').textContent = slides[i].getAttribute('aria-label') || document.title;
+    if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', '#' + (i + 1));
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.target.closest && e.target.closest('input, textarea')) return;
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].indexOf(e.key) >= 0) { e.preventDefault(); show(i + 1); }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp'].indexOf(e.key) >= 0) { e.preventDefault(); show(i - 1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(slides.length - 1);
+  });
+  document.getElementById('prev').addEventListener('click', function () { show(i - 1); });
+  document.getElementById('next').addEventListener('click', function () { show(i + 1); });
+  document.getElementById('theme').addEventListener('click', function () {
+    var root = document.documentElement;
+    var dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = dark ? 'light' : 'dark';
+  });
+  window.addEventListener('hashchange', function () { show(fromHash()); });
+  show(fromHash());
+})();
+</script>
+</body>
+</html>
