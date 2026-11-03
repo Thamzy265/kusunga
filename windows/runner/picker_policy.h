@@ -153,8 +153,11 @@ inline Rect PickerFrame(Rect work, double scale) {
   double w = kPickerWidth;
   if (screen_w < 800) w = std::max(kMinWidth, screen_w * 0.9);
   w = std::min(w, screen_w);
-  const double h =
-      std::max(kMinHeight, std::min({kPickerHeight, screen_h * 0.8, screen_h}));
+  // Never taller than the screen, even when the screen is shorter than the
+  // minimum height (the list scrolls).
+  const double h = std::min(
+      screen_h,
+      std::max(kMinHeight, std::min({kPickerHeight, screen_h * 0.8, screen_h})));
   const int width = static_cast<int>(std::lround(w * scale));
   const int height = static_cast<int>(std::lround(h * scale));
   const int left = work.left + (work.Width() - width) / 2;
@@ -258,7 +261,7 @@ bool WaitUntil(PastePlatform& p, int limit_ms, Condition condition) {
 // Write the text, hide the picker, bring the remembered window back, confirm
 // it is in front (up to 500 ms), and only then send Ctrl+V: not if the window
 // is an administrator window (or its level is unknown), and not before the
-// picker's modifier keys are released (up to 300 ms). The focus is checked
+// picker's modifier keys are released (up to 300 ms, otherwise copy only). The focus is checked
 // again right before sending. Never sends into our own window or into any
 // window that is not in front.
 inline PasteResult RunPaste(PastePlatform& p, const std::string& text,
@@ -283,7 +286,11 @@ inline PasteResult RunPaste(PastePlatform& p, const std::string& text,
       break;
   }
 
-  WaitUntil(p, kModifierTimeoutMs, [&] { return !p.ModifiersDown(); });
+  // A modifier still down after 300 ms: the app would see Ctrl+Shift+V, so no
+  // keys are sent. The text stays on the clipboard (lead decision).
+  if (!WaitUntil(p, kModifierTimeoutMs, [&] { return !p.ModifiersDown(); })) {
+    return PasteResult::kCopyOnly;
+  }
   if (p.Foreground() != target) return PasteResult::kFocusTimeout;
   p.SendPaste();
   return PasteResult::kPasted;

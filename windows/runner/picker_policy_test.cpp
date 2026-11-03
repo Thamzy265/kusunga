@@ -182,6 +182,10 @@ int main() {
     Rect on_second = PickerFrame(second, 1.0);
     CHECK(on_second.left + on_second.Width() / 2 == (second.left + second.right) / 2);
 
+    Rect tiny{0, 0, 1000, 200};  // shorter than the 240 point minimum
+    Rect t = PickerFrame(tiny, 1.0);
+    CHECK(t.Height() <= 200 && t.top >= 0 && t.bottom <= 200);
+
     Rect short_screen{0, 0, 1000, 400};
     Rect sh = PickerFrame(short_screen, 1.0);
     CHECK(sh.Height() <= 400 && sh.Height() >= 240);
@@ -272,11 +276,18 @@ int main() {
     CHECK(RunPaste(p, "x", 200, true) == PasteResult::kPasted);
     CHECK(p.SentAt() >= 150);
   }
-  {  // held for ever: at most 300 ms
+  {  // held for ever: wait 300 ms, then copy only (lead decision: no keys
+     // are sent while a modifier is still down)
     FakePlatform p;
     p.modifiers_until_ms = INT32_MAX;
+    CHECK(RunPaste(p, "x", 200, true) == PasteResult::kCopyOnly);
+    CHECK(!p.Sent());
+    CHECK(p.now >= 300 && p.now <= 20 + 300 + 30);
+  }
+  {  // released at the last moment: still pasted
+    FakePlatform p;
+    p.modifiers_until_ms = 20 + 290;
     CHECK(RunPaste(p, "x", 200, true) == PasteResult::kPasted);
-    CHECK(p.SentAt() >= 300 && p.SentAt() <= 20 + 300 + 30);
   }
   {  // focus stolen while waiting: never send
     FakePlatform p;
