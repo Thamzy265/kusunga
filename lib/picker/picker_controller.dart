@@ -51,11 +51,10 @@ enum ToastKind { copied, copiedNoPermission, copiedElevated, copyFailed }
 class PickerController extends ChangeNotifier {
   PickerController({
     required this.port,
-    required ErrorLog log,
+    required this._log,
     required this.isMac,
     this.toastDuration = const Duration(seconds: 4),
-  }) : _log = log,
-       _shortcut = PickerShortcut.defaultFor(isMac: isMac);
+  }) : _shortcut = PickerShortcut.defaultFor(isMac: isMac);
 
   final PickerPort port;
   final ErrorLog _log;

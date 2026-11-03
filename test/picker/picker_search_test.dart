@@ -90,7 +90,7 @@ void main() {
   });
 
   test('control and invisible characters are shown, so can be searched', () {
-    final items = [item(1, 'a‮b')];
+    final items = [item(1, 'a\u202Eb')];
     expect(PickerSearch.display(items.single.preview), contains('[U+202E]'));
   });
 
