@@ -3,53 +3,24 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/tray/tray_service.dart';
 
-class _Port implements TrayPort {
-  final clicks = StreamController<String>.broadcast();
-  final calls = <String>[];
-  Object? failOn; // 'icon' | 'tooltip' | 'menu' | 'destroy'
-
-  @override
-  Stream<String> get menuItemClicks => clicks.stream;
-
-  @override
-  Future<void> setIcon(String path) async {
-    calls.add('icon');
-    if (failOn == 'icon') throw StateError('icon failed');
-  }
-
-  @override
-  Future<void> setToolTip(String text) async {
-    calls.add('tooltip');
-    if (failOn == 'tooltip') throw StateError('tooltip failed');
-  }
-
-  @override
-  Future<void> setMenu(List<TrayMenuEntry> entries) async {
-    calls.add('menu');
-    if (failOn == 'menu') throw StateError('menu failed');
-  }
-
-  @override
-  Future<void> destroy() async {
-    calls.add('destroy');
-    if (failOn == 'destroy') throw StateError('destroy failed');
-  }
-
-  @override
-  Future<void> dispose() async => calls.add('dispose');
-}
+import 'fake_tray_port.dart';
 
 Future<void> _pump() => Future<void>.delayed(Duration.zero);
 
 void main() {
-  late _Port port;
+  late FakeTrayPort port;
   late int quits;
   late TrayService service;
 
   setUp(() {
-    port = _Port();
+    port = FakeTrayPort();
     quits = 0;
-    service = TrayService(port: port, iconPath: 'i.png', onQuit: () => quits++);
+    service = TrayService(
+      port: port,
+      iconPath: 'i.png',
+      onOpen: () {},
+      onQuit: () => quits++,
+    );
   });
 
   test('start called twice still quits only once per click', () async {
@@ -114,7 +85,7 @@ void main() {
 
       await service.start();
 
-      expect(port.calls.last, 'destroy');
+      expect(port.calls, contains('destroy'));
     });
   }
 
@@ -122,8 +93,20 @@ void main() {
     port.failOn = 'icon';
     await service.start();
 
-    expect(port.calls, ['icon', 'destroy']);
+    expect(port.calls, ['icon', 'destroy', 'dispose']);
   });
+
+  test(
+    'C4: a failed start disposes the port (no retry on the same port)',
+    () async {
+      port.failOn = 'menu';
+      await service.start();
+      await service.start();
+
+      expect(port.count('dispose'), 1);
+      expect(port.count('menu'), 1, reason: 'a failed start is final');
+    },
+  );
 
   test('failure in setMenu leaves no Quit listener', () async {
     port.failOn = 'menu';
@@ -136,22 +119,48 @@ void main() {
   });
 
   test('a failing destroy during cleanup does not throw either', () async {
-    final s = TrayService(port: _FailBoth(), iconPath: 'i.png', onQuit: () {});
+    final s = TrayService(
+      port: _DestroyAlsoFails(),
+      iconPath: 'i.png',
+      onOpen: () {},
+      onQuit: () {},
+    );
 
     await s.start();
   });
 
-  test('dispose also disposes the port', () async {
-    await service.start();
-    await service.dispose();
-    await service.dispose();
+  test(
+    'C2: dispose removes the tray icon and disposes the port once',
+    () async {
+      await service.start();
+      await service.dispose();
+      await service.dispose();
 
-    expect(port.calls.where((c) => c == 'dispose'), hasLength(1));
-  });
+      expect(port.count('destroy'), 1);
+      expect(port.count('dispose'), 1);
+    },
+  );
+
+  test(
+    'C2: dispose while start is in flight stops later steps and destroys',
+    () async {
+      port.gateIcon = Completer<void>();
+      final starting = service.start();
+      await _pump();
+
+      await service.dispose();
+      port.gateIcon!.complete();
+      await starting;
+
+      expect(port.calls, ['icon', 'destroy', 'dispose', 'destroy']);
+      expect(port.calls, isNot(contains('tooltip')));
+      expect(port.calls, isNot(contains('menu')));
+    },
+  );
 }
 
-/// Fails setIcon and destroy.
-class _FailBoth extends _Port {
+/// A port whose setIcon and destroy both throw.
+class _DestroyAlsoFails extends FakeTrayPort {
   @override
   Future<void> setIcon(String path) async => throw StateError('icon failed');
 

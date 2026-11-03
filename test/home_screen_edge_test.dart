@@ -31,7 +31,7 @@ void main() {
   });
 
   for (final b in Brightness.values) {
-    testWidgets('home renders in ${b.name} mode with readable contrast', (
+    testWidgets('home renders in ${b.name} mode and the theme follows it', (
       tester,
     ) async {
       await _pump(tester, brightness: b);
@@ -71,9 +71,12 @@ void main() {
 
   testWidgets('title is exposed to screen readers', (tester) async {
     final handle = tester.ensureSemantics();
-    await _pump(tester);
+    try {
+      await _pump(tester);
 
-    expect(find.bySemanticsLabel('Kusunga'), findsOneWidget);
-    handle.dispose();
+      expect(find.bySemanticsLabel('Kusunga'), findsOneWidget);
+    } finally {
+      handle.dispose();
+    }
   });
 }

@@ -3,6 +3,6 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-dart format --set-exit-if-changed .
+dart format --output=none --set-exit-if-changed .
 flutter analyze
 flutter test
