@@ -1,0 +1,8 @@
+# flutter_lints is the Flutter team's recommended set. `flutter analyze` exits
+# non-zero on any issue, including infos, so it works as a gate.
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    - prefer_single_quotes
+    - require_trailing_commas
