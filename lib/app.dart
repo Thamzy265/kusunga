@@ -8,6 +8,11 @@ class KusungaApp extends StatelessWidget {
     return MaterialApp(
       title: 'Kusunga',
       theme: ThemeData(colorSchemeSeed: Colors.teal),
+      darkTheme: ThemeData(
+        colorSchemeSeed: Colors.teal,
+        brightness: Brightness.dark,
+      ),
+      themeMode: ThemeMode.system,
       home: const HomeScreen(),
     );
   }

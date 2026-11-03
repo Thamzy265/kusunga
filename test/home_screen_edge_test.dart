@@ -40,8 +40,8 @@ void main() {
       final context = tester.element(find.byType(Scaffold));
       expect(
         Theme.of(context).brightness,
-        Brightness.light,
-        reason: 'App defines only a light theme today',
+        b,
+        reason: 'Theme follows the system brightness',
       );
       expect(tester.takeException(), isNull);
     });

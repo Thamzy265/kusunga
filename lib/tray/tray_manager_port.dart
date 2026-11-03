@@ -45,4 +45,13 @@ class TrayManagerPort with TrayListener implements TrayPort {
     final key = menuItem.key;
     if (key != null) _clicks.add(key);
   }
+
+  @override
+  Future<void> destroy() => trayManager.destroy();
+
+  @override
+  Future<void> dispose() async {
+    trayManager.removeListener(this);
+    await _clicks.close();
+  }
 }

@@ -8,6 +8,8 @@ class FakeTrayPort implements TrayPort {
   String? iconPath;
   String? toolTip;
   List<TrayMenuEntry>? menu;
+  int destroyed = 0;
+  int disposed = 0;
 
   @override
   Stream<String> get menuItemClicks => menuClicks.stream;
@@ -20,6 +22,12 @@ class FakeTrayPort implements TrayPort {
 
   @override
   Future<void> setMenu(List<TrayMenuEntry> entries) async => menu = entries;
+
+  @override
+  Future<void> destroy() async => destroyed++;
+
+  @override
+  Future<void> dispose() async => disposed++;
 }
 
 void main() {
