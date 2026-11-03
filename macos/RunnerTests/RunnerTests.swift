@@ -108,7 +108,7 @@ class ClipboardPollerTests: XCTestCase {
   }
 
   func testTextOverOneMegabyteIsReportedAsTooLargeWithoutTheText() {
-    pasteboard.copy(String(repeating: "x", count: ClipboardPolicy.maxLength + 1))
+    pasteboard.copy(String(repeating: "x", count: ClipboardPolicy.maxBytes + 1))
     poller.tick()
     XCTAssertEqual(events.count, 1)
     XCTAssertEqual(events[0]["type"] as? String, "tooLarge")
@@ -116,7 +116,7 @@ class ClipboardPollerTests: XCTestCase {
   }
 
   func testTextOfExactlyOneMegabyteIsReported() {
-    pasteboard.copy(String(repeating: "x", count: ClipboardPolicy.maxLength))
+    pasteboard.copy(String(repeating: "x", count: ClipboardPolicy.maxBytes))
     poller.tick()
     XCTAssertEqual(events[0]["type"] as? String, "text")
   }
@@ -415,27 +415,30 @@ class ClipboardPollerEdgeTests: XCTestCase {
     XCTAssertEqual(pb.textReads, 0)
   }
 
-  // Size boundaries, in UTF-16 units (the same as the Dart and C++ sides).
+  // Size boundaries, in UTF-8 bytes (the same as the Dart and C++ sides).
+  // Lead decision (M1.2 fixes): the cap is 1 MiB of UTF-8 bytes, not
+  // characters; this test used to count UTF-16 units.
 
-  func testLimitCountsUtf16UnitsNotBytesOrCharacters() {
-    let max = ClipboardPolicy.maxLength
-    // 2 units each: 524,288 fit exactly, one more does not.
-    pasteboard.copy(String(repeating: "\u{1F600}", count: max / 2), types: ["public.utf8-plain-text"])
+  func testLimitCountsUtf8Bytes() {
+    let max = ClipboardPolicy.maxBytes
+    let text = ["public.utf8-plain-text"]
+    // 4 bytes each: max / 4 fit exactly, one more does not.
+    pasteboard.copy(String(repeating: "\u{1F600}", count: max / 4), types: text)
     poller.tick()
-    pasteboard.copy(
-      String(repeating: "\u{1F600}", count: max / 2 + 1), types: ["public.utf8-plain-text"])
+    pasteboard.copy(String(repeating: "\u{1F600}", count: max / 4 + 1), types: text)
     poller.tick()
-    // 3 UTF-8 bytes but 1 unit each: the full limit fits.
-    pasteboard.copy(String(repeating: "\u{20AC}", count: max), types: ["public.utf8-plain-text"])
+    // 3 bytes each: 349,525 fit (1,048,575 bytes), one more does not.
+    pasteboard.copy(String(repeating: "\u{20AC}", count: max / 3), types: text)
     poller.tick()
-    // Two Unicode scalars that form one character: counted as 2 units.
-    pasteboard.copy(
-      String(repeating: "e\u{301}", count: max / 2), types: ["public.utf8-plain-text"])
+    pasteboard.copy(String(repeating: "\u{20AC}", count: max / 3 + 1), types: text)
     poller.tick()
-    pasteboard.copy(
-      String(repeating: "e\u{301}", count: max / 2 + 1), types: ["public.utf8-plain-text"])
+    // "e" plus a combining accent: 3 bytes.
+    pasteboard.copy(String(repeating: "e\u{301}", count: max / 3), types: text)
     poller.tick()
-    XCTAssertEqual(kinds(), ["text", "tooLarge", "text", "text", "tooLarge"])
+    pasteboard.copy(String(repeating: "e\u{301}", count: max / 3 + 1), types: text)
+    poller.tick()
+    XCTAssertEqual(
+      kinds(), ["text", "tooLarge", "text", "tooLarge", "text", "tooLarge"])
     for e in events where e["type"] as? String == "tooLarge" {
       XCTAssertNil(e["text"], "no part of a large copy is passed on")
     }
@@ -443,7 +446,7 @@ class ClipboardPollerEdgeTests: XCTestCase {
 
   func testSecretAndHugeIsConcealedNotTooLargeAndNeverRead() {
     pasteboard.copy(
-      String(repeating: "x", count: ClipboardPolicy.maxLength + 10),
+      String(repeating: "x", count: ClipboardPolicy.maxBytes + 10),
       types: ["public.utf8-plain-text", secretTypes[0]])
     poller.tick()
     XCTAssertEqual(kinds(), ["concealed"])
@@ -451,7 +454,7 @@ class ClipboardPollerEdgeTests: XCTestCase {
   }
 
   func testLimitAndTypeConstantsMatchTheDesign() {
-    XCTAssertEqual(ClipboardPolicy.maxLength, 1_048_576)
+    XCTAssertEqual(ClipboardPolicy.maxBytes, 1_048_576)
     XCTAssertEqual(ClipboardPolicy.plainTextType, "public.utf8-plain-text")
     XCTAssertEqual(
       ClipboardPolicy.secretTypes,

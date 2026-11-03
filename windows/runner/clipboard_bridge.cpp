@@ -167,7 +167,10 @@ void ClipboardBridge::OnClipboardUpdate() {
   flags.viewer_ignore =
       ::IsClipboardFormatAvailable(format_viewer_ignore_) != FALSE;
   if (::IsClipboardFormatAvailable(format_can_include_)) {
-    flags.has_can_include = ReadDword(format_can_include_, &flags.can_include_value);
+    // Present but unreadable counts as secret (fail closed).
+    flags.has_can_include = true;
+    flags.can_include_unreadable =
+        !ReadDword(format_can_include_, &flags.can_include_value);
   }
   if (kusunga::IsSecret(flags)) {
     Emit(Event("concealed"));
@@ -191,11 +194,18 @@ void ClipboardBridge::OnClipboardUpdate() {
 
   const wchar_t* data = static_cast<const wchar_t*>(::GlobalLock(handle));
   if (!data) return;
-  const size_t max_chars = ::GlobalSize(handle) / sizeof(wchar_t);
+  // GlobalSize can be a few bytes more than the text: measure the real text.
+  const size_t max_units = ::GlobalSize(handle) / sizeof(wchar_t);
   size_t length = 0;
-  while (length < max_chars && data[length] != L'\0') length++;
-  const bool too_large = kusunga::ExceedsLimit(length);
-  const std::string text = too_large ? std::string() : ToUtf8(data, length);
+  while (length < max_units && data[length] != L'\0') length++;
+  // Each UTF-16 unit is at least one UTF-8 byte, so too many units is too
+  // large; then check the real UTF-8 size.
+  std::string text;
+  bool too_large = kusunga::ExceedsLimit(length);
+  if (!too_large) {
+    text = ToUtf8(data, length);
+    too_large = kusunga::ExceedsLimit(text.size());
+  }
   ::GlobalUnlock(handle);
 
   if (too_large) {

@@ -28,18 +28,20 @@ int main() {
   CHECK(IsSecret({false, false, 0, true}));   // Clipboard Viewer Ignore
   CHECK(IsSecret({true, true, 1, true}));
 
-  // Size: the limit is 1,048,576 characters; the buffer holds a terminator.
+  // Size: the limit is 1 MiB of UTF-8 bytes (lead decision, M1.2 fixes; it
+  // was characters); a UTF-16 block holds at most that many units plus a NUL.
   CHECK(CheckSize(0) == SizeCheck::kEmpty);
   CHECK(CheckSize(2) == SizeCheck::kEmpty);  // just a terminator
   CHECK(CheckSize(2 * 10 + 2) == SizeCheck::kOk);
-  CHECK(CheckSize(kMaxChars * 2 + 2) == SizeCheck::kOk);
-  CHECK(CheckSize(kMaxChars * 2 + 4) == SizeCheck::kTooLarge);
+  CHECK(CheckSize(kMaxBytes * 2 + 2) == SizeCheck::kOk);
+  CHECK(CheckSize(kMaxBytes * 2 + 4) == SizeCheck::kOk);  // rounding slack
+  CHECK(CheckSize(MaxBufferBytes() + kBlockSlackBytes + 1) == SizeCheck::kTooLarge);
   CHECK(CheckSize(500u * 1024 * 1024) == SizeCheck::kTooLarge);
-  CHECK(MaxBufferBytes() == kMaxChars * 2 + 2);
+  CHECK(MaxBufferBytes() == kMaxBytes * 2 + 2);
 
   // Characters actually found after copying.
-  CHECK(ExceedsLimit(kMaxChars) == false);
-  CHECK(ExceedsLimit(kMaxChars + 1) == true);
+  CHECK(ExceedsLimit(kMaxBytes) == false);
+  CHECK(ExceedsLimit(kMaxBytes + 1) == true);
 
   // Only a new clipboard sequence number is a new copy.
   CHECK(!IsNewCopy(7, 7));
@@ -95,14 +97,15 @@ int main() {
   CHECK(CheckSize(sizeof(char16_t) + 1) == SizeCheck::kOk);
   CHECK(CheckSize(MaxBufferBytes() - 1) == SizeCheck::kOk);
   CHECK(CheckSize(MaxBufferBytes()) == SizeCheck::kOk);
-  CHECK(CheckSize(MaxBufferBytes() + 1) == SizeCheck::kTooLarge);
-  CHECK(CheckSize(MaxBufferBytes() + 2) == SizeCheck::kTooLarge);
+  CHECK(CheckSize(MaxBufferBytes() + 1) == SizeCheck::kOk);  // GlobalSize rounding
+  CHECK(CheckSize(MaxBufferBytes() + kBlockSlackBytes) == SizeCheck::kOk);
+  CHECK(CheckSize(MaxBufferBytes() + kBlockSlackBytes + 1) == SizeCheck::kTooLarge);
   CHECK(CheckSize(SIZE_MAX) == SizeCheck::kTooLarge);
   CHECK(CheckSize(SIZE_MAX - 1) == SizeCheck::kTooLarge);
   CHECK(CheckSize(static_cast<size_t>(1) << 32) == SizeCheck::kTooLarge);
   CHECK(CheckSize((static_cast<size_t>(1) << 32) + 2) == SizeCheck::kTooLarge);
   // Statically: the limit is 1 MiB of characters, two bytes each.
-  static_assert(kMaxChars == 1048576, "limit is 1,048,576 UTF-16 characters");
+  static_assert(kMaxBytes == 1048576, "limit is 1 MiB of UTF-8 bytes");
   static_assert(MaxBufferBytes() == 2097154, "limit chars plus a NUL");
   static_assert(sizeof(char16_t) == 2, "UTF-16 units are two bytes");
   // Monotonic: once too large, always too large; empty only at the bottom.
@@ -120,9 +123,9 @@ int main() {
   // ExceedsLimit around the boundary and at extremes.
   CHECK(!ExceedsLimit(0));
   CHECK(!ExceedsLimit(1));
-  CHECK(!ExceedsLimit(kMaxChars - 1));
-  CHECK(!ExceedsLimit(kMaxChars));
-  CHECK(ExceedsLimit(kMaxChars + 1));
+  CHECK(!ExceedsLimit(kMaxBytes - 1));
+  CHECK(!ExceedsLimit(kMaxBytes));
+  CHECK(ExceedsLimit(kMaxBytes + 1));
   CHECK(ExceedsLimit(SIZE_MAX));
   // A block that CheckSize lets through can still hold too many characters
   // (no terminator before the end): the second check must catch it.
@@ -163,6 +166,18 @@ int main() {
     OpenWithRetry([] { return false; }, [&](int ms) { last = ms; });
     CHECK(last == 50);
   }
+
+  // Fail closed: CanIncludeInClipboardHistory present but unreadable is secret.
+  CHECK(IsSecret({false, true, 1, false, true}));
+  CHECK(IsSecret({false, true, 0, false, true}));
+  CHECK(!IsSecret({false, false, 0, false, true}));  // format absent: no matter
+  CHECK(!IsSecret({false, true, 1, false, false}));
+
+  // Exact limit: a text of exactly kMaxBytes is kept, one more is not, even
+  // when GlobalSize rounds the block up by a few bytes.
+  CHECK(CheckSize((kMaxBytes + 1) * 2 + 8) == SizeCheck::kOk);
+  CHECK(!ExceedsLimit(kMaxBytes));
+  CHECK(ExceedsLimit(kMaxBytes + 1));
 
   if (failures == 0) std::printf("all clipboard policy checks passed\n");
   return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
