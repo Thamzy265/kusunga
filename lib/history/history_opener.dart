@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -49,7 +50,7 @@ Future<OpenedHistory> openHistory({
   DateTime Function()? today,
   bool Function(Database db)? cipherActive,
   List<Migration> migrations = kMigrations,
-  Duration keyTimeout = const Duration(seconds: 15),
+  Duration keyTimeout = const Duration(seconds: 30),
 }) async {
   OpenedHistory memoryOnly() =>
       OpenedHistory(MemoryHistoryStore(), {HistoryNotice.memoryOnly});
@@ -68,6 +69,9 @@ Future<OpenedHistory> openHistory({
       }
     }
     keyHex = key;
+  } on TimeoutException {
+    log.log(LogCode.keychainTimeout);
+    return memoryOnly();
   } catch (error) {
     log.log(LogCode.keychainReadFailed, _keychainStatus(error));
     return memoryOnly();

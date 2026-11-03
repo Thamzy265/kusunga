@@ -39,7 +39,7 @@ void main() {
     test('schema version is 1 and the tables match the design', () {
       SqliteHistoryStore.open(path: path, keyHex: _key).close();
       final db = sqlite3.open(path);
-      db.execute("PRAGMA key = \"x'$_key'\"");
+      db.execute("PRAGMA hexkey = '$_key'");
       expect(db.select('PRAGMA user_version').single.values.single, 1);
       final cols = db
           .select('PRAGMA table_info(clip_items)')
@@ -67,7 +67,7 @@ void main() {
     test('the database rejects a bad kind, empty text and a bad limit', () {
       SqliteHistoryStore.open(path: path, keyHex: _key).close();
       final db = sqlite3.open(path);
-      db.execute("PRAGMA key = \"x'$_key'\"");
+      db.execute("PRAGMA hexkey = '$_key'");
       final hash = Uint8List(32);
       expect(
         () => db.execute(
@@ -128,6 +128,29 @@ void main() {
       plain.close();
     });
 
+    test('the key is used raw (PRAGMA hexkey): the passphrase form fails', () {
+      final s = SqliteHistoryStore.open(path: path, keyHex: _key);
+      s.insertOrBump('raw key', ClipKind.text, 1);
+      s.close();
+
+      final passphrase = sqlite3.open(path);
+      passphrase.execute("PRAGMA cipher = 'chacha20'");
+      passphrase.execute("PRAGMA key = \"x'$_key'\"");
+      expect(
+        () => passphrase.select('SELECT count(*) FROM sqlite_master'),
+        throwsA(isA<SqliteException>()),
+        reason:
+            'key="x\'..\'" is a passphrase for this cipher, not the raw key',
+      );
+      passphrase.close();
+
+      final raw = sqlite3.open(path);
+      raw.execute("PRAGMA cipher = 'chacha20'");
+      raw.execute("PRAGMA hexkey = '$_key'");
+      expect(raw.select('SELECT count(*) AS n FROM clip_items').single['n'], 1);
+      raw.close();
+    });
+
     test('a wrong key fails to open and leaves the file alone', () {
       SqliteHistoryStore.open(path: path, keyHex: _key).close();
       final before = File(path).readAsBytesSync();
@@ -186,7 +209,7 @@ void main() {
 
     int version() {
       final db = sqlite3.open(path);
-      db.execute("PRAGMA key = \"x'$_key'\"");
+      db.execute("PRAGMA hexkey = '$_key'");
       final v = db.select('PRAGMA user_version').single.values.single as int;
       db.close();
       return v;

@@ -352,7 +352,7 @@ void main() {
         throwsA(isA<MigrationFailed>().having((e) => e.version, 'version', 3)),
       );
       final db = sqlite3.open(path);
-      db.execute("PRAGMA key = \"x'$_key'\"");
+      db.execute("PRAGMA hexkey = '$_key'");
       expect(db.select('PRAGMA user_version').single.values.single, 2);
       db.close();
     });
@@ -405,7 +405,7 @@ void main() {
 
     void sql(String statement) {
       final db = sqlite3.open(path);
-      db.execute("PRAGMA key = \"x'$_key'\"");
+      db.execute("PRAGMA hexkey = '$_key'");
       db.execute(statement);
       db.close();
     }

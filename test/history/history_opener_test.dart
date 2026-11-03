@@ -191,4 +191,34 @@ void main() {
     expect(opened.store, isA<MemoryHistoryStore>());
     expect(opened.notices, {HistoryNotice.memoryOnly});
   });
+
+  for (final which in ['read', 'write', 'read-back']) {
+    test('a keychain $which that never answers (unanswered prompt): memory '
+        'only, no file, keychainTimeout logged', () async {
+      switch (which) {
+        case 'read':
+          keys.hang = true;
+        case 'write':
+          keys.hangWrite = true;
+        default:
+          keys.hangReadBack = true;
+      }
+      final opened = await openHistory(
+        keys: keys,
+        directory: dir.path,
+        log: log,
+        keyTimeout: const Duration(milliseconds: 50),
+      );
+      stores.add(opened.store);
+
+      expect(opened.store, isA<MemoryHistoryStore>());
+      expect(opened.notices, {HistoryNotice.memoryOnly});
+      expect(files(), isEmpty, reason: 'nothing written to disk');
+      expect(log.codes, [LogCode.keychainTimeout]);
+      if (which == 'read') {
+        expect(keys.writes, 0, reason: 'no key is made when the read hangs');
+        expect(keys.stored, isNull);
+      }
+    });
+  }
 }

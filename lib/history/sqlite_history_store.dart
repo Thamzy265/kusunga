@@ -71,7 +71,10 @@ class SqliteHistoryStore implements HistoryStore {
     final db = sqlite3.open(path);
     try {
       db.execute("PRAGMA cipher = 'chacha20'");
-      db.execute("PRAGMA key = \"x'$keyHex'\"");
+      // hexkey gives the 256 random bits to the cipher as the raw key. (The
+      // `key = "x'..'"` form is a passphrase for ChaCha20 and would be
+      // stretched by a key derivation function first.)
+      db.execute("PRAGMA hexkey = '$keyHex'");
       // Fails with "file is not a database" if the key is wrong.
       db.select('SELECT count(*) FROM sqlite_master');
       if (!check(db)) throw EncryptionUnavailable();
