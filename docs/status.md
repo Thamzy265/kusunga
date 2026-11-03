@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-03 — M1.2 Clipboard history — PM checks; waiting for merge approval
+- Changed: PM checked light appearance and VoiceOver labels on the real app.
+- Gates: developer pass · tester pass · reviewer approve · QA pass (PM checks done) · PM merge waiting
+- Open findings: none
+- Decisions: PM said (2026-11-03): "Both look fine" — in answer to "Tell me how the light-mode and VoiceOver checks went."
+- Blockers: none
+
 ## 2026-11-03 — M1.2 Clipboard history — Reviewer: approve
 - Changed: reviewer confirmed the PM risk acceptance entry and its scope and approved 46a354e plus the QA docs commits (pushed to the PR branch). All findings across all rounds fixed, with regression tests.
 - Gates: developer pass · tester pass · reviewer approve · QA pass (PM checks open: light appearance, VoiceOver) · PM merge waiting
