@@ -212,18 +212,45 @@ enum class RestoreShow {
   kHide,
   kMinimizedNoActivate,
   kShowNoActivate,
-  kShowActivate
+  kShowActivate,
+  kShowMaximizedActivate
 };
 
 // A window that was hidden stays hidden and a minimised one stays minimised
 // (it keeps its taskbar button); neither is ever activated by the restore.
 // Only a history window that was on screen is shown again, and activated only
 // if [activate].
+// A maximised window is maximised again only on the activating path
+// (SW_SHOWMAXIMIZED always activates); otherwise it returns at normal size.
 inline RestoreShow DecideRestoreShow(bool was_visible, bool was_minimised,
-                                     bool show_manage, bool activate) {
+                                     bool show_manage, bool activate,
+                                     bool was_maximised = false) {
   if (was_visible && was_minimised) return RestoreShow::kMinimizedNoActivate;
   if (!was_visible || !show_manage) return RestoreShow::kHide;
-  return activate ? RestoreShow::kShowActivate : RestoreShow::kShowNoActivate;
+  if (!activate) return RestoreShow::kShowNoActivate;
+  return was_maximised ? RestoreShow::kShowMaximizedActivate
+                       : RestoreShow::kShowActivate;
+}
+
+// The saved window style must not carry WS_MINIMIZE (0x20000000) or
+// WS_MAXIMIZE (0x01000000): the window is positioned at its normal rectangle,
+// and the minimised or maximised state is applied afterwards by the show
+// command.
+inline uintptr_t StyleForRestore(uintptr_t saved_style) {
+  return saved_style & ~static_cast<uintptr_t>(0x20000000 | 0x01000000);
+}
+
+// The rectangle (in screen coordinates) to put the window back at. A normal
+// window: its real rectangle. A minimised or maximised one: GetWindowPlacement's
+// rcNormalPosition, which is relative to the primary monitor's work area, so
+// the work-area origin is added.
+inline Rect RectToRestore(bool is_normal, Rect window_rect, Rect normal_position,
+                          int work_origin_x, int work_origin_y) {
+  if (is_normal) return window_rect;
+  return Rect{normal_position.left + work_origin_x,
+              normal_position.top + work_origin_y,
+              normal_position.right + work_origin_x,
+              normal_position.bottom + work_origin_y};
 }
 
 enum class ShowCommand { kShowNoActivate, kRestore };

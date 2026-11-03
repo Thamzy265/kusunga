@@ -240,6 +240,41 @@ int main() {
   CHECK(ShowCommandToOpenSmallWindow(true) == ShowCommand::kShowNoActivate);
   CHECK(ShowCommandToOpenSmallWindow(false) == ShowCommand::kRestore);
 
+  // ---- W3: no WS_MINIMIZE or WS_MAXIMIZE in the restored style ----
+  {
+    const uintptr_t kOverlapped = 0x00CF0000;  // WS_OVERLAPPEDWINDOW
+    const uintptr_t kVisible = 0x10000000;
+    CHECK(StyleForRestore(kOverlapped | kVisible | 0x20000000) ==
+          (kOverlapped | kVisible));
+    CHECK(StyleForRestore(kOverlapped | kVisible | 0x01000000) ==
+          (kOverlapped | kVisible));
+    CHECK(StyleForRestore(kOverlapped | kVisible | 0x21000000) ==
+          (kOverlapped | kVisible));
+    CHECK(StyleForRestore(kOverlapped) == kOverlapped);
+    // Bits above 32 (LONG_PTR on 64-bit) are kept.
+    CHECK(StyleForRestore((uintptr_t(1) << 40) | 0x20000000) == (uintptr_t(1) << 40));
+    // A maximised window is re-maximised only when the restore activates.
+    CHECK(DecideRestoreShow(true, false, true, true, true) == RestoreShow::kShowMaximizedActivate);
+    CHECK(DecideRestoreShow(true, false, true, false, true) == RestoreShow::kShowNoActivate);
+    CHECK(DecideRestoreShow(true, true, true, true, true) == RestoreShow::kMinimizedNoActivate);
+    CHECK(DecideRestoreShow(true, false, false, false, true) == RestoreShow::kHide);
+  }
+
+  // ---- W4: screen coordinates of the rectangle to restore ----
+  {
+    // Normal state: the real window rectangle (already in screen coordinates).
+    Rect r = RectToRestore(true, Rect{100, 50, 900, 650}, Rect{90, 40, 890, 640}, 0, 40);
+    CHECK(r.left == 100 && r.top == 50 && r.right == 900 && r.bottom == 650);
+    // Minimised or maximised: the normal position is in workspace coordinates
+    // (relative to the primary work area), so the work-area origin is added.
+    Rect n = RectToRestore(false, Rect{-32000, -32000, -31840, -31972},
+                           Rect{100, 50, 900, 650}, 0, 40);
+    CHECK(n.left == 100 && n.top == 90 && n.right == 900 && n.bottom == 690);
+    Rect m = RectToRestore(false, Rect{0, 0, 1, 1}, Rect{10, 10, 110, 110}, 70, 0);
+    CHECK(m.left == 80 && m.top == 10 && m.right == 180 && m.bottom == 110);
+    CHECK(n.Width() == 800 && n.Height() == 600);
+  }
+
   // ---- DPI of the pointer's monitor (W2) ----
   CHECK(ScaleFromDpi(96) == 1.0);
   CHECK(ScaleFromDpi(144) == 1.5);

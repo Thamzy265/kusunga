@@ -396,6 +396,23 @@ void PickerBridge::SaveWindow() {
   saved_placement_ = WINDOWPLACEMENT{};
   saved_placement_.length = sizeof(saved_placement_);
   ::GetWindowPlacement(window_, &saved_placement_);
+  // The rectangle to come back to, in screen coordinates (W4). The placement's
+  // rcNormalPosition is relative to the primary work area.
+  RECT window_rect{};
+  ::GetWindowRect(window_, &window_rect);
+  RECT work{};
+  ::SystemParametersInfo(SPI_GETWORKAREA, 0, &work, 0);
+  const kusunga::Rect screen_rect = kusunga::RectToRestore(
+      !::IsIconic(window_) && !::IsZoomed(window_),
+      kusunga::Rect{window_rect.left, window_rect.top, window_rect.right,
+                    window_rect.bottom},
+      kusunga::Rect{saved_placement_.rcNormalPosition.left,
+                    saved_placement_.rcNormalPosition.top,
+                    saved_placement_.rcNormalPosition.right,
+                    saved_placement_.rcNormalPosition.bottom},
+      work.left, work.top);
+  saved_rect_ = screen_rect;
+  saved_maximised_ = ::IsZoomed(window_) != FALSE;
   saved_visible_ = ::IsWindowVisible(window_) != FALSE;
   saved_minimised_ = ::IsIconic(window_) != FALSE;
   saved_ = true;
@@ -408,14 +425,20 @@ void PickerBridge::RestoreWindow(bool show_manage, bool activate) {
   if (!saved_) return;
   const bool was_visible = saved_visible_;
   const bool was_minimised = saved_minimised_;
-  ::SetWindowLongPtr(window_, GWL_STYLE, saved_style_);
+  const bool was_maximised = saved_maximised_;
+  // Without WS_MINIMIZE / WS_MAXIMIZE: the window is put at its normal
+  // rectangle first, and those states are applied by the show command below.
+  ::SetWindowLongPtr(
+      window_, GWL_STYLE,
+      static_cast<LONG_PTR>(
+          kusunga::StyleForRestore(static_cast<uintptr_t>(saved_style_))));
   ::SetWindowLongPtr(window_, GWL_EXSTYLE, saved_ex_style_);
-  const RECT& r = saved_placement_.rcNormalPosition;
-  ::SetWindowPos(window_, HWND_NOTOPMOST, r.left, r.top, r.right - r.left,
-                 r.bottom - r.top, SWP_NOACTIVATE | SWP_FRAMECHANGED);
+  const kusunga::Rect& r = saved_rect_;
+  ::SetWindowPos(window_, HWND_NOTOPMOST, r.left, r.top, r.Width(), r.Height(),
+                 SWP_NOACTIVATE | SWP_FRAMECHANGED);
   saved_ = false;
   switch (kusunga::DecideRestoreShow(was_visible, was_minimised, show_manage,
-                                     activate)) {
+                                     activate, was_maximised)) {
     case kusunga::RestoreShow::kHide:
       ::ShowWindow(window_, SW_HIDE);
       break;
@@ -429,6 +452,10 @@ void PickerBridge::RestoreWindow(bool show_manage, bool activate) {
       ::ShowWindow(window_, SW_SHOW);
       ::SetForegroundWindow(window_);
       break;
+    case kusunga::RestoreShow::kShowMaximizedActivate:
+      ::ShowWindow(window_, SW_SHOWMAXIMIZED);
+      ::SetForegroundWindow(window_);
+      break;
   }
 }
 
@@ -440,7 +467,8 @@ void PickerBridge::ApplySmallShape(kusunga::Rect frame, bool no_activate) {
                      ? SW_SHOWNOACTIVATE
                      : SW_RESTORE);
   }
-  LONG_PTR style = saved_style_;
+  LONG_PTR style = static_cast<LONG_PTR>(
+      kusunga::StyleForRestore(static_cast<uintptr_t>(saved_style_)));
   style &= ~static_cast<LONG_PTR>(WS_OVERLAPPEDWINDOW);
   style |= WS_POPUP;
   LONG_PTR ex_style = saved_ex_style_ | WS_EX_TOOLWINDOW;  // no taskbar button

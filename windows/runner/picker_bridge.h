@@ -85,6 +85,8 @@ class PickerBridge {
   LONG_PTR saved_style_ = 0;
   LONG_PTR saved_ex_style_ = 0;
   WINDOWPLACEMENT saved_placement_{};
+  kusunga::Rect saved_rect_{0, 0, 0, 0};  // screen coordinates
+  bool saved_maximised_ = false;
   bool saved_visible_ = false;
   bool saved_minimised_ = false;
 
