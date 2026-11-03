@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-04 — Main branch CI after the M1.2 merge
+- Changed: CI run 41700921138 on main (3a702f9): Windows pass; macOS cancelled by GitHub with no runner (fifth time). The PM risk acceptance's condition ("the next macOS CI run that completes on main must be green") is still open.
+- Gates: n/a — CI
+- Open findings: none
+- Decisions: none; the M1.3 design moves the macOS job to the pinned `macos-15` runner label
+- Blockers: Lead — GitHub `macos-latest` capacity
+
 ## 2026-11-04 — M1.3 History picker and paste — Design
 - Changed: on branch `design/history-picker`: ADR 0003 (direct notarised Mac download, App Sandbox kept on, PostEvent only), design note `docs/design/history-picker.md`, UI spec `docs/ui/history-picker.md`, deck `docs/slides/history-picker.html`. Size: large — new OS permission, global shortcut, cross-app focus, new UI.
 - Gates: n/a — design; PM deck approval waiting
