@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   macos:
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
@@ -21,9 +21,9 @@ jobs:
       - run: flutter pub get
       - run: ./tool/check.sh
       - run: flutter build macos --debug
-      - name: Swift tests (clipboard watcher, quit flow)
+      - name: Swift tests (clipboard watcher, quit flow, paste flow)
         run: xcodebuild test -workspace macos/Runner.xcworkspace -scheme Runner -configuration Debug -destination 'platform=macOS' -only-testing:RunnerTests CODE_SIGN_IDENTITY=-
-      - name: C++ tests (Windows clipboard policy, built on the Mac runner)
+      - name: C++ tests (Windows clipboard and picker policy, built on the Mac runner)
         run: ./tool/test_windows_policy.sh
 
   windows:
