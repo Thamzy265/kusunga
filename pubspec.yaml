@@ -28,13 +28,26 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  crypto: ^3.0.8
+  ffi: ^2.2.0
   flutter:
     sdk: flutter
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
+  flutter_secure_storage: ^11.2.0
+  path: ^1.9.1
+  path_provider: ^2.1.6
+  sqlite3: ^3.5.2
   tray_manager: ^0.5.3
+  win32: ^6.4.0
   window_manager: ^0.5.2
+
+hooks:
+  user_defines:
+    sqlite3:
+      # SQLite3 Multiple Ciphers: whole-database encryption (ADR 0002).
+      source: sqlite3mc
 
 dev_dependencies:
   flutter_test:

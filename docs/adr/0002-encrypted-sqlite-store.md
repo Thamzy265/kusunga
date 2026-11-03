@@ -12,7 +12,7 @@ Kusunga stores everything the user copies (M1.2) and later their snippets (M1.4)
 
 Options considered:
 
-- A: SQLite encrypted as a whole with SQLite3 Multiple Ciphers via `package:sqlite3` 3.x build options; a random 256-bit key in Mac Keychain / Windows Credential Manager (`flutter_secure_storage`).
+- A: SQLite encrypted as a whole with SQLite3 Multiple Ciphers via `package:sqlite3` 3.x build options; a random 256-bit key in Mac Keychain (`flutter_secure_storage`) / Windows Credential Manager (generic credential through the Win32 API), given to the cipher raw with `PRAGMA hexkey`.
 - B: Plain SQLite, with each content field encrypted by the app (AES-GCM via `package:cryptography`). Metadata (times, counts, hashes) stays readable, and search needs decrypting every row in memory.
 - C: An encrypted JSON file rewritten on every change. Simple, but slow and risky at 5,000 items, with no transactions.
 

@@ -36,8 +36,8 @@ Trivially small: one user per install, about 50–500 copies a day, at most 5,00
 
 ## Data
 
-- Storage: one SQLite database in the app's support folder (`~/Library/Containers/uk.org.cgatechnologies.kusunga/Data/Library/Application Support/` on Mac, `%APPDATA%\Kusunga\` on Windows), encrypted as a whole with SQLite3 Multiple Ciphers through `package:sqlite3` 3.x build options. See ADR 0002.
-- Key: 256-bit random key created on first run, stored in Mac Keychain / Windows Credential Manager via `flutter_secure_storage`. Never written to disk or logs.
+- Storage: one SQLite database in the app's support folder (`~/Library/Containers/com.wnasoni.kusunga/Data/Library/Application Support/com.wnasoni.kusunga/` on Mac, `%APPDATA%\William Nasoni\Kusunga\` on Windows: `path_provider` builds it from the CompanyName and ProductName in Runner.rc; the Windows path is not yet confirmed on a real PC), encrypted as a whole with SQLite3 Multiple Ciphers through `package:sqlite3` 3.x build options. See ADR 0002.
+- Key: 256-bit random key created on first run, stored in the Mac keychain (`flutter_secure_storage`) / Windows Credential Manager (a generic credential `com.wnasoni.kusunga/history_db_key`, persisted for this user on this machine only, through CredWriteW/CredReadW). It is handed to the cipher raw (`PRAGMA hexkey`), not as a passphrase. Never written to disk or logs.
 - Table `clip_items`:
   - `id INTEGER PRIMARY KEY`
   - `content TEXT NOT NULL CHECK (length(content) BETWEEN 1 AND 1048576)`
@@ -129,7 +129,7 @@ Not legal advice. Items marked "PM decides" need the PM's decision before the de
 
 - First version of the store (schema version 1), so no migration this time. The app creates the DB on first launch.
 - Behind no feature flag: the history list is the main window's content from now on.
-- Rollback: revert the merge. The DB file remains in the app support folder; an older build ignores it. To remove it, the user (or QA) deletes the app support folder and the "Kusunga" keychain item. Confirm by launching the old build: the placeholder screen shows.
+- Rollback: revert the merge. The DB file remains in the app support folder; an older build ignores it. To remove it, the user (or QA) deletes the app support folder and the key: on Mac the login-keychain item for `com.wnasoni.kusunga` (entry `history_db_key`, open Keychain Access); on Windows the credential `com.wnasoni.kusunga/history_db_key` (Credential Manager, Windows Credentials, or `cmdkey /delete:com.wnasoni.kusunga/history_db_key`). Confirm by launching the old build: the placeholder screen shows.
 
 ## Later lines
 
