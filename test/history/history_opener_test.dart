@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/clip_item.dart';
 import 'package:kusunga/history/history_opener.dart';
@@ -81,6 +82,19 @@ void main() {
       expect(log.codes, isNotEmpty);
     });
   }
+
+  test(
+    'a keychain error number is logged, nothing else from the error',
+    () async {
+      keys.readError = PlatformException(
+        code: 'Unexpected security result code',
+        message: "Code: -34018, Message: A required entitlement isn't present.",
+      );
+      await open();
+      expect(log.codes, [LogCode.keychainReadFailed]);
+      expect(log.details, [-34018]);
+    },
+  );
 
   test('a wrong key: old file moved aside, new history, one notice', () async {
     final first = await open();

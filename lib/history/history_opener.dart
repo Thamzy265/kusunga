@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/services.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 import '../log/app_log.dart';
@@ -58,8 +59,8 @@ Future<OpenedHistory> openHistory({
       }
     }
     keyHex = key;
-  } catch (_) {
-    log.log(LogCode.keychainReadFailed);
+  } catch (error) {
+    log.log(LogCode.keychainReadFailed, _keychainStatus(error));
     return memoryOnly();
   }
 
@@ -111,4 +112,12 @@ void _moveAside(String path, DateTime day) {
     target = '$path.unreadable-$stamp-$n';
   }
   File(path).renameSync(target);
+}
+
+/// The OSStatus number in a keychain error such as "Code: -34018, ...", or
+/// null. Only the number is kept: the rest of the text is never logged.
+int? _keychainStatus(Object error) {
+  if (error is! PlatformException) return null;
+  final match = RegExp(r'Code:\s*(-?\d{1,6})').firstMatch(error.message ?? '');
+  return match == null ? null : int.parse(match.group(1)!);
 }

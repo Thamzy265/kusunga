@@ -105,3 +105,5 @@ Needs its own design note and deck. Mobile cannot record clipboard history in th
 - Lock Kusunga with Touch ID / Windows Hello — protects history at an unlocked computer — trigger: > 10 beta users ask, or the M2 vault ships — noted 2026-11-03 by lead
 - Rich text in history (keep formatting) — plain text covers the main use — trigger: > 20 requests — noted 2026-11-03 by lead
 - Sharing snippets with a team — not part of the personal use case — trigger: > 20 requests from teams — noted 2026-11-03 by lead
+- Move the Mac history key to the data-protection keychain — M1.2 uses the login keychain because unsigned builds get -34018 with the data-protection one; the signed build can use the stronger store without a keychain prompt on updates — trigger: an Apple Developer account exists and the M1.9 signed Mac build starts — noted 2026-11-03 by developer
+- Refresh only the changed rows of the history list — the list reloads all rows (up to 2,000 characters each) after every copy, which is fine for 200 items — trigger: the list takes longer than 100 ms to refresh with 5,000 items, or idle CPU above 1% while copying — noted 2026-11-03 by developer

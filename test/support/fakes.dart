@@ -37,9 +37,13 @@ class FakeKeyStore implements KeyStore {
 
 class FakeLog implements ErrorLog {
   final codes = <LogCode>[];
+  final details = <int?>[];
 
   @override
-  void log(LogCode code, [int? detail]) => codes.add(code);
+  void log(LogCode code, [int? detail]) {
+    codes.add(code);
+    details.add(detail);
+  }
 }
 
 class FakeClipboardSource implements ClipboardSource {
