@@ -28,6 +28,11 @@ enum ClipboardPolicy {
 
   static let plainTextType = "public.utf8-plain-text"
 
+  /// Kusunga's own marker on a copy the picker pasted. Any app can add it, so
+  /// it never skips the secret check; it only tells Dart "if this text is
+  /// already saved, move it to the top".
+  static let ownMarkerType = "com.wnasoni.kusunga.self"
+
   static func isSecret(_ types: [String]) -> Bool {
     types.contains { secretTypes.contains($0) }
   }
@@ -99,7 +104,7 @@ final class ClipboardPoller {
       if held.types == types {
         waiting = false
         self.held = nil
-        send(held.text)
+        send(held.text, types: held.types)
         return
       }
       // The types changed without a secret marker (a writer added a type):
@@ -128,7 +133,7 @@ final class ClipboardPoller {
           held = (text, types)  // confirmed on the next tick
         } else {
           waiting = false
-          send(text)
+          send(text, types: types)
         }
         return
       }
@@ -141,9 +146,11 @@ final class ClipboardPoller {
     if ticksLeft <= 0 || !mayRetry() { waiting = false }
   }
 
-  private func send(_ text: String) {
+  private func send(_ text: String, types: [String]) {
     if text.utf8.count > ClipboardPolicy.maxBytes {
       emit(["type": "tooLarge"])
+    } else if types.contains(ClipboardPolicy.ownMarkerType) {
+      emit(["type": "text", "text": text, "own": true])
     } else {
       emit(["type": "text", "text": text])
     }
