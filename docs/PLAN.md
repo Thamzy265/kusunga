@@ -75,6 +75,8 @@ Everything stays on the device. No account, no server.
   - AC: the Mac history key moves from the login keychain to the data-protection keychain, with a key move (read old item, write new, delete old) so no user's history is moved aside; must be done before the first external beta (PM decision 2026-11-03).
   - AC: release notes and a rollback plan exist; the PM approves the release.
   - AC: a short DPIA is written in `docs/design/dpia.md` and the PM signs it off before the beta.
+  - AC: the app's licence page includes the SQLite3 Multiple Ciphers MIT notice (reviewer note, 2026-11-03).
+  - Before start: decide whether to build sqlite3mc from source instead of the SHA-256-pinned prebuilt download (reviewer note, 2026-11-03).
 
 ## M2 — Secure vault (bank details, IDs)
 
