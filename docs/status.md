@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-03 — M1.1 Project setup — QA pass; waiting for PM merge approval
+- Changed: developer fixed N1–N3 (3aaac53). QA (8dc3f2b) ran the real macOS app: window, menu-bar icon, menu "Open Kusunga"/"Quit", close hides, reopen, Quit — all pass. CI run 41617801471 passed on macOS and Windows (34 tests, debug builds). No network use in the release build; files only in the app container. Evidence: `docs/qa/m1.md`, 3 screenshots in `docs/qa/m1/screens/`. No video (could not crop to the app without capturing the desktop).
+- Gates: developer pass · tester pass · reviewer approve with notes (N1–N3 fixed) · QA pass (light mode and Windows runtime not observed — optional PM checks) · PM merge waiting
+- Open findings: Minor — status item accessibility label is the generic "status menu" (polish later)
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-03 — M1.1 Project setup — Reviewer re-check: approve with notes
 - Changed: all 10 round-1 findings fixed. CI run 41616011334 passed on macOS and Windows (34 tests, debug builds). This meets the CI half of the AC; QA still checks the real window and tray.
 - Gates: developer fixing N1–N3 · tester pass · reviewer approve with notes · QA open · PM merge waiting
