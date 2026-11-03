@@ -182,6 +182,20 @@ void main() {
       s.dispose();
     });
 
+    testWidgets('incompatible history banner text', (tester) async {
+      final s = makeService(notices: {HistoryNotice.incompatible});
+      await show(tester, s);
+      expect(
+        find.text(
+          "This history was made by a newer or different version of Kusunga. "
+          "It's safe, but this version can't open it. History won't be kept "
+          'until you update.',
+        ),
+        findsOneWidget,
+      );
+      s.dispose();
+    });
+
     testWidgets('a banner can be dismissed', (tester) async {
       final s = makeService(notices: {HistoryNotice.readError});
       await show(tester, s);

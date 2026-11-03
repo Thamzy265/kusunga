@@ -16,8 +16,14 @@ enum HistoryNotice {
   /// History will not be kept after quit (keychain or disk not usable).
   memoryOnly,
 
-  /// The old history could not be read, so a new one was started.
+  /// The old history could not be read (wrong key, damaged), so a new one was
+  /// started. The old file was moved aside, not deleted.
   readError,
+
+  /// The file was written by a newer or different version of Kusunga, or a
+  /// migration failed. It is left exactly as it is; this session is memory
+  /// only.
+  incompatible,
 }
 
 class OpenedHistory {
@@ -87,6 +93,12 @@ Future<OpenedHistory> openHistory({
   } on EncryptionUnavailable {
     log.log(LogCode.encryptionUnavailable);
     return memoryOnly();
+  } on UnsupportedSchemaVersion {
+    log.log(LogCode.storeIncompatible);
+    return OpenedHistory(MemoryHistoryStore(), {HistoryNotice.incompatible});
+  } on MigrationFailed {
+    log.log(LogCode.storeIncompatible);
+    return OpenedHistory(MemoryHistoryStore(), {HistoryNotice.incompatible});
   } on Object catch (error) {
     log.log(
       LogCode.storeUnreadable,
@@ -94,8 +106,9 @@ Future<OpenedHistory> openHistory({
     );
   }
 
-  // The file cannot be read with this key (wrong key, corrupt, or written by a
-  // newer app). Keep it, and start a new history.
+  // The file cannot be read with this key (wrong key, damaged pages). Keep
+  // it aside, and start a new history. (A file from a newer version, or one
+  // that failed to migrate, is not moved: see above.)
   try {
     _moveAside(path, (today ?? DateTime.now)());
     return OpenedHistory(tryOpen(), {HistoryNotice.readError});

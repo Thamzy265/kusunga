@@ -279,8 +279,8 @@ void main() {
       statements: ['ALTER TABLE clip_items ADD COLUMN note TEXT'],
     );
 
-    test('a newer-schema file is moved aside whole, one notice, new file '
-        'is version 1', () async {
+    test('a newer-schema file is left untouched: memory only, own notice, '
+        'no new file', () async {
       final newer = await open(migrations: [...kMigrations, v2]);
       newer.store.insertOrBump('from the future', ClipKind.text, 1);
       newer.store.close();
@@ -288,14 +288,15 @@ void main() {
 
       final opened = await open();
 
-      expect(opened.notices, {HistoryNotice.readError});
-      expect(opened.store.count, 0);
-      expect(
-        File('${dir.path}/kusunga.db.unreadable-2026-11-03').readAsBytesSync(),
-        before,
-        reason: 'untouched',
-      );
+      expect(opened.store, isA<MemoryHistoryStore>());
+      expect(opened.notices, {HistoryNotice.incompatible});
+      expect(files(), ['kusunga.db'], reason: 'nothing moved, nothing new');
+      expect(File('${dir.path}/kusunga.db').readAsBytesSync(), before);
+      expect(log.codes, contains(LogCode.storeIncompatible));
+      // Nothing from this session is written to the old file.
+      opened.store.insertOrBump('this session', ClipKind.text, 2);
       opened.store.close();
+      expect(File('${dir.path}/kusunga.db').readAsBytesSync(), before);
     });
 
     // Fails on data that starts with the same letter, passes on an empty
@@ -308,8 +309,8 @@ void main() {
       ],
     );
 
-    test('a failed migration at start-up: old data is kept aside and the '
-        'user is told once', () async {
+    test('a failed migration at start-up leaves the file and the backup '
+        'untouched: memory only, own notice', () async {
       final first = await open();
       first.store.insertOrBump('old data', ClipKind.text, 1);
       first.store.insertOrBump('old more', ClipKind.text, 2);
@@ -318,17 +319,19 @@ void main() {
 
       final opened = await open(migrations: [...kMigrations, bad]);
 
-      expect(opened.notices, {HistoryNotice.readError});
-      expect(opened.store, isA<SqliteHistoryStore>());
+      expect(opened.store, isA<MemoryHistoryStore>());
+      expect(opened.notices, {HistoryNotice.incompatible});
+      expect(files(), ['kusunga.db', 'kusunga.db.bak']);
+      expect(log.codes, contains(LogCode.storeIncompatible));
+      for (final name in ['kusunga.db', 'kusunga.db.bak']) {
+        final old = SqliteHistoryStore.open(
+          path: '${dir.path}/$name',
+          keyHex: keys.stored!,
+        );
+        expect(old.count, 2, reason: name);
+        old.close();
+      }
       opened.store.close();
-      final aside = files().where((f) => f.contains('unreadable'));
-      expect(aside, hasLength(1));
-      final old = SqliteHistoryStore.open(
-        path: '${dir.path}/${aside.single}',
-        keyHex: keys.stored!,
-      );
-      expect(old.count, 2);
-      old.close();
     });
 
     test('a failing step-2 migration after a good step 1 rolls back only '
@@ -356,15 +359,18 @@ void main() {
 
     test('Clear history also removes older copies of the history that '
         'were moved aside or backed up', () async {
-      // Bug repro (BUG-7): after a failed migration the old file is moved
-      // aside but is still encrypted with the key that is still in the
-      // keychain. Clear history says "This deletes all N items", but the
-      // old copy stays on disk, readable by anyone who can reach the key.
+      // Bug repro (BUG-7): a file moved aside as unreadable can still be
+      // encrypted with a key that is still in the keychain. Clear history says
+      // "This deletes all N items", but the old copy stayed on disk.
+      // (After C1 a failed migration no longer moves the file; the wrong-key
+      // path still does, so the repro uses that.)
       final first = await open();
       first.store.insertOrBump('$_marker a', ClipKind.text, 1);
       first.store.insertOrBump('$_marker b', ClipKind.text, 2);
       first.store.close();
-      final opened = await open(migrations: [...kMigrations, dataDependent]);
+      final oldKey = keys.stored!;
+      keys.stored = 'e' * 64;
+      final opened = await open();
       expect(opened.notices, {HistoryNotice.readError});
       final service = HistoryService(
         store: opened.store,
@@ -380,7 +386,7 @@ void main() {
       final readable = <String>[];
       for (final f in dir.listSync().whereType<File>()) {
         try {
-          final s = SqliteHistoryStore.open(path: f.path, keyHex: keys.stored!);
+          final s = SqliteHistoryStore.open(path: f.path, keyHex: oldKey);
           if (s.count > 0) readable.add(p.basename(f.path));
           s.close();
         } catch (_) {}

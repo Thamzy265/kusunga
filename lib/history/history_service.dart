@@ -12,7 +12,13 @@ import 'history_opener.dart';
 import 'history_store.dart';
 
 /// Banners at the top of the history list (UI spec, "Banner" row).
-enum HistoryBanner { memoryOnly, readError, writeError, clearError }
+enum HistoryBanner {
+  memoryOnly,
+  readError,
+  incompatible,
+  writeError,
+  clearError,
+}
 
 /// Takes what the clipboard watcher reports, keeps the history, and holds the
 /// state the history window shows.
@@ -32,6 +38,8 @@ class HistoryService extends ChangeNotifier {
          if (notices.contains(HistoryNotice.memoryOnly))
            HistoryBanner.memoryOnly,
          if (notices.contains(HistoryNotice.readError)) HistoryBanner.readError,
+         if (notices.contains(HistoryNotice.incompatible))
+           HistoryBanner.incompatible,
        };
 
   /// Copies that could not be saved are kept in memory, up to this many.

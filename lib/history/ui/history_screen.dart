@@ -443,6 +443,8 @@ class _Banner extends StatelessWidget {
       "History won't be kept after you quit, because Kusunga can't reach your keychain.",
     HistoryBanner.readError =>
       "Kusunga couldn't read your old history, so it started a new one.",
+    HistoryBanner.incompatible =>
+      "This history was made by a newer or different version of Kusunga. It's safe, but this version can't open it. History won't be kept until you update.",
     HistoryBanner.writeError =>
       "Couldn't save the latest item. Kusunga will try again.",
     HistoryBanner.clearError => "Couldn't clear history. Try again.",
