@@ -9,6 +9,7 @@ class MainFlutterWindow: NSWindow {
     self.setFrame(windowFrame, display: true)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+    ClipboardBridge.shared.register(messenger: flutterViewController.engine.binaryMessenger)
 
     super.awakeFromNib()
   }
