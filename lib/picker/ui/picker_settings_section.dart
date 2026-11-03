@@ -100,6 +100,9 @@ class _PickerSettingsSectionState extends State<PickerSettingsSection>
         case ShortcutChange.needModifier:
           _message = PickerShortcut.needModifierMessage(isMac: _c.isMac);
           _messageIsError = true;
+        case ShortcutChange.reserved:
+          _message = PickerShortcut.reservedMessage;
+          _messageIsError = true;
         case ShortcutChange.notSaved:
           _recording = false;
           _message = "Couldn't save the shortcut. Try again.";

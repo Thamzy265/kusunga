@@ -155,6 +155,26 @@ void main() {
       expect(find.text('Press the new shortcut…'), findsOneWidget);
     });
 
+    testWidgets('Cmd+V is refused with the copy-and-paste message', (
+      tester,
+    ) async {
+      await show(tester);
+      await startRecording(tester);
+      await record(
+        tester,
+        LogicalKeyboardKey.keyV,
+        held: [LogicalKeyboardKey.metaLeft],
+      );
+      expect(
+        find.text(
+          'That shortcut is needed for copy and paste. Choose another.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Picker shortcut: ⇧⌘V'), findsOneWidget);
+      expect(find.text('Press the new shortcut…'), findsOneWidget);
+    });
+
     testWidgets('Windows wording for the same problem', (tester) async {
       await show(tester, isMac: false);
       await startRecording(tester);

@@ -26,6 +26,9 @@ enum ShortcutChange {
   /// No Cmd, Ctrl or Alt in it.
   needModifier,
 
+  /// Cmd/Ctrl with V, C, X, A or Z alone: needed for copy and paste.
+  reserved,
+
   /// It works now but could not be saved, so it is gone after a quit.
   notSaved,
 }
@@ -147,7 +150,9 @@ class PickerController extends ChangeNotifier {
       _unsavedShortcut = false;
     } else {
       final saved = PickerShortcut.parse(history.setting('picker_shortcut'));
-      if (saved != null && saved != _shortcut) {
+      if (saved != null &&
+          saved != _shortcut &&
+          !saved.isReserved(isMac: isMac)) {
         _shortcut = saved;
         final result = await port.registerShortcut(saved);
         if (_disposed) return;
@@ -278,6 +283,7 @@ class PickerController extends ChangeNotifier {
   /// refused.
   Future<ShortcutChange> changeShortcut(PickerShortcut next) async {
     if (!next.isValid) return ShortcutChange.needModifier;
+    if (next.isReserved(isMac: isMac)) return ShortcutChange.reserved;
     if (next == _shortcut && _problem == null) {
       if (_suspended) await _restore();
       return ShortcutChange.saved;

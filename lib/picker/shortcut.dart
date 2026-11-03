@@ -49,6 +49,21 @@ class PickerShortcut {
           modifiers.contains(ShortcutModifier.alt) ||
           modifiers.contains(ShortcutModifier.meta));
 
+  /// The combinations the editing keys use: Cmd (Ctrl on Windows) alone with
+  /// V, C, X, A or Z. As the picker shortcut they would stop copy and paste in
+  /// every app, and the paste keystroke Kusunga sends would open the picker
+  /// again. With another modifier added (the default Cmd+Shift+V) they are fine.
+  bool isReserved({required bool isMac}) {
+    final main = isMac ? ShortcutModifier.meta : ShortcutModifier.ctrl;
+    return modifiers.length == 1 &&
+        modifiers.contains(main) &&
+        const {'v', 'c', 'x', 'a', 'z'}.contains(key);
+  }
+
+  /// Shown for a [isReserved] combination.
+  static const reservedMessage =
+      'That shortcut is needed for copy and paste. Choose another.';
+
   /// The saved form, for example `shift+meta+v`.
   String get serialized => [
     for (final m in _order)

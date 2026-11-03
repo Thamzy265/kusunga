@@ -172,4 +172,43 @@ void main() {
       expect(s?.key, 'v');
     });
   });
+
+  group('reserved combinations', () {
+    test('Cmd (Ctrl on Windows) alone with V, C, X, A or Z', () {
+      for (final k in ['v', 'c', 'x', 'a', 'z']) {
+        expect(
+          PickerShortcut({ShortcutModifier.meta}, k).isReserved(isMac: true),
+          isTrue,
+        );
+        expect(
+          PickerShortcut({ShortcutModifier.ctrl}, k).isReserved(isMac: false),
+          isTrue,
+        );
+      }
+    });
+
+    test('anything else is fine, including the defaults', () {
+      expect(
+        PickerShortcut.defaultFor(isMac: true).isReserved(isMac: true),
+        isFalse,
+      );
+      expect(
+        PickerShortcut.defaultFor(isMac: false).isReserved(isMac: false),
+        isFalse,
+      );
+      expect(
+        PickerShortcut({ShortcutModifier.meta}, 'k').isReserved(isMac: true),
+        isFalse,
+      );
+      // Ctrl+V on a Mac is not the paste key; Cmd+V on Windows is Win+V.
+      expect(
+        PickerShortcut({ShortcutModifier.ctrl}, 'v').isReserved(isMac: true),
+        isFalse,
+      );
+      expect(
+        PickerShortcut({ShortcutModifier.alt}, 'v').isReserved(isMac: true),
+        isFalse,
+      );
+    });
+  });
 }
