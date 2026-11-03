@@ -1,3 +1,4 @@
+import Carbon.HIToolbox
 import Cocoa
 
 /// What the paste flow needs from the Mac. A protocol so the logic (focus
@@ -14,7 +15,10 @@ protocol PastePlatform: AnyObject {
   func modifiersDown() -> Bool
   /// `CGPreflightPostEventAccess()`: does not prompt.
   func canPostEvents() -> Bool
-  /// Sends Cmd+V to the session.
+  /// The key code of the key that types "v" in the current keyboard layout,
+  /// or nil if no key does (then nothing is sent).
+  func pasteKeyCode() -> UInt16?
+  /// Sends Cmd+V to the session, with the key found by `pasteKeyCode()`.
   func postPaste()
   func sleep(ms: Int)
   func nowMs() -> Int
@@ -27,6 +31,62 @@ protocol PasteboardWriting {
 
 /// How a paste ended. The raw values are the answers to Dart (see
 /// lib/picker/channel_picker_port.dart).
+extension PastePlatform {
+  /// The US layout key for V. The real Mac looks it up in the layout.
+  func pasteKeyCode() -> UInt16? { 9 }
+}
+
+/// Finds the key that types "v". Key code 9 is the V key on a US layout, but
+/// on Dvorak it types "." and Cmd+. would interrupt a running Terminal command.
+enum PasteKey {
+  /// [translate] gives the letter a key code types in the current layout with
+  /// no modifiers, or nil. The standard key is tried first.
+  static func code(forV translate: (UInt16) -> String?) -> UInt16? {
+    if translate(9) == "v" { return 9 }
+    for code in UInt16(0)..<UInt16(128) where translate(code) == "v" {
+      return code
+    }
+    return nil
+  }
+
+  /// The real layout: the current keyboard layout, or the last ASCII-capable
+  /// one if the current layout cannot type letters (as macOS does for Cmd
+  /// shortcuts).
+  static func translateInCurrentLayout(_ code: UInt16) -> String? {
+    guard
+      let source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue(),
+      let property = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData)
+    else { return nil }
+    let data = Unmanaged<CFData>.fromOpaque(property).takeUnretainedValue()
+    guard let bytes = CFDataGetBytePtr(data) else { return nil }
+    let layout = UnsafeRawPointer(bytes).assumingMemoryBound(to: UCKeyboardLayout.self)
+    var dead: UInt32 = 0
+    var length = 0
+    var chars = [UniChar](repeating: 0, count: 4)
+    let status = UCKeyTranslate(
+      layout, code, UInt16(kUCKeyActionDown), 0, UInt32(LMGetKbdType()),
+      OptionBits(kUCKeyTranslateNoDeadKeysBit), &dead, chars.count, &length, &chars)
+    guard status == noErr, length > 0 else { return nil }
+    return String(utf16CodeUnits: chars, count: length)
+  }
+}
+
+/// What Esc does (E1): the history window comes back without being activated,
+/// and the app the user was in gets the focus back. Kusunga itself is
+/// activated only if it was the app in front.
+struct ClosePlan: Equatable {
+  let showManage: Bool
+  let activateKusunga: Bool
+  let reactivate: pid_t?
+
+  static func make(manageWasVisible: Bool, target: pid_t?) -> ClosePlan {
+    ClosePlan(
+      showManage: manageWasVisible,
+      activateKusunga: manageWasVisible && target == nil,
+      reactivate: target)
+  }
+}
+
 enum PasteResult: String {
   case pasted
   case noPermission
@@ -71,6 +131,9 @@ final class PasteFlow {
     }
     if !post { return .copyOnly }
     if !platform.canPostEvents() { return .noPermission }
+    // No key types "v" in this layout: pressing a different key could do
+    // something else, so only the copy is done.
+    if platform.pasteKeyCode() == nil { return .copyOnly }
 
     // Let go of Cmd+Shift first, so the app does not see Cmd+Shift+V. Waiting
     // too long is not an error: the key event below carries only Cmd.
@@ -152,12 +215,17 @@ final class MacPastePlatform: PastePlatform {
 
   func canPostEvents() -> Bool { CGPreflightPostEventAccess() }
 
+  func pasteKeyCode() -> UInt16? {
+    PasteKey.code(forV: PasteKey.translateInCurrentLayout)
+  }
+
   func postPaste() {
-    // Key code 9 is "V" on the US layout. Posted to the session, with only the
-    // Command flag.
+    // The key that types "v" in the current layout (key code 9 on a US
+    // layout), posted to the session with only the Command flag.
+    guard let keyCode = pasteKeyCode() else { return }
     let source = CGEventSource(stateID: .combinedSessionState)
     for down in [true, false] {
-      guard let event = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: down)
+      guard let event = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: down)
       else { continue }
       event.flags = .maskCommand
       event.post(tap: .cgSessionEventTap)

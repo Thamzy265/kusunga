@@ -24,6 +24,8 @@ final class FakePastePlatform: PastePlatform {
   /// Modifier keys are down until this time (nil: not held; Int.max: held).
   var modifiersHeldUntilMs: Int?
   var canPost = true
+  /// The key that types "v" in the pretend layout (nil: none does).
+  var keyCode: UInt16? = 9
 
   private func advance() {
     if let a = activatedAt, let d = frontAfterMs, now >= a + d, front != 300 {
@@ -53,6 +55,7 @@ final class FakePastePlatform: PastePlatform {
   }
 
   func canPostEvents() -> Bool { canPost }
+  func pasteKeyCode() -> UInt16? { keyCode }
 
   func postPaste() { log.append("post@\(now)") }
 
@@ -547,5 +550,81 @@ class PickerGeometryTests: XCTestCase {
     // On a seam or outside every screen: the first one.
     XCTAssertEqual(PickerGeometry.screenFrame(containing: NSPoint(x: 5000, y: 5000), among: [a, b]), a)
     XCTAssertNil(PickerGeometry.screenFrame(containing: .zero, among: []))
+  }
+}
+
+// MARK: - The key that types "v" (Dvorak and other layouts)
+
+class PasteKeyTests: XCTestCase {
+  /// A layout as a table of key code -> typed letter.
+  private func layout(_ table: [UInt16: String]) -> (UInt16) -> String? { { table[$0] } }
+
+  func testQwertyUsesKeyCode9() {
+    XCTAssertEqual(PasteKey.code(forV: layout([9: "v", 0: "a"])), 9)
+  }
+
+  func testDvorakFindsWhereVIs() {
+    // On plain Dvorak key code 9 types "." and "v" sits on the key at code 47.
+    XCTAssertEqual(PasteKey.code(forV: layout([9: ".", 47: "v", 8: "j"])), 47)
+  }
+
+  func testNoKeyTypingVMeansNoPasteKey() {
+    XCTAssertNil(PasteKey.code(forV: layout([9: "м", 0: "ф"])))
+    XCTAssertNil(PasteKey.code(forV: layout([:])))
+  }
+
+  func testOnlyAPlainLowerCaseVCounts() {
+    XCTAssertNil(PasteKey.code(forV: layout([9: "V", 10: "vv", 11: " v"])))
+  }
+
+  func testTheStandardKeyWinsIfTwoKeysTypeV() {
+    XCTAssertEqual(PasteKey.code(forV: layout([3: "v", 9: "v"])), 9)
+  }
+
+  func testOnlyRealKeyCodesAreTried() {
+    XCTAssertNil(PasteKey.code(forV: layout([200: "v"])))
+  }
+}
+
+class PasteFlowKeyTests: XCTestCase {
+  func testNoKeyForVCopiesOnlyAndNeverPosts() {
+    let platform = FakePastePlatform()
+    platform.keyCode = nil
+    let flow = PasteFlow(platform: platform, writer: FakePasteboardWriter(), ownPid: 1)
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .copyOnly)
+    XCTAssertFalse(platform.log.contains { $0.hasPrefix("post") })
+    XCTAssertTrue(platform.log.contains("activate"))
+  }
+}
+
+// MARK: - Esc and click outside (E1)
+
+class ClosePlanTests: XCTestCase {
+  func testEscWithATargetGivesTheFocusBackToItAndDoesNotActivateKusunga() {
+    let plan = ClosePlan.make(manageWasVisible: true, target: 200)
+    XCTAssertTrue(plan.showManage)
+    XCTAssertFalse(plan.activateKusunga)
+    XCTAssertEqual(plan.reactivate, 200)
+  }
+
+  func testEscWithATargetAndNoHistoryWindowJustReturnsToTheTarget() {
+    let plan = ClosePlan.make(manageWasVisible: false, target: 200)
+    XCTAssertFalse(plan.showManage)
+    XCTAssertFalse(plan.activateKusunga)
+    XCTAssertEqual(plan.reactivate, 200)
+  }
+
+  func testWhenKusungaItselfWasInFrontItComesBack() {
+    let plan = ClosePlan.make(manageWasVisible: true, target: nil)
+    XCTAssertTrue(plan.showManage)
+    XCTAssertTrue(plan.activateKusunga)
+    XCTAssertNil(plan.reactivate)
+  }
+
+  func testNothingToRestoreActivatesNothing() {
+    let plan = ClosePlan.make(manageWasVisible: false, target: nil)
+    XCTAssertFalse(plan.showManage)
+    XCTAssertFalse(plan.activateKusunga)
+    XCTAssertNil(plan.reactivate)
   }
 }

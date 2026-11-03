@@ -110,9 +110,9 @@ final class PickerBridge {
   /// Esc.
   private func closePicker() {
     guard let windows = windows, windows.mode == .picker else { return }
-    let restore = windows.manageWasVisible
-    windows.leavePicker(showManage: restore, activate: true)
-    if !restore, let t = target { _ = MacPastePlatform.activateApp(t) }
+    let plan = ClosePlan.make(manageWasVisible: windows.manageWasVisible, target: target)
+    windows.leavePicker(showManage: plan.showManage, activate: plan.activateKusunga)
+    if let t = plan.reactivate { _ = MacPastePlatform.activateApp(t) }
     target = nil
   }
 
