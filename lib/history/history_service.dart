@@ -60,7 +60,10 @@ class HistoryService extends ChangeNotifier {
   /// Starts listening for copies and shows what is already saved.
   void start() {
     _refresh();
-    _subscription = _source.events.listen(_onEvent);
+    _subscription = _source.events.listen(
+      _onEvent,
+      onError: (Object _) => _log.log(LogCode.clipboardChannelError),
+    );
     unawaited(recheckPasteAccess());
   }
 

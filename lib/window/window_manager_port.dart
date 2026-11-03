@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:window_manager/window_manager.dart';
 
@@ -14,6 +15,8 @@ class WindowManagerPort with WindowListener implements WindowPort {
   @override
   Future<void> init() async {
     await windowManager.ensureInitialized();
+    await windowManager.setMinimumSize(const Size(360, 400));
+    await windowManager.setSize(const Size(800, 632));
     await windowManager.setPreventClose(true);
     windowManager.addListener(this);
   }

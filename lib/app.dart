@@ -1,35 +1,23 @@
 import 'package:flutter/material.dart';
 
+import 'history/history_service.dart';
+import 'history/ui/history_host.dart';
+import 'theme/tokens.dart';
+
 class KusungaApp extends StatelessWidget {
-  const KusungaApp({super.key});
+  const KusungaApp({super.key, required this.history});
+
+  /// The history, once it has opened (see `openHistory`).
+  final Future<HistoryService> history;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Kusunga',
-      theme: ThemeData(colorSchemeSeed: Colors.teal),
-      darkTheme: ThemeData(
-        colorSchemeSeed: Colors.teal,
-        brightness: Brightness.dark,
-      ),
+      theme: KusungaTokens.themeData(Brightness.light),
+      darkTheme: KusungaTokens.themeData(Brightness.dark),
       themeMode: ThemeMode.system,
-      home: const HomeScreen(),
-    );
-  }
-}
-
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Text(
-          'Kusunga',
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
-      ),
+      home: HistoryHost(history: history),
     );
   }
 }

@@ -86,6 +86,13 @@ void main() {
     expect(store.contentOf(service.items.single.id), '  padded\n');
   });
 
+  test('a failing watcher is logged and does not crash the app', () {
+    source.controller.addError(Exception('watcher gone'));
+    expect(log.codes, [LogCode.clipboardChannelError]);
+    source.copy('still works');
+    expect(texts(), ['still works']);
+  });
+
   test('a read error is logged with its code only', () {
     source.controller.add(const ClipboardReadError('locked'));
     expect(log.codes, [LogCode.clipboardLocked]);
