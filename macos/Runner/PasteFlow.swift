@@ -40,10 +40,11 @@ extension PastePlatform {
 /// on Dvorak it types "." and Cmd+. would interrupt a running Terminal command.
 enum PasteKey {
   /// [translate] gives the letter a key code types in the current layout with
-  /// no modifiers, or nil. The standard key is tried first.
-  static func code(forV translate: (UInt16) -> String?) -> UInt16? {
-    if translate(9) == "v" { return 9 }
-    for code in UInt16(0)..<UInt16(128) where translate(code) == "v" {
+  /// Command held (so on "Dvorak - QWERTY ⌘", where the Command table is
+  /// QWERTY, key 9 is chosen), or nil. The standard key is tried first.
+  static func code(forV translate: (UInt16, Bool) -> String?) -> UInt16? {
+    if translate(9, true) == "v" { return 9 }
+    for code in UInt16(0)..<UInt16(128) where translate(code, true) == "v" {
       return code
     }
     return nil
@@ -52,7 +53,7 @@ enum PasteKey {
   /// The real layout: the current keyboard layout, or the last ASCII-capable
   /// one if the current layout cannot type letters (as macOS does for Cmd
   /// shortcuts).
-  static func translateInCurrentLayout(_ code: UInt16) -> String? {
+  static func translateInCurrentLayout(_ code: UInt16, command: Bool) -> String? {
     guard
       let source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue(),
       let property = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData)
@@ -64,7 +65,8 @@ enum PasteKey {
     var length = 0
     var chars = [UniChar](repeating: 0, count: 4)
     let status = UCKeyTranslate(
-      layout, code, UInt16(kUCKeyActionDown), 0, UInt32(LMGetKbdType()),
+      layout, code, UInt16(kUCKeyActionDown),
+      command ? UInt32((cmdKey >> 8) & 0xFF) : 0, UInt32(LMGetKbdType()),
       OptionBits(kUCKeyTranslateNoDeadKeysBit), &dead, chars.count, &length, &chars)
     guard status == noErr, length > 0 else { return nil }
     return String(utf16CodeUnits: chars, count: length)

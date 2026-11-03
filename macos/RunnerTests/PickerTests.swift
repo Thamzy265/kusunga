@@ -556,16 +556,29 @@ class PickerGeometryTests: XCTestCase {
 // MARK: - The key that types "v" (Dvorak and other layouts)
 
 class PasteKeyTests: XCTestCase {
-  /// A layout as a table of key code -> typed letter.
-  private func layout(_ table: [UInt16: String]) -> (UInt16) -> String? { { table[$0] } }
+  /// A layout as two tables, key code -> typed letter: with no modifier and with
+  /// Command held (the table that decides what Cmd+key does).
+  private func layout(_ plain: [UInt16: String], command: [UInt16: String]? = nil)
+    -> (UInt16, Bool) -> String?
+  {
+    { code, cmd in cmd ? (command ?? plain)[code] : plain[code] }
+  }
 
   func testQwertyUsesKeyCode9() {
     XCTAssertEqual(PasteKey.code(forV: layout([9: "v", 0: "a"])), 9)
   }
 
-  func testDvorakFindsWhereVIs() {
-    // On plain Dvorak key code 9 types "." and "v" sits on the key at code 47.
+  func testPlainDvorakFindsWhereVIs() {
+    // On plain Dvorak key code 9 types "." (also with Command) and "v" sits at 47.
     XCTAssertEqual(PasteKey.code(forV: layout([9: ".", 47: "v", 8: "j"])), 47)
+  }
+
+  func testDvorakQwertyCommandUsesTheQwertyCommandTable() {
+    // "Dvorak - QWERTY ⌘": typing is Dvorak, but with Command held the keys are
+    // QWERTY, so Cmd+key 47 would be Cmd+. and the right key is 9.
+    let plain: [UInt16: String] = [9: ".", 47: "v"]
+    let command: [UInt16: String] = [9: "v", 47: "."]
+    XCTAssertEqual(PasteKey.code(forV: layout(plain, command: command)), 9)
   }
 
   func testNoKeyTypingVMeansNoPasteKey() {
