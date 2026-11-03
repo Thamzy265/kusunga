@@ -41,8 +41,16 @@ final class ClipboardPoller {
   private let emit: ([String: Any]) -> Void
   private var lastCount: Int
 
-  init(pasteboard: PasteboardReading, emit: @escaping ([String: Any]) -> Void) {
+  /// False when the user has not chosen "Allow" for pasteboard access (ask or
+  /// deny): every read can raise a system alert, so a copy is read once only.
+  private let mayRetry: () -> Bool
+
+  init(
+    pasteboard: PasteboardReading, mayRetry: @escaping () -> Bool = { true },
+    emit: @escaping ([String: Any]) -> Void
+  ) {
     self.pasteboard = pasteboard
+    self.mayRetry = mayRetry
     self.emit = emit
     self.lastCount = pasteboard.changeCount
   }
@@ -60,6 +68,11 @@ final class ClipboardPoller {
 
   private var waiting = false
   private var ticksLeft = 0
+  private var isRetry = false
+  /// Text read on a retry tick, held until the next tick confirms that the
+  /// types and the change count did not move (so a secret marker that arrives
+  /// just after the text is still seen before anything is sent).
+  private var held: (text: String, types: [String])?
 
   func tick() {
     let count = pasteboard.changeCount
@@ -67,6 +80,8 @@ final class ClipboardPoller {
       lastCount = count
       waiting = true
       ticksLeft = ClipboardPoller.maxTicksToWait
+      isRetry = false
+      held = nil
     }
     guard waiting else { return }
 
@@ -74,7 +89,16 @@ final class ClipboardPoller {
     let types = pasteboard.typeIdentifiers
     if ClipboardPolicy.isSecret(types) {
       waiting = false
+      held = nil
       emit(["type": "concealed"])
+      return
+    }
+
+    if let held = held {
+      // The confirming tick: nothing moved since the text was read, so send it.
+      waiting = false
+      self.held = nil
+      if held.types == types { send(held.text) }
       return
     }
 
@@ -84,19 +108,28 @@ final class ClipboardPoller {
       // whose types we have not checked. Drop it; the next tick starts over.
       if pasteboard.changeCount != count { return }
       if let text = text {
-        waiting = false
-        if text.utf8.count > ClipboardPolicy.maxBytes {
-          emit(["type": "tooLarge"])
+        if isRetry {
+          held = (text, types)  // confirmed on the next tick
         } else {
-          emit(["type": "text", "text": text])
+          waiting = false
+          send(text)
         }
         return
       }
     }
 
     // Not readable yet (or not text at all): try again on the next ticks, then
-    // give up on this copy.
+    // give up on this copy. With "Ask" or "Don't Allow" there is no retry.
+    isRetry = true
     ticksLeft -= 1
-    if ticksLeft <= 0 { waiting = false }
+    if ticksLeft <= 0 || !mayRetry() { waiting = false }
+  }
+
+  private func send(_ text: String) {
+    if text.utf8.count > ClipboardPolicy.maxBytes {
+      emit(["type": "tooLarge"])
+    } else {
+      emit(["type": "text", "text": text])
+    }
   }
 }

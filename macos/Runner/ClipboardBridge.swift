@@ -60,7 +60,10 @@ final class ClipboardBridge: NSObject, FlutterStreamHandler {
   func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink)
     -> FlutterError?
   {
-    let poller = ClipboardPoller(pasteboard: NSPasteboard.general) { events($0) }
+    let poller = ClipboardPoller(
+      pasteboard: NSPasteboard.general,
+      mayRetry: { ClipboardBridge.accessBehavior() != "ask" && ClipboardBridge.accessBehavior() != "deny" }
+    ) { events($0) }
     poller.prime()
     self.poller = poller
     let timer = Timer(timeInterval: 0.25, repeats: true) { _ in poller.tick() }

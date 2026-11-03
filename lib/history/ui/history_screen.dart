@@ -279,73 +279,95 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     return ScaffoldMessenger(
       key: _messenger,
-      child: CallbackShortcuts(
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _undo,
-          const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _undo,
+      // Cmd/Ctrl+Z undoes a delete only when one is waiting and the focus is
+      // not in a text field. Otherwise the action is disabled and the key goes
+      // on to the text field's own undo.
+      child: Shortcuts(
+        shortcuts: const {
+          SingleActivator(LogicalKeyboardKey.keyZ, control: true):
+              _UndoDeleteIntent(),
+          SingleActivator(LogicalKeyboardKey.keyZ, meta: true):
+              _UndoDeleteIntent(),
         },
-        child: Scaffold(
-          backgroundColor: t.surface,
-          body: SafeArea(
-            child: Padding(
-              padding: EdgeInsets.all(KusungaTokens.space4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Header, banners and the setup card scroll with the list, so
-                  // nothing is cut off at 200% text on a small window.
-                  Expanded(
-                    child: CustomScrollView(
-                      controller: _scroll,
-                      slivers: [
-                        SliverToBoxAdapter(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _Header(
-                                service: _service,
-                                count: items.length,
-                                onClear: _confirmClear,
-                                confirmLower: _confirmLower,
-                                onSaveFailed: () => _toast(
-                                  "Couldn't save that number. Try again.",
+        child: Actions(
+          actions: {
+            _UndoDeleteIntent: _UndoDeleteAction(
+              isAvailable: () => _pendingUndo != null && !_focusIsInTextField(),
+              onUndo: _undo,
+            ),
+          },
+          child: Scaffold(
+            backgroundColor: t.surface,
+            body: SafeArea(
+              child: Padding(
+                padding: EdgeInsets.all(KusungaTokens.space4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Header, banners and the setup card scroll with the list, so
+                    // nothing is cut off at 200% text on a small window.
+                    Expanded(
+                      child: CustomScrollView(
+                        controller: _scroll,
+                        slivers: [
+                          SliverToBoxAdapter(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _Header(
+                                  service: _service,
+                                  count: items.length,
+                                  onClear: _confirmClear,
+                                  confirmLower: _confirmLower,
+                                  onSaveFailed: () => _toast(
+                                    "Couldn't save that number. Try again.",
+                                  ),
                                 ),
-                              ),
-                              SizedBox(height: KusungaTokens.space3),
-                              for (final b in _service.banners)
-                                _Banner(
-                                  banner: b,
-                                  onDismiss: () => _service.dismiss(b),
-                                ),
-                              if (setupCard) _SetupCard(service: _service),
-                            ],
+                                SizedBox(height: KusungaTokens.space3),
+                                for (final b in _service.banners)
+                                  _Banner(
+                                    banner: b,
+                                    onDismiss: () => _service.dismiss(b),
+                                  ),
+                                if (setupCard) _SetupCard(service: _service),
+                              ],
+                            ),
                           ),
+                          if (items.isEmpty)
+                            const SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: _EmptyState(),
+                            )
+                          else
+                            _list(items, setupCard),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: KusungaTokens.space2),
+                    Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        _footer,
+                        style: KusungaTokens.caption.copyWith(
+                          color: t.textMuted,
                         ),
-                        if (items.isEmpty)
-                          const SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: _EmptyState(),
-                          )
-                        else
-                          _list(items, setupCard),
-                      ],
+                      ),
                     ),
-                  ),
-                  SizedBox(height: KusungaTokens.space2),
-                  Semantics(
-                    liveRegion: true,
-                    child: Text(
-                      _footer,
-                      style: KusungaTokens.caption.copyWith(color: t.textMuted),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  bool _focusIsInTextField() {
+    final ctx = FocusManager.instance.primaryFocus?.context;
+    if (ctx == null) return false;
+    return ctx.widget is EditableText ||
+        ctx.findAncestorWidgetOfExactType<EditableText>() != null;
   }
 
   Widget _list(List<ClipItem> items, bool setupCard) {
@@ -584,5 +606,25 @@ class _EmptyState extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _UndoDeleteIntent extends Intent {
+  const _UndoDeleteIntent();
+}
+
+class _UndoDeleteAction extends Action<_UndoDeleteIntent> {
+  _UndoDeleteAction({required this.isAvailable, required this.onUndo});
+
+  final bool Function() isAvailable;
+  final VoidCallback onUndo;
+
+  @override
+  bool isEnabled(_UndoDeleteIntent intent) => isAvailable();
+
+  @override
+  Object? invoke(_UndoDeleteIntent intent) {
+    onUndo();
+    return null;
   }
 }

@@ -650,6 +650,8 @@ class ClipboardPollerRetryTests: XCTestCase {
     XCTAssertTrue(events.isEmpty)
     pasteboard.text = "arrived late"  // same change count
     poller.tick()
+    XCTAssertTrue(events.isEmpty, "read on a retry: held until the next tick confirms")
+    poller.tick()
     XCTAssertEqual(events.count, 1)
     XCTAssertEqual(events[0]["text"] as? String, "arrived late")
     poller.tick()
@@ -661,6 +663,7 @@ class ClipboardPollerRetryTests: XCTestCase {
     poller.tick()
     pasteboard.typeIdentifiers = [textType]
     pasteboard.text = "types came late"
+    poller.tick()
     poller.tick()
     XCTAssertEqual(events.count, 1)
   }
@@ -684,6 +687,40 @@ class ClipboardPollerRetryTests: XCTestCase {
     XCTAssertEqual(events.count, 1)
     XCTAssertEqual(events[0]["type"] as? String, "concealed")
     XCTAssertEqual(pasteboard.textReads, readsBefore, "never read after the marker")
+  }
+
+  func testMarkerAddedAfterTheRetryReadIsSeenBeforeAnythingIsSent() {
+    pasteboard.copy(nil, types: [textType])
+    poller.tick()  // tick 1: no text yet
+    pasteboard.text = "hunter2"
+    poller.tick()  // tick 2: text read on the retry, held
+    XCTAssertTrue(events.isEmpty)
+    pasteboard.typeIdentifiers = [textType, "org.nspasteboard.ConcealedType"]
+    poller.tick()  // tick 3: marker seen
+    XCTAssertEqual(events.count, 1)
+    XCTAssertEqual(events[0]["type"] as? String, "concealed")
+    XCTAssertNil(events[0]["text"])
+  }
+
+  func testWhenAccessIsAskOrDenyACopyIsReadOnlyOnce() {
+    var reads = 0
+    let p = ClipboardPoller(pasteboard: pasteboard, mayRetry: { false }) { _ in reads += 1 }
+    p.prime()
+    pasteboard.copy(nil, types: [textType])
+    for _ in 0..<10 { p.tick() }
+    pasteboard.text = "later"
+    p.tick()
+    XCTAssertEqual(reads, 0, "no event and no retry")
+    XCTAssertEqual(pasteboard.textReads, 1, "one read per change, no repeated alerts")
+  }
+
+  func testWhenAccessIsAskOrDenyTextThatIsReadableAtOnceIsStillReported() {
+    var got: [[String: Any]] = []
+    let p = ClipboardPoller(pasteboard: pasteboard, mayRetry: { false }) { got.append($0) }
+    p.prime()
+    pasteboard.copy("hello", types: [textType])
+    p.tick()
+    XCTAssertEqual(got.count, 1)
   }
 
   func testANewCopyDuringTheWaitReplacesTheWaitingOne() {
