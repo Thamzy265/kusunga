@@ -8,6 +8,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:kusunga/clipboard/clipboard_source.dart';
 import 'package:kusunga/history/clip_item.dart';
 import 'package:kusunga/history/history_opener.dart';
@@ -42,7 +43,7 @@ void main() {
   );
 
   List<String> files() =>
-      dir.listSync().map((e) => e.path.split('/').last).toList()..sort();
+      dir.listSync().map((e) => p.basename(e.path)).toList()..sort();
 
   /// True if any file in the folder holds [text] as UTF-8 or UTF-16.
   bool anyFileHolds(String text) {
@@ -258,6 +259,7 @@ void main() {
         log: log,
       )..start();
       addTearDown(service.dispose);
+      addTearDown(opened.store.close); // Windows cannot delete an open file
 
       final shownAnItem = service.items.isNotEmpty;
       final toldTheUser = opened.notices.contains(HistoryNotice.readError);
@@ -379,7 +381,7 @@ void main() {
       for (final f in dir.listSync().whereType<File>()) {
         try {
           final s = SqliteHistoryStore.open(path: f.path, keyHex: keys.stored!);
-          if (s.count > 0) readable.add(f.path.split('/').last);
+          if (s.count > 0) readable.add(p.basename(f.path));
           s.close();
         } catch (_) {}
       }
