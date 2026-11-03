@@ -21,7 +21,7 @@ class SecureKeyStore implements KeyStore {
   /// builds in M1.9 (PM decision on code signing, D5).
   static const macOptions = MacOsOptions(
     usesDataProtectionKeychain: false,
-    accountName: 'uk.org.cgatechnologies.kusunga',
+    accountName: 'com.wnasoni.kusunga',
   );
 
   static const entryName = 'history_db_key';

@@ -4,19 +4,17 @@ import 'clipboard_source.dart';
 
 /// Talks to the native watcher in the Runner (Swift on Mac, C++ on Windows).
 ///
-/// Event channel `uk.org.cgatechnologies.kusunga/clipboard/events` sends maps:
+/// Event channel `com.wnasoni.kusunga/clipboard/events` sends maps:
 /// `{type: text, text}`, `{type: concealed}`, `{type: tooLarge}`,
 /// `{type: error, code}`. Listening starts the watcher; cancelling stops it.
-/// Method channel `uk.org.cgatechnologies.kusunga/clipboard`:
+/// Method channel `com.wnasoni.kusunga/clipboard`:
 /// `accessBehavior` returns `allow`, `ask`, `deny` or `unsupported`.
 class ChannelClipboardSource implements ClipboardSource {
   ChannelClipboardSource({EventChannel? events, MethodChannel? methods})
     : _events =
-          events ??
-          const EventChannel('uk.org.cgatechnologies.kusunga/clipboard/events'),
+          events ?? const EventChannel('com.wnasoni.kusunga/clipboard/events'),
       _methods =
-          methods ??
-          const MethodChannel('uk.org.cgatechnologies.kusunga/clipboard');
+          methods ?? const MethodChannel('com.wnasoni.kusunga/clipboard');
 
   final EventChannel _events;
   final MethodChannel _methods;

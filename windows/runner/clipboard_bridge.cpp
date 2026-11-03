@@ -15,9 +15,9 @@ using flutter::EncodableMap;
 using flutter::EncodableValue;
 
 constexpr char kEventsChannel[] =
-    "uk.org.cgatechnologies.kusunga/clipboard/events";
-constexpr char kClipboardChannel[] = "uk.org.cgatechnologies.kusunga/clipboard";
-constexpr char kLifecycleChannel[] = "uk.org.cgatechnologies.kusunga/lifecycle";
+    "com.wnasoni.kusunga/clipboard/events";
+constexpr char kClipboardChannel[] = "com.wnasoni.kusunga/clipboard";
+constexpr char kLifecycleChannel[] = "com.wnasoni.kusunga/lifecycle";
 
 // How long to wait for Dart to close the database when Windows ends the
 // session.

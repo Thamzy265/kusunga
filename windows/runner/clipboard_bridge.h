@@ -16,12 +16,12 @@
 //
 // Channels (names match lib/clipboard/channel_clipboard_source.dart and
 // lib/lifecycle/app_lifecycle.dart):
-//  - event "uk.org.cgatechnologies.kusunga/clipboard/events": copies.
+//  - event "com.wnasoni.kusunga/clipboard/events": copies.
 //    Listening starts the watcher (AddClipboardFormatListener); cancelling
 //    stops it.
-//  - method "uk.org.cgatechnologies.kusunga/clipboard": "accessBehavior"
+//  - method "com.wnasoni.kusunga/clipboard": "accessBehavior"
 //    always answers "unsupported" (a Mac-only setting).
-//  - method "uk.org.cgatechnologies.kusunga/lifecycle": Dart calls "quit";
+//  - method "com.wnasoni.kusunga/lifecycle": Dart calls "quit";
 //    native calls "flush" and waits for the answer when Windows ends the
 //    session (WM_ENDSESSION).
 class ClipboardBridge {

@@ -43,17 +43,20 @@ Future<OpenedHistory> openHistory({
   DateTime Function()? today,
   bool Function(Database db)? cipherActive,
   List<Migration> migrations = kMigrations,
+  Duration keyTimeout = const Duration(seconds: 15),
 }) async {
   OpenedHistory memoryOnly() =>
       OpenedHistory(MemoryHistoryStore(), {HistoryNotice.memoryOnly});
 
   String keyHex;
   try {
-    var key = await keys.read();
+    // A keychain prompt nobody answers would leave the window on the spinner
+    // for ever: give up and run in memory.
+    var key = await keys.read().timeout(keyTimeout);
     if (key == null) {
       key = generateKeyHex(random ?? Random.secure());
-      await keys.write(key);
-      if (await keys.read() != key) {
+      await keys.write(key).timeout(keyTimeout);
+      if (await keys.read().timeout(keyTimeout) != key) {
         log.log(LogCode.keychainMismatch);
         return memoryOnly();
       }

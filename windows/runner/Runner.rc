@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "uk.org.cgatechnologies" "\0"
+            VALUE "CompanyName", "William Nasoni" "\0"
             VALUE "FileDescription", "Kusunga" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "Kusunga" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 uk.org.cgatechnologies. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 William Nasoni. All rights reserved." "\0"
             VALUE "OriginalFilename", "kusunga.exe" "\0"
             VALUE "ProductName", "Kusunga" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"

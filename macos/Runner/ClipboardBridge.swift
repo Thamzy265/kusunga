@@ -5,10 +5,10 @@ import FlutterMacOS
 ///
 /// Channels (names match lib/clipboard/channel_clipboard_source.dart and
 /// lib/lifecycle/app_lifecycle.dart):
-///  - event `uk.org.cgatechnologies.kusunga/clipboard/events`: copies. Listening
+///  - event `com.wnasoni.kusunga/clipboard/events`: copies. Listening
 ///    starts polling every 250 ms; cancelling stops it.
-///  - method `uk.org.cgatechnologies.kusunga/clipboard`: `accessBehavior`.
-///  - method `uk.org.cgatechnologies.kusunga/lifecycle`: Dart calls `quit`;
+///  - method `com.wnasoni.kusunga/clipboard`: `accessBehavior`.
+///  - method `com.wnasoni.kusunga/lifecycle`: Dart calls `quit`;
 ///    native calls `flush` and waits for the answer before quitting.
 final class ClipboardBridge: NSObject, FlutterStreamHandler {
   static let shared = ClipboardBridge()
@@ -19,11 +19,11 @@ final class ClipboardBridge: NSObject, FlutterStreamHandler {
 
   func register(messenger: FlutterBinaryMessenger) {
     FlutterEventChannel(
-      name: "uk.org.cgatechnologies.kusunga/clipboard/events", binaryMessenger: messenger
+      name: "com.wnasoni.kusunga/clipboard/events", binaryMessenger: messenger
     ).setStreamHandler(self)
 
     FlutterMethodChannel(
-      name: "uk.org.cgatechnologies.kusunga/clipboard", binaryMessenger: messenger
+      name: "com.wnasoni.kusunga/clipboard", binaryMessenger: messenger
     ).setMethodCallHandler { call, result in
       if call.method == "accessBehavior" {
         result(ClipboardBridge.accessBehavior())
@@ -33,7 +33,7 @@ final class ClipboardBridge: NSObject, FlutterStreamHandler {
     }
 
     let lifecycle = FlutterMethodChannel(
-      name: "uk.org.cgatechnologies.kusunga/lifecycle", binaryMessenger: messenger)
+      name: "com.wnasoni.kusunga/lifecycle", binaryMessenger: messenger)
     lifecycle.setMethodCallHandler { call, result in
       if call.method == "quit" {
         result(nil)

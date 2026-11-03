@@ -12,6 +12,9 @@ class FakeKeyStore implements KeyStore {
 
   String? stored;
   Object? readError;
+
+  /// If true, read never answers (a keychain prompt nobody has answered).
+  bool hang = false;
   Object? writeError;
 
   /// If set, a read after a write returns this instead of what was written.
@@ -21,6 +24,7 @@ class FakeKeyStore implements KeyStore {
 
   @override
   Future<String?> read() async {
+    if (hang) return Completer<String?>().future;
     if (readError != null) throw readError!;
     if (_written && readBackOverride != null) return readBackOverride;
     return stored;

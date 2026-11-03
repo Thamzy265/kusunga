@@ -5,15 +5,14 @@ import 'package:flutter/services.dart';
 
 /// The quit flow shared with native code.
 ///
-/// Native code calls `flush` on `uk.org.cgatechnologies.kusunga/lifecycle`
+/// Native code calls `flush` on `com.wnasoni.kusunga/lifecycle`
 /// when the system or the user is ending the app (Cmd+Q, Dock Quit, log out,
 /// shut down) and waits for the answer. Dart calls `quit` when the tray Quit
 /// item is chosen, after it has flushed.
 class AppLifecycle {
   AppLifecycle({MethodChannel? channel, void Function(int code)? exitFallback})
     : _channel =
-          channel ??
-          const MethodChannel('uk.org.cgatechnologies.kusunga/lifecycle'),
+          channel ?? const MethodChannel('com.wnasoni.kusunga/lifecycle'),
       _exit = exitFallback ?? exit;
 
   final MethodChannel _channel;

@@ -19,9 +19,6 @@ void main() {
 
   test('uses the login keychain so unsigned builds can reach it', () {
     expect(SecureKeyStore.macOptions.usesDataProtectionKeychain, isFalse);
-    expect(
-      SecureKeyStore.macOptions.accountName,
-      'uk.org.cgatechnologies.kusunga',
-    );
+    expect(SecureKeyStore.macOptions.accountName, 'com.wnasoni.kusunga');
   });
 }

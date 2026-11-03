@@ -5,7 +5,7 @@ import 'package:kusunga/lifecycle/app_lifecycle.dart';
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
   final messenger = binding.defaultBinaryMessenger;
-  const channel = MethodChannel('uk.org.cgatechnologies.kusunga/lifecycle');
+  const channel = MethodChannel('com.wnasoni.kusunga/lifecycle');
 
   tearDown(() => messenger.setMockMethodCallHandler(channel, null));
 

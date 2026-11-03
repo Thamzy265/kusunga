@@ -21,7 +21,7 @@ const _key = '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
   final messenger = binding.defaultBinaryMessenger;
-  const channel = MethodChannel('uk.org.cgatechnologies.kusunga/lifecycle');
+  const channel = MethodChannel('com.wnasoni.kusunga/lifecycle');
 
   late List<String> steps;
   late Object? quitError;

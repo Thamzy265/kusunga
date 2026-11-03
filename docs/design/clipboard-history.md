@@ -36,7 +36,7 @@ Trivially small: one user per install, about 50–500 copies a day, at most 5,00
 
 ## Data
 
-- Storage: one SQLite database in the app's support folder (`~/Library/Containers/uk.org.cgatechnologies.kusunga/Data/Library/Application Support/` on Mac, `%APPDATA%\Kusunga\` on Windows), encrypted as a whole with SQLite3 Multiple Ciphers through `package:sqlite3` 3.x build options. See ADR 0002.
+- Storage: one SQLite database in the app's support folder (`~/Library/Containers/com.wnasoni.kusunga/Data/Library/Application Support/` on Mac, `%APPDATA%\Kusunga\` on Windows), encrypted as a whole with SQLite3 Multiple Ciphers through `package:sqlite3` 3.x build options. See ADR 0002.
 - Key: 256-bit random key created on first run, stored in Mac Keychain / Windows Credential Manager via `flutter_secure_storage`. Never written to disk or logs.
 - Table `clip_items`:
   - `id INTEGER PRIMARY KEY`

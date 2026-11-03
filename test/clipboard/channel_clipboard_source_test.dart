@@ -6,10 +6,8 @@ import 'package:kusunga/clipboard/clipboard_source.dart';
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
   final messenger = binding.defaultBinaryMessenger;
-  const events = EventChannel(
-    'uk.org.cgatechnologies.kusunga/clipboard/events',
-  );
-  const methods = MethodChannel('uk.org.cgatechnologies.kusunga/clipboard');
+  const events = EventChannel('com.wnasoni.kusunga/clipboard/events');
+  const methods = MethodChannel('com.wnasoni.kusunga/clipboard');
 
   tearDown(() {
     messenger.setMockStreamHandler(events, null);

@@ -6,7 +6,7 @@ import 'package:kusunga/lifecycle/quit_flow.dart';
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
   final messenger = binding.defaultBinaryMessenger;
-  const channel = MethodChannel('uk.org.cgatechnologies.kusunga/lifecycle');
+  const channel = MethodChannel('com.wnasoni.kusunga/lifecycle');
 
   late List<String> steps;
   late QuitFlow flow;
