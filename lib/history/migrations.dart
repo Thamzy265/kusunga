@@ -14,7 +14,10 @@ class Migration {
   final void Function()? onRun;
 }
 
-/// Schema version 1: the first version of the store.
+/// Schema version 1: the first version of the store. Version 2 (M1.3) adds no
+/// structure: the picker settings are rows of the `settings` table. The step
+/// is recorded so that later migrations stay in order, and a version 1 build
+/// leaves a version 2 file untouched.
 const kMigrations = <Migration>[
   Migration(
     version: 1,
@@ -39,4 +42,5 @@ CREATE TABLE settings (
       "INSERT INTO settings (key, value) VALUES ('history_limit', 200)",
     ],
   ),
+  Migration(version: 2, statements: []),
 ];

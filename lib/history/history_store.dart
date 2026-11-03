@@ -7,6 +7,11 @@ abstract interface class HistoryStore {
   static const minLimit = 10;
   static const maxLimit = 5000;
 
+  /// Text settings kept next to the history (schema version 2): the picker
+  /// shortcut and the paste mode. Not personal data.
+  static const storedSettingKeys = {'picker_shortcut', 'paste_mode'};
+  static const maxSettingLength = 64;
+
   /// How many newest items are kept.
   int get limit;
   int get count;
@@ -21,6 +26,19 @@ abstract interface class HistoryStore {
   /// trims to [limit]. All of it is one transaction. Returns the item id.
   /// Throws [ArgumentError] for empty text or text over 1 MiB of UTF-8.
   int insertOrBump(String content, ClipKind kind, int nowMs);
+
+  /// Moves the item with exactly this text to the top and returns true, or
+  /// returns false (and saves nothing) if it is not saved. Used when Kusunga
+  /// itself put the text on the clipboard.
+  bool bumpIfPresent(String content, int nowMs);
+
+  /// A saved setting (see [storedSettingKeys]), or null if never saved.
+  /// Throws [ArgumentError] for any other key.
+  String? readSetting(String key);
+
+  /// Saves a setting. Throws [ArgumentError] for an unknown key, or a value
+  /// that is empty or over [maxSettingLength] characters.
+  void writeSetting(String key, String value);
 
   /// Removes one item and returns it so it can be restored, or null.
   ClipRecord? delete(int id);
@@ -50,5 +68,18 @@ void checkContent(String content) {
 void checkLimit(int limit) {
   if (limit < HistoryStore.minLimit || limit > HistoryStore.maxLimit) {
     throw ArgumentError.value(limit, 'limit');
+  }
+}
+
+void checkSettingKey(String key) {
+  if (!HistoryStore.storedSettingKeys.contains(key)) {
+    throw ArgumentError.value(key, 'key');
+  }
+}
+
+void checkSetting(String key, String value) {
+  checkSettingKey(key);
+  if (value.isEmpty || value.length > HistoryStore.maxSettingLength) {
+    throw ArgumentError.value(value.length, 'value.length');
   }
 }

@@ -103,6 +103,20 @@ class FlakyStore implements HistoryStore {
   }
 
   @override
+  bool bumpIfPresent(String content, int nowMs) {
+    _maybeFail();
+    return inner.bumpIfPresent(content, nowMs);
+  }
+
+  @override
+  String? readSetting(String key) => inner.readSetting(key);
+  @override
+  void writeSetting(String key, String value) {
+    _maybeFail();
+    inner.writeSetting(key, value);
+  }
+
+  @override
   ClipRecord? delete(int id) => inner.delete(id);
   @override
   void restore(ClipRecord record) => inner.restore(record);

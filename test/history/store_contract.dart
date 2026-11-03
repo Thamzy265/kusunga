@@ -173,6 +173,70 @@ void runStoreContract(String name, HistoryStore Function() create) {
       expect(store.count, 0);
     });
 
+    test('bumpIfPresent moves saved text to the top and says so', () {
+      store.insertOrBump('a', ClipKind.text, tick());
+      store.insertOrBump('b', ClipKind.link, tick());
+      final created = store.list().last.createdAt;
+
+      expect(store.bumpIfPresent('a', tick()), isTrue);
+      final items = store.list();
+      expect(items.map((i) => i.preview), ['a', 'b']);
+      expect(items.first.createdAt, created);
+      expect(items.last.kind, ClipKind.link, reason: 'kind is not changed');
+      expect(store.count, 2);
+    });
+
+    test('bumpIfPresent adds nothing for text that is not saved', () {
+      store.insertOrBump('a', ClipKind.text, tick());
+      expect(store.bumpIfPresent('unknown', tick()), isFalse);
+      expect(store.bumpIfPresent('', tick()), isFalse);
+      expect(store.list().map((i) => i.preview), ['a']);
+    });
+
+    test('bumpIfPresent in the same millisecond keeps the order strict', () {
+      store.insertOrBump('first', ClipKind.text, 5000);
+      store.insertOrBump('second', ClipKind.text, 5000);
+      expect(store.bumpIfPresent('first', 5000), isTrue);
+      expect(store.list().map((i) => i.preview), ['first', 'second']);
+    });
+
+    test('bumpIfPresent finds long text by its whole content', () {
+      final long = 'x' * 50000;
+      store.insertOrBump(long, ClipKind.text, tick());
+      store.insertOrBump('other', ClipKind.text, tick());
+      expect(store.bumpIfPresent(long, tick()), isTrue);
+      expect(store.list().first.isTruncated, isTrue);
+    });
+
+    test('settings: unset is null; a written value is read back', () {
+      expect(store.readSetting('picker_shortcut'), isNull);
+      expect(store.readSetting('paste_mode'), isNull);
+      store.writeSetting('picker_shortcut', 'shift+meta+v');
+      store.writeSetting('paste_mode', 'copy_only');
+      expect(store.readSetting('picker_shortcut'), 'shift+meta+v');
+      expect(store.readSetting('paste_mode'), 'copy_only');
+      store.writeSetting('paste_mode', 'auto');
+      expect(store.readSetting('paste_mode'), 'auto');
+    });
+
+    test('settings: only the known keys, with short non-empty values', () {
+      expect(() => store.writeSetting('other', 'x'), throwsArgumentError);
+      expect(() => store.readSetting('other'), throwsArgumentError);
+      expect(() => store.writeSetting('paste_mode', ''), throwsArgumentError);
+      expect(
+        () => store.writeSetting('paste_mode', 'x' * 65),
+        throwsArgumentError,
+      );
+      expect(store.readSetting('paste_mode'), isNull);
+    });
+
+    test('clearing the history keeps the picker settings', () {
+      store.writeSetting('picker_shortcut', 'ctrl+alt+k');
+      store.insertOrBump('a', ClipKind.text, tick());
+      store.clear();
+      expect(store.readSetting('picker_shortcut'), 'ctrl+alt+k');
+    });
+
     test('accepts text of exactly 1 MB', () {
       store.insertOrBump(
         'x' * ClipItem.maxContentLength,

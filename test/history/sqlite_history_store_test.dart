@@ -36,11 +36,11 @@ void main() {
     });
     tearDown(() => dir.deleteSync(recursive: true));
 
-    test('schema version is 1 and the tables match the design', () {
+    test('schema version is 2 and the tables match the design', () {
       SqliteHistoryStore.open(path: path, keyHex: _key).close();
       final db = sqlite3.open(path);
       db.execute("PRAGMA hexkey = '$_key'");
-      expect(db.select('PRAGMA user_version').single.values.single, 1);
+      expect(db.select('PRAGMA user_version').single.values.single, 2);
       final cols = db
           .select('PRAGMA table_info(clip_items)')
           .map((r) => r['name'])
@@ -196,8 +196,9 @@ void main() {
   group('migrations', () {
     late Directory dir;
     late String path;
+    // A later step than the shipped ones (version 2 is the picker step).
     final v2 = Migration(
-      version: 2,
+      version: 3,
       statements: ['ALTER TABLE clip_items ADD COLUMN note TEXT'],
     );
 
@@ -215,7 +216,7 @@ void main() {
       return v;
     }
 
-    test('v1 data survives a v1 to v2 migration; the backup is removed', () {
+    test('data survives a later migration; the backup is removed', () {
       final a = SqliteHistoryStore.open(path: path, keyHex: _key);
       a.insertOrBump('old data', ClipKind.text, 1);
       a.close();
@@ -227,15 +228,52 @@ void main() {
       );
       expect(b.list().single.preview, 'old data');
       b.close();
+      expect(version(), 3);
+      expect(File('$path.bak').existsSync(), isFalse);
+    });
+
+    test('the real v1 to v2 step keeps every item, time and the limit', () {
+      final v1 = SqliteHistoryStore.open(
+        path: path,
+        keyHex: _key,
+        migrations: kMigrations.sublist(0, 1),
+      );
+      expect(kMigrations.length, 2, reason: 'version 2 is the picker step');
+      v1.setLimit(50);
+      for (var i = 0; i < 30; i++) {
+        v1.insertOrBump('item $i', i.isEven ? ClipKind.text : ClipKind.link, i);
+      }
+      final before = v1.list();
+      v1.close();
+      expect(version(), 1);
+
+      final v2store = SqliteHistoryStore.open(path: path, keyHex: _key);
+      final after = v2store.list();
+      expect(after.length, 30);
+      for (var i = 0; i < before.length; i++) {
+        expect(after[i].preview, before[i].preview);
+        expect(after[i].kind, before[i].kind);
+        expect(after[i].createdAt, before[i].createdAt);
+        expect(after[i].lastCopiedAt, before[i].lastCopiedAt);
+      }
+      expect(v2store.limit, 50);
+      expect(v2store.readSetting('picker_shortcut'), isNull);
+      v2store.writeSetting('picker_shortcut', 'ctrl+alt+k');
+      v2store.close();
       expect(version(), 2);
       expect(File('$path.bak').existsSync(), isFalse);
+
+      final again = SqliteHistoryStore.open(path: path, keyHex: _key);
+      expect(again.readSetting('picker_shortcut'), 'ctrl+alt+k');
+      expect(again.count, 30);
+      again.close();
     });
 
     test('a backup copy exists while the migration runs', () {
       SqliteHistoryStore.open(path: path, keyHex: _key).close();
       var backupSeen = false;
       final spy = Migration(
-        version: 2,
+        version: 3,
         statements: ['ALTER TABLE clip_items ADD COLUMN note TEXT'],
         onRun: () => backupSeen = File('$path.bak').existsSync(),
       );
@@ -253,7 +291,7 @@ void main() {
       a.close();
 
       final bad = Migration(
-        version: 2,
+        version: 3,
         statements: [
           'ALTER TABLE clip_items ADD COLUMN note TEXT',
           'THIS IS NOT SQL',
@@ -267,7 +305,7 @@ void main() {
         ),
         throwsA(isA<MigrationFailed>()),
       );
-      expect(version(), 1);
+      expect(version(), 2);
       expect(File('$path.bak').existsSync(), isTrue);
 
       final again = SqliteHistoryStore.open(path: path, keyHex: _key);
@@ -285,7 +323,7 @@ void main() {
         () => SqliteHistoryStore.open(path: path, keyHex: _key),
         throwsA(isA<UnsupportedSchemaVersion>()),
       );
-      expect(version(), 2);
+      expect(version(), 3);
     });
 
     test('migration versions start at 1 and have no gaps', () {

@@ -231,6 +231,36 @@ class SqliteHistoryStore implements HistoryStore {
   }
 
   @override
+  bool bumpIfPresent(String content, int nowMs) {
+    if (content.isEmpty || isOverCap(content)) return false;
+    return _transaction(() {
+      final ts = _nextTimestamp(nowMs);
+      _db.execute(
+        'UPDATE clip_items SET last_copied_at = ? WHERE content_hash = ?',
+        [ts, _hash(content)],
+      );
+      return _db.updatedRows > 0;
+    });
+  }
+
+  @override
+  String? readSetting(String key) {
+    checkSettingKey(key);
+    final rows = _db.select('SELECT value FROM settings WHERE key = ?', [key]);
+    return rows.isEmpty ? null : rows.single['value'].toString();
+  }
+
+  @override
+  void writeSetting(String key, String value) {
+    checkSetting(key, value);
+    _db.execute(
+      'INSERT INTO settings (key, value) VALUES (?, ?) '
+      'ON CONFLICT (key) DO UPDATE SET value = excluded.value',
+      [key, value],
+    );
+  }
+
+  @override
   ClipRecord? delete(int id) => _transaction(() {
     final rows = _db.select(
       'SELECT content, kind, created_at, last_copied_at FROM clip_items '
