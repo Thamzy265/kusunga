@@ -20,6 +20,13 @@ enum LogCode {
   clipboardChannelError,
   accessCheckFailed,
   flushFailed,
+  // M1.3 picker (design note, "Observability"): codes only, never content,
+  // app names or window titles.
+  hotkeyRegisterFailed,
+  pasteFocusTimeout,
+  pastePermissionMissing,
+  pasteTargetElevated,
+  pasteTargetGone,
 }
 
 abstract interface class ErrorLog {
@@ -58,4 +65,35 @@ class NullErrorLog implements ErrorLog {
   const NullErrorLog();
   @override
   void log(LogCode code, [int? detail]) {}
+}
+
+/// A log that can be used before the log file is known (the data folder is
+/// found asynchronously). Codes sent early wait, at most 20 of them, and are
+/// written in order when the real log is attached. Used once only: a second
+/// [attach] is ignored.
+class DeferredErrorLog implements ErrorLog {
+  static const maxWaiting = 20;
+
+  ErrorLog? _real;
+  final _waiting = <(LogCode, int?)>[];
+
+  void attach(ErrorLog real) {
+    if (_real != null) return;
+    _real = real;
+    for (final (code, detail) in _waiting) {
+      real.log(code, detail);
+    }
+    _waiting.clear();
+  }
+
+  @override
+  void log(LogCode code, [int? detail]) {
+    final real = _real;
+    if (real != null) {
+      real.log(code, detail);
+      return;
+    }
+    _waiting.add((code, detail));
+    if (_waiting.length > maxWaiting) _waiting.removeAt(0);
+  }
 }
