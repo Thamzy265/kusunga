@@ -66,6 +66,11 @@ class PickerController extends ChangeNotifier {
   Timer? _toastTimer;
   WindowMode _mode = WindowMode.manage;
   PickerShortcut _shortcut;
+
+  /// The shortcut registered with the system right now, if any. It differs
+  /// from [_shortcut] when the shortcut the user wants is taken.
+  PickerShortcut? _active;
+  var _suspended = false;
   ShortcutProblem? _problem;
   HistoryService? _history;
   PasteMode _pasteMode = PasteMode.auto;
@@ -114,12 +119,13 @@ class PickerController extends ChangeNotifier {
     _events = port.events.listen(_onEvent);
     final result = await port.registerShortcut(_shortcut);
     if (_disposed) return;
-    _applyRegistration(result);
+    _applyRegistration(_shortcut, result);
     _notify();
   }
 
-  void _applyRegistration(ShortcutRegistration result) {
+  void _applyRegistration(PickerShortcut tried, ShortcutRegistration result) {
     if (result == ShortcutRegistration.registered) {
+      _active = tried;
       _problem = null;
     } else {
       _problem = ShortcutProblem.taken;
@@ -145,7 +151,7 @@ class PickerController extends ChangeNotifier {
         _shortcut = saved;
         final result = await port.registerShortcut(saved);
         if (_disposed) return;
-        _applyRegistration(result);
+        _applyRegistration(saved, result);
       }
     }
     _notify();
@@ -255,14 +261,20 @@ class PickerController extends ChangeNotifier {
   /// refused.
   Future<ShortcutChange> changeShortcut(PickerShortcut next) async {
     if (!next.isValid) return ShortcutChange.needModifier;
-    if (next == _shortcut && _problem == null) return ShortcutChange.saved;
+    if (next == _shortcut && _problem == null) {
+      if (_suspended) await _restore();
+      return ShortcutChange.saved;
+    }
     final result = await port.registerShortcut(next);
     if (_disposed) return ShortcutChange.saved;
     if (result != ShortcutRegistration.registered) {
       _log.log(LogCode.hotkeyRegisterFailed);
+      if (_suspended) await _restore();
       return ShortcutChange.taken;
     }
     _shortcut = next;
+    _active = next;
+    _suspended = false;
     _problem = null;
     final history = _history;
     var change = ShortcutChange.saved;
@@ -273,6 +285,25 @@ class PickerController extends ChangeNotifier {
     }
     _notify();
     return change;
+  }
+
+  /// While the user presses keys to record a new shortcut, the current one is
+  /// released: otherwise pressing it would open the picker instead.
+  Future<void> beginRecording() async {
+    if (_suspended || _disposed) return;
+    _suspended = true;
+    await port.unregisterShortcut();
+  }
+
+  /// Recording was cancelled: the shortcut that worked before is put back.
+  Future<void> endRecording() async {
+    if (_suspended && !_disposed) await _restore();
+  }
+
+  Future<void> _restore() async {
+    _suspended = false;
+    final active = _active;
+    if (active != null) await port.registerShortcut(active);
   }
 
   /// The "Allow pasting" button: the only place that asks macOS.

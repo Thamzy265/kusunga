@@ -514,6 +514,83 @@ void main() {
     });
   });
 
+  group('recording a new shortcut', () {
+    ctest('the current shortcut is released while keys are recorded', (
+      tester,
+    ) async {
+      await build().start();
+      await c.beginRecording();
+      expect(port.calls.last, 'unregister');
+      await c.beginRecording();
+      expect(port.calls.where((e) => e == 'unregister').length, 1);
+    });
+
+    ctest('cancelling puts the same shortcut back', (tester) async {
+      await build().start();
+      await c.beginRecording();
+      await c.endRecording();
+      expect(port.calls.last, 'register shift+meta+v');
+      await c.endRecording();
+      expect(
+        port.calls.where((e) => e == 'register shift+meta+v').length,
+        2,
+        reason: 'only once more',
+      );
+    });
+
+    ctest('cancelling without recording does nothing', (tester) async {
+      await build().start();
+      final before = port.calls.length;
+      await c.endRecording();
+      expect(port.calls.length, before);
+    });
+
+    ctest('a taken choice puts the old shortcut back', (tester) async {
+      await build().start();
+      await c.attach(history);
+      await c.beginRecording();
+      port.registerAnswer = (s) => s.serialized == 'ctrl+alt+k'
+          ? ShortcutRegistration.taken
+          : ShortcutRegistration.registered;
+      final r = await c.changeShortcut(PickerShortcut.parse('ctrl+alt+k')!);
+      expect(r, ShortcutChange.taken);
+      expect(port.calls.last, 'register shift+meta+v');
+      expect(c.shortcut.serialized, 'shift+meta+v');
+    });
+
+    ctest('recording the very same shortcut puts it back too', (tester) async {
+      await build().start();
+      await c.beginRecording();
+      final r = await c.changeShortcut(PickerShortcut.defaultFor(isMac: true));
+      expect(r, ShortcutChange.saved);
+      expect(port.calls.last, 'register shift+meta+v');
+    });
+
+    ctest('a good choice replaces it, with nothing put back', (tester) async {
+      await build().start();
+      await c.attach(history);
+      await c.beginRecording();
+      await c.changeShortcut(PickerShortcut.parse('ctrl+alt+k')!);
+      expect(port.calls.last, 'register ctrl+alt+k');
+      await c.endRecording();
+      expect(port.calls.last, 'register ctrl+alt+k');
+      expect(port.calls.where((e) => e.startsWith('register')).length, 2);
+    });
+
+    ctest('a combination with no Cmd, Ctrl or Alt keeps recording', (
+      tester,
+    ) async {
+      await build().start();
+      await c.beginRecording();
+      await c.changeShortcut(
+        const PickerShortcut({ShortcutModifier.shift}, 'v'),
+      );
+      expect(port.calls.last, 'unregister', reason: 'still released');
+      await c.endRecording();
+      expect(port.calls.last, 'register shift+meta+v');
+    });
+  });
+
   group('the "Allow pasting" card (Mac)', () {
     Future<void> needPermission() async {
       final id = saveText('a');
