@@ -38,7 +38,7 @@ class HistoryRow extends StatefulWidget {
     final kind = item.kind == ClipKind.link ? 'Link' : 'Text';
     final text = visibleText(item.preview);
     final cut = text.length > 500;
-    final shown = cut ? text.substring(0, 500) : text;
+    final shown = cutUnits(text, 500);
     final ellipsis = cut || item.isTruncated ? '…' : '';
     return '$kind: $shown$ellipsis, copied ${relativeTimeLong(nowMs, item.lastCopiedAt)}';
   }
@@ -130,26 +130,26 @@ class _HistoryRowState extends State<HistoryRow> {
       ),
     );
 
-    final buttons = Opacity(
+    Widget hideUnlessActive(Widget button) => Opacity(
       opacity: active ? 1 : 0,
       alwaysIncludeSemantics: true,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _RowButton(
-            identifier: 'history-copy-${item.id}',
-            label: 'Copy',
-            description: description,
-            onPressed: widget.onCopy,
-          ),
-          _RowButton(
-            identifier: 'history-delete-${item.id}',
-            label: 'Delete',
-            description: description,
-            onPressed: widget.onDelete,
-            danger: true,
-          ),
-        ],
+      child: button,
+    );
+    final copyButton = hideUnlessActive(
+      _RowButton(
+        identifier: 'history-copy-${item.id}',
+        label: 'Copy',
+        description: description,
+        onPressed: widget.onCopy,
+      ),
+    );
+    final deleteButton = hideUnlessActive(
+      _RowButton(
+        identifier: 'history-delete-${item.id}',
+        label: 'Delete',
+        description: description,
+        onPressed: widget.onDelete,
+        danger: true,
       ),
     );
 
@@ -163,33 +163,50 @@ class _HistoryRowState extends State<HistoryRow> {
             color: t.textMuted,
           ),
         );
+        final gap = SizedBox(width: KusungaTokens.space3);
         return Padding(
           padding: EdgeInsets.symmetric(
             horizontal: KusungaTokens.space3,
             vertical: KusungaTokens.space2,
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              icon,
-              SizedBox(width: KusungaTokens.space3),
-              Expanded(
-                child: narrow
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          text,
-                          SizedBox(height: KusungaTokens.space1),
-                          time,
-                        ],
-                      )
-                    : text,
-              ),
-              if (!narrow) ...[SizedBox(width: KusungaTokens.space3), time],
-              SizedBox(width: KusungaTokens.space2),
-              buttons,
-            ],
-          ),
+          child: narrow
+              // Narrow: the text gets the full width; the time and the
+              // buttons wrap onto lines below it, so nothing overflows at
+              // 200% text.
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        icon,
+                        gap,
+                        Expanded(child: text),
+                      ],
+                    ),
+                    Padding(
+                      padding: EdgeInsets.only(left: 20 + KusungaTokens.space3),
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: KusungaTokens.space2,
+                        children: [time, copyButton, deleteButton],
+                      ),
+                    ),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    icon,
+                    gap,
+                    Expanded(child: text),
+                    gap,
+                    time,
+                    SizedBox(width: KusungaTokens.space2),
+                    copyButton,
+                    deleteButton,
+                  ],
+                ),
         );
       },
     );
@@ -206,12 +223,6 @@ class _HistoryRowState extends State<HistoryRow> {
         borderRadius: BorderRadius.circular(KusungaTokens.radius2),
       ),
       child: row,
-    );
-
-    body = Semantics(
-      container: true,
-      label: HistoryRow.semanticName(item, widget.nowMs),
-      child: body,
     );
 
     body = TweenAnimationBuilder<double>(
@@ -238,14 +249,21 @@ class _HistoryRowState extends State<HistoryRow> {
       child: MouseRegion(
         onEnter: (_) => setState(() => _hovered = true),
         onExit: (_) => setState(() => _hovered = false),
-        child: Focus(
-          focusNode: widget.focusNode,
-          autofocus: widget.autofocus,
-          onKeyEvent: _onKey,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: widget.focusNode.requestFocus,
-            child: body,
+        // The row's own node carries the label, focus and tap together
+        // (screen readers need the tappable node to have a name).
+        child: Semantics(
+          label: HistoryRow.semanticName(item, widget.nowMs),
+          onTap: widget.focusNode.requestFocus,
+          child: Focus(
+            focusNode: widget.focusNode,
+            autofocus: widget.autofocus,
+            onKeyEvent: _onKey,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              excludeFromSemantics: true,
+              onTap: widget.focusNode.requestFocus,
+              child: body,
+            ),
           ),
         ),
       ),

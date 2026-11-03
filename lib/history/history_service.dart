@@ -92,7 +92,7 @@ class HistoryService extends ChangeNotifier {
 
   void _capture(String text) {
     if (text.trim().isEmpty) return;
-    if (text.length > ClipItem.maxContentLength) {
+    if (isOverCap(text)) {
       _log.log(LogCode.clipboardTooLarge);
       return;
     }
@@ -109,38 +109,61 @@ class HistoryService extends ChangeNotifier {
 
   void _flushWaiting() {
     while (_waiting.isNotEmpty) {
-      if (!_trySave(_waiting.first)) return;
-      _waiting.removeAt(0);
+      final result = _trySave(_waiting.first);
+      if (result == _Save.retryLater) return;
+      _waiting.removeAt(0); // saved, or can never be saved: not kept
     }
     _banners.remove(HistoryBanner.writeError);
   }
 
   void _save(_Waiting entry) {
-    if (!_trySave(entry)) _addWaiting(entry);
+    if (_trySave(entry) == _Save.retryLater) _addWaiting(entry);
   }
 
   void _addWaiting(_Waiting entry) {
+    // The same text again replaces its earlier waiting copy (newest wins).
+    _waiting.removeWhere((w) => w.text == entry.text);
     _waiting.add(entry);
     if (_waiting.length > maxWaiting) _waiting.removeAt(0);
     _banners.add(HistoryBanner.writeError);
   }
 
-  bool _trySave(_Waiting e) {
+  _Save _trySave(_Waiting e) {
     try {
       _store.insertOrBump(e.text, e.kind, e.time);
-      return true;
+      return _Save.saved;
     } catch (error) {
-      _log.log(
-        LogCode.writeFailed,
-        error is SqliteException ? error.extendedResultCode : null,
-      );
+      final code = error is SqliteException ? error.extendedResultCode : null;
+      _log.log(LogCode.writeFailed, code);
+      // A copy the database refuses for good (a constraint, bad text) must not
+      // sit at the head of the queue and block every later copy.
+      final forever =
+          error is ArgumentError ||
+          (error is SqliteException &&
+              error.extendedResultCode == 275); // CHECK
+      return forever ? _Save.neverSavable : _Save.retryLater;
+    }
+  }
+
+  /// A saved item whose text is also waiting is shown once, as the newer
+  /// waiting copy.
+  bool _isWaiting(ClipItem item, Set<String> waitingTexts) {
+    if (waitingTexts.isEmpty) return false;
+    if (!item.isTruncated) return waitingTexts.contains(item.preview);
+    if (!waitingTexts.any((t) => t.length > ClipItem.previewLength)) {
       return false;
     }
+    final full = _store.contentOf(item.id);
+    return full != null && waitingTexts.contains(full);
   }
 
   void _refresh() {
     try {
-      final saved = _store.list();
+      final waitingTexts = {for (final w in _waiting) w.text};
+      final saved = [
+        for (final i in _store.list())
+          if (!_isWaiting(i, waitingTexts)) i,
+      ];
       _items = [
         for (final w in _waiting.reversed)
           ClipItem(
@@ -162,6 +185,7 @@ class HistoryService extends ChangeNotifier {
   /// Puts the whole text of an item on the clipboard. Returns false if that
   /// failed. The watcher then sees the copy and moves the item to the top.
   Future<bool> copy(int id) async {
+    if (_closed) return false;
     try {
       final text = _contentOf(id);
       if (text == null) return false;
@@ -184,6 +208,7 @@ class HistoryService extends ChangeNotifier {
 
   /// Removes one item and returns it so Undo can put it back.
   ClipRecord? delete(int id) {
+    if (_closed) return null;
     ClipRecord? removed;
     if (id < 0) {
       final i = _waiting.indexWhere((w) => w.id == id);
@@ -209,6 +234,7 @@ class HistoryService extends ChangeNotifier {
   }
 
   void undo(ClipRecord record) {
+    if (_closed) return;
     try {
       _store.restore(record);
     } catch (_) {
@@ -219,6 +245,7 @@ class HistoryService extends ChangeNotifier {
 
   /// Removes everything. Returns how many items went, or null if it failed.
   int? clear() {
+    if (_closed) return null;
     try {
       final waiting = _waiting.length;
       final removed = _store.clear() + waiting;
@@ -237,11 +264,19 @@ class HistoryService extends ChangeNotifier {
   }
 
   /// How many items lowering the limit to [newLimit] would delete.
-  int countRemovedBy(int newLimit) => _store.countRemovedBy(newLimit);
+  int countRemovedBy(int newLimit) {
+    if (_closed) return 0;
+    try {
+      return _store.countRemovedBy(newLimit);
+    } catch (_) {
+      return 0;
+    }
+  }
 
   /// Saves a new limit. Returns false if it is outside 10 to 5,000 or could
   /// not be saved.
   bool setLimit(int newLimit) {
+    if (_closed) return false;
     if (newLimit < HistoryStore.minLimit || newLimit > HistoryStore.maxLimit) {
       return false;
     }
@@ -267,6 +302,13 @@ class HistoryService extends ChangeNotifier {
     await _subscription?.cancel();
     _subscription = null;
     try {
+      // One last try to save copies that are still waiting, so a quit does
+      // not lose them.
+      for (final w in List.of(_waiting)) {
+        if (_trySave(w) != _Save.retryLater) _waiting.remove(w);
+      }
+    } catch (_) {}
+    try {
       _store.close();
     } catch (_) {
       _log.log(LogCode.flushFailed);
@@ -288,6 +330,8 @@ class HistoryService extends ChangeNotifier {
     super.dispose();
   }
 }
+
+enum _Save { saved, retryLater, neverSavable }
 
 class _Waiting {
   _Waiting(this.id, this.text, this.kind, this.time);

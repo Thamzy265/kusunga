@@ -65,7 +65,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
     super.dispose();
   }
 
-  String _footerText() => '${_service.items.length} of ${_service.limit} items';
+  String _footerText() {
+    final limit = _service.limit;
+    final n = _service.items.length;
+    // Copies waiting to be saved can briefly outnumber the limit.
+    return '${n > limit ? limit : n} of $limit items';
+  }
 
   void _onChange() {
     for (final item in _service.items) {
@@ -213,7 +218,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ],
       ),
     );
-    if (confirmed == true) _service.clear();
+    if (confirmed == true) {
+      _service.clear();
+      // Undo must not bring back an item the user just cleared.
+      _pendingUndo = null;
+      _messenger.currentState?.hideCurrentSnackBar();
+    }
   }
 
   Future<bool> _confirmLower(int newLimit, int removed) async {
@@ -280,6 +290,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 count: items.length,
                                 onClear: _confirmClear,
                                 confirmLower: _confirmLower,
+                                onSaveFailed: () => _toast(
+                                  "Couldn't save that number. Try again.",
+                                ),
                               ),
                               SizedBox(height: KusungaTokens.space3),
                               for (final b in _service.banners)
@@ -354,10 +367,12 @@ class _Header extends StatelessWidget {
     required this.count,
     required this.onClear,
     required this.confirmLower,
+    required this.onSaveFailed,
   });
 
   final HistoryService service;
   final int count;
+  final VoidCallback onSaveFailed;
   final VoidCallback onClear;
   final Future<bool> Function(int newLimit, int removed) confirmLower;
 
@@ -376,7 +391,11 @@ class _Header extends StatelessWidget {
       spacing: KusungaTokens.space2,
       runSpacing: KusungaTokens.space2,
       children: [
-        LimitField(service: service, confirmLower: confirmLower),
+        LimitField(
+          service: service,
+          confirmLower: confirmLower,
+          onSaveFailed: onSaveFailed,
+        ),
         PopupMenuButton<Object?>(
           tooltip: 'Menu',
           icon: Icon(Icons.more_horiz, color: t.text),

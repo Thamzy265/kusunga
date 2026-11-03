@@ -12,7 +12,11 @@ class LimitField extends StatefulWidget {
     super.key,
     required this.service,
     required this.confirmLower,
+    required this.onSaveFailed,
   });
+
+  /// Called when the new limit could not be saved; the field is reset.
+  final VoidCallback onSaveFailed;
 
   final HistoryService service;
 
@@ -85,7 +89,10 @@ class _LimitFieldState extends State<LimitField> {
         if (mounted) _controller.text = '${widget.service.limit}';
         return;
       }
-      widget.service.setLimit(n);
+      if (!widget.service.setLimit(n)) {
+        if (mounted) _controller.text = '${widget.service.limit}';
+        widget.onSaveFailed();
+      }
     } finally {
       _committing = false;
     }
