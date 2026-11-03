@@ -262,7 +262,7 @@ void main() {
       expect(version(), 2);
     });
 
-    test('migration versions are 1, 2, 3 in order with no gaps', () {
+    test('migration versions start at 1 and have no gaps', () {
       for (var i = 0; i < kMigrations.length; i++) {
         expect(kMigrations[i].version, i + 1);
       }
