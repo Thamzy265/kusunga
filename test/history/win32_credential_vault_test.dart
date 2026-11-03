@@ -55,7 +55,7 @@ void main() {
       });
       expect(opened.store, isA<SqliteHistoryStore>());
       expect(opened.notices, isEmpty);
-      expect(vault.read(target), matches(RegExp(r'^[0-9a-f]{64}\$')));
+      expect(vault.read(target), matches(RegExp(r'^[0-9a-f]{64}$')));
     },
   );
 }
