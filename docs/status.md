@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-03 — M1.2 Clipboard history — Reviewer: approve
+- Changed: reviewer confirmed the PM risk acceptance entry and its scope and approved 46a354e plus the QA docs commits (pushed to the PR branch). All findings across all rounds fixed, with regression tests.
+- Gates: developer pass · tester pass · reviewer approve · QA pass (PM checks open: light appearance, VoiceOver) · PM merge waiting
+- Open findings: none. Gaps noted: AC1 latency p95 and idle CPU not re-measured on the final poller (first-tick reads unchanged; retried reads add one 250 ms tick)
+- Decisions: none new
+- Blockers: PM checks: light appearance, VoiceOver
+
 ## 2026-11-03 — M1.2 Clipboard history — PM risk acceptance: macOS CI
 - Changed: none in code. The gate "macOS CI green on the final head" is replaced by local macOS evidence for M1.2 only.
 - Gates: developer pass · tester pass · reviewer approve (CI condition covered by the risk acceptance below) · QA pass (PM checks open: light appearance, VoiceOver) · PM merge waiting
