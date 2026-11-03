@@ -185,6 +185,23 @@ class PickerController extends ChangeNotifier {
     _notify();
   }
 
+  /// The tray item "Open Kusunga": the picker or the toast must be put away
+  /// first, because they use the same window.
+  Future<void> prepareManageWindow() async {
+    switch (_mode) {
+      case WindowMode.manage:
+        return;
+      case WindowMode.picker:
+        await closePicker();
+      case WindowMode.toast:
+        _cancelToast();
+        await port.hideToast();
+        if (_disposed) return;
+        _mode = WindowMode.manage;
+        _notify();
+    }
+  }
+
   /// Pastes item [id] into the app that had focus (see [PasteOutcome]).
   Future<void> pasteItem(int id) async {
     if (_mode != WindowMode.picker || _pasting) return;

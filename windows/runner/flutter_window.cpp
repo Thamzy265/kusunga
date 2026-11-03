@@ -57,19 +57,19 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
-  // Give Flutter, including plugins, an opportunity to handle window messages.
-  if (flutter_controller_) {
+  if (picker_bridge_) {
     std::optional<LRESULT> result =
-        flutter_controller_->HandleTopLevelWindowProc(hwnd, message, wparam,
-                                                      lparam);
+        picker_bridge_->HandleMessage(message, wparam, lparam);
     if (result) {
       return *result;
     }
   }
 
-  if (picker_bridge_) {
+  // Give Flutter, including plugins, an opportunity to handle window messages.
+  if (flutter_controller_) {
     std::optional<LRESULT> result =
-        picker_bridge_->HandleMessage(message, wparam, lparam);
+        flutter_controller_->HandleTopLevelWindowProc(hwnd, message, wparam,
+                                                      lparam);
     if (result) {
       return *result;
     }

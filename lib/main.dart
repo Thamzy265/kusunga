@@ -92,7 +92,8 @@ Future<void> main() async {
         ? 'assets/tray/tray_icon.ico'
         : 'assets/tray/tray_icon.png',
     onOpenPicker: picker.openFromTray,
-    onOpen: () => unawaited(window.show()),
+    onOpen: () =>
+        unawaited(picker.prepareManageWindow().then((_) => window.show())),
     // Tray Quit closes the history first, then asks native to end the app.
     onQuit: () => unawaited(quit.quitFromTray().catchError((Object _) {})),
   );

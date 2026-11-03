@@ -306,8 +306,18 @@ void PickerBridge::UnregisterShortcut() {
 }
 
 std::optional<LRESULT> PickerBridge::HandleMessage(UINT message, WPARAM wparam,
-                                                   LPARAM) {
+                                                   LPARAM lparam) {
   switch (message) {
+    case WM_GETMINMAXINFO:
+      // The history window has a minimum size (360 x 400); the picker and the
+      // toast are smaller, so while they show there is no minimum.
+      if (mode_ != Mode::kNormal && lparam != 0) {
+        auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
+        info->ptMinTrackSize.x = 0;
+        info->ptMinTrackSize.y = 0;
+        return 0;
+      }
+      break;
     case WM_HOTKEY:
       if (hotkey_id_ != 0 && static_cast<int>(wparam) == hotkey_id_) {
         BeginOpen();

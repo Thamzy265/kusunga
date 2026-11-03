@@ -36,8 +36,9 @@ class PickerBridge {
   PickerBridge(const PickerBridge&) = delete;
   PickerBridge& operator=(const PickerBridge&) = delete;
 
-  // Handles WM_HOTKEY, WM_TIMER (the 300 ms fallback) and WM_ACTIVATE (the
-  // picker lost focus). Returns the result if the message was handled.
+  // Handles WM_HOTKEY, WM_TIMER (the 300 ms fallback), WM_ACTIVATE (the
+  // picker lost focus) and WM_GETMINMAXINFO (no minimum size while the picker
+  // or the toast shows). It runs before Flutter's own handling. Returns the result if the message was handled.
   std::optional<LRESULT> HandleMessage(UINT message, WPARAM wparam,
                                        LPARAM lparam);
 

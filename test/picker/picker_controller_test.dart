@@ -514,6 +514,40 @@ void main() {
     });
   });
 
+  group('opening the main window from the tray', () {
+    ctest('while the picker is open it is closed first', (tester) async {
+      await build().start();
+      port.press();
+      await c.prepareManageWindow();
+      expect(port.calls.last, 'close');
+      expect(c.mode, WindowMode.manage);
+    });
+
+    ctest('while a toast shows it is hidden at once and its timer stops', (
+      tester,
+    ) async {
+      final id = saveText('a');
+      await build().start();
+      await c.attach(history);
+      port.press();
+      port.pasteAnswer = PasteOutcome.focusTimeout;
+      await c.pasteItem(id);
+      await c.prepareManageWindow();
+      expect(port.calls.last, 'hideToast');
+      expect(c.mode, WindowMode.manage);
+      expect(c.toast, isNull);
+      await tester.pump(const Duration(seconds: 10));
+      expect(port.calls.where((e) => e == 'hideToast').length, 1);
+    });
+
+    ctest('in manage mode nothing happens', (tester) async {
+      await build().start();
+      final before = port.calls.length;
+      await c.prepareManageWindow();
+      expect(port.calls.length, before);
+    });
+  });
+
   group('recording a new shortcut', () {
     ctest('the current shortcut is released while keys are recorded', (
       tester,
