@@ -23,12 +23,7 @@ class TrayManagerPort with TrayListener implements TrayPort {
   );
 
   @override
-  Future<void> setToolTip(String text) async {
-    // Tooltips are not supported on macOS menu-bar items.
-    if (defaultTargetPlatform == TargetPlatform.windows) {
-      await trayManager.setToolTip(text);
-    }
-  }
+  Future<void> setToolTip(String text) => trayManager.setToolTip(text);
 
   @override
   Future<void> setMenu(List<TrayMenuEntry> entries) =>
@@ -39,6 +34,14 @@ class TrayManagerPort with TrayListener implements TrayPort {
           ],
         ),
       );
+
+  // tray_manager 0.5.3 only stores the menu in setContextMenu; the menu is
+  // shown by popUpContextMenu, so a click on the icon must ask for it.
+  @override
+  void onTrayIconMouseDown() => trayManager.popUpContextMenu();
+
+  @override
+  void onTrayIconRightMouseDown() => trayManager.popUpContextMenu();
 
   @override
   void onTrayMenuItemClick(MenuItem menuItem) {
