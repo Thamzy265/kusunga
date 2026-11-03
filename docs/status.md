@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-04 — M1.3 History picker and paste — Developer fix round
+- Changed: 268d7d3, 68c6844, 37e5cbf, b86ecc5, 0049a08 fix K1, U1, U2, V1, S3, S4/P1, S5 and apply the lead's Windows decisions; S1/S2 skipped with the Later line. 783 pass, 2 skipped; lead re-ran the check. Pushed for CI. Developer changed one tester repro's setup (one item → two items); sent to the reviewer to judge.
+- Gates: developer pass · tester pass (repros green) · reviewer open · QA open · PM merge waiting
+- Open findings: none open on the developer side
+- Decisions: none new
+- Blockers: none
+
 ## 2026-11-04 — M1.3 History picker and paste — Tester hand-off
 - Changed: tester added 176 Dart tests, 20 XCTests and a C++ edge test (69e222f..605c201). Dart 756 pass / 23 fail (repros). CI on ffdcd85: macOS PASSED on the new macos-15 runner (first Mac CI run since M1.2); Windows failed on the developer's 5,000-item search timing test (83 ms vs 50 ms).
 - Gates: developer fixing · tester findings open · reviewer open · QA open · PM merge waiting
