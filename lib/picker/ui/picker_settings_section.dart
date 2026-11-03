@@ -151,6 +151,17 @@ class _PickerSettingsSectionState extends State<PickerSettingsSection>
                 ],
               ),
             ),
+            if (_message == null && _c.shortcutSaveFailed)
+              Padding(
+                padding: EdgeInsets.only(bottom: KusungaTokens.space2),
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    "Couldn't save the shortcut. Try again.",
+                    style: KusungaTokens.body.copyWith(color: t.danger),
+                  ),
+                ),
+              ),
             if (_message != null)
               Padding(
                 padding: EdgeInsets.only(bottom: KusungaTokens.space2),

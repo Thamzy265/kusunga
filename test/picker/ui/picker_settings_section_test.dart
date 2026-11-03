@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kusunga/history/history_opener.dart';
 import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/memory_history_store.dart';
 import 'package:kusunga/log/app_log.dart';
@@ -231,6 +232,32 @@ void main() {
         LogicalKeyboardKey.keyK,
         held: [LogicalKeyboardKey.controlLeft],
       );
+      expect(
+        find.text("Couldn't save the shortcut. Try again."),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('memory-only history: not "saved", the retry text instead', (
+      tester,
+    ) async {
+      final h = HistoryService(
+        store: MemoryHistoryStore(),
+        source: source,
+        log: const NullErrorLog(),
+        notices: {HistoryNotice.memoryOnly},
+      )..start();
+      addTearDown(h.dispose);
+      await show(tester, start: false);
+      await controller.start();
+      await controller.attach(h);
+      await startRecording(tester);
+      await record(
+        tester,
+        LogicalKeyboardKey.keyK,
+        held: [LogicalKeyboardKey.controlLeft],
+      );
+      expect(find.text('Shortcut saved'), findsNothing);
       expect(
         find.text("Couldn't save the shortcut. Try again."),
         findsOneWidget,

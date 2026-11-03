@@ -82,6 +82,7 @@ class PickerController extends ChangeNotifier {
   var _help = false;
   var _pasting = false;
   var _unsavedShortcut = false;
+  var _shortcutSaveFailed = false;
   var _disposed = false;
 
   WindowMode get mode => _mode;
@@ -89,6 +90,10 @@ class PickerController extends ChangeNotifier {
   /// The shortcut the user wants (the one shown in the setting).
   PickerShortcut get shortcut => _shortcut;
   ShortcutProblem? get shortcutProblem => _problem;
+
+  /// The shortcut in use could not be kept (memory-only history or a failed
+  /// save), so it is gone after a quit.
+  bool get shortcutSaveFailed => _shortcutSaveFailed;
   HistoryService? get history => _history;
   PasteMode get pasteMode => _pasteMode;
   ToastKind? get toast => _toast;
@@ -146,7 +151,10 @@ class PickerController extends ChangeNotifier {
     _pasteMode = PasteMode.parse(history.setting('paste_mode'));
     if (_unsavedShortcut) {
       // The user chose a shortcut while the history was still opening.
-      history.saveSetting('picker_shortcut', _shortcut.serialized);
+      final kept =
+          history.saveSetting('picker_shortcut', _shortcut.serialized) &&
+          history.persistsSettings;
+      _shortcutSaveFailed = !kept;
       _unsavedShortcut = false;
     } else {
       final saved = PickerShortcut.parse(history.setting('picker_shortcut'));
@@ -303,9 +311,12 @@ class PickerController extends ChangeNotifier {
     var change = ShortcutChange.saved;
     if (history == null) {
       _unsavedShortcut = true;
-    } else if (!history.saveSetting('picker_shortcut', next.serialized)) {
+    } else if (!history.saveSetting('picker_shortcut', next.serialized) ||
+        !history.persistsSettings) {
+      // In memory-only mode the shortcut works until quit but is not kept.
       change = ShortcutChange.notSaved;
     }
+    _shortcutSaveFailed = change == ShortcutChange.notSaved;
     _notify();
     return change;
   }

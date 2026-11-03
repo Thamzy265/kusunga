@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kusunga/history/history_opener.dart';
 import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/memory_history_store.dart';
 import 'package:kusunga/log/app_log.dart';
@@ -622,6 +623,47 @@ void main() {
       expect(port.calls.last, 'unregister', reason: 'still released');
       await c.endRecording();
       expect(port.calls.last, 'register shift+meta+v');
+    });
+  });
+
+  group('memory-only history (C1)', () {
+    HistoryService memoryOnly() => HistoryService(
+      store: MemoryHistoryStore(),
+      source: source,
+      log: log,
+      notices: {HistoryNotice.memoryOnly},
+    )..start();
+
+    ctest('a shortcut that cannot be kept after a quit is not "saved"', (
+      tester,
+    ) async {
+      final h = memoryOnly();
+      addTearDown(h.dispose);
+      await build().start();
+      await c.attach(h);
+      final r = await c.changeShortcut(PickerShortcut.parse('ctrl+alt+k')!);
+      expect(r, ShortcutChange.notSaved);
+      expect(c.shortcut.serialized, 'ctrl+alt+k', reason: 'works this session');
+    });
+
+    ctest('a shortcut chosen before the history opened and then not kept '
+        'is reported', (tester) async {
+      await build().start();
+      await c.changeShortcut(PickerShortcut.parse('alt+j')!);
+      expect(c.shortcutSaveFailed, isFalse);
+      final h = memoryOnly();
+      addTearDown(h.dispose);
+      await c.attach(h);
+      expect(c.shortcutSaveFailed, isTrue);
+      expect(c.shortcut.serialized, 'alt+j');
+    });
+
+    ctest('a normal history keeps it and reports nothing', (tester) async {
+      await build().start();
+      await c.changeShortcut(PickerShortcut.parse('alt+j')!);
+      await c.attach(history);
+      expect(c.shortcutSaveFailed, isFalse);
+      expect(history.setting('picker_shortcut'), 'alt+j');
     });
   });
 

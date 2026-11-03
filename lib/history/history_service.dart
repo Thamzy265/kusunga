@@ -34,6 +34,9 @@ class HistoryService extends ChangeNotifier {
        _writeClipboard =
            writeClipboard ??
            ((text) => Clipboard.setData(ClipboardData(text: text))),
+       _persists =
+           !notices.contains(HistoryNotice.memoryOnly) &&
+           !notices.contains(HistoryNotice.incompatible),
        _banners = {
          if (notices.contains(HistoryNotice.memoryOnly))
            HistoryBanner.memoryOnly,
@@ -51,6 +54,7 @@ class HistoryService extends ChangeNotifier {
   final int Function() _clock;
   final Future<void> Function(String text) _writeClipboard;
   final Set<HistoryBanner> _banners;
+  final bool _persists;
   final _waiting = <_Waiting>[]; // oldest first
   var _nextWaitingId = -1;
   StreamSubscription<ClipboardEvent>? _subscription;
@@ -62,6 +66,10 @@ class HistoryService extends ChangeNotifier {
   /// Newest first, with copies that are waiting to be saved on top.
   List<ClipItem> get items => _items;
   int get limit => _store.limit;
+
+  /// False when this session is memory only (keychain or file problem): what
+  /// is saved, settings included, is gone after a quit.
+  bool get persistsSettings => _persists;
   Set<HistoryBanner> get banners => Set.unmodifiable(_banners);
   PasteAccess get pasteAccess => _pasteAccess;
 
