@@ -31,6 +31,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   final _seen = <int>{};
   final _newIds = <int>{};
   final _messenger = GlobalKey<ScaffoldMessengerState>();
+  final _scroll = ScrollController();
   ClipRecord? _pendingUndo;
   Timer? _clock;
   Timer? _footerTimer;
@@ -59,6 +60,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _service.removeListener(_onChange);
     _clock?.cancel();
     _footerTimer?.cancel();
+    _scroll.dispose();
     for (final n in _nodes.values) {
       n.dispose();
     }
@@ -189,7 +191,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
       RowMove.first => 0,
       RowMove.last => items.length - 1,
     };
-    _nodes[items[target].id]?.requestFocus();
+    final targetId = items[target].id;
+    final node = _nodes[targetId];
+    if (node != null && (node.context?.mounted ?? false)) {
+      node.requestFocus();
+      return;
+    }
+    // Rows are built lazily: the row to focus (the first or last one of a long
+    // list) may not exist yet. Scroll it into being, then focus it.
+    if (_scroll.hasClients) {
+      _scroll.jumpTo(target == 0 ? 0 : _scroll.position.maxScrollExtent);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _nodes[targetId]?.requestFocus();
+    });
+    setState(() {});
   }
 
   Future<void> _confirmClear() async {
@@ -280,6 +296,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   // nothing is cut off at 200% text on a small window.
                   Expanded(
                     child: CustomScrollView(
+                      controller: _scroll,
                       slivers: [
                         SliverToBoxAdapter(
                           child: Column(

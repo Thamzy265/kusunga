@@ -82,10 +82,13 @@ class _HistoryRowState extends State<HistoryRow> {
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final key = event.logicalKey;
+    // On a Mac, Cmd+Up and Cmd+Down are first and last (and fn+Left/Right
+    // arrive as Home and End).
+    final cmd = HardwareKeyboard.instance.isMetaPressed;
     if (key == LogicalKeyboardKey.arrowDown) {
-      widget.onMove(RowMove.next);
+      widget.onMove(cmd ? RowMove.last : RowMove.next);
     } else if (key == LogicalKeyboardKey.arrowUp) {
-      widget.onMove(RowMove.previous);
+      widget.onMove(cmd ? RowMove.first : RowMove.previous);
     } else if (key == LogicalKeyboardKey.home) {
       widget.onMove(RowMove.first);
     } else if (key == LogicalKeyboardKey.end) {

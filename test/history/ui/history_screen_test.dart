@@ -645,6 +645,83 @@ void main() {
     });
   });
 
+  group('keyboard: long lists and Mac shortcuts', () {
+    String focusedText(WidgetTester tester) {
+      final ctx = FocusManager.instance.primaryFocus!.context!;
+      final f = find.descendant(
+        of: find.byWidget(ctx.widget),
+        matching: find.byType(Text),
+      );
+      return tester.widget<Text>(f.first).data ?? '';
+    }
+
+    Future<void> chord(
+      WidgetTester tester,
+      LogicalKeyboardKey mod,
+      LogicalKeyboardKey key,
+    ) async {
+      await tester.sendKeyDownEvent(mod);
+      await tester.sendKeyEvent(key);
+      await tester.sendKeyUpEvent(mod);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'End reaches the last row of a long list that is not built yet',
+      (tester) async {
+        // QA bug 3: rows are built lazily, so the last row had no focus node to
+        // focus and End did nothing.
+        await show(tester);
+        copyTexts([for (var i = 0; i < 200; i++) 'item $i']);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('item 199'));
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.end);
+        await tester.pumpAndSettle();
+        expect(focusedText(tester), 'item 0');
+        await tester.sendKeyEvent(LogicalKeyboardKey.home);
+        await tester.pumpAndSettle();
+        expect(focusedText(tester), 'item 199');
+      },
+    );
+
+    testWidgets('Cmd+Down and Cmd+Up go to the last and first row (Mac)', (
+      tester,
+    ) async {
+      await show(tester);
+      copyTexts([for (var i = 0; i < 200; i++) 'item $i']);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('item 195'));
+      await tester.pump();
+      await chord(
+        tester,
+        LogicalKeyboardKey.metaLeft,
+        LogicalKeyboardKey.arrowDown,
+      );
+      expect(focusedText(tester), 'item 0');
+      await chord(
+        tester,
+        LogicalKeyboardKey.metaLeft,
+        LogicalKeyboardKey.arrowUp,
+      );
+      expect(focusedText(tester), 'item 199');
+    });
+
+    testWidgets('Cmd+Z (Mac) undoes the last delete while the toast shows', (
+      tester,
+    ) async {
+      await show(tester);
+      copyTexts(['a', 'b']);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('b'));
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pump();
+      expect(service.items.map((i) => i.preview), ['a']);
+      await chord(tester, LogicalKeyboardKey.metaLeft, LogicalKeyboardKey.keyZ);
+      expect(service.items.map((i) => i.preview), ['b', 'a']);
+    });
+  });
+
   group('accessibility', () {
     testWidgets('heading, list label, row names, buttons and the limit field', (
       tester,
