@@ -54,7 +54,7 @@ flowchart LR
 | Row actions (Copy, Delete) | Hidden | Shown | Shown, each focusable with Tab | n/a | n/a | n/a | Copy fails: toast "Couldn't copy. Try again." | Copy: toast "Copied". Delete: toast "Deleted" + Undo (5 s) | n/a | n/a | n/a |
 | "Keep N items" field | Number field showing current limit | Border `color.border.hover` | Focus ring; Up/Down change by 10 | n/a | n/a | n/a | Out of range: "Enter a number from 10 to 5,000." under the field, linked by `aria-describedby`; value not saved | Saved on Enter or blur; if new limit is below the current count: confirm "Keep only the newest N items? X older items will be deleted." [Delete X items] [Cancel] | n/a | n/a | n/a |
 | Menu ⋯ → Clear history | Menu item | Highlight | Focus ring | Disabled when list is empty | n/a | Disabled | Clear fails: banner "Couldn't clear history. Try again." | Confirm dialog: "Clear all history? This deletes all N items. Snippets are not affected." [Clear history] [Cancel] → empty state | n/a | n/a | n/a |
-| Banner (memory-only, read error, write error) | Hidden | n/a | Banner text is focusable and announced (live region, polite) | n/a | n/a | n/a | Memory-only: "History won't be kept after you quit, because Kusunga can't reach your keychain." Read error: "Kusunga couldn't read your old history, so it started a new one." Write error: "Couldn't save the latest item. Kusunga will try again." | Dismiss button (×) | Wraps | n/a | n/a |
+| Banner (memory-only, read error, incompatible history, write error) | Hidden | n/a | Banner text is focusable and announced (live region, polite) | n/a | n/a | n/a | Memory-only: "History won't be kept after you quit, because Kusunga can't reach your keychain." Read error: "Kusunga couldn't read your old history, so it started a new one." Incompatible history (made by a newer or different version, or a migration failed; the file is left untouched and this session is memory only): "This history was made by a newer or different version of Kusunga. It's safe, but this version can't open it. History won't be kept until you update." Write error: "Couldn't save the latest item. Kusunga will try again." | Dismiss button (×) | Wraps | n/a | n/a |
 | Setup card (Mac paste access) | Hidden | n/a | Focus moves to the card's heading on show | n/a | n/a | n/a | n/a | Disappears on next launch once allowed | Wraps | n/a | "Allow Kusunga to read what you copy" + "To keep your history, open System Settings > Privacy & Security > Paste from Other Apps and choose Allow for Kusunga." + [I've done this] (re-checks) |
 | Footer count | "N of LIMIT items" | n/a | Not focusable; read as status | n/a | n/a | "0 of LIMIT items" | n/a | Updates as items change (polite live region, throttled to once per 2 s) | n/a | n/a | n/a |
 
@@ -84,7 +84,7 @@ flowchart LR
 - Empty: "Nothing here yet" / "Copy some text in any app and it will appear here."
 - Row buttons: "Copy", "Delete"; toasts "Copied", "Deleted" + "Undo", "Couldn't copy. Try again."
 - Clear: menu "Clear history"; dialog "Clear all history?" / "This deletes all N items. Snippets are not affected." buttons "Clear history", "Cancel"
-- Banners: as in the states matrix.
+- Banners: as in the states matrix, including the incompatible-history text: "This history was made by a newer or different version of Kusunga. It's safe, but this version can't open it. History won't be kept until you update."
 - Setup card: as in the states matrix.
 - Footer: "N of LIMIT items"
 

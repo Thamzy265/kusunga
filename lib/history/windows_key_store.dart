@@ -12,24 +12,30 @@ abstract interface class CredentialVault {
   /// other failure.
   String? read(String target);
   void write(String target, String value);
+
+  /// Removes the credential; no error if it is not there.
+  void delete(String target);
 }
 
 /// The database key in Windows Credential Manager (ADR 0002): a generic
 /// credential, saved for this user on this machine only (it does not roam).
 class WindowsKeyStore implements KeyStore {
-  WindowsKeyStore(this._vault);
+  WindowsKeyStore(this._vault, {this.target = targetName});
 
   static const targetName = 'com.wnasoni.kusunga/history_db_key';
   final CredentialVault _vault;
 
-  @override
-  Future<String?> read() async => _vault.read(targetName);
+  /// Another name only in tests, so they never touch the real key.
+  final String target;
 
   @override
-  Future<void> write(String keyHex) async => _vault.write(targetName, keyHex);
+  Future<String?> read() async => _vault.read(target);
+
+  @override
+  Future<void> write(String keyHex) async => _vault.write(target, keyHex);
 }
 
-/// Credential Manager through CredReadW / CredWriteW.
+/// Credential Manager through CredReadW / CredWriteW / CredDeleteW.
 class Win32CredentialVault implements CredentialVault {
   @override
   String? read(String target) => using((arena) {
@@ -46,6 +52,14 @@ class Win32CredentialVault implements CredentialVault {
       );
     } finally {
       CredFree(out.value);
+    }
+  });
+
+  @override
+  void delete(String target) => using((arena) {
+    final result = CredDelete(arena.pcwstr(target), CRED_TYPE_GENERIC);
+    if (!result.value && result.error != ERROR_NOT_FOUND) {
+      throw WindowsException(result.error.toHRESULT());
     }
   });
 

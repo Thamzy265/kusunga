@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'app.dart';
 import 'clipboard/channel_clipboard_source.dart';
+import 'history/history_handle.dart';
 import 'history/history_opener.dart';
 import 'history/history_service.dart';
 import 'history/windows_key_store.dart';
@@ -50,6 +51,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final history = _openHistory();
+  final handle = HistoryHandle(history);
   runApp(KusungaApp(history: history));
 
   final isDesktop =
@@ -63,7 +65,7 @@ Future<void> main() async {
   late final TrayService tray;
   final quit = QuitFlow(
     lifecycle: AppLifecycle(),
-    closeHistory: () async => (await history).close(),
+    closeHistory: handle.close,
     stopTray: () => tray.dispose(),
     stopWindow: () => window.dispose(),
   )..listenForNativeFlush();

@@ -15,6 +15,12 @@ class FakeVault implements CredentialVault {
   }
 
   @override
+  void delete(String target) {
+    calls.add('delete $target');
+    entries.remove(target);
+  }
+
+  @override
   void write(String target, String value) {
     calls.add('write $target');
     if (error != null) throw error!;
