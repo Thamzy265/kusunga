@@ -35,7 +35,6 @@ class _PickerPanelState extends State<PickerPanel>
   static const rowHeight = 40.0;
   static const _countEvery = Duration(milliseconds: 500);
 
-  final _search = PickerSearch();
   final _text = TextEditingController();
   final _scroll = ScrollController();
   late final FocusNode _node = FocusNode(onKeyEvent: _onKey);
@@ -48,7 +47,6 @@ class _PickerPanelState extends State<PickerPanel>
 
   late String _spokenCount = _countText();
   Timer? _countTimer;
-  Timer? _warmTimer;
   var _countHold = false;
   var _countDirty = false;
 
@@ -82,22 +80,11 @@ class _PickerPanelState extends State<PickerPanel>
     _controller.removeListener(_onController);
     _bound?.removeListener(_onItems);
     _countTimer?.cancel();
-    _warmTimer?.cancel();
     _fade?.dispose();
     _node.dispose();
     _text.dispose();
     _scroll.dispose();
     super.dispose();
-  }
-
-  // Builds the search index in small steps, so typing never waits for it.
-  void _scheduleWarm() {
-    if (_warmTimer != null || _bound == null) return;
-    _warmTimer = Timer(const Duration(milliseconds: 1), () {
-      _warmTimer = null;
-      if (!mounted) return;
-      if (_search.warm(_bound?.items ?? const [])) _scheduleWarm();
-    });
   }
 
   void _bind() {
@@ -122,8 +109,7 @@ class _PickerPanelState extends State<PickerPanel>
   void _recompute() {
     final all = _bound?.items ?? const <ClipItem>[];
     _total = all.length;
-    _filtered = _search.filter(all, _query);
-    _scheduleWarm();
+    _filtered = _controller.search.filter(all, _query);
     final id = _selectedId;
     if (_filtered.isEmpty) {
       _selectedId = null;

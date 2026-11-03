@@ -538,7 +538,8 @@ void main() {
         });
       }
 
-      walk(tester.binding.rootPipelineOwner.semanticsOwner!.rootSemanticsNode!);
+      // ignore: deprecated_member_use
+      walk(tester.binding.pipelineOwner.semanticsOwner!.rootSemanticsNode!);
       expect(fields.length, 1);
       final d = fields.single;
       expect(d.label, contains('Search history'));
@@ -709,6 +710,7 @@ void main() {
       }
       await show(tester);
       expect(tester.takeException(), isNull);
+      controller.dispose(); // stops the background indexing
       expect(
         find.byKey(const ValueKey('picker-row-text')).evaluate().length,
         lessThan(30),

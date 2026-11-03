@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../history/history_service.dart';
 import '../log/app_log.dart';
 import 'picker_port.dart';
+import 'picker_search.dart';
 import 'shortcut.dart';
 
 /// What the one window is showing: the history screen, the picker, or the
@@ -63,6 +64,12 @@ class PickerController extends ChangeNotifier {
   final ErrorLog _log;
   final bool isMac;
   final Duration toastDuration;
+
+  /// The search index. It lives as long as the controller, not the picker, so
+  /// opening the picker never rebuilds it; it is filled in small steps in the
+  /// background whenever the history changes.
+  final search = PickerSearch();
+  Timer? _warmTimer;
 
   StreamSubscription<PickerNativeEvent>? _events;
   Future<void>? _starting;
@@ -147,7 +154,10 @@ class PickerController extends ChangeNotifier {
   Future<void> attach(HistoryService history) async {
     await start();
     if (_disposed) return;
+    _history?.removeListener(_scheduleWarm);
     _history = history;
+    history.addListener(_scheduleWarm);
+    _scheduleWarm();
     _pasteMode = PasteMode.parse(history.setting('paste_mode'));
     if (_unsavedShortcut) {
       // The user chose a shortcut while the history was still opening.
@@ -168,6 +178,18 @@ class PickerController extends ChangeNotifier {
       }
     }
     _notify();
+  }
+
+  // A few items (a new copy) are indexed at once; a long list is continued in
+  // small steps, so nothing waits for the index.
+  void _scheduleWarm() {
+    if (_warmTimer != null || _disposed) return;
+    final items = _history?.items;
+    if (items == null || !search.warm(items)) return;
+    _warmTimer = Timer(const Duration(milliseconds: 1), () {
+      _warmTimer = null;
+      _scheduleWarm();
+    });
   }
 
   void _onEvent(PickerNativeEvent event) {
@@ -382,6 +404,8 @@ class PickerController extends ChangeNotifier {
     if (_disposed) return;
     _disposed = true;
     _toastTimer?.cancel();
+    _warmTimer?.cancel();
+    _history?.removeListener(_scheduleWarm);
     unawaited(_events?.cancel());
     super.dispose();
   }
