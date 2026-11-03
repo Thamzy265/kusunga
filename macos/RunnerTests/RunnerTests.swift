@@ -323,12 +323,14 @@ class ClipboardPollerEdgeTests: XCTestCase {
     XCTAssertEqual(pasteboard.textReads, 0)
   }
 
-  func testPlainTypeButNoStringProducesNoEventAndIsReadOnce() {
+  // Changed for QA finding AC1 (copies lost at 0.6 s): a copy whose text is not
+  // readable yet is retried on the next ticks, at most maxTicksToWait times,
+  // instead of being read once and dropped.
+  func testPlainTypeButNoStringProducesNoEventAndIsReadAtMostEightTimes() {
     pasteboard.copy(nil, types: ["public.utf8-plain-text"])
-    poller.tick()
-    poller.tick()
+    for _ in 0..<20 { poller.tick() }
     XCTAssertTrue(events.isEmpty)
-    XCTAssertEqual(pasteboard.textReads, 1, "a copy is read once, not on every tick")
+    XCTAssertEqual(pasteboard.textReads, ClipboardPoller.maxTicksToWait)
   }
 
   func testEmptyStringIsPassedOnForDartToIgnore() {
@@ -624,5 +626,79 @@ class TerminationCoordinatorEdgeTests: XCTestCase {
     XCTAssertFalse(replied, "AppKit must not be told to quit while Dart is still saving")
     finishFlush?()
     XCTAssertTrue(replied)
+  }
+}
+
+/// A copy whose text is not readable yet when the change count moves (pbcopy
+/// declares the types first) must be retried on the next ticks, not dropped.
+class ClipboardPollerRetryTests: XCTestCase {
+  var pasteboard: FakePasteboard!
+  var events: [[String: Any]]!
+  var poller: ClipboardPoller!
+  let textType = "public.utf8-plain-text"
+
+  override func setUp() {
+    pasteboard = FakePasteboard()
+    events = []
+    poller = ClipboardPoller(pasteboard: pasteboard) { [unowned self] in self.events.append($0) }
+    poller.prime()
+  }
+
+  func testTextThatArrivesOneTickAfterTheCountChangedIsReported() {
+    pasteboard.copy(nil, types: [textType])  // declared, not readable yet
+    poller.tick()
+    XCTAssertTrue(events.isEmpty)
+    pasteboard.text = "arrived late"  // same change count
+    poller.tick()
+    XCTAssertEqual(events.count, 1)
+    XCTAssertEqual(events[0]["text"] as? String, "arrived late")
+    poller.tick()
+    XCTAssertEqual(events.count, 1, "reported once")
+  }
+
+  func testTypesThatArriveLaterAreReported() {
+    pasteboard.copy(nil, types: [])
+    poller.tick()
+    pasteboard.typeIdentifiers = [textType]
+    pasteboard.text = "types came late"
+    poller.tick()
+    XCTAssertEqual(events.count, 1)
+  }
+
+  func testTextThatNeverArrivesGivesUpAfterEightTicks() {
+    pasteboard.copy(nil, types: [textType])
+    for _ in 0..<ClipboardPoller.maxTicksToWait + 2 { poller.tick() }
+    pasteboard.text = "too late"
+    poller.tick()
+    XCTAssertTrue(events.isEmpty)
+    XCTAssertEqual(ClipboardPoller.maxTicksToWait, 8)
+  }
+
+  func testASecretMarkerThatAppearsDuringTheWaitStopsAllReading() {
+    pasteboard.copy(nil, types: [textType])
+    poller.tick()
+    let readsBefore = pasteboard.textReads
+    pasteboard.typeIdentifiers = [textType, "org.nspasteboard.ConcealedType"]
+    pasteboard.text = "hunter2"
+    poller.tick()
+    XCTAssertEqual(events.count, 1)
+    XCTAssertEqual(events[0]["type"] as? String, "concealed")
+    XCTAssertEqual(pasteboard.textReads, readsBefore, "never read after the marker")
+  }
+
+  func testANewCopyDuringTheWaitReplacesTheWaitingOne() {
+    pasteboard.copy(nil, types: [textType])
+    poller.tick()
+    pasteboard.copy("second", types: [textType])
+    poller.tick()
+    XCTAssertEqual(events.count, 1)
+    XCTAssertEqual(events[0]["text"] as? String, "second")
+  }
+
+  func testACopyWithoutTextTypeIsNeverRead() {
+    pasteboard.copy(nil, types: ["public.png"])
+    for _ in 0..<12 { poller.tick() }
+    XCTAssertTrue(events.isEmpty)
+    XCTAssertEqual(pasteboard.textReads, 0)
   }
 }

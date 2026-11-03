@@ -53,28 +53,50 @@ final class ClipboardPoller {
     lastCount = pasteboard.changeCount
   }
 
+  /// How many ticks (250 ms each, so about 2 s) to wait for the text of a copy
+  /// whose change count has moved. Some tools (pbcopy) declare the types a
+  /// moment before the text can be read.
+  static let maxTicksToWait = 8
+
+  private var waiting = false
+  private var ticksLeft = 0
+
   func tick() {
     let count = pasteboard.changeCount
-    if count == lastCount { return }
-    lastCount = count
+    if count != lastCount {
+      lastCount = count
+      waiting = true
+      ticksLeft = ClipboardPoller.maxTicksToWait
+    }
+    guard waiting else { return }
 
+    // The secret check is repeated on every try, before any read.
     let types = pasteboard.typeIdentifiers
     if ClipboardPolicy.isSecret(types) {
+      waiting = false
       emit(["type": "concealed"])
       return
     }
-    guard types.contains(ClipboardPolicy.plainTextType) else { return }
 
-    let text = pasteboard.plainString()
-    // The clipboard changed while we read: the text may belong to a newer copy
-    // whose types we have not checked. Drop it; the next tick handles the new one.
-    if pasteboard.changeCount != count { return }
-    guard let text = text else { return }
-
-    if text.utf8.count > ClipboardPolicy.maxBytes {
-      emit(["type": "tooLarge"])
-    } else {
-      emit(["type": "text", "text": text])
+    if types.contains(ClipboardPolicy.plainTextType) {
+      let text = pasteboard.plainString()
+      // The clipboard changed while we read: the text may belong to a newer copy
+      // whose types we have not checked. Drop it; the next tick starts over.
+      if pasteboard.changeCount != count { return }
+      if let text = text {
+        waiting = false
+        if text.utf8.count > ClipboardPolicy.maxBytes {
+          emit(["type": "tooLarge"])
+        } else {
+          emit(["type": "text", "text": text])
+        }
+        return
+      }
     }
+
+    // Not readable yet (or not text at all): try again on the next ticks, then
+    // give up on this copy.
+    ticksLeft -= 1
+    if ticksLeft <= 0 { waiting = false }
   }
 }
