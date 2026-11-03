@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-03 — M1.2 Clipboard history — Reviewer: code approved, CI incomplete
+- Changed: R1 and R2 fixed in ca5e4ef and confirmed (new undo tests fail on the old code). CI run 41675125996: Windows pass (389 tests); macOS job cancelled by GitHub again (no macOS runner available, second time).
+- Gates: developer fixing one Low note · tester pass · reviewer approve pending a green macOS CI job · QA re-run open · PM merge waiting
+- Open findings: none open; Low note (a copy whose types change on the confirming tick is dropped) sent to the developer
+- Decisions: lead fixes the Low note before the final CI and QA run (AC1 is about not losing copies)
+- Blockers: Reviewer/Lead — macOS CI on GitHub has had no runner twice; will retry on the next push · others none
+
 ## 2026-11-03 — M1.2 Clipboard history — Reviewer re-check: block
 - Changed: reviewer checked f571105. Lost-copies retry is safe against late secret markers except one narrow writer-order case (R2). CI run 41671502357: Windows pass (383 tests, 4/4 Credential Manager); macOS job cancelled by GitHub (no runner) — re-runs on the next push.
 - Gates: developer fixing · tester pass · reviewer block · QA re-run open · PM merge waiting
