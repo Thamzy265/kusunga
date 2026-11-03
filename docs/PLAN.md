@@ -39,6 +39,7 @@ Everything stays on the device. No account, no server.
   - AC: duplicates move to the top instead of being saved twice.
   - AC: history is stored encrypted on disk, with the key in the OS keychain (Mac Keychain / Windows Credential Manager).
 - [ ] **M1.3 History picker and paste** — large (OS permissions, UI).
+  - Before start: ADR on macOS distribution channel (direct notarised vs Mac App Store) and App Sandbox, because synthetic paste and keystroke monitoring need Accessibility and are restricted in the sandbox (reviewer note, 2026-11-03).
   - AC: a global shortcut (default Cmd+Shift+V / Ctrl+Shift+V, changeable) opens a picker over the current app.
   - AC: type to search; arrow keys and Enter paste the item into the app that was in focus; Esc closes.
   - AC: the picker works with keyboard only and with a screen reader (VoiceOver, Narrator).
@@ -63,6 +64,7 @@ Everything stays on the device. No account, no server.
   - AC: "Delete all history" and "Delete everything" remove all stored data and the keychain key.
 - [ ] **M1.9 Signed installers and first beta** — large (release).
   - AC: a notarised Mac build and a signed Windows installer install and launch without OS security warnings.
+  - AC: Hardened Runtime enabled for the macOS build (notarisation needs it).
   - AC: release notes and a rollback plan exist; the PM approves the release.
   - AC: a short DPIA is written in `docs/design/dpia.md` and the PM signs it off before the beta.
 
