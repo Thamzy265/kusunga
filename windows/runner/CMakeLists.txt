@@ -10,6 +10,7 @@ add_executable(${BINARY_NAME} WIN32
   "clipboard_bridge.cpp"
   "flutter_window.cpp"
   "main.cpp"
+  "picker_bridge.cpp"
   "utils.cpp"
   "win32_window.cpp"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
