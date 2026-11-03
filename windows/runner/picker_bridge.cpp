@@ -3,6 +3,7 @@
 #include <dwmapi.h>
 #include <flutter/method_result_functions.h>
 #include <flutter/standard_method_codec.h>
+#include <shellscalingapi.h>
 
 #include <cstring>
 #include <memory>
@@ -377,9 +378,14 @@ kusunga::Rect PickerBridge::WorkAreaAtPointer(double* scale) const {
     work = kusunga::Rect{info.rcWork.left, info.rcWork.top, info.rcWork.right,
                          info.rcWork.bottom};
   }
-  *scale = 1.0;
-  const UINT dpi = ::GetDpiForWindow(window_);
-  if (dpi > 0) *scale = static_cast<double>(dpi) / 96.0;
+  // The scale of the screen the pointer is on (not the one the window was on).
+  UINT dpi_x = 0;
+  UINT dpi_y = 0;
+  if (!monitor ||
+      FAILED(::GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &dpi_x, &dpi_y))) {
+    dpi_x = ::GetDpiForWindow(window_);
+  }
+  *scale = kusunga::ScaleFromDpi(dpi_x);
   return work;
 }
 
@@ -390,21 +396,50 @@ void PickerBridge::SaveWindow() {
   saved_placement_ = WINDOWPLACEMENT{};
   saved_placement_.length = sizeof(saved_placement_);
   ::GetWindowPlacement(window_, &saved_placement_);
+  saved_visible_ = ::IsWindowVisible(window_) != FALSE;
+  saved_minimised_ = ::IsIconic(window_) != FALSE;
   saved_ = true;
 }
 
-void PickerBridge::RestoreWindow() {
+// Puts the style and the position back without showing or activating anything
+// (SetWindowPlacement would show a hidden window and activate it). The caller
+// then shows the window as DecideRestoreShow says.
+void PickerBridge::RestoreWindow(bool show_manage, bool activate) {
   if (!saved_) return;
+  const bool was_visible = saved_visible_;
+  const bool was_minimised = saved_minimised_;
   ::SetWindowLongPtr(window_, GWL_STYLE, saved_style_);
   ::SetWindowLongPtr(window_, GWL_EXSTYLE, saved_ex_style_);
-  ::SetWindowPos(window_, HWND_NOTOPMOST, 0, 0, 0, 0,
-                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED);
-  ::SetWindowPlacement(window_, &saved_placement_);
+  const RECT& r = saved_placement_.rcNormalPosition;
+  ::SetWindowPos(window_, HWND_NOTOPMOST, r.left, r.top, r.right - r.left,
+                 r.bottom - r.top, SWP_NOACTIVATE | SWP_FRAMECHANGED);
   saved_ = false;
+  switch (kusunga::DecideRestoreShow(was_visible, was_minimised, show_manage,
+                                     activate)) {
+    case kusunga::RestoreShow::kHide:
+      ::ShowWindow(window_, SW_HIDE);
+      break;
+    case kusunga::RestoreShow::kMinimizedNoActivate:
+      ::ShowWindow(window_, SW_SHOWMINNOACTIVE);
+      break;
+    case kusunga::RestoreShow::kShowNoActivate:
+      ::ShowWindow(window_, SW_SHOWNOACTIVATE);
+      break;
+    case kusunga::RestoreShow::kShowActivate:
+      ::ShowWindow(window_, SW_SHOW);
+      ::SetForegroundWindow(window_);
+      break;
+  }
 }
 
 void PickerBridge::ApplySmallShape(kusunga::Rect frame, bool no_activate) {
-  if (::IsZoomed(window_)) ::ShowWindow(window_, SW_RESTORE);
+  if (::IsZoomed(window_) || ::IsIconic(window_)) {
+    ::ShowWindow(window_,
+                 kusunga::ShowCommandToOpenSmallWindow(no_activate) ==
+                         kusunga::ShowCommand::kShowNoActivate
+                     ? SW_SHOWNOACTIVATE
+                     : SW_RESTORE);
+  }
   LONG_PTR style = saved_style_;
   style &= ~static_cast<LONG_PTR>(WS_OVERLAPPEDWINDOW);
   style |= WS_POPUP;
@@ -439,28 +474,22 @@ void PickerBridge::EnterPicker() {
 void PickerBridge::LeavePicker(bool show_manage, bool activate) {
   if (mode_ != Mode::kPicker) return;
   mode_ = Mode::kNormal;
-  RestoreWindow();
-  if (show_manage) {
-    if (activate) {
-      ::ShowWindow(window_, SW_SHOW);
-      ::SetForegroundWindow(window_);
-    } else {
-      ::ShowWindow(window_, SW_SHOWNOACTIVATE);
-    }
-  } else {
-    ::ShowWindow(window_, SW_HIDE);
-  }
+  RestoreWindow(show_manage, activate);
 }
 
 void PickerBridge::HidePickerForPaste() { LeavePicker(false, false); }
 
-// Esc.
+// Esc: the history window comes back without being activated and the window
+// the user was in gets the focus back (Kusunga only if it was in front).
 void PickerBridge::ClosePicker() {
   if (mode_ != Mode::kPicker) return;
-  const bool restore = manage_was_visible_;
   HWND previous = target_;
-  LeavePicker(restore, true);
-  if (!restore && previous && ::IsWindow(previous) && !IsOurWindow(previous)) {
+  const bool has_target =
+      previous && ::IsWindow(previous) && !IsOurWindow(previous);
+  const kusunga::ClosePlan plan =
+      kusunga::PlanClose(manage_was_visible_, has_target);
+  LeavePicker(plan.show_manage, plan.activate_kusunga);
+  if (plan.reactivate_target) {
     if (::IsIconic(previous)) ::ShowWindow(previous, SW_RESTORE);
     ::SetForegroundWindow(previous);
   }
@@ -488,8 +517,7 @@ void PickerBridge::ShowToast() {
 void PickerBridge::HideToast() {
   if (mode_ != Mode::kToast) return;
   mode_ = Mode::kNormal;
-  RestoreWindow();
-  ::ShowWindow(window_, SW_HIDE);
+  RestoreWindow(false, false);
 }
 
 std::string PickerBridge::RunPasteFlow(const std::string& text, bool post) {

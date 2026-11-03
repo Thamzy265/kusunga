@@ -66,7 +66,7 @@ class PickerBridge {
   void HideToast();
 
   void SaveWindow();
-  void RestoreWindow();
+  void RestoreWindow(bool show_manage, bool activate);
   void ApplySmallShape(kusunga::Rect frame, bool no_activate);
   kusunga::Rect WorkAreaAtPointer(double* scale) const;
 
@@ -85,6 +85,8 @@ class PickerBridge {
   LONG_PTR saved_style_ = 0;
   LONG_PTR saved_ex_style_ = 0;
   WINDOWPLACEMENT saved_placement_{};
+  bool saved_visible_ = false;
+  bool saved_minimised_ = false;
 
   int hotkey_id_ = 0;  // 0: none; otherwise 1 or 2 (the new one is registered
                        // under the other number before the old is released)

@@ -190,6 +190,57 @@ inline int PickAreaContaining(int x, int y, const std::vector<Rect>& areas) {
   return areas.empty() ? -1 : 0;
 }
 
+// ---- Esc: what the picker gives back (E1) ----
+
+struct ClosePlan {
+  bool show_manage;
+  bool activate_kusunga;
+  bool reactivate_target;
+};
+
+// The history window comes back without being activated, and the window the
+// user was in gets the focus back. Kusunga is activated only if it was the
+// window in front (there is no other target).
+inline ClosePlan PlanClose(bool manage_was_visible, bool has_target) {
+  return ClosePlan{manage_was_visible, manage_was_visible && !has_target,
+                   has_target};
+}
+
+// ---- Putting the history window back after the picker or the toast (W1) ----
+
+enum class RestoreShow {
+  kHide,
+  kMinimizedNoActivate,
+  kShowNoActivate,
+  kShowActivate
+};
+
+// A window that was hidden stays hidden and a minimised one stays minimised
+// (it keeps its taskbar button); neither is ever activated by the restore.
+// Only a history window that was on screen is shown again, and activated only
+// if [activate].
+inline RestoreShow DecideRestoreShow(bool was_visible, bool was_minimised,
+                                     bool show_manage, bool activate) {
+  if (was_visible && was_minimised) return RestoreShow::kMinimizedNoActivate;
+  if (!was_visible || !show_manage) return RestoreShow::kHide;
+  return activate ? RestoreShow::kShowActivate : RestoreShow::kShowNoActivate;
+}
+
+enum class ShowCommand { kShowNoActivate, kRestore };
+
+// How a minimised or maximised history window is made ready for the small
+// shape: the toast must not take focus.
+inline ShowCommand ShowCommandToOpenSmallWindow(bool no_activate) {
+  return no_activate ? ShowCommand::kShowNoActivate : ShowCommand::kRestore;
+}
+
+// ---- Scale of a monitor (W2) ----
+
+// 96 dpi is 1.0. 0 means "unknown".
+inline double ScaleFromDpi(unsigned dpi) {
+  return dpi == 0 ? 1.0 : static_cast<double>(dpi) / 96.0;
+}
+
 // ---- The paste flow ----
 
 // What the flow needs from Windows. Window handles are plain numbers here.

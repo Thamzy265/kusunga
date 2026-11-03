@@ -211,6 +211,41 @@ int main() {
     CHECK(PickAreaContaining(0, 0, {}) == -1);
   }
 
+  // ---- Esc (E1) ----
+  {
+    ClosePlan a = PlanClose(true, true);
+    CHECK(a.show_manage && !a.activate_kusunga && a.reactivate_target);
+    ClosePlan b = PlanClose(false, true);
+    CHECK(!b.show_manage && !b.activate_kusunga && b.reactivate_target);
+    ClosePlan c = PlanClose(true, false);  // Kusunga itself was in front
+    CHECK(c.show_manage && c.activate_kusunga && !c.reactivate_target);
+    ClosePlan d = PlanClose(false, false);
+    CHECK(!d.show_manage && !d.activate_kusunga && !d.reactivate_target);
+  }
+
+  // ---- putting the history window back (W1) ----
+  // was_visible, was_minimised, show_manage, activate
+  CHECK(DecideRestoreShow(true, false, false, false) == RestoreShow::kHide);
+  CHECK(DecideRestoreShow(false, false, false, false) == RestoreShow::kHide);
+  CHECK(DecideRestoreShow(true, false, true, false) == RestoreShow::kShowNoActivate);
+  CHECK(DecideRestoreShow(true, false, true, true) == RestoreShow::kShowActivate);
+  // A minimised history window stays minimised, keeping its taskbar button,
+  // and never takes the focus.
+  CHECK(DecideRestoreShow(true, true, false, false) == RestoreShow::kMinimizedNoActivate);
+  CHECK(DecideRestoreShow(true, true, true, true) == RestoreShow::kMinimizedNoActivate);
+  // A window that was hidden is never shown by the restore, whatever is asked
+  // (the picker comes from the tray with the history window closed).
+  CHECK(DecideRestoreShow(false, false, true, true) == RestoreShow::kHide);
+  // The toast path never activates.
+  CHECK(ShowCommandToOpenSmallWindow(true) == ShowCommand::kShowNoActivate);
+  CHECK(ShowCommandToOpenSmallWindow(false) == ShowCommand::kRestore);
+
+  // ---- DPI of the pointer's monitor (W2) ----
+  CHECK(ScaleFromDpi(96) == 1.0);
+  CHECK(ScaleFromDpi(144) == 1.5);
+  CHECK(ScaleFromDpi(192) == 2.0);
+  CHECK(ScaleFromDpi(0) == 1.0);  // unknown: no scaling
+
   // ---- paste flow ----
   {
     FakePlatform p;
