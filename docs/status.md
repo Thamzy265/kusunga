@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-04 — M1.3 History picker and paste — Developer fix round 2
+- Changed: 7 commits to 5c4ded9 fix A1, W1, P1, K2, E1, M2, C1, W2, S6, L1, X1 and the Dvorak paste key; Later lines fixed. 797 pass / 2 skipped, XCTest 133 pass; lead re-ran the check. Pushed for CI.
+- Gates: developer pass · tester pass · reviewer re-check open · QA open · PM merge waiting
+- Open findings: none open on the developer side; native window behaviour not run live
+- Decisions: none new
+- Blockers: none
+
 ## 2026-11-04 — M1.3 History picker and paste — Reviewer: block
 - Changed: reviewer reviewed 0049a08. CI run 41718668191 green on macOS (macos-15) and Windows. Security review: no findings (focus check, own-marker rule, integrity check, sandbox guard all sound).
 - Gates: developer fixing · tester pass · reviewer block · QA open · PM merge waiting
