@@ -167,10 +167,12 @@ void main() {
 
     test('ordinary text, emoji, accents and right-to-left letters pass', () {
       const fine = 'Café 日本語 שלום مرحبا \u{1F468}\u200D\u{1F469}x';
-      // The zero width joiner inside an emoji sequence is shown as a code
-      // too: the rest must be untouched.
+      // The zero width joiner between two emoji (one family emoji) stays
+      // (BUG-V1; this used to expect a code): the rest must be untouched.
       final shown = visibleText(fine);
       expect(shown, contains('Café 日本語 שלום مرحبا'));
+      expect(shown, contains('\u{1F468}\u200D\u{1F469}x'));
+      expect(shown, isNot(contains('[U+200D]')));
     });
 
     test('visibleText never throws on a lone surrogate', () {
