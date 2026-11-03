@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-03 — M1.2 Clipboard history — Developer fix round 2
+- Changed: 4 commits to b375b14 fix C1, D1 (Windows Credential Manager), T1, W1, U1, U2, K1 (raw hex key), K2 (30 s, own log code). 373 tests pass; lead re-ran the check. Developer corrected the earlier stack reading: the keychain call blocks on the plugin's own queue, main thread idle. Real launches: after some rebuilds the login-keychain call blocks until the 30 s timeout (likely an access prompt), then memory-only with the banner.
+- Gates: developer pass · tester pass · reviewer re-check open · QA open · PM merge waiting
+- Open findings: none open on the developer side; Windows Credential Manager and the new C++ compile only in CI
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA likely needs the PM to answer a macOS keychain prompt once ("Always Allow") to test the encrypted path in the real app · Marketer none · Lead none
+
 ## 2026-11-03 — M1.2 Mac Keychain — PM decision
 - Changed: plan M1.9 gets a must-do AC to move the key to the data-protection keychain with a key move before the first external beta.
 - Gates: n/a — decision
