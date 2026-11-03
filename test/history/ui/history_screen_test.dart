@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -81,7 +82,7 @@ void main() {
       );
       expect(find.text('0 of 200 items'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Menu'));
+      await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
       final item = tester.widget<PopupMenuItem<Object?>>(
         find.widgetWithText(PopupMenuItem<Object?>, 'Clear history'),
@@ -187,7 +188,7 @@ void main() {
       await show(tester, s);
       expect(
         find.text(
-          "This history was made by a newer or different version of Kusunga. "
+          'This history was made by a newer or different version of Kusunga. '
           "It's safe, but this version can't open it. History won't be kept "
           'until you update.',
         ),
@@ -352,7 +353,7 @@ void main() {
       copyTexts(['a', 'b']);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byTooltip('Menu'));
+      await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Clear history'));
       await tester.pumpAndSettle();
@@ -374,7 +375,7 @@ void main() {
       copyTexts(['a', 'b']);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byTooltip('Menu'));
+      await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Clear history'));
       await tester.pumpAndSettle();
@@ -391,7 +392,7 @@ void main() {
         await show(tester);
         copyTexts(['a']);
         await tester.pumpAndSettle();
-        await tester.tap(find.byTooltip('Menu'));
+        await tester.tap(find.byTooltip('More options'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Clear history'));
         await tester.pumpAndSettle();
@@ -407,6 +408,30 @@ void main() {
 
   group('Keep N items field', () {
     Finder field() => find.byKey(const Key('limit-field'));
+
+    testWidgets(
+      'the border uses color.border, and color.border.hover on hover',
+      (tester) async {
+        await show(tester);
+        Color border() =>
+            (tester.widget<TextField>(field()).decoration!.enabledBorder!
+                    as OutlineInputBorder)
+                .borderSide
+                .color;
+        expect(border(), KusungaTokens.light.border);
+
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+        await mouse.addPointer(location: Offset.zero);
+        addTearDown(mouse.removePointer);
+        await mouse.moveTo(tester.getCenter(field()));
+        await tester.pump();
+        expect(border(), KusungaTokens.light.borderHover);
+
+        await mouse.moveTo(const Offset(5, 500));
+        await tester.pump();
+        expect(border(), KusungaTokens.light.border);
+      },
+    );
 
     testWidgets('shows the current limit', (tester) async {
       await show(tester);

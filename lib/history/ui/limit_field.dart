@@ -35,6 +35,7 @@ class _LimitFieldState extends State<LimitField> {
   late final FocusNode _focus = FocusNode(onKeyEvent: _onKey);
   String? _error;
   var _committing = false;
+  var _hovered = false;
 
   @override
   void initState() {
@@ -113,48 +114,54 @@ class _LimitFieldState extends State<LimitField> {
             ExcludeSemantics(child: Text('Keep', style: label)),
             SizedBox(
               width: 104,
-              child: Semantics(
-                label: 'Number of history items to keep',
-                hint: _error,
-                textField: true,
-                child: TextField(
-                  key: const Key('limit-field'),
-                  controller: _controller,
-                  focusNode: _focus,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.end,
-                  style: label,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9,]')),
-                  ],
-                  onChanged: (_) {
-                    if (_error != null) setState(() => _error = null);
-                  },
-                  onSubmitted: (_) => _commit(),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: KusungaTokens.space3,
-                      vertical: KusungaTokens.space2,
+              child: MouseRegion(
+                onEnter: (_) => setState(() => _hovered = true),
+                onExit: (_) => setState(() => _hovered = false),
+                child: Semantics(
+                  label: 'Number of history items to keep',
+                  hint: _error,
+                  textField: true,
+                  child: TextField(
+                    key: const Key('limit-field'),
+                    controller: _controller,
+                    focusNode: _focus,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.end,
+                    style: label,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9,]')),
+                    ],
+                    onChanged: (_) {
+                      if (_error != null) setState(() => _error = null);
+                    },
+                    onSubmitted: (_) => _commit(),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: KusungaTokens.space3,
+                        vertical: KusungaTokens.space2,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          KusungaTokens.radius2,
+                        ),
+                        borderSide: BorderSide(
+                          color: _error != null
+                              ? t.danger
+                              : (_hovered ? t.borderHover : t.border),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          KusungaTokens.radius2,
+                        ),
+                        borderSide: BorderSide(
+                          color: _error == null ? t.focus : t.danger,
+                          width: 2,
+                        ),
+                      ),
+                      hoverColor: t.surfaceHover,
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        KusungaTokens.radius2,
-                      ),
-                      borderSide: BorderSide(
-                        color: _error == null ? t.border : t.danger,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        KusungaTokens.radius2,
-                      ),
-                      borderSide: BorderSide(
-                        color: _error == null ? t.focus : t.danger,
-                        width: 2,
-                      ),
-                    ),
-                    hoverColor: t.surfaceHover,
                   ),
                 ),
               ),

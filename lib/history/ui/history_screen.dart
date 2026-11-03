@@ -397,7 +397,7 @@ class _Header extends StatelessWidget {
           onSaveFailed: onSaveFailed,
         ),
         PopupMenuButton<Object?>(
-          tooltip: 'Menu',
+          tooltip: 'More options',
           icon: Icon(Icons.more_horiz, color: t.text),
           onSelected: (_) => onClear(),
           itemBuilder: (context) => [

@@ -283,7 +283,7 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.delete); // deletes 'c'
       await tester.pump();
 
-      await tester.tap(find.byTooltip('Menu'));
+      await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Clear history'));
       await tester.pumpAndSettle();
@@ -316,7 +316,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(texts(), ['b', 'a']);
 
-      await tester.tap(find.byTooltip('Menu'));
+      await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Clear history'));
       await tester.pumpAndSettle();
@@ -662,7 +662,7 @@ void main() {
       copyTexts(['a', 'b']);
       await tester.pumpAndSettle();
       store.failClear = true;
-      await tester.tap(find.byTooltip('Menu'));
+      await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Clear history'));
       await tester.pumpAndSettle();
@@ -773,7 +773,7 @@ void main() {
       await show(tester);
       copyTexts(['a']);
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Menu'));
+      await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Clear history'));
       await tester.pumpAndSettle();
@@ -789,7 +789,7 @@ void main() {
       await show(tester);
       copyTexts(['a']);
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Menu'));
+      await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
       expect(find.text('Clear history'), findsOneWidget);
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);

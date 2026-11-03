@@ -9,7 +9,7 @@ import 'app.dart';
 import 'clipboard/channel_clipboard_source.dart';
 import 'history/history_opener.dart';
 import 'history/history_service.dart';
-import 'history/key_store.dart';
+import 'history/windows_key_store.dart';
 import 'history/memory_history_store.dart';
 import 'lifecycle/app_lifecycle.dart';
 import 'lifecycle/quit_flow.dart';
@@ -30,7 +30,7 @@ Future<HistoryService> _openHistory() async {
     await dir.create(recursive: true);
     log = FileErrorLog(File('${dir.path}${Platform.pathSeparator}kusunga.log'));
     opened = await openHistory(
-      keys: SecureKeyStore(),
+      keys: keyStoreFor(isWindows: Platform.isWindows),
       directory: dir.path,
       log: log,
     );

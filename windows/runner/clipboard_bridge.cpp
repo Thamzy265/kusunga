@@ -5,6 +5,7 @@
 #include <flutter/standard_method_codec.h>
 
 #include <cstring>
+#include <memory>
 #include <string>
 
 #include "clipboard_policy.h"
@@ -221,23 +222,25 @@ void ClipboardBridge::OnClipboardUpdate() {
 // while still handling messages, because Dart's answer arrives through this
 // thread's message loop.
 void ClipboardBridge::FlushDartBlocking() {
-  bool done = false;
+  // Shared with the callbacks: if we give up after the timeout and return,
+  // Dart's late answer must not write to a dead stack variable.
+  auto done = std::make_shared<bool>(false);
   lifecycle_->InvokeMethod(
       "flush", nullptr,
       std::make_unique<flutter::MethodResultFunctions<EncodableValue>>(
-          [&done](const EncodableValue*) { done = true; },
-          [&done](const std::string&, const std::string&,
-                  const EncodableValue*) { done = true; },
-          [&done]() { done = true; }));
+          [done](const EncodableValue*) { *done = true; },
+          [done](const std::string&, const std::string&,
+                 const EncodableValue*) { *done = true; },
+          [done]() { *done = true; }));
 
   const DWORD start = ::GetTickCount();
-  while (!done && ::GetTickCount() - start < kFlushTimeoutMs) {
+  while (!*done && ::GetTickCount() - start < kFlushTimeoutMs) {
     MSG msg;
-    while (!done && ::PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+    while (!*done && ::PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
       ::TranslateMessage(&msg);
       ::DispatchMessage(&msg);
     }
-    if (!done) ::MsgWaitForMultipleObjects(0, nullptr, FALSE, 20, QS_ALLINPUT);
+    if (!*done) ::MsgWaitForMultipleObjects(0, nullptr, FALSE, 20, QS_ALLINPUT);
   }
 }
 
