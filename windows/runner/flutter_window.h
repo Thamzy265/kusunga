@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "clipboard_bridge.h"
 #include "win32_window.h"
 
 // A window that does nothing but host a Flutter view.
@@ -25,6 +26,9 @@ class FlutterWindow : public Win32Window {
  private:
   // The project to run.
   flutter::DartProject project_;
+
+  // Clipboard watcher and quit flow (see clipboard_bridge.h).
+  std::unique_ptr<ClipboardBridge> clipboard_bridge_;
 
   // The Flutter instance hosted by this window.
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
