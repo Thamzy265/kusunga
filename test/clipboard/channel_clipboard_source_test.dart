@@ -27,6 +27,29 @@ void main() {
     return ChannelClipboardSource().events.toList();
   }
 
+  test('a copy with our own marker is flagged; others are not', () async {
+    final got = await receive([
+      {'type': 'text', 'text': 'ours', 'own': true},
+      {'type': 'text', 'text': 'theirs'},
+      {'type': 'text', 'text': 'bad flag', 'own': 'yes'},
+      {'type': 'concealed', 'own': true},
+    ]);
+    expect(
+      got[0],
+      isA<ClipboardText>().having((e) => e.ownMarker, 'own', true),
+    );
+    expect(
+      got[1],
+      isA<ClipboardText>().having((e) => e.ownMarker, 'own', false),
+    );
+    expect(
+      got[2],
+      isA<ClipboardText>().having((e) => e.ownMarker, 'own', false),
+      reason: 'only a real true counts',
+    );
+    expect(got[3], isA<ClipboardSkipped>());
+  });
+
   test('decodes text, concealed, too-large and read-error events', () async {
     final got = await receive([
       {'type': 'text', 'text': 'hello'},

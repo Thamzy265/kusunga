@@ -9,8 +9,13 @@ sealed class ClipboardEvent {
 }
 
 class ClipboardText extends ClipboardEvent {
-  const ClipboardText(this.text);
+  const ClipboardText(this.text, {this.ownMarker = false});
   final String text;
+
+  /// The copy carries Kusunga's own pasteboard marker (the picker wrote it).
+  /// Any app can add that marker, so it only means "move to top if already
+  /// saved"; it never skips a check.
+  final bool ownMarker;
 }
 
 /// A copy that must not be saved. There is never any text with it.

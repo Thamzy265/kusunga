@@ -93,12 +93,12 @@ class HistoryService extends ChangeNotifier {
               ? LogCode.clipboardLocked
               : LogCode.clipboardChannelError,
         );
-      case ClipboardText(:final text):
-        _capture(text);
+      case ClipboardText(:final text, :final ownMarker):
+        _capture(text, ownMarker: ownMarker);
     }
   }
 
-  void _capture(String text) {
+  void _capture(String text, {bool ownMarker = false}) {
     if (text.trim().isEmpty) return;
     if (isOverCap(text)) {
       _log.log(LogCode.clipboardTooLarge);
@@ -106,6 +106,13 @@ class HistoryService extends ChangeNotifier {
     }
     // Retry what is waiting first (oldest first), so order is kept.
     _flushWaiting();
+    // Our own marker (the picker pasted this) only moves text that is already
+    // saved. Any app can add the marker, so text we do not know is an
+    // ordinary copy and is saved like one.
+    if (ownMarker && _bumpSaved(text)) {
+      _refresh();
+      return;
+    }
     final entry = _Waiting(_nextWaitingId--, text, classify(text), _clock());
     if (_waiting.isEmpty) {
       _save(entry);
@@ -113,6 +120,16 @@ class HistoryService extends ChangeNotifier {
       _addWaiting(entry);
     }
     _refresh();
+  }
+
+  bool _bumpSaved(String text) {
+    try {
+      return _store.bumpIfPresent(text, _clock());
+    } catch (error) {
+      final code = error is SqliteException ? error.extendedResultCode : null;
+      _log.log(LogCode.writeFailed, code);
+      return false;
+    }
   }
 
   void _flushWaiting() {
@@ -200,6 +217,34 @@ class HistoryService extends ChangeNotifier {
       await _writeClipboard(text);
       return true;
     } catch (_) {
+      return false;
+    }
+  }
+
+  /// The whole text of an item (also one still waiting to be saved), or null
+  /// if it is gone.
+  String? textOf(int id) => _closed ? null : _contentOf(id);
+
+  /// A saved setting (`picker_shortcut`, `paste_mode`), or null if it was
+  /// never saved or cannot be read.
+  String? setting(String key) {
+    if (_closed) return null;
+    try {
+      return _store.readSetting(key);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Saves a setting. Returns false if it could not be saved.
+  bool saveSetting(String key, String value) {
+    if (_closed) return false;
+    try {
+      _store.writeSetting(key, value);
+      return true;
+    } catch (error) {
+      final code = error is SqliteException ? error.extendedResultCode : null;
+      _log.log(LogCode.writeFailed, code);
       return false;
     }
   }

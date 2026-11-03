@@ -5,7 +5,8 @@ import 'clipboard_source.dart';
 /// Talks to the native watcher in the Runner (Swift on Mac, C++ on Windows).
 ///
 /// Event channel `com.wnasoni.kusunga/clipboard/events` sends maps:
-/// `{type: text, text}`, `{type: concealed}`, `{type: tooLarge}`,
+/// `{type: text, text, own?}` (own: true when the copy carries Kusunga's own
+/// marker, `com.wnasoni.kusunga.self`), `{type: concealed}`, `{type: tooLarge}`,
 /// `{type: error, code}`. Listening starts the watcher; cancelling stops it.
 /// Method channel `com.wnasoni.kusunga/clipboard`:
 /// `accessBehavior` returns `allow`, `ask`, `deny` or `unsupported`.
@@ -31,7 +32,9 @@ class ChannelClipboardSource implements ClipboardSource {
     switch (raw['type']) {
       case 'text':
         final text = raw['text'];
-        return text is String ? ClipboardText(text) : null;
+        return text is String
+            ? ClipboardText(text, ownMarker: raw['own'] == true)
+            : null;
       case 'concealed':
         return const ClipboardSkipped(SkipReason.concealed);
       case 'tooLarge':
