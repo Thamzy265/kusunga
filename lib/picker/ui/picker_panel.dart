@@ -382,10 +382,18 @@ class _SearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = KusungaTokens.of(context);
-    OutlineInputBorder border(Color c, double w) => OutlineInputBorder(
-      borderRadius: BorderRadius.circular(KusungaTokens.radius2),
-      borderSide: BorderSide(color: c, width: w),
-    );
+    // 1 px border, darker on hover, and a 2 px focus ring (UI spec).
+    final border = WidgetStateInputBorder.resolveWith((states) {
+      final focused = states.contains(WidgetState.focused);
+      final hovered = states.contains(WidgetState.hovered);
+      return OutlineInputBorder(
+        borderRadius: BorderRadius.circular(KusungaTokens.radius2),
+        borderSide: BorderSide(
+          color: focused ? t.focus : (hovered ? t.borderHover : t.border),
+          width: focused ? 2 : 1,
+        ),
+      );
+    });
     return Padding(
       padding: EdgeInsets.all(KusungaTokens.space3),
       child: Semantics(
@@ -408,9 +416,7 @@ class _SearchField extends StatelessWidget {
             prefixIcon: ExcludeSemantics(
               child: Icon(Icons.search, color: t.textMuted),
             ),
-            enabledBorder: border(t.border, 1),
-            focusedBorder: border(t.focus, 2),
-            // Hover is shown by the border colour (spec: color.border.hover).
+            border: border,
             hoverColor: Colors.transparent,
           ),
         ),

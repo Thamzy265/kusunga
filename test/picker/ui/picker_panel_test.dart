@@ -458,6 +458,27 @@ void main() {
     );
   });
 
+  group('search field borders', () {
+    testWidgets('1 px border, darker on hover, 2 px focus ring', (
+      tester,
+    ) async {
+      copyAll(['a']);
+      await show(tester);
+      final field = tester.widget<TextField>(find.byType(TextField));
+      final border = field.decoration!.border! as WidgetStateInputBorder;
+      final t = KusungaTokens.light;
+      expect(border.resolve({}).borderSide.color, t.border);
+      expect(border.resolve({}).borderSide.width, 1);
+      expect(
+        border.resolve({WidgetState.hovered}).borderSide.color,
+        t.borderHover,
+      );
+      final focused = border.resolve({WidgetState.focused}).borderSide;
+      expect(focused.color, t.focus);
+      expect(focused.width, 2);
+    });
+  });
+
   group('mouse', () {
     testWidgets('a click on a row pastes it', (tester) async {
       copyAll(['first', 'second']);
