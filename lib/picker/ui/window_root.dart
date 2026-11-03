@@ -60,6 +60,39 @@ class _WindowRootState extends State<WindowRoot> {
     }
   }
 
+  // The size the history screen had when it was last shown. While it is
+  // hidden it keeps that size, so the small picker and toast windows never
+  // make it lay out (and overflow) at 360 x 96.
+  Size _manageSize = const Size(800, 632);
+
+  Widget _history() {
+    final picker = widget.picker;
+    final shown = picker.mode == WindowMode.manage;
+    return LayoutBuilder(
+      builder: (context, box) {
+        if (shown) _manageSize = box.biggest;
+        final screen = HistoryHost(
+          history: widget.history,
+          initial: picker.history,
+          topSlot: PickerSettingsSection(controller: picker),
+        );
+        return Visibility(
+          visible: shown,
+          maintainState: true,
+          // The same widgets in both cases, so the screen is never rebuilt.
+          child: OverflowBox(
+            alignment: Alignment.topLeft,
+            minWidth: shown ? null : _manageSize.width,
+            maxWidth: shown ? null : _manageSize.width,
+            minHeight: shown ? null : _manageSize.height,
+            maxHeight: shown ? null : _manageSize.height,
+            child: screen,
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final picker = widget.picker;
@@ -68,15 +101,7 @@ class _WindowRootState extends State<WindowRoot> {
       builder: (context, _) => Stack(
         fit: StackFit.expand,
         children: [
-          Visibility(
-            visible: picker.mode == WindowMode.manage,
-            maintainState: true,
-            child: HistoryHost(
-              history: widget.history,
-              initial: picker.history,
-              topSlot: PickerSettingsSection(controller: picker),
-            ),
-          ),
+          _history(),
           if (picker.mode == WindowMode.picker) PickerPanel(controller: picker),
           if (picker.mode == WindowMode.toast)
             PickerToastView(controller: picker),

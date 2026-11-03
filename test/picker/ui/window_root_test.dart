@@ -146,6 +146,32 @@ void main() {
     await tester.pump(const Duration(seconds: 31));
   });
 
+  for (final scale in [1.0, 2.0]) {
+    testWidgets('the hidden history screen never overflows at the picker and '
+        'toast sizes, text x$scale (L1)', (tester) async {
+      source.copy('item');
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.platformDispatcher.clearAllTestValues);
+      await pumpApp(tester);
+      port.press();
+      tester.view.physicalSize = const Size(360, 240);
+      await tester.pump();
+      await tester.pump();
+      expect(tester.takeException(), isNull, reason: 'picker size');
+      port.pasteAnswer = PasteOutcome.focusTimeout;
+      await controller.pasteItem(history.items.first.id);
+      tester.view.physicalSize = const Size(360, 96);
+      await tester.pump();
+      await tester.pump();
+      expect(tester.takeException(), isNull, reason: 'toast size');
+      // Native puts the window back to its size when the toast goes.
+      tester.view.physicalSize = const Size(800, 632);
+      await tester.pump(const Duration(seconds: 6));
+      await tester.pump();
+      controller.dispose();
+    });
+  }
+
   testWidgets('without a picker controller the app is just the history', (
     tester,
   ) async {

@@ -96,7 +96,7 @@ class PickerSearch {
   /// letters change length when lower-cased): the row is then not highlighted.
   static List<(int, int)> ranges(String displayText, String query) {
     final q = normaliseQuery(query);
-    if (q.isEmpty) return const [];
+    if (q.trim().isEmpty) return const [];
     final lower = displayText.toLowerCase();
     if (lower.length != displayText.length) return const [];
     final out = <(int, int)>[];

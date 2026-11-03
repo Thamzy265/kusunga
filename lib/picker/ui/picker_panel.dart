@@ -253,7 +253,17 @@ class _PickerPanelState extends State<PickerPanel>
     } else {
       final n = _digits.indexOf(key);
       final hw = HardwareKeyboard.instance;
-      final quick = _controller.isMac ? hw.isMetaPressed : hw.isControlPressed;
+      // Only the one modifier: AltGr is Ctrl+Alt on Windows and types { [ ] }
+      // on many layouts, so Alt, Shift or the other main key mean "typing".
+      final quick = _controller.isMac
+          ? hw.isMetaPressed &&
+                !hw.isControlPressed &&
+                !hw.isAltPressed &&
+                !hw.isShiftPressed
+          : hw.isControlPressed &&
+                !hw.isMetaPressed &&
+                !hw.isAltPressed &&
+                !hw.isShiftPressed;
       if (n < 0 || !quick) return KeyEventResult.ignored;
       if (!repeat) _pasteAt(n);
     }
@@ -412,8 +422,6 @@ class _SearchField extends StatelessWidget {
       child: Semantics(
         identifier: 'picker-search',
         label: 'Search history',
-        textField: true,
-        excludeSemantics: true,
         child: TextField(
           controller: controller,
           focusNode: node,

@@ -115,6 +115,11 @@ void main() {
       expect(PickerSearch.ranges('Banana bandana', 'ban'), [(0, 3), (7, 10)]);
     });
 
+    test('a whitespace-only query highlights nothing (S6)', () {
+      expect(PickerSearch.ranges('a b  c', ' '), isEmpty);
+      expect(PickerSearch.ranges('a b', '  \n'), isEmpty);
+    });
+
     test('no query or no match gives no ranges', () {
       expect(PickerSearch.ranges('abc', ''), isEmpty);
       expect(PickerSearch.ranges('abc', 'x'), isEmpty);

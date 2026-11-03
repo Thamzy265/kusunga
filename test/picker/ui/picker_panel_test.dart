@@ -373,6 +373,46 @@ void main() {
       expect(port.pastes.single.text, 'b');
     });
 
+    testWidgets('AltGr+7 and AltGr+8 type { and [ instead of pasting (K2)', (
+      tester,
+    ) async {
+      copyAll([for (var i = 0; i < 9; i++) 'row $i']);
+      await show(tester, isMac: false);
+      // On Windows AltGr is Ctrl+Alt.
+      for (final digit in [
+        LogicalKeyboardKey.digit7,
+        LogicalKeyboardKey.digit8,
+      ]) {
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.altRight);
+        await tester.sendKeyEvent(digit);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.altRight);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pump();
+      }
+      expect(port.pastes, isEmpty);
+    });
+
+    testWidgets('Cmd+Shift+2 and Ctrl+Cmd+2 are not quick paste (Mac)', (
+      tester,
+    ) async {
+      copyAll(['a', 'b', 'c']);
+      await show(tester);
+      for (final extra in [
+        LogicalKeyboardKey.shiftLeft,
+        LogicalKeyboardKey.controlLeft,
+        LogicalKeyboardKey.altLeft,
+      ]) {
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+        await tester.sendKeyDownEvent(extra);
+        await tester.sendKeyEvent(LogicalKeyboardKey.digit2);
+        await tester.sendKeyUpEvent(extra);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+        await tester.pump();
+      }
+      expect(port.pastes, isEmpty);
+    });
+
     testWidgets('Cmd+9 with fewer rows pastes nothing', (tester) async {
       copyAll(['a', 'b']);
       await show(tester);
@@ -479,6 +519,37 @@ void main() {
     });
   });
 
+  group('search field for screen readers (A1)', () {
+    testWidgets('one text-field node: named, focused, with the typed value', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      copyAll(['hello']);
+      await show(tester);
+      await tester.enterText(find.byType(TextField), 'hel');
+      await tester.pump();
+      final fields = <SemanticsData>[];
+      void walk(SemanticsNode n) {
+        final d = n.getSemanticsData();
+        if (d.flagsCollection.isTextField) fields.add(d);
+        n.visitChildren((c) {
+          walk(c);
+          return true;
+        });
+      }
+
+      walk(tester.binding.rootPipelineOwner.semanticsOwner!.rootSemanticsNode!);
+      expect(fields.length, 1);
+      final d = fields.single;
+      expect(d.label, contains('Search history'));
+      expect(d.value, 'hel');
+      expect(d.flagsCollection.isFocused, Tristate.isTrue);
+      expect(d.hasAction(SemanticsAction.setText), isTrue);
+      expect(d.hasAction(SemanticsAction.setSelection), isTrue);
+      handle.dispose();
+    });
+  });
+
   group('mouse', () {
     testWidgets('a click on a row pastes it', (tester) async {
       copyAll(['first', 'second']);
@@ -507,7 +578,7 @@ void main() {
       copyAll(['Call me on 07700 900123']);
       await show(tester);
       expect(find.bySemanticsLabel('Kusunga picker'), findsWidgets);
-      expect(find.bySemanticsLabel('Search history'), findsWidgets);
+      expect(find.bySemanticsLabel(RegExp('Search history')), findsWidgets);
       final id = history.items.single.id;
       final node = tester.getSemantics(row(id));
       expect(node.label, '1, Text: Call me on 07700 900123, copied just now');
