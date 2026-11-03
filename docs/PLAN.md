@@ -35,7 +35,7 @@ Everything stays on the device. No account, no server.
 
 - [x] **M1.1 Project setup** — small. Repo, chosen stack, check command, CI on Mac and Windows, `qa-artifacts/` git-ignored.
   - AC: the check command runs on both OSes in CI and passes on an empty app that opens a window and a tray/menu-bar icon.
-- [ ] **M1.2 Clipboard history capture** — large (new local data store, personal data).
+- [x] **M1.2 Clipboard history capture** — large (new local data store, personal data).
   - AC: text and links copied in any app appear in history within 1 second.
   - AC: history keeps the newest N items; N is set in settings (default 200, range 10–5,000); the oldest item is removed when the limit is reached.
   - AC: duplicates move to the top instead of being saved twice.
