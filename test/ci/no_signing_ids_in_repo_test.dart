@@ -14,7 +14,8 @@ final _patterns = <String, RegExp>{
   ),
 };
 
-const _allowed = {'YOURTEAMID'};
+// YOURTEAMID is the placeholder; TESTTEAM00 is the fake id in another guard test.
+const _allowed = {'YOURTEAMID', 'TESTTEAM00'};
 
 /// What is wrong with [text], as "kind: id" lines.
 List<String> findIds(String text) => [
