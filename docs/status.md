@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-04 — M1.3 History picker and paste — PM allowed pasting; QA part 2
+- Changed: PM turned Kusunga on in System Settings > Privacy & Security > Accessibility (after help finding the entry). QA running part 2 (real paste).
+- Gates: developer pass · tester pass · reviewer approve · QA part 2 running · PM merge waiting
+- Open findings: none
+- Decisions: PM said (2026-11-04): "its enabled" — after the lead's steps to allow pasting.
+- Blockers: none
+
 ## 2026-11-04 — M1.3 History picker and paste — PM decision on taken shortcuts
 - Changed: plan AC amended. The "^" copy finding was a misread: the code renders ⌃ (U+2303), which the font draws like a caret; no change.
 - Gates: developer pass · tester pass · reviewer approve · QA part 1 pass · PM merge waiting
