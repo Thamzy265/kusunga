@@ -134,6 +134,11 @@ class SnippetService extends ChangeNotifier {
     return text;
   }
 
+  /// A text to save as a snippet could not be read (F10): logged only.
+  void noteOpenFailed() {
+    if (!_closed) _log.log(LogCode.snippetOpenFailed);
+  }
+
   int? _code(Object error) =>
       error is SqliteException ? error.extendedResultCode : null;
 

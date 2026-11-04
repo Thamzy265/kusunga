@@ -22,7 +22,7 @@ const snippetCapMessage =
     'You have 1,000 snippets, the most Kusunga keeps. Delete one to add '
     'another.';
 const _saveFailedMessage = "Couldn't save the snippet. Try again.";
-const _openFailedMessage = "Couldn't open the snippet. Try again.";
+const snippetOpenFailedMessage = "Couldn't open the snippet. Try again.";
 const _vaultNote =
     'For bank or card details, wait for the secure vault in a later update.';
 
@@ -90,7 +90,7 @@ class _SnippetEditorState extends State<_SnippetEditor> {
       name = editing.name;
       final full = widget.service.fullTextForEdit(editing.id);
       _contentUnread = full == null;
-      if (_contentUnread) _banner = _openFailedMessage;
+      if (_contentUnread) _banner = snippetOpenFailedMessage;
       content = full ?? editing.preview;
       _type = editing.type;
       _typeSuggested = false;
@@ -140,7 +140,7 @@ class _SnippetEditorState extends State<_SnippetEditor> {
       if (full == null) {
         setState(() {
           _problems = const {};
-          _banner = _openFailedMessage;
+          _banner = snippetOpenFailedMessage;
         });
         return;
       }

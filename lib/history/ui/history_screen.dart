@@ -174,7 +174,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return;
     }
     final text = _service.textOf(id);
-    if (text == null) return;
+    if (text == null) {
+      // Never open the editor without the whole text (F10).
+      snippets.noteOpenFailed();
+      _toast(snippetOpenFailedMessage);
+      return;
+    }
     final saved = await showSnippetEditor(
       context,
       service: snippets,

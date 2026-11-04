@@ -259,7 +259,15 @@ class HistoryService extends ChangeNotifier {
 
   /// The whole text of an item (also one still waiting to be saved), or null
   /// if it is gone.
-  String? textOf(int id) => _closed ? null : _contentOf(id);
+  String? textOf(int id) {
+    if (_closed) return null;
+    try {
+      return _contentOf(id);
+    } catch (_) {
+      _log.log(LogCode.readFailed);
+      return null;
+    }
+  }
 
   /// A saved setting (`picker_shortcut`, `paste_mode`), or null if it was
   /// never saved or cannot be read.
