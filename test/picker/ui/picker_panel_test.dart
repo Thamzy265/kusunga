@@ -498,6 +498,31 @@ void main() {
     );
   });
 
+  group('focus (B1)', () {
+    testWidgets('the search field takes the focus back when the app comes to '
+        'the front', (tester) async {
+      copyAll(['a']);
+      await show(tester);
+      final node = tester.widget<TextField>(find.byType(TextField)).focusNode!;
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
+      expect(node.hasPrimaryFocus, isFalse);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(node.hasPrimaryFocus, isTrue);
+    });
+
+    testWidgets('it asks for the focus after the first frame too', (
+      tester,
+    ) async {
+      copyAll(['a']);
+      await show(tester);
+      final node = tester.widget<TextField>(find.byType(TextField)).focusNode!;
+      expect(node.hasPrimaryFocus, isTrue);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('search field borders', () {
     testWidgets('1 px border, darker on hover, 2 px focus ring', (
       tester,

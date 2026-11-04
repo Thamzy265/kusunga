@@ -172,6 +172,21 @@ void main() {
     });
   }
 
+  testWidgets('the search field has the focus when the picker opens, although '
+      'a history row had it (B1)', (tester) async {
+    source.copy('row one');
+    source.copy('row two');
+    await pumpApp(tester);
+    // The first history row has the focus (autofocus), as in the real app.
+    expect(FocusManager.instance.primaryFocus?.context, isNotNull);
+    port.press();
+    await tester.pump();
+    await tester.pump();
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.focusNode!.hasPrimaryFocus, isTrue);
+    controller.dispose();
+  });
+
   testWidgets('without a picker controller the app is just the history', (
     tester,
   ) async {

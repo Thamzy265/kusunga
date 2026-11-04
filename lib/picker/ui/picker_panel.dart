@@ -31,7 +31,7 @@ class PickerPanel extends StatefulWidget {
 }
 
 class _PickerPanelState extends State<PickerPanel>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   static const rowHeight = 40.0;
   static const _countEvery = Duration(milliseconds: 500);
 
@@ -56,6 +56,10 @@ class _PickerPanelState extends State<PickerPanel>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // autofocus alone is not enough: the window is shown and made key after
+    // this frame, and the focus may sit on the hidden history screen.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _takeFocus());
     _controller.addListener(_onController);
     _bind();
     _recompute();
@@ -75,8 +79,19 @@ class _PickerPanelState extends State<PickerPanel>
     }
   }
 
+  void _takeFocus() {
+    if (mounted && !_node.hasPrimaryFocus) _node.requestFocus();
+  }
+
+  // The window became the front app (it is made key after it is shown).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _takeFocus();
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.removeListener(_onController);
     _bound?.removeListener(_onItems);
     _countTimer?.cancel();

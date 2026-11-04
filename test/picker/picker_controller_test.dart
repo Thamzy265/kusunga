@@ -197,6 +197,9 @@ void main() {
       await c.pasteItem(id);
       expect(port.pastes.single.post, isFalse);
       expect(c.toast, ToastKind.copied);
+      // Every copy-only reason is logged, as a code only (G2).
+      expect(log.codes, [LogCode.pastePermissionMissing]);
+      expect(log.details, [null]);
     });
 
     ctest('Mac without permission: toast, card, log code', (tester) async {

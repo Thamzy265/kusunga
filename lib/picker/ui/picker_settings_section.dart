@@ -22,6 +22,7 @@ class PickerSettingsSection extends StatefulWidget {
 class _PickerSettingsSectionState extends State<PickerSettingsSection>
     with WidgetsBindingObserver {
   var _recording = false;
+  Timer? _giveUp;
   String? _message;
   var _messageIsError = false;
 
@@ -36,6 +37,7 @@ class _PickerSettingsSectionState extends State<PickerSettingsSection>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _giveUp?.cancel();
     // Leaving the screen mid-recording must not leave the shortcut released.
     if (_recording) unawaited(_c.endRecording());
     super.dispose();
@@ -45,6 +47,8 @@ class _PickerSettingsSectionState extends State<PickerSettingsSection>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // The permission may have been given in System Settings meanwhile.
     if (state == AppLifecycleState.resumed) unawaited(_c.recheckPostAccess());
+    // The window lost focus: whoever is pressing keys is not talking to us.
+    if (_recording && state != AppLifecycleState.resumed) _cancelRecording();
   }
 
   Future<void> _startRecording() async {
@@ -54,9 +58,13 @@ class _PickerSettingsSectionState extends State<PickerSettingsSection>
       _recording = true;
       _message = null;
     });
+    // If no key ever arrives the shortcut must not stay released.
+    _giveUp?.cancel();
+    _giveUp = Timer(const Duration(seconds: 20), _cancelRecording);
   }
 
   void _cancelRecording() {
+    _giveUp?.cancel();
     if (!_recording) return;
     setState(() => _recording = false);
     unawaited(_c.endRecording());
@@ -185,20 +193,43 @@ class _PickerSettingsSectionState extends State<PickerSettingsSection>
 /// Listens for the next key combination. It takes every key (so Tab and the
 /// like are not used for anything else meanwhile) and gives up when it loses
 /// focus.
-class _Recorder extends StatelessWidget {
+class _Recorder extends StatefulWidget {
   const _Recorder({required this.onKey, required this.onLost});
 
   final KeyEventResult Function(FocusNode, KeyEvent) onKey;
   final VoidCallback onLost;
 
   @override
+  State<_Recorder> createState() => _RecorderState();
+}
+
+class _RecorderState extends State<_Recorder> {
+  final _node = FocusNode(debugLabel: 'shortcut recorder');
+
+  @override
+  void initState() {
+    super.initState();
+    // Take the focus explicitly: the Change button had it a moment ago.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _node.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _node.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final t = KusungaTokens.of(context);
     return Focus(
+      focusNode: _node,
       autofocus: true,
-      onKeyEvent: onKey,
+      onKeyEvent: widget.onKey,
       onFocusChange: (has) {
-        if (!has) onLost();
+        if (!has) widget.onLost();
       },
       child: Semantics(
         identifier: 'shortcut-recording',

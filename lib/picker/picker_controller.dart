@@ -276,6 +276,7 @@ class PickerController extends ChangeNotifier {
         _log.log(LogCode.pasteTargetElevated);
         toast = isMac ? ToastKind.copied : ToastKind.copiedElevated;
       case PasteOutcome.copyOnly:
+        _log.log(LogCode.pastePermissionMissing);
         toast = ToastKind.copied;
       case PasteOutcome.failed:
         toast = ToastKind.copyFailed;

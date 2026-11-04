@@ -203,6 +203,60 @@ void main() {
       expect(history.setting('picker_shortcut'), isNull);
     });
 
+    testWidgets('the recorder has the focus even if a button had it', (
+      tester,
+    ) async {
+      await show(tester);
+      await tester.tap(find.text('Change'));
+      await tester.pump();
+      await tester.pump();
+      final ctx = FocusManager.instance.primaryFocus?.context;
+      expect(ctx, isNotNull);
+      expect(
+        find.descendant(
+          of: find.byWidget(ctx!.widget),
+          matching: find.text('Press the new shortcut…'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the window losing focus cancels recording (B3)', (
+      tester,
+    ) async {
+      await show(tester);
+      await startRecording(tester);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pump();
+      expect(find.text('Change'), findsOneWidget);
+      expect(port.calls.last, 'register shift+meta+v');
+    });
+
+    testWidgets('recording that gets no key gives up after 20 seconds (B3)', (
+      tester,
+    ) async {
+      await show(tester);
+      await startRecording(tester);
+      await tester.pump(const Duration(seconds: 19));
+      expect(find.text('Press the new shortcut…'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.text('Change'), findsOneWidget);
+      expect(port.calls.last, 'register shift+meta+v');
+    });
+
+    testWidgets('the card stays hidden at start and after coming back to the '
+        'app until a paste needs it (G1)', (tester) async {
+      await show(tester);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Let Kusunga paste for you'), findsNothing);
+      port.press();
+      await controller.closePicker();
+      await tester.pump();
+      expect(find.text('Let Kusunga paste for you'), findsNothing);
+    });
+
     testWidgets('moving focus away cancels recording', (tester) async {
       await show(tester);
       await startRecording(tester);
