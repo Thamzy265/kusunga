@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-04 — M1.3 History picker and paste — Merged
+- Changed: PR Thamzy265/kusunga#3 merged into main as 6e5a183. M1.3 ticked in docs/PLAN.md.
+- Gates: developer done · tester pass · reviewer approve with notes · QA pass · PM VoiceOver pass · CI not run (GitHub billing; PM accepted local results) · PM merge approved
+- Open findings: Low notes as Later lines in docs/PLAN.md; macOS 12 minimum as an M1.9 AC.
+- Decisions: PM said (2026-11-04): "Approve merge" — in answer to "Do you approve merging M1.3 into main?"
+- Blockers: PM — GitHub billing, so CI can run again; open conditions: first CI run after billing is fixed green on both OSes, first macOS CI on main green.
+
 ## 2026-11-04 — M1.3 History picker and paste — CI not started (GitHub billing) — PM risk acceptance
 - Changed: QA part 2 attempt 7 pass on adc39d1 (one click closes the picker after the target quits; copy-only plus toast; pastes pass). Reviewer approve with notes on adc39d1; notes are Later lines in docs/PLAN.md.
 - Gates: developer done · tester pass · reviewer approve with notes · QA pass · PM VoiceOver pass · CI not run: GitHub refused to start jobs ("recent account payments have failed or your spending limit needs to be increased") · local results: ./tool/check.sh 893 passed, XCTest TEST SUCCEEDED, ./tool/test_windows_policy.sh all passed (lead, on a727633) · Windows build and runtime not tested · PM merge waiting

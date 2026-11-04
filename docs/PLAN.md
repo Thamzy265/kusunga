@@ -47,7 +47,7 @@ Everything stays on the device. No account, no server.
   - AC: if the keychain cannot be reached, history is kept in memory only with a warning and is never written unencrypted (PM 2026-11-03).
   - Design: `docs/design/clipboard-history.md`, ADR 0002, UI spec `docs/ui/clipboard-history.md`, deck `docs/slides/clipboard-history.html` (approved 2026-11-03).
   - Brief note: save data safely on every exit path (tray Quit, Cmd+Q, Dock Quit, Windows logoff/WM_ENDSESSION), not only Dart's onQuit (reviewer note, 2026-11-03).
-- [ ] **M1.3 History picker and paste** — large (OS permissions, UI).
+- [x] **M1.3 History picker and paste** — large (OS permissions, UI).
   - Done: ADR 0003 — direct notarised Mac download, App Sandbox on, PostEvent only (PM 2026-11-04).
   - Design: `docs/design/history-picker.md`, UI spec `docs/ui/history-picker.md`, deck `docs/slides/history-picker.html` (approved 2026-11-04).
   - AC: a global shortcut (default Cmd+Shift+V / Ctrl+Shift+V, changeable) opens a picker over the current app.
