@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-04 — M1.3 History picker and paste — PM redid the paste permission
+- Changed: PM removed the old Kusunga Accessibility entries and granted the permission again for the c175b71 build. QA running part 2.
+- Gates: developer pass · tester pass · reviewer approve · QA part 2 running · PM merge waiting
+- Open findings: none
+- Decisions: PM said (2026-11-04): "Done, redone" — in answer to "Tell me when you've redone the Accessibility entry for Kusunga."
+- Blockers: none
+
 ## 2026-11-04 — M1.3 History picker and paste — QA part 2 blocked
 - Changed: QA (2ef32d6, on the branch): with the permission turned on, paste still falls back to copy-only on the c175b71 build, before and after a relaunch (log `pastePermissionMissing`). Likely cause: the Accessibility entry belongs to an earlier unsigned build (each rebuild gets a new signature); PM asked to remove and re-add it.
 - Gates: developer pass · tester pass · reviewer approve · QA part 2 blocked · PM merge waiting
