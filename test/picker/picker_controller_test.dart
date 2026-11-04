@@ -197,8 +197,8 @@ void main() {
       await c.pasteItem(id);
       expect(port.pastes.single.post, isFalse);
       expect(c.toast, ToastKind.copied);
-      // Every copy-only reason is logged, as a code only (G2).
-      expect(log.codes, [LogCode.pastePermissionMissing]);
+      // Copy-only mode has its own code, not the permission one (G2r).
+      expect(log.codes, [LogCode.pasteCopyOnly]);
       expect(log.details, [null]);
     });
 

@@ -43,6 +43,7 @@ void main() {
         'hotkeyRegisterFailed',
         'pasteFocusTimeout',
         'pastePermissionMissing',
+        'pasteCopyOnly',
         'pasteTargetElevated',
         'pasteTargetGone',
       ]),

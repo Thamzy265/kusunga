@@ -59,8 +59,21 @@ class _PickerSettingsSectionState extends State<PickerSettingsSection>
       _message = null;
     });
     // If no key ever arrives the shortcut must not stay released.
+    _restartGiveUp();
+  }
+
+  // 20 seconds without any key attempt (a refused one counts): the shortcut is
+  // put back and the user is told nothing changed.
+  void _restartGiveUp() {
     _giveUp?.cancel();
-    _giveUp = Timer(const Duration(seconds: 20), _cancelRecording);
+    _giveUp = Timer(const Duration(seconds: 20), () {
+      if (!_recording || !mounted) return;
+      _cancelRecording();
+      setState(() {
+        _message = 'Shortcut not changed.';
+        _messageIsError = false;
+      });
+    });
   }
 
   void _cancelRecording() {
@@ -72,6 +85,7 @@ class _PickerSettingsSectionState extends State<PickerSettingsSection>
 
   KeyEventResult _onRecordKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.handled;
+    _restartGiveUp();
     if (event.logicalKey == LogicalKeyboardKey.escape) {
       _cancelRecording();
       return KeyEventResult.handled;

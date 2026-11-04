@@ -25,6 +25,9 @@ enum LogCode {
   hotkeyRegisterFailed,
   pasteFocusTimeout,
   pastePermissionMissing,
+  // Copy-only for another reason: paste mode, a key still held, an unreadable
+  // integrity level, or no key that types "v".
+  pasteCopyOnly,
   pasteTargetElevated,
   pasteTargetGone,
 }

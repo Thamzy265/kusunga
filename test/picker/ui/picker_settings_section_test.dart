@@ -242,6 +242,36 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
       expect(find.text('Change'), findsOneWidget);
       expect(port.calls.last, 'register shift+meta+v');
+      expect(find.text('Shortcut not changed.'), findsOneWidget);
+    });
+
+    testWidgets('every key attempt, refused ones too, restarts the 20 seconds '
+        '(T1)', (tester) async {
+      await show(tester);
+      await startRecording(tester);
+      await tester.pump(const Duration(seconds: 15));
+      await record(tester, LogicalKeyboardKey.keyK); // refused: no modifier
+      await tester.pump(const Duration(seconds: 15));
+      expect(find.text('Press the new shortcut…'), findsOneWidget);
+      await record(tester, LogicalKeyboardKey.keyK);
+      await tester.pump(const Duration(seconds: 19));
+      expect(find.text('Press the new shortcut…'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.text('Shortcut not changed.'), findsOneWidget);
+    });
+
+    testWidgets('"Shortcut not changed." is a polite live region, and Esc '
+        'does not show it', (tester) async {
+      final handle = tester.ensureSemantics();
+      await show(tester);
+      await startRecording(tester);
+      await tester.pump(const Duration(seconds: 21));
+      final node = tester.getSemantics(find.text('Shortcut not changed.'));
+      expect(node.flagsCollection.isLiveRegion, isTrue);
+      handle.dispose();
+      await startRecording(tester);
+      await record(tester, LogicalKeyboardKey.escape);
+      expect(find.text('Shortcut not changed.'), findsNothing);
     });
 
     testWidgets('the card stays hidden at start and after coming back to the '
