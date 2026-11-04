@@ -883,3 +883,151 @@ class OwnClipboardChangeTests: XCTestCase {
     XCTAssertTrue(got.isEmpty)
   }
 }
+
+/// Tester probes for the same rule (M1.4, PM decision D1): a stale record, two
+/// of our writes in a row, other apps writing on top of ours, a forged marker,
+/// and a copy still being read when our write lands. The count is the only
+/// thing that proves a change is ours.
+class OwnClipboardChangeEdgeTests: XCTestCase {
+  var pasteboard: FakePasteboard!
+  var own: OwnClipboardChanges!
+  var events: [[String: Any]]!
+  var poller: ClipboardPoller!
+
+  override func setUp() {
+    pasteboard = FakePasteboard()
+    own = OwnClipboardChanges()
+    events = []
+    poller = ClipboardPoller(pasteboard: pasteboard, ownChanges: own) { [unowned self] in
+      self.events.append($0)
+    }
+    poller.prime()
+  }
+
+  private func texts() -> [String] { events.compactMap { $0["text"] as? String } }
+
+  func testAStaleRecordNeverSkipsALaterCopy() {
+    // A record for a change the watcher never saw (it was primed past it).
+    pasteboard.copy("old snippet")
+    own.record(pasteboard.changeCount)
+    poller.prime()
+    pasteboard.copy("someone else")
+    poller.tick()
+    XCTAssertEqual(texts(), ["someone else"])
+    // And the stale record is gone: it cannot skip anything later.
+    pasteboard.copy("and another")
+    poller.tick()
+    XCTAssertEqual(texts(), ["someone else", "and another"])
+  }
+
+  func testTwoOfOurWritesBeforeATickAreBothSkipped() {
+    pasteboard.copy("snippet one")
+    own.record(pasteboard.changeCount)
+    pasteboard.copy("snippet two")
+    own.record(pasteboard.changeCount)
+    poller.tick()
+    poller.tick()
+    XCTAssertTrue(events.isEmpty)
+    XCTAssertEqual(pasteboard.textReads, 0)
+  }
+
+  func testOurWriteThenTwoOtherWritesReadsOnlyTheNewestOfThem() {
+    pasteboard.copy("snippet")
+    own.record(pasteboard.changeCount)
+    pasteboard.copy("theirs one")
+    pasteboard.copy("theirs two")
+    poller.tick()
+    XCTAssertEqual(texts(), ["theirs two"])
+  }
+
+  func testACopyRightAfterOurSkippedChangeIsReported() {
+    pasteboard.copy("snippet")
+    own.record(pasteboard.changeCount)
+    poller.tick()
+    XCTAssertTrue(events.isEmpty)
+    pasteboard.copy("typed by the user elsewhere")
+    poller.tick()
+    XCTAssertEqual(texts(), ["typed by the user elsewhere"])
+  }
+
+  func testAForgedMarkerAfterOurOwnChangeIsStillReported() {
+    pasteboard.copy("snippet", types: ["public.utf8-plain-text", ClipboardPolicy.ownMarkerType])
+    own.record(pasteboard.changeCount)
+    poller.tick()
+    XCTAssertTrue(events.isEmpty)
+    // A foreign app sets Kusunga's marker on its own text. It is reported, so
+    // history decides (own text that is not saved is saved like any copy).
+    pasteboard.copy("forged", types: ["public.utf8-plain-text", ClipboardPolicy.ownMarkerType])
+    poller.tick()
+    XCTAssertEqual(texts(), ["forged"])
+  }
+
+  func testAForgedMarkerWithNoRecordIsNeverSkipped() {
+    for i in 0..<5 {
+      pasteboard.copy("forged \(i)", types: ["public.utf8-plain-text", ClipboardPolicy.ownMarkerType])
+      poller.tick()
+    }
+    XCTAssertEqual(texts().count, 5)
+  }
+
+  func testAPollerWithoutTheRecordNeverSkips() {
+    let plain = ClipboardPoller(pasteboard: pasteboard) { [unowned self] in self.events.append($0) }
+    plain.prime()
+    pasteboard.copy("history paste")
+    own.record(pasteboard.changeCount)  // a record nobody asked this poller to look at
+    plain.tick()
+    XCTAssertEqual(texts(), ["history paste"])
+  }
+
+  func testOurWriteLandingWhileACopyIsStillBeingReadSupersedesIt() {
+    // Another app declared its types but the text is not readable yet.
+    pasteboard.copy(nil)
+    poller.tick()
+    XCTAssertTrue(events.isEmpty)
+    // Then we write a snippet: that change is ours and ends the wait.
+    pasteboard.copy("snippet")
+    own.record(pasteboard.changeCount)
+    poller.tick()
+    for _ in 0..<12 { poller.tick() }
+    XCTAssertTrue(events.isEmpty)
+  }
+
+  func testASkippedChangeIsNotReadAtAnyLaterTick() {
+    pasteboard.copy("snippet")
+    own.record(pasteboard.changeCount)
+    for _ in 0..<20 { poller.tick() }
+    XCTAssertEqual(pasteboard.textReads, 0)
+    XCTAssertTrue(events.isEmpty)
+  }
+
+  func testARealWriteThenAnotherAppWritingOnTopIsReported() {
+    let real = NSPasteboard(name: NSPasteboard.Name("kusunga.test.own.edge.\(UUID().uuidString)"))
+    defer { real.releaseGlobally() }
+    var got: [[String: Any]] = []
+    let changes = OwnClipboardChanges()
+    let watched = ClipboardPoller(pasteboard: real, ownChanges: changes) { got.append($0) }
+    watched.prime()
+    XCTAssertTrue(NSPasteboardWriter(pasteboard: real, ownChanges: changes).writeText("snippet"))
+    // Another app writes before the watcher's next tick (no record for it).
+    real.clearContents()
+    _ = real.setString("theirs", forType: .string)
+    watched.tick()
+    XCTAssertEqual(got.count, 1)
+    XCTAssertEqual(got[0]["text"] as? String, "theirs")
+  }
+
+  func testTwoRealSnippetWritesInARowAreBothSkipped() {
+    let real = NSPasteboard(name: NSPasteboard.Name("kusunga.test.own.edge.\(UUID().uuidString)"))
+    defer { real.releaseGlobally() }
+    var got: [[String: Any]] = []
+    let changes = OwnClipboardChanges()
+    let watched = ClipboardPoller(pasteboard: real, ownChanges: changes) { got.append($0) }
+    watched.prime()
+    let writer = NSPasteboardWriter(pasteboard: real, ownChanges: changes)
+    XCTAssertTrue(writer.writeText("snippet one"))
+    XCTAssertTrue(writer.writeText("snippet two"))
+    watched.tick()
+    watched.tick()
+    XCTAssertTrue(got.isEmpty)
+  }
+}
