@@ -209,6 +209,26 @@ class _SnippetEditorState extends State<_SnippetEditor> {
     }
   }
 
+  static final _breaks = RegExp('\r\n|[\r\n\u2028\u2029]');
+
+  /// Paste into Name (the paste key and the menu's Paste): a single-line
+  /// field would drop the line breaks and glue the words together, so each
+  /// break becomes a space first ("Line one Line two").
+  Future<void> _pasteName() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final raw = data?.text;
+    if (raw == null || raw.isEmpty || !mounted) return;
+    final text = raw.replaceAll(_breaks, ' ');
+    final value = _name.value;
+    final sel = value.selection.isValid
+        ? value.selection
+        : TextSelection.collapsed(offset: value.text.length);
+    _name.value = TextEditingValue(
+      text: value.text.replaceRange(sel.start, sel.end, text),
+      selection: TextSelection.collapsed(offset: sel.start + text.length),
+    );
+  }
+
   String? _errorFor(Set<SnippetProblem> which) {
     for (final p in _problems) {
       if (which.contains(p)) return _problemText(p);
@@ -273,21 +293,46 @@ class _SnippetEditorState extends State<_SnippetEditor> {
         ],
         Semantics(
           identifier: 'snippet-editor-name',
-          child: TextField(
-            controller: _name,
-            focusNode: _nameNode,
-            autofocus: !_fromHistory,
-            maxLines: 1,
-            // A name is one line: a single-line field removes line breaks
-            // (and the name is made one line again when it is saved).
-            style: KusungaTokens.body.copyWith(color: t.text),
-            decoration: _decoration(
-              t,
-              'Name',
-              _errorFor(const {
-                SnippetProblem.emptyName,
-                SnippetProblem.longName,
-              }),
+          child: Actions(
+            actions: {
+              PasteTextIntent: CallbackAction<PasteTextIntent>(
+                onInvoke: (_) {
+                  _pasteName();
+                  return null;
+                },
+              ),
+            },
+            child: TextField(
+              contextMenuBuilder: (context, state) =>
+                  AdaptiveTextSelectionToolbar.buttonItems(
+                    anchors: state.contextMenuAnchors,
+                    buttonItems: [
+                      for (final item in state.contextMenuButtonItems)
+                        item.type == ContextMenuButtonType.paste
+                            ? item.copyWith(
+                                onPressed: () {
+                                  state.hideToolbar();
+                                  _pasteName();
+                                },
+                              )
+                            : item,
+                    ],
+                  ),
+              controller: _name,
+              focusNode: _nameNode,
+              autofocus: !_fromHistory,
+              maxLines: 1,
+              // A name is one line: a single-line field removes line breaks
+              // (and the name is made one line again when it is saved).
+              style: KusungaTokens.body.copyWith(color: t.text),
+              decoration: _decoration(
+                t,
+                'Name',
+                _errorFor(const {
+                  SnippetProblem.emptyName,
+                  SnippetProblem.longName,
+                }),
+              ),
             ),
           ),
         ),
