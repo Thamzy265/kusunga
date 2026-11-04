@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-04 — M1.4 Saved snippets — Overnight permissions — PM decision
+- Changed: none. The lead runs the gates overnight (developer, tester, reviewer, QA); no merge, no risk acceptance and no skipped finding without the PM.
+- Gates: developer in progress · tester · reviewer · QA · PM merge waiting
+- Open findings: none
+- Decisions: PM said (2026-11-04): "Yes to both" — in answer to "Tonight, may QA quit and relaunch Kusunga, and may I push the M1.4 branch to GitHub?" Scope: tonight only; QA may quit and relaunch the PM's Kusunga (signed Debug build) for each QA build; the lead may push feat/saved-snippets (no merge, no PR merge). If a keychain or permission prompt appears, QA stops and leaves it for the PM.
+- Blockers: PM — GitHub billing (CI)
+
 ## 2026-11-04 — M1.4 Saved snippets — Design approved
 - Changed: design note docs/design/saved-snippets.md, UI spec docs/ui/saved-snippets.md, deck docs/slides/saved-snippets.html; merged to main. Size: large — new data store (snippets table, schema v3), personal data the user types in, new UI.
 - Gates: design approved · developer not started · tester · reviewer · QA · PM merge waiting
