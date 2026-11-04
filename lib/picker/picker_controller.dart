@@ -78,6 +78,9 @@ class PickerController extends ChangeNotifier {
   /// opening the picker never rebuilds it; it is filled in small steps in the
   /// background whenever the history changes.
   final search = PickerSearch();
+
+  /// The same for the Snippets tab (name and content).
+  final snippetSearch = PickerSearch();
   Timer? _warmTimer;
 
   StreamSubscription<PickerNativeEvent>? _events;

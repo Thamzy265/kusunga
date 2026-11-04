@@ -62,13 +62,15 @@ void main() {
     await tester.pump();
     expect(find.text('Search history…'), findsOneWidget);
     expect(find.text('hello there'), findsOneWidget);
-    expect(find.text('History'), findsNothing);
+    // The history screen (its footer) is hidden; the picker has its own
+    // "History" tab now (M1.4).
+    expect(find.text('1 of 200 items'), findsNothing);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
     await tester.pump();
     expect(find.text('Search history…'), findsNothing);
-    expect(find.text('History'), findsOneWidget);
+    expect(find.text('1 of 200 items'), findsOneWidget);
     controller.dispose();
   });
 

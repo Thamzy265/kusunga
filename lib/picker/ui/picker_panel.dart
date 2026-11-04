@@ -9,7 +9,11 @@ import '../../history/clip_item.dart';
 import '../../history/history_service.dart';
 import '../../history/ui/history_row.dart';
 import '../../history/ui/text_display.dart';
+import '../../snippets/snippet.dart';
+import '../../snippets/snippet_service.dart';
+import '../../snippets/ui/snippet_icons.dart';
 import '../../theme/tokens.dart';
+import '../../ui/tab_strip.dart';
 import '../picker_controller.dart';
 import '../picker_search.dart';
 
@@ -41,6 +45,15 @@ class _PickerPanelState extends State<PickerPanel>
   late final FocusNode _node = FocusNode(onKeyEvent: _onKey);
   AnimationController? _fade;
   HistoryService? _bound;
+  SnippetService? _boundSnippets;
+
+  /// The Snippets tab is showing. The picker always opens on History (PM
+  /// decision D3): this state is new each time the picker opens.
+  var _snippetsTab = false;
+  String _tabAnnouncement = '';
+  List<SnippetItem>? _snippetSource;
+  var _snippetEntries = const <ClipItem>[];
+  var _snippetById = const <int, SnippetItem>{};
   var _query = '';
   int? _selectedId;
   var _filtered = const <ClipItem>[];
@@ -96,6 +109,7 @@ class _PickerPanelState extends State<PickerPanel>
     WidgetsBinding.instance.removeObserver(this);
     _controller.removeListener(_onController);
     _bound?.removeListener(_onItems);
+    _boundSnippets?.removeListener(_onItems);
     _countTimer?.cancel();
     _fade?.dispose();
     _node.dispose();
@@ -110,6 +124,9 @@ class _PickerPanelState extends State<PickerPanel>
     _bound?.removeListener(_onItems);
     _bound = history;
     history?.addListener(_onItems);
+    _boundSnippets?.removeListener(_onItems);
+    _boundSnippets = history?.snippets;
+    _boundSnippets?.addListener(_onItems);
   }
 
   void _onController() {
@@ -123,10 +140,34 @@ class _PickerPanelState extends State<PickerPanel>
     _updateCount();
   }
 
+  // What search sees of a snippet: its name and its content.
+  List<ClipItem> _snippetsForSearch() {
+    final items = _boundSnippets?.items ?? const <SnippetItem>[];
+    if (!identical(items, _snippetSource)) {
+      _snippetSource = items;
+      _snippetById = {for (final s in items) s.id: s};
+      _snippetEntries = [
+        for (final s in items)
+          ClipItem(
+            id: s.id,
+            kind: ClipKind.text,
+            preview: '${s.name}\n${s.preview}',
+            isTruncated: s.isTruncated,
+            createdAt: s.createdAt,
+            lastCopiedAt: s.updatedAt,
+          ),
+      ];
+    }
+    return _snippetEntries;
+  }
+
   void _recompute() {
-    final all = _bound?.items ?? const <ClipItem>[];
+    final all = _snippetsTab
+        ? _snippetsForSearch()
+        : _bound?.items ?? const <ClipItem>[];
     _total = all.length;
-    _filtered = _controller.search.filter(all, _query);
+    _filtered = (_snippetsTab ? _controller.snippetSearch : _controller.search)
+        .filter(all, _query);
     final id = _selectedId;
     if (_filtered.isEmpty) {
       _selectedId = null;
@@ -144,8 +185,31 @@ class _PickerPanelState extends State<PickerPanel>
   String _countText() {
     if (_bound == null) return '';
     final n = _filtered.length;
-    if (_query.trim().isEmpty) return n == 1 ? '1 item' : '$n items';
-    return n == 1 ? '1 match' : '$n matches';
+    if (_query.trim().isNotEmpty) return n == 1 ? '1 match' : '$n matches';
+    if (_snippetsTab) return n == 1 ? '1 snippet' : '$n snippets';
+    return n == 1 ? '1 item' : '$n items';
+  }
+
+  /// ⌃Tab / ⌃⇧Tab (Ctrl+Tab on Windows), or a click on a tab. The query is
+  /// kept, the new tab is filtered, its first row selected, and the switch
+  /// announced ("Snippets, 4 items").
+  void _selectTab(bool snippets) {
+    if (snippets != _snippetsTab) {
+      setState(() {
+        _snippetsTab = snippets;
+        _selectedId = null;
+        _recompute();
+        final n = _filtered.length;
+        _tabAnnouncement =
+            '${snippets ? 'Snippets' : 'History'}, '
+            '${n == 1 ? '1 item' : '$n items'}';
+      });
+      _speak(_tabAnnouncement);
+      _updateCount();
+      _scrollTo(0);
+    }
+    // A click outside the text field takes its focus on desktop: give it back.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _takeFocus());
   }
 
   // The visible count is always current; the spoken one (a polite live region)
@@ -243,7 +307,10 @@ class _PickerPanelState extends State<PickerPanel>
 
   void _pasteAt(int index) {
     if (index < 0 || index >= _filtered.length) return;
-    unawaited(_controller.pasteItem(_filtered[index].id));
+    final id = _filtered[index].id;
+    unawaited(
+      _snippetsTab ? _controller.pasteSnippet(id) : _controller.pasteItem(id),
+    );
   }
 
   static const _digits = [
@@ -268,7 +335,15 @@ class _PickerPanelState extends State<PickerPanel>
       return KeyEventResult.ignored;
     }
 
-    if (key == LogicalKeyboardKey.tab) return KeyEventResult.handled;
+    if (key == LogicalKeyboardKey.tab) {
+      // ⌃Tab and ⌃⇧Tab switch tabs (with two tabs, both go to the other one);
+      // a plain Tab does nothing, so the focus stays in the search field.
+      final hw = HardwareKeyboard.instance;
+      if (hw.isControlPressed && !hw.isMetaPressed && !hw.isAltPressed) {
+        _selectTab(!_snippetsTab);
+      }
+      return KeyEventResult.handled;
+    }
     if (key == LogicalKeyboardKey.escape) {
       if (!repeat) unawaited(_controller.closePicker());
       return KeyEventResult.handled;
@@ -316,6 +391,11 @@ class _PickerPanelState extends State<PickerPanel>
     Widget body;
     if (loading) {
       body = const _Message(title: 'Opening your history…', live: true);
+    } else if (_total == 0 && _snippetsTab) {
+      body = const _Message(
+        title: 'No snippets yet',
+        detail: "Save one from Kusunga's main window.",
+      );
     } else if (_total == 0) {
       body = const _Message(
         title: 'Nothing here yet',
@@ -378,7 +458,34 @@ class _PickerPanelState extends State<PickerPanel>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _SearchField(controller: _text, node: _node, onChanged: _onQuery),
+            Padding(
+              padding: EdgeInsets.only(
+                left: KusungaTokens.space3,
+                right: KusungaTokens.space3,
+                top: KusungaTokens.space2,
+              ),
+              // The tabs stay on one row (UI spec, "Breakpoints"): at 200%
+              // text in the smallest panel they shrink rather than wrap.
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: TabStrip(
+                  labels: const ['History', 'Snippets'],
+                  identifiers: const [
+                    'picker-tab-history',
+                    'picker-tab-snippets',
+                  ],
+                  selected: _snippetsTab ? 1 : 0,
+                  onSelect: (i) => _selectTab(i == 1),
+                ),
+              ),
+            ),
+            _SearchField(
+              controller: _text,
+              node: _node,
+              onChanged: _onQuery,
+              snippets: _snippetsTab,
+            ),
             Divider(height: 1, thickness: 1, color: t.border),
             Expanded(child: body),
             Semantics(
@@ -387,6 +494,12 @@ class _PickerPanelState extends State<PickerPanel>
               // region, on a Mac (VoiceOver) the explicit announcement.
               liveRegion: !_controller.isMac,
               label: announcement,
+              child: const SizedBox.shrink(),
+            ),
+            Semantics(
+              key: const ValueKey('picker-tab-announcement'),
+              liveRegion: !_controller.isMac,
+              label: _tabAnnouncement,
               child: const SizedBox.shrink(),
             ),
             Divider(height: 1, thickness: 1, color: t.border),
@@ -403,7 +516,10 @@ class _PickerPanelState extends State<PickerPanel>
   }
 
   String _rowName(int index, ClipItem item) {
-    final base = HistoryRow.semanticName(item, _nowMs);
+    final snippet = _snippetsTab ? _snippetById[item.id] : null;
+    final base = snippet != null
+        ? snippetPickerName(snippet)
+        : HistoryRow.semanticName(item, _nowMs);
     return index < 9 ? '${index + 1}, $base' : base;
   }
 
@@ -419,6 +535,7 @@ class _PickerPanelState extends State<PickerPanel>
         return _PickerRow(
           key: ValueKey(item.id),
           item: item,
+          snippet: _snippetsTab ? _snippetById[item.id] : null,
           number: i < 9 ? i + 1 : null,
           selected: i == selected,
           query: _query,
@@ -431,16 +548,27 @@ class _PickerPanelState extends State<PickerPanel>
   }
 }
 
+/// "Phone, My mobile, 07700 900123": the type, the name and one line of the
+/// content (at most 500 characters), for screen readers.
+String snippetPickerName(SnippetItem s) {
+  final text = PickerSearch.display(s.preview);
+  final shown = cutUnits(text, 500);
+  final more = text.length > 500 || s.isTruncated ? '…' : '';
+  return '${s.type.label}, ${PickerSearch.display(s.name)}, $shown$more';
+}
+
 class _SearchField extends StatelessWidget {
   const _SearchField({
     required this.controller,
     required this.node,
     required this.onChanged,
+    required this.snippets,
   });
 
   final TextEditingController controller;
   final FocusNode node;
   final ValueChanged<String> onChanged;
+  final bool snippets;
 
   @override
   Widget build(BuildContext context) {
@@ -461,7 +589,7 @@ class _SearchField extends StatelessWidget {
       padding: EdgeInsets.all(KusungaTokens.space3),
       child: Semantics(
         identifier: 'picker-search',
-        label: 'Search history',
+        label: snippets ? 'Search snippets' : 'Search history',
         child: TextField(
           controller: controller,
           focusNode: node,
@@ -472,7 +600,7 @@ class _SearchField extends StatelessWidget {
           cursorColor: t.focus,
           decoration: InputDecoration(
             isDense: true,
-            hintText: 'Search history…',
+            hintText: snippets ? 'Search snippets…' : 'Search history…',
             hintStyle: KusungaTokens.body.copyWith(color: t.textMuted),
             prefixIcon: ExcludeSemantics(
               child: Icon(Icons.search, color: t.textMuted),
@@ -490,6 +618,7 @@ class _PickerRow extends StatefulWidget {
   const _PickerRow({
     super.key,
     required this.item,
+    this.snippet,
     required this.number,
     required this.selected,
     required this.query,
@@ -499,6 +628,9 @@ class _PickerRow extends StatefulWidget {
   });
 
   final ClipItem item;
+
+  /// Set on the Snippets tab: the row shows "Name — content" and its icon.
+  final SnippetItem? snippet;
   final int? number;
   final bool selected;
   final String query;
@@ -543,10 +675,16 @@ class _PickerRowState extends State<_PickerRow> {
       color: t.text,
       fontWeight: selected ? FontWeight.bold : FontWeight.normal,
     );
-    final display = PickerSearch.display(item.preview);
+    final snippet = widget.snippet;
+    final display = snippet == null
+        ? PickerSearch.display(item.preview)
+        : '${PickerSearch.display(snippet.name)} — '
+              '${PickerSearch.display(snippet.preview)}';
 
     return Semantics(
-      identifier: 'picker-row-${item.id}',
+      identifier: snippet == null
+          ? 'picker-row-${item.id}'
+          : 'picker-snippet-row-${item.id}',
       label: widget.semanticName,
       button: true,
       selected: selected,
@@ -589,7 +727,11 @@ class _PickerRowState extends State<_PickerRow> {
                         ),
                 ),
                 Icon(
-                  item.kind == ClipKind.link ? Icons.link : Icons.notes,
+                  snippet != null
+                      ? snippetIcon(snippet.type)
+                      : item.kind == ClipKind.link
+                      ? Icons.link
+                      : Icons.notes,
                   size: 18,
                   color: selected ? t.text : t.textMuted,
                 ),
@@ -603,13 +745,15 @@ class _PickerRowState extends State<_PickerRow> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                SizedBox(width: KusungaTokens.space2),
-                Text(
-                  relativeTimeShort(widget.nowMs, item.lastCopiedAt),
-                  style: KusungaTokens.caption.copyWith(
-                    color: selected ? t.text : t.textMuted,
+                if (snippet == null) ...[
+                  SizedBox(width: KusungaTokens.space2),
+                  Text(
+                    relativeTimeShort(widget.nowMs, item.lastCopiedAt),
+                    style: KusungaTokens.caption.copyWith(
+                      color: selected ? t.text : t.textMuted,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -697,6 +841,7 @@ class _Footer extends StatelessWidget {
               children: [
                 hint('↵ Paste'),
                 hint(isMac ? '⌘1–9 Quick paste' : 'Ctrl+1–9 Quick paste'),
+                hint(isMac ? '⌃Tab Switch' : 'Ctrl+Tab Switch'),
                 hint('esc Close'),
               ],
             ),
