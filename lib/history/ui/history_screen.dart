@@ -143,7 +143,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void _toast(String message, {SnackBarAction? action, Duration? duration}) {
     final m = _messenger.currentState;
     if (m == null) return;
-    m.hideCurrentSnackBar();
+    // An Undo toast keeps its 5 seconds: a later message waits in the queue
+    // behind it instead of replacing it (TB-4).
+    if (_pendingUndo == null) m.hideCurrentSnackBar();
     m.showSnackBar(
       SnackBar(
         content: Text(message),
