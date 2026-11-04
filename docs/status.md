@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-04 — Local signing for test builds — PM decision
+- Changed: none yet. PM to sign in to Xcode and create an Apple Development certificate (Personal Team); the developer then signs local test builds with it via a git-ignored local xcconfig. CI stays ad-hoc. Does not replace the paid Developer ID account needed for M1.9.
+- Gates: n/a — decision
+- Open findings: none new
+- Decisions: PM said (2026-11-04): "Yes, show me how" — in answer to "Will you set up free Apple ID signing in Xcode for test builds?"
+- Blockers: PM — Xcode sign-in and certificate
+
 ## 2026-11-04 — M1.3 History picker and paste — Paste permission root cause (developer investigation)
 - Changed: none in code. The macOS log (tccd) shows the PM's Settings toggle granted kTCCServiceAccessibility, while CGPreflightPostEventAccess reads kTCCServicePostEvent, which stays denied; on macOS 27 PostEvent "does not allow prompting", so "Allow pasting" only creates a denied row. Also 4 Kusunga copies with the same bundle id are registered (build Debug, build Release, Xcode DerivedData test host, one stale path). Ad-hoc signing ties every grant and the keychain "Always Allow" to one build's hash. The Mac's only signing identity (Apple Development: William Nasoni) is revoked.
 - Gates: developer investigating · tester pass · reviewer approve · QA part 2 blocked · PM merge waiting
