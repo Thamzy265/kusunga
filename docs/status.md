@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-04 — M1.3 History picker and paste — Last Low notes fixed
+- Changed: ace9313 (G2r per-reason log codes, new `pasteCopyOnly`; T1 recording timer restarts on each key, "Shortcut not changed." announced on give-up) and c175b71 (R1 activation retries ≤ 0.5 s and stop when the user switches away). 806 pass / 2 skipped, XCTest 143; lead re-ran the check. Pushed. Reviewer confirming; QA building the one app for part 2.
+- Gates: developer pass · tester pass · reviewer confirming · QA part 2 open · PM merge waiting
+- Open findings: none
+- Decisions: none new
+- Blockers: QA needs the PM for the keychain prompt and to allow pasting
+
 ## 2026-11-04 — M1.3 History picker and paste — Reviewer: approve with notes
 - Changed: reviewer re-checked c0a297a: forced activation is acceptable (only after the user's own shortcut or tray click; never during the paste focus check). CI run 41800681653 green on both OSes. G2 was a QA misread (QA read the old container's log; the real log already had the code).
 - Gates: developer fixing three Low notes before the QA rebuild · tester pass · reviewer approve with notes · QA part 2 open · PM merge waiting
