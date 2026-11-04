@@ -190,12 +190,14 @@ class _PickerPanelState extends State<PickerPanel>
       _countHold = false;
       // "12 items" when the picker opens: spoken once the first hold ends, so
       // it follows the panel and field names.
-      if (_lastSpokenCount == null) _speakCount();
       if (_countDirty && mounted) {
+        // A change during the hold: say the current count, once.
         _countDirty = false;
         setState(() => _spokenCount = _countText());
         _speakCount();
         _holdCount();
+      } else if (_lastSpokenCount == null) {
+        _speakCount();
       }
     });
   }

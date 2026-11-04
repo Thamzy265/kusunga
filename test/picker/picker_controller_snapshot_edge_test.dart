@@ -146,6 +146,9 @@ void main() {
     }
     expect(escaped, isNull, reason: 'the log must not throw into the paste');
     expect(port.pastes.length, 1, reason: 'the paste still happens');
+    // The paste finished, so the picker is closed; opening it again and
+    // pressing Esc must work (nothing is stuck in the "pasting" state).
+    port.press();
     port.calls.clear();
     await c.closePicker();
     expect(port.calls, contains('close'), reason: 'Esc still works afterwards');

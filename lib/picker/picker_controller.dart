@@ -141,8 +141,13 @@ class PickerController extends ChangeNotifier {
 
   /// The permission state as one code and a number (design: codes only).
   Future<void> _logPermissions() async {
-    final mask = await port.permissionSnapshot();
-    if (mask != null && !_disposed) _log.log(LogCode.permissionSnapshot, mask);
+    // A diagnostic must never stop start-up or a paste: any error is dropped.
+    try {
+      final mask = await port.permissionSnapshot();
+      if (mask != null && !_disposed) {
+        _log.log(LogCode.permissionSnapshot, mask);
+      }
+    } catch (_) {}
   }
 
   void _applyRegistration(PickerShortcut tried, ShortcutRegistration result) {

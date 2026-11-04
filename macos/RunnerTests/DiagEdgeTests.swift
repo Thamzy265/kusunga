@@ -11,12 +11,22 @@ import XCTest
 // MARK: - DiagLog.isCode
 
 class DiagLogEdgeTests: XCTestCase {
+  override func setUp() {
+    // Probe names used by the tests below that read the real unified log.
+    DiagLog.extraCodesForTests = ["edgeProbeOk", "edgeProbeNoNumber", "edgeProbeBig", "edgeProbeNeg"]
+  }
+
+  override func tearDown() { DiagLog.extraCodesForTests = [] }
+
   func testTheLengthLimitIsExactlyOneToForty() {
     XCTAssertFalse(DiagLog.isCode(""))
-    XCTAssertTrue(DiagLog.isCode("a"))
-    XCTAssertTrue(DiagLog.isCode("Z"))
-    XCTAssertTrue(DiagLog.isCode("0"))
-    XCTAssertTrue(DiagLog.isCode(String(repeating: "a", count: 40)))
+    // The accepted names are a closed list now (B1): a shape such as "a" or 40
+    // letters is no longer a code, a known name is.
+    XCTAssertFalse(DiagLog.isCode("a"))
+    XCTAssertFalse(DiagLog.isCode("Z"))
+    XCTAssertFalse(DiagLog.isCode("0"))
+    XCTAssertFalse(DiagLog.isCode(String(repeating: "a", count: 40)))
+    XCTAssertTrue(DiagLog.isCode("pasteResult"))
     XCTAssertFalse(DiagLog.isCode(String(repeating: "a", count: 41)))
     XCTAssertFalse(DiagLog.isCode(String(repeating: "a", count: 4096)))
     XCTAssertFalse(DiagLog.isCode(String(repeating: "a", count: 1_000_000)))
