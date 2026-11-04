@@ -160,11 +160,17 @@ final class PickerBridge {
         guard let self = self, let windows = self.windows, windows.mode == .picker, !self.pasting
         else { return }
         if dismiss {
+          // The window is key again (the user came back): nothing to close.
+          if windows.isKeyWindow { return }
           self.dismissPicker()
         } else {
           // The app the picker came from quit: stay open, Enter copies and
           // shows the toast.
           DiagLog.log("pickerKeptTargetGone", nil)
+          // The quit is dealt with: a later click elsewhere closes the picker,
+          // and a paste (no target now) only copies.
+          self.target = nil
+          self.dismissal.reset()
           windows.retakeKeyboard()
         }
       })
@@ -183,9 +189,6 @@ final class PickerBridge {
 
   private func runPaste(text: String, post: Bool) -> PasteResult {
     pasting = true
-    // The permission state at the moment of the paste (a number), taken here so
-    // Dart needs no extra round trip before the paste.
-    DiagLog.log("permissionSnapshot", PermissionSnapshot.current())
     defer {
       pasting = false
       target = nil

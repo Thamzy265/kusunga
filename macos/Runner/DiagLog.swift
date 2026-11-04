@@ -80,9 +80,11 @@ final class DismissCoordinator {
   ) {
     schedule(0.12) { [weak self] in
       guard let self = self else { return }
-      decide(
-        DismissRule.shouldDismiss(
-          target: target, targetQuit: self.targetQuit, targetAlive: alive()))
+      let dismiss = DismissRule.shouldDismiss(
+        target: target, targetQuit: self.targetQuit, targetAlive: alive())
+      // One keep uses up the reason: the user can click away afterwards.
+      if !dismiss { self.reset() }
+      decide(dismiss)
     }
   }
 }

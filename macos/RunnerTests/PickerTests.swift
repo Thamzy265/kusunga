@@ -934,6 +934,35 @@ class DismissCoordinatorTests: XCTestCase {
     XCTAssertEqual(decisions, [true])
   }
 
+  /// One keep uses up the reason: the user can click away afterwards (R1).
+  func testQuitThenFocusLostThenFocusLostAgainGivesKeepThenClose() {
+    coordinator.noteTargetQuit()
+    focusLost()
+    runScheduled()
+    focusLost()
+    runScheduled()
+    XCTAssertEqual(decisions, [false, true])
+  }
+
+  func testFocusLostThenQuitThenFocusLostAgainGivesKeepThenClose() {
+    focusLost()
+    coordinator.noteTargetQuit()
+    runScheduled()
+    focusLost()
+    runScheduled()
+    XCTAssertEqual(decisions, [false, true])
+  }
+
+  func testAFreshQuitAfterAKeepIsKeptAgain() {
+    coordinator.noteTargetQuit()
+    focusLost()
+    runScheduled()
+    coordinator.noteTargetQuit()
+    focusLost()
+    runScheduled()
+    XCTAssertEqual(decisions, [false, false])
+  }
+
   func testTheRuleTakesTheFlag() {
     XCTAssertFalse(DismissRule.shouldDismiss(target: 200, targetQuit: true, targetAlive: true))
     XCTAssertTrue(DismissRule.shouldDismiss(target: 200, targetQuit: false, targetAlive: true))
@@ -948,5 +977,55 @@ class PasteResultNumberTests: XCTestCase {
     ]
     for r in PasteResult.allCases { XCTAssertEqual(r.logNumber, pinned[r], "\(r)") }
     XCTAssertEqual(Set(PasteResult.allCases.map { $0.logNumber }).count, PasteResult.allCases.count)
+  }
+}
+
+// MARK: - The permission state at paste time is part of the flow (R2)
+
+class PasteFlowPermissionLogTests: XCTestCase {
+  var lines: [String] = []
+
+  private func runFlow(
+    configure: (FakePastePlatform, FakePasteboardWriter) -> Void = { _, _ in }, post: Bool = true
+  ) {
+    lines = []
+    let platform = FakePastePlatform()
+    let writer = FakePasteboardWriter()
+    configure(platform, writer)
+    let flow = PasteFlow(
+      platform: platform, writer: writer, ownPid: 1,
+      diag: { [unowned self] code, detail in
+        self.lines.append(detail == nil ? code : "\(code) \(detail!)")
+      },
+      permissionMask: { 5 })
+    _ = flow.run(text: "private words", target: 200, post: post)
+  }
+
+  private func assertSnapshotThenResult(_ name: String) {
+    guard let snap = lines.firstIndex(of: "permissionSnapshot 5"),
+      let result = lines.firstIndex(where: { $0.hasPrefix("pasteResult") })
+    else { return XCTFail("\(name): \(lines)") }
+    XCTAssertLessThan(snap, result, name)
+    XCTAssertEqual(lines.filter { $0.hasPrefix("permissionSnapshot") }.count, 1, name)
+    XCTAssertFalse(lines.joined().contains("private"), name)
+  }
+
+  func testEveryKindOfOutcomeLogsTheStateBeforeItsResult() {
+    runFlow { _, w in w.succeeds = false }
+    assertSnapshotThenResult("failed write")
+    runFlow(post: false)
+    assertSnapshotThenResult("copy only")
+    runFlow { p, _ in p.canPost = false }
+    assertSnapshotThenResult("no permission")
+    runFlow()
+    assertSnapshotThenResult("pasted")
+    runFlow { p, _ in p.running = [] }
+    assertSnapshotThenResult("target gone")
+  }
+
+  func testTheDefaultIsTheRealState() {
+    let flow = PasteFlow(platform: FakePastePlatform(), writer: FakePasteboardWriter(), ownPid: 1)
+    _ = flow
+    XCTAssertTrue((0...7).contains(PermissionSnapshot.current()))
   }
 }

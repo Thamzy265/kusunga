@@ -159,6 +159,9 @@ final class PickerWindowController {
   /// quit).
   func retakeKeyboard() { takeKeyboard() }
 
+  /// The picker window is the key window again.
+  var isKeyWindow: Bool { window.isKeyWindow && NSApp.isActive }
+
   /// Makes Kusunga active, the window key, and the Flutter view the first
   /// responder (a changed window style can drop it).
   private func takeKeyboard() {

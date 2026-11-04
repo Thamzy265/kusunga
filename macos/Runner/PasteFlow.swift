@@ -151,12 +151,17 @@ final class PasteFlow {
   private let writer: PasteboardWriting
   private let ownPid: pid_t
   private let diag: (String, Int?) -> Void
+  private let permissionMask: () -> Int
 
   /// [diag] gets a code and a number for every step (never any content).
+  /// [permissionMask] is the permission state (see `PermissionSnapshot`), logged
+  /// once before the result of every paste.
   init(
     platform: PastePlatform, writer: PasteboardWriting, ownPid: pid_t,
-    diag: @escaping (String, Int?) -> Void = { _, _ in }
+    diag: @escaping (String, Int?) -> Void = { _, _ in },
+    permissionMask: @escaping () -> Int = PermissionSnapshot.current
   ) {
+    self.permissionMask = permissionMask
     self.platform = platform
     self.writer = writer
     self.ownPid = ownPid
@@ -165,6 +170,7 @@ final class PasteFlow {
 
   func run(text: String, target: pid_t?, post: Bool) -> PasteResult {
     let start = platform.nowMs()
+    diag("permissionSnapshot", permissionMask())
     let result = steps(text: text, target: target, post: post, start: start)
     diag("pasteResult", result.logNumber)
     return result
