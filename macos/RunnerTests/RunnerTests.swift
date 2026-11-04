@@ -780,3 +780,106 @@ class ClipboardPollerRetryTests: XCTestCase {
     XCTAssertEqual(pasteboard.textReads, 0)
   }
 }
+
+/// PM decision D1 (M1.4): a pasted or copied snippet is not added to history.
+/// The watcher skips the one change Kusunga itself made, matched by the change
+/// count it got back when it wrote. The marker type is never trusted for this.
+class OwnClipboardChangeTests: XCTestCase {
+  var pasteboard: FakePasteboard!
+  var own: OwnClipboardChanges!
+  var events: [[String: Any]]!
+  var poller: ClipboardPoller!
+
+  override func setUp() {
+    pasteboard = FakePasteboard()
+    own = OwnClipboardChanges()
+    events = []
+    poller = ClipboardPoller(pasteboard: pasteboard, ownChanges: own) { [unowned self] in
+      self.events.append($0)
+    }
+    poller.prime()
+  }
+
+  func testOurOwnChangeIsSkippedWithoutReadingIt() {
+    pasteboard.copy("07700 900123", types: ["public.utf8-plain-text", ClipboardPolicy.ownMarkerType])
+    own.record(pasteboard.changeCount)
+    poller.tick()
+    poller.tick()
+    XCTAssertTrue(events.isEmpty)
+    XCTAssertEqual(pasteboard.textReads, 0)
+  }
+
+  func testOnlyThatOneChangeIsSkipped() {
+    pasteboard.copy("snippet")
+    own.record(pasteboard.changeCount)
+    poller.tick()
+    pasteboard.copy("next copy")
+    poller.tick()
+    XCTAssertEqual(events.count, 1)
+    XCTAssertEqual(events[0]["text"] as? String, "next copy")
+  }
+
+  func testTheMarkerAloneNeverSkipsACopy() {
+    // Another app adds Kusunga's marker to its own text: still reported.
+    pasteboard.copy("forged", types: ["public.utf8-plain-text", ClipboardPolicy.ownMarkerType])
+    poller.tick()
+    XCTAssertEqual(events.count, 1)
+    XCTAssertEqual(events[0]["text"] as? String, "forged")
+  }
+
+  func testAnotherCopyOnTopOfOursIsStillReported() {
+    // Our write, then another app's, before the watcher looks: the count is
+    // not ours any more, so the newer copy is read as usual.
+    pasteboard.copy("snippet")
+    own.record(pasteboard.changeCount)
+    pasteboard.copy("theirs")
+    poller.tick()
+    XCTAssertEqual(events.count, 1)
+    XCTAssertEqual(events[0]["text"] as? String, "theirs")
+    // And the old record is gone.
+    XCTAssertFalse(own.consume(pasteboard.changeCount - 1))
+  }
+
+  func testAWrongCountIsNeverOurs() {
+    own.record(41)
+    XCTAssertFalse(own.consume(42))
+    XCTAssertFalse(own.consume(41), "a record is used once")
+    own.record(7)
+    XCTAssertTrue(own.consume(7))
+    XCTAssertFalse(own.consume(7))
+  }
+
+  func testTheWriterRecordsTheChangeCountItMade() {
+    let real = NSPasteboard(name: NSPasteboard.Name("kusunga.test.own.\(UUID().uuidString)"))
+    defer { real.releaseGlobally() }
+    let changes = OwnClipboardChanges()
+    XCTAssertTrue(NSPasteboardWriter(pasteboard: real, ownChanges: changes).writeText("mine"))
+    XCTAssertTrue(changes.consume(real.changeCount))
+  }
+
+  func testAWriteWithoutOwnChangesRecordsNothing() {
+    let real = NSPasteboard(name: NSPasteboard.Name("kusunga.test.own.\(UUID().uuidString)"))
+    defer { real.releaseGlobally() }
+    var got: [[String: Any]] = []
+    let changes = OwnClipboardChanges()
+    let watched = ClipboardPoller(pasteboard: real, ownChanges: changes) { got.append($0) }
+    watched.prime()
+    // A history paste: the item is moved to the top as before (M1.3).
+    XCTAssertTrue(NSPasteboardWriter(pasteboard: real).writeText("history item"))
+    watched.tick()
+    XCTAssertEqual(got.count, 1)
+    XCTAssertEqual(got[0]["own"] as? Bool, true)
+  }
+
+  func testASnippetWriteOnARealPasteboardIsSkipped() {
+    let real = NSPasteboard(name: NSPasteboard.Name("kusunga.test.own.\(UUID().uuidString)"))
+    defer { real.releaseGlobally() }
+    var got: [[String: Any]] = []
+    let changes = OwnClipboardChanges()
+    let watched = ClipboardPoller(pasteboard: real, ownChanges: changes) { got.append($0) }
+    watched.prime()
+    XCTAssertTrue(NSPasteboardWriter(pasteboard: real, ownChanges: changes).writeText("snippet"))
+    watched.tick()
+    XCTAssertTrue(got.isEmpty)
+  }
+}

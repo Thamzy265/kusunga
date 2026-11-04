@@ -14,7 +14,7 @@ import 'shortcut.dart';
 ///    `ctrl`, `alt`, `shift`, `meta`;
 ///  - `unregisterShortcut`, `openPicker`, `closePicker`, `showToast`,
 ///    `hideToast`;
-///  - `paste {text, post}` answers `pasted`, `noPermission`, `focusTimeout`,
+///  - `paste {text, post, skipHistory}` answers `pasted`, `noPermission`, `focusTimeout`,
 ///    `targetGone`, `targetElevated`, `copyOnly` or `failed`;
 ///  - `canPost` and `requestPostAccess` answer a bool; `permissionSnapshot`
 ///    answers a number (bit 1 post allowed, 2 accessibility trusted, 4 listen
@@ -79,8 +79,16 @@ class ChannelPickerPort implements PickerPort {
   Future<void> closePicker() => _invoke<void>('closePicker');
 
   @override
-  Future<PasteOutcome> paste(String text, {required bool post}) async {
-    final reply = await _invoke<Object?>('paste', {'text': text, 'post': post});
+  Future<PasteOutcome> paste(
+    String text, {
+    required bool post,
+    bool skipHistory = false,
+  }) async {
+    final reply = await _invoke<Object?>('paste', {
+      'text': text,
+      'post': post,
+      'skipHistory': skipHistory,
+    });
     return switch (reply) {
       'pasted' => PasteOutcome.pasted,
       'pastedForced' => PasteOutcome.pastedForced,

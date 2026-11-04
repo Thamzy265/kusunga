@@ -7,7 +7,9 @@ import FlutterMacOS
 /// lib/lifecycle/app_lifecycle.dart):
 ///  - event `com.wnasoni.kusunga/clipboard/events`: copies. Listening
 ///    starts polling every 250 ms; cancelling stops it.
-///  - method `com.wnasoni.kusunga/clipboard`: `accessBehavior`.
+///  - method `com.wnasoni.kusunga/clipboard`: `accessBehavior`, and
+///    `writeOwn {text}` (a copied snippet: written with its change count
+///    recorded, so the watcher skips it; answers a bool).
 ///  - method `com.wnasoni.kusunga/lifecycle`: Dart calls `quit`;
 ///    native calls `flush` and waits for the answer before quitting.
 final class ClipboardBridge: NSObject, FlutterStreamHandler {
@@ -27,6 +29,10 @@ final class ClipboardBridge: NSObject, FlutterStreamHandler {
     ).setMethodCallHandler { call, result in
       if call.method == "accessBehavior" {
         result(ClipboardBridge.accessBehavior())
+      } else if call.method == "writeOwn" {
+        guard let args = call.arguments as? [String: Any], let text = args["text"] as? String
+        else { return result(false) }
+        result(NSPasteboardWriter(ownChanges: OwnClipboardChanges.shared).writeText(text))
       } else {
         result(FlutterMethodNotImplemented)
       }
@@ -62,7 +68,8 @@ final class ClipboardBridge: NSObject, FlutterStreamHandler {
   {
     let poller = ClipboardPoller(
       pasteboard: NSPasteboard.general,
-      mayRetry: { ClipboardBridge.accessBehavior() != "ask" && ClipboardBridge.accessBehavior() != "deny" }
+      mayRetry: { ClipboardBridge.accessBehavior() != "ask" && ClipboardBridge.accessBehavior() != "deny" },
+      ownChanges: OwnClipboardChanges.shared
     ) { events($0) }
     poller.prime()
     self.poller = poller

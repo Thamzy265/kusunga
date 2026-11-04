@@ -229,9 +229,13 @@ final class PasteFlow {
 /// tests).
 final class NSPasteboardWriter: PasteboardWriting {
   private let pasteboard: NSPasteboard
+  private let ownChanges: OwnClipboardChanges?
 
-  init(pasteboard: NSPasteboard = .general) {
+  /// With [ownChanges] (a snippet), the change count this write made is
+  /// recorded, so the watcher skips it and it is not added to history.
+  init(pasteboard: NSPasteboard = .general, ownChanges: OwnClipboardChanges? = nil) {
     self.pasteboard = pasteboard
+    self.ownChanges = ownChanges
   }
 
   func writeText(_ text: String) -> Bool {
@@ -241,6 +245,8 @@ final class NSPasteboardWriter: PasteboardWriting {
     // only if it is already saved (a copy with the marker is never trusted).
     _ = pasteboard.setString(
       "1", forType: NSPasteboard.PasteboardType(ClipboardPolicy.ownMarkerType))
+    // Recorded at once, on the main thread, before the watcher's next tick.
+    ownChanges?.record(pasteboard.changeCount)
     return true
   }
 }

@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "clipboard_bridge.h"
 #include "clipboard_policy.h"
 
 namespace {
@@ -26,17 +27,6 @@ const EncodableValue* Find(const EncodableMap* map, const char* key) {
   if (!map) return nullptr;
   auto it = map->find(EncodableValue(key));
   return it == map->end() ? nullptr : &it->second;
-}
-
-std::wstring ToWide(const std::string& utf8) {
-  if (utf8.empty()) return std::wstring();
-  int size = ::MultiByteToWideChar(CP_UTF8, 0, utf8.data(),
-                                   static_cast<int>(utf8.size()), nullptr, 0);
-  if (size <= 0) return std::wstring();
-  std::wstring out(static_cast<size_t>(size), L'\0');
-  ::MultiByteToWideChar(CP_UTF8, 0, utf8.data(), static_cast<int>(utf8.size()),
-                        out.data(), size);
-  return out;
 }
 
 // The integrity level (RID) of a process, or 0 if it cannot be read. A medium
@@ -81,52 +71,19 @@ std::string ClassNameOf(HWND window) {
 // What the paste flow needs from Windows.
 class WinPastePlatform : public kusunga::PastePlatform {
  public:
-  WinPastePlatform(PickerBridge* bridge, HWND window, UINT format_own)
-      : bridge_(bridge), window_(window), format_own_(format_own) {}
+  WinPastePlatform(PickerBridge* bridge, HWND window, UINT format_own,
+                   kusunga::OwnClipboardChanges* own, bool skip_history)
+      : bridge_(bridge),
+        window_(window),
+        format_own_(format_own),
+        own_(own),
+        skip_history_(skip_history) {}
 
   bool WriteClipboard(const std::string& text) override {
-    const std::wstring wide = ToWide(text);
-    if (wide.empty() && !text.empty()) return false;
-    const bool opened = kusunga::OpenWithRetry(
-        [this] { return ::OpenClipboard(window_) != FALSE; },
-        [](int ms) { ::Sleep(static_cast<DWORD>(ms)); });
-    if (!opened) return false;
-    bool ok = false;
-    ::EmptyClipboard();
-    const size_t bytes = (wide.size() + 1) * sizeof(wchar_t);
-    HGLOBAL memory = ::GlobalAlloc(GMEM_MOVEABLE, bytes);
-    if (memory) {
-      void* data = ::GlobalLock(memory);
-      if (data) {
-        std::memcpy(data, wide.c_str(), bytes);
-        ::GlobalUnlock(memory);
-        // The clipboard owns the memory after a successful SetClipboardData.
-        if (::SetClipboardData(CF_UNICODETEXT, memory)) {
-          ok = true;
-        } else {
-          ::GlobalFree(memory);
-        }
-      } else {
-        ::GlobalFree(memory);
-      }
-    }
-    if (ok && format_own_ != 0) {
-      // Our own marker: the watcher then only moves the item to the top, and
-      // only if it is already saved.
-      HGLOBAL marker = ::GlobalAlloc(GMEM_MOVEABLE, sizeof(DWORD));
-      if (marker) {
-        void* data = ::GlobalLock(marker);
-        if (data) {
-          *static_cast<DWORD*>(data) = 1;
-          ::GlobalUnlock(marker);
-          if (!::SetClipboardData(format_own_, marker)) ::GlobalFree(marker);
-        } else {
-          ::GlobalFree(marker);
-        }
-      }
-    }
-    ::CloseClipboard();
-    return ok;
+    // A snippet (skip history, PM decision D1) records the change it makes,
+    // so the watcher does not add it to history.
+    return WriteClipboardText(window_, format_own_, text,
+                              skip_history_ ? own_ : nullptr);
   }
 
   void HidePicker() override { bridge_->HidePickerForPaste(); }
@@ -188,10 +145,13 @@ class WinPastePlatform : public kusunga::PastePlatform {
   PickerBridge* bridge_;
   HWND window_;
   UINT format_own_;
+  kusunga::OwnClipboardChanges* own_;
+  bool skip_history_;
 };
 
-PickerBridge::PickerBridge(flutter::BinaryMessenger* messenger, HWND window)
-    : window_(window) {
+PickerBridge::PickerBridge(flutter::BinaryMessenger* messenger, HWND window,
+                           kusunga::OwnClipboardChanges* own)
+    : window_(window), own_(own) {
   format_own_ = ::RegisterClipboardFormatW(L"com.wnasoni.kusunga.self");
   const auto& codec = flutter::StandardMethodCodec::GetInstance();
   channel_ = std::make_unique<flutter::MethodChannel<EncodableValue>>(
@@ -254,7 +214,11 @@ void PickerBridge::HandleCall(
     }
     const bool* post_flag = post ? std::get_if<bool>(post) : nullptr;
     const bool send = post_flag ? *post_flag : true;
-    result->Success(EncodableValue(RunPasteFlow(*text_value, send)));
+    const auto* skip = Find(args, "skipHistory");
+    const bool* skip_flag = skip ? std::get_if<bool>(skip) : nullptr;
+    const bool skip_history = skip_flag ? *skip_flag : false;
+    result->Success(
+        EncodableValue(RunPasteFlow(*text_value, send, skip_history)));
   } else if (method == "showToast") {
     ShowToast();
     result->Success();
@@ -551,9 +515,10 @@ void PickerBridge::HideToast() {
   RestoreWindow(false, false);
 }
 
-std::string PickerBridge::RunPasteFlow(const std::string& text, bool post) {
+std::string PickerBridge::RunPasteFlow(const std::string& text, bool post,
+                                       bool skip_history) {
   pasting_ = true;
-  WinPastePlatform platform(this, window_, format_own_);
+  WinPastePlatform platform(this, window_, format_own_, own_, skip_history);
   const kusunga::PasteResult result = kusunga::RunPaste(
       platform, text, reinterpret_cast<uintptr_t>(target_), post);
   target_ = nullptr;

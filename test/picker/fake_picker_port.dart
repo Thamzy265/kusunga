@@ -8,7 +8,7 @@ class FakePickerPort implements PickerPort {
   final controller = StreamController<PickerNativeEvent>.broadcast(sync: true);
   final calls = <String>[];
   final registered = <PickerShortcut>[];
-  final pastes = <({String text, bool post})>[];
+  final pastes = <({String text, bool post, bool skipHistory})>[];
 
   /// What registerShortcut answers; a function so a test can vary it.
   ShortcutRegistration Function(PickerShortcut s) registerAnswer = (_) =>
@@ -48,9 +48,13 @@ class FakePickerPort implements PickerPort {
   Future<void> closePicker() async => calls.add('close');
 
   @override
-  Future<PasteOutcome> paste(String text, {required bool post}) async {
+  Future<PasteOutcome> paste(
+    String text, {
+    required bool post,
+    bool skipHistory = false,
+  }) async {
     calls.add('paste');
-    pastes.add((text: text, post: post));
+    pastes.add((text: text, post: post, skipHistory: skipHistory));
     if (pasteGate != null) await pasteGate!.future;
     if (pasteThrows != null) throw pasteThrows!;
     return pasteAnswer;

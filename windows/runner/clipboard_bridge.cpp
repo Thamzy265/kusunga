@@ -35,6 +35,17 @@ std::string ToUtf8(const wchar_t* text, size_t length) {
   return out;
 }
 
+std::wstring ToWide(const std::string& utf8) {
+  if (utf8.empty()) return std::wstring();
+  int size = ::MultiByteToWideChar(CP_UTF8, 0, utf8.data(),
+                                   static_cast<int>(utf8.size()), nullptr, 0);
+  if (size <= 0) return std::wstring();
+  std::wstring out(static_cast<size_t>(size), L'\0');
+  ::MultiByteToWideChar(CP_UTF8, 0, utf8.data(), static_cast<int>(utf8.size()),
+                        out.data(), size);
+  return out;
+}
+
 EncodableMap Event(const char* type) {
   EncodableMap map;
   map[EncodableValue("type")] = EncodableValue(type);
@@ -60,9 +71,62 @@ bool ReadDword(UINT format, uint32_t* value) {
 
 }  // namespace
 
+bool WriteClipboardText(HWND window, UINT format_own, const std::string& text,
+                        kusunga::OwnClipboardChanges* own) {
+  const std::wstring wide = ToWide(text);
+  if (wide.empty() && !text.empty()) return false;
+  if (own) own->BeginWrite();
+  const bool opened = kusunga::OpenWithRetry(
+      [window] { return ::OpenClipboard(window) != FALSE; },
+      [](int ms) { ::Sleep(static_cast<DWORD>(ms)); });
+  if (!opened) {
+    if (own) own->CancelWrite();
+    return false;
+  }
+  bool ok = false;
+  ::EmptyClipboard();
+  const size_t bytes = (wide.size() + 1) * sizeof(wchar_t);
+  HGLOBAL memory = ::GlobalAlloc(GMEM_MOVEABLE, bytes);
+  if (memory) {
+    void* data = ::GlobalLock(memory);
+    if (data) {
+      std::memcpy(data, wide.c_str(), bytes);
+      ::GlobalUnlock(memory);
+      // The clipboard owns the memory after a successful SetClipboardData.
+      if (::SetClipboardData(CF_UNICODETEXT, memory)) {
+        ok = true;
+      } else {
+        ::GlobalFree(memory);
+      }
+    } else {
+      ::GlobalFree(memory);
+    }
+  }
+  if (ok && format_own != 0) {
+    // Our own marker: for a history item the watcher then only moves it to
+    // the top, and only if it is already saved.
+    HGLOBAL marker = ::GlobalAlloc(GMEM_MOVEABLE, sizeof(DWORD));
+    if (marker) {
+      void* data = ::GlobalLock(marker);
+      if (data) {
+        *static_cast<DWORD*>(data) = 1;
+        ::GlobalUnlock(marker);
+        if (!::SetClipboardData(format_own, marker)) ::GlobalFree(marker);
+      } else {
+        ::GlobalFree(marker);
+      }
+    }
+  }
+  ::CloseClipboard();
+  // Read at once, before any message is handled: this number is ours.
+  if (own) own->EndWrite(::GetClipboardSequenceNumber());
+  return ok;
+}
+
 ClipboardBridge::ClipboardBridge(flutter::BinaryMessenger* messenger,
-                                 HWND window)
-    : window_(window) {
+                                 HWND window,
+                                 kusunga::OwnClipboardChanges* own)
+    : window_(window), own_(own) {
   format_exclude_ =
       ::RegisterClipboardFormatW(L"ExcludeClipboardContentFromMonitorProcessing");
   format_can_include_ = ::RegisterClipboardFormatW(L"CanIncludeInClipboardHistory");
@@ -90,10 +154,23 @@ ClipboardBridge::ClipboardBridge(flutter::BinaryMessenger* messenger,
   clipboard_ = std::make_unique<flutter::MethodChannel<EncodableValue>>(
       messenger, kClipboardChannel, &codec);
   clipboard_->SetMethodCallHandler(
-      [](const flutter::MethodCall<EncodableValue>& call,
-         std::unique_ptr<flutter::MethodResult<EncodableValue>> result) {
+      [this](const flutter::MethodCall<EncodableValue>& call,
+             std::unique_ptr<flutter::MethodResult<EncodableValue>> result) {
         if (call.method_name() == "accessBehavior") {
           result->Success(EncodableValue("unsupported"));
+        } else if (call.method_name() == "writeOwn") {
+          const auto* args = std::get_if<EncodableMap>(call.arguments());
+          const std::string* text = nullptr;
+          if (args) {
+            auto it = args->find(EncodableValue("text"));
+            if (it != args->end()) text = std::get_if<std::string>(&it->second);
+          }
+          if (!text) {
+            result->Success(EncodableValue(false));
+            return;
+          }
+          result->Success(EncodableValue(
+              WriteClipboardText(window_, format_own_, *text, own_)));
         } else {
           result->NotImplemented();
         }
@@ -149,6 +226,8 @@ void ClipboardBridge::OnClipboardUpdate() {
   const uint32_t sequence = ::GetClipboardSequenceNumber();
   if (!kusunga::IsNewCopy(last_sequence_, sequence)) return;
   last_sequence_ = sequence;
+  // Kusunga's own change (a snippet): not read, not reported.
+  if (own_ && own_->Consume(sequence)) return;
 
   // Another app may hold the clipboard open: retry, then skip this copy.
   const bool opened = kusunga::OpenWithRetry(

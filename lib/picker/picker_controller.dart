@@ -48,6 +48,15 @@ enum PasteMode {
 
 enum ToastKind { copied, copiedNoPermission, copiedElevated, copyFailed }
 
+/// Where a pasted text came from: the number logged with `pasteSource`.
+enum _PasteSource {
+  history(0),
+  snippet(1);
+
+  const _PasteSource(this.logNumber);
+  final int logNumber;
+}
+
 /// Everything the picker, the toast and the settings in the main window need
 /// to know, and the paste flow (design note, "How paste works"): the Dart half
 /// of what native code does. All words the user sees come from the UI spec
@@ -249,15 +258,28 @@ class PickerController extends ChangeNotifier {
     }
   }
 
-  /// Pastes item [id] into the app that had focus (see [PasteOutcome]).
-  Future<void> pasteItem(int id) async {
+  /// Pastes history item [id] into the app that had focus (see
+  /// [PasteOutcome]).
+  Future<void> pasteItem(int id) =>
+      _paste(_history?.textOf(id), _PasteSource.history);
+
+  /// Pastes snippet [id]. Its change is skipped by the watcher, so it is not
+  /// added to history (PM decision D1).
+  Future<void> pasteSnippet(int id) =>
+      _paste(_history?.snippets.textOf(id), _PasteSource.snippet);
+
+  Future<void> _paste(String? text, _PasteSource source) async {
     if (_mode != WindowMode.picker || _pasting) return;
-    final text = _history?.textOf(id);
     if (text == null) return;
     _pasting = true;
+    _log.log(LogCode.pasteSource, source.logNumber);
     PasteOutcome outcome;
     try {
-      outcome = await port.paste(text, post: _pasteMode == PasteMode.auto);
+      outcome = await port.paste(
+        text,
+        post: _pasteMode == PasteMode.auto,
+        skipHistory: source == _PasteSource.snippet,
+      );
     } catch (_) {
       outcome = PasteOutcome.failed;
     }

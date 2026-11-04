@@ -76,10 +76,18 @@ void main() {
       final r = await port().paste('hello\nworld', post: true);
       expect(r, PasteOutcome.pasted);
       expect(calls.single.method, 'paste');
-      expect(calls.single.arguments, {'text': 'hello\nworld', 'post': true});
+      expect(calls.single.arguments, {
+        'text': 'hello\nworld',
+        'post': true,
+        'skipHistory': false,
+      });
 
       await port().paste('x', post: false);
-      expect(calls.last.arguments, {'text': 'x', 'post': false});
+      expect(calls.last.arguments, {
+        'text': 'x',
+        'post': false,
+        'skipHistory': false,
+      });
     });
 
     test('maps every outcome name', () async {
