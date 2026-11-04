@@ -431,39 +431,31 @@ void main() {
     });
   });
 
-  group('the picker stays open only for a gone target (0888574)', () {
+  group('the picker stays open only when its target quit (F2, F3)', () {
     final bridge = stripComments(read('macos/Runner/PickerBridge.swift'));
 
-    test('Mac: both checks go through the rule and never keep it for a live '
-        'target or without a target', () {
-      expect('shouldDismissNow()'.allMatches(bridge).length, 3);
-      final rule = bridge.substring(
-        bridge.indexOf('private func shouldDismissNow'),
-      );
+    test('Mac: the decision goes through the coordinator and the rule, with '
+        'the quit flag and the liveness check', () {
+      expect(bridge, contains('dismissal.focusLost('));
+      expect(bridge, contains('dismissal.noteTargetQuit()'));
       expect(
-        rule,
-        contains(r'target.map { MacPastePlatform.isAlive($0) } ?? false'),
+        bridge,
+        contains('target.map { MacPastePlatform.isAlive(\$0) } ?? false'),
       );
+      final diag = read('macos/Runner/DiagLog.swift');
       expect(
-        rule,
-        contains(
-          'DismissRule.shouldDismiss(target: target, targetAlive: alive)',
-        ),
+        diag,
+        contains('!(target != nil && (targetQuit || !targetAlive))'),
       );
     });
 
     test('Mac: a paste in progress, or a picker that is not shown, is never '
-        'kept open by the new code', () {
+        'kept open or closed by the decision', () {
       final lost = bridge.substring(
         bridge.indexOf('private func windowLostFocus'),
       );
-      expect(
-        lost.substring(0, lost.indexOf('if !shouldDismissNow()')),
-        contains('windows.mode == .picker, !pasting'),
-      );
-      final later = lost.substring(lost.indexOf('asyncAfter'));
-      expect(later, contains('windows.mode == .picker, !self.pasting'));
-      // The live-target path still closes it and tells Dart.
+      expect(lost, contains('windows.mode == .picker, !pasting'));
+      expect(lost, contains('windows.mode == .picker, !self.pasting'));
       expect(lost, contains('self.dismissPicker()'));
       final dismiss = bridge.substring(
         bridge.indexOf('private func dismissPicker'),
@@ -472,42 +464,29 @@ void main() {
       expect(dismiss, contains('invokeMethod("dismissed"'));
     });
 
-    test('Mac: keeping it open forgets the target, so a paste only copies', () {
-      expect(
-        RegExp(
-          r'pickerKeptTargetGone[\s\S]{0,80}target = nil',
-        ).allMatches(bridge).length,
-        2,
-      );
-    });
+    test(
+      'Mac: the quit notice keeps the pid (the flag carries the reason)',
+      () {
+        final observer = bridge.substring(
+          bridge.indexOf('didTerminateApplicationNotification'),
+          bridge.indexOf('let channel = FlutterMethodChannel'),
+        );
+        expect(observer, isNot(contains('self.target = nil')));
+      },
+    );
 
-    test('Windows: the same rule, through the tested policy function', () {
+    test('Windows: a deactivated picker closes normally (a dead target only '
+        'makes the paste copy)', () {
       final cpp = read('windows/runner/picker_bridge.cpp');
+      expect(cpp, isNot(contains('ShouldDismissOnDeactivate')));
       expect(
-        cpp,
-        contains(
-          'ShouldDismissOnDeactivate(target_ != nullptr,\n'
-          '                                          target_ != nullptr && ::IsWindow(target_))',
-        ),
-      );
-      final h = read('windows/runner/picker_policy.h');
-      expect(
-        h,
-        contains(
-          'inline bool ShouldDismissOnDeactivate(bool has_target, bool target_alive) {\n'
-          '  return !(has_target && !target_alive);',
-        ),
+        read('windows/runner/picker_policy.h'),
+        isNot(contains('ShouldDismissOnDeactivate')),
       );
       final i = cpp.indexOf('void PickerBridge::WindowDeactivated()');
       final fn = cpp.substring(i, cpp.indexOf('\n}\n', i));
-      expect(
-        fn.indexOf('pasting_'),
-        lessThan(fn.indexOf('ShouldDismissOnDeactivate')),
-      );
-      expect(
-        fn.indexOf('ShouldDismissOnDeactivate'),
-        lessThan(fn.indexOf('LeavePicker')),
-      );
+      expect(fn, contains('LeavePicker'));
+      expect(fn, contains('"dismissed"'));
     });
   });
 }
