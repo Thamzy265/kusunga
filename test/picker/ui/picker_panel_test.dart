@@ -523,6 +523,141 @@ void main() {
     });
   });
 
+  group('spoken announcements for VoiceOver and Narrator', () {
+    // What reaches the platform's speech: Flutter's live regions are not always
+    // spoken on macOS, so the picker also sends explicit announcements.
+    final spoken = <({String message, int? assertiveness})>[];
+
+    void listen(WidgetTester tester) {
+      spoken.clear();
+      tester.binding.defaultBinaryMessenger
+          .setMockDecodedMessageHandler<dynamic>(SystemChannels.accessibility, (
+            message,
+          ) async {
+            final m = message as Map<Object?, Object?>;
+            if (m['type'] == 'announce') {
+              final data = m['data'] as Map<Object?, Object?>;
+              spoken.add((
+                message: data['message'] as String,
+                assertiveness: data['assertiveness'] as int?,
+              ));
+            }
+            return null;
+          });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger
+            .setMockDecodedMessageHandler<dynamic>(
+              SystemChannels.accessibility,
+              null,
+            ),
+      );
+    }
+
+    testWidgets('the number of items is spoken when the picker opens', (
+      tester,
+    ) async {
+      listen(tester);
+      copyAll(['a', 'b', 'c']);
+      await show(tester);
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(spoken.map((e) => e.message), contains('3 items'));
+    });
+
+    testWidgets('moving the selection speaks the new row, once, assertively', (
+      tester,
+    ) async {
+      listen(tester);
+      copyAll(['alpha', 'beta']);
+      await show(tester);
+      await tester.pump(const Duration(milliseconds: 600));
+      spoken.clear();
+      await key(tester, LogicalKeyboardKey.arrowDown);
+      expect(spoken.length, 1);
+      expect(spoken.single.message, '2, Text: alpha, copied just now');
+      expect(spoken.single.assertiveness, 1);
+      await key(tester, LogicalKeyboardKey.arrowUp);
+      expect(spoken.last.message, '1, Text: beta, copied just now');
+    });
+
+    testWidgets('Home, End and the page keys speak the row too', (
+      tester,
+    ) async {
+      listen(tester);
+      copyAll([for (var i = 0; i < 30; i++) 'row $i']);
+      await show(tester);
+      await tester.pump(const Duration(milliseconds: 600));
+      spoken.clear();
+      await key(tester, LogicalKeyboardKey.end);
+      expect(spoken.single.message, 'Text: row 0, copied just now');
+      await key(tester, LogicalKeyboardKey.home);
+      expect(spoken.last.message, '1, Text: row 29, copied just now');
+    });
+
+    testWidgets('at the end of the list nothing new is spoken', (tester) async {
+      listen(tester);
+      copyAll(['a', 'b']);
+      await show(tester);
+      await tester.pump(const Duration(milliseconds: 600));
+      await key(tester, LogicalKeyboardKey.end);
+      spoken.clear();
+      await key(tester, LogicalKeyboardKey.arrowDown);
+      expect(spoken, isEmpty, reason: 'same row again');
+    });
+
+    testWidgets('a changed match count is spoken politely, at most every '
+        '500 ms', (tester) async {
+      listen(tester);
+      copyAll(['apple', 'avocado', 'banana']);
+      await show(tester);
+      await tester.pump(const Duration(milliseconds: 600));
+      spoken.clear();
+      await tester.enterText(find.byType(TextField), 'a');
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.enterText(find.byType(TextField), 'av');
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(spoken.map((e) => e.message), ['3 matches']);
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(spoken.map((e) => e.message), ['3 matches', '1 match']);
+      expect(
+        spoken.every((e) => e.assertiveness == null || e.assertiveness == 0),
+        isTrue,
+      );
+    });
+
+    testWidgets('the same count is not spoken twice', (tester) async {
+      listen(tester);
+      copyAll(['apple', 'avocado']);
+      await show(tester);
+      await tester.pump(const Duration(milliseconds: 600));
+      spoken.clear();
+      await tester.enterText(find.byType(TextField), 'ap');
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.enterText(find.byType(TextField), 'app');
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(spoken.map((e) => e.message), ['1 match']);
+    });
+
+    testWidgets('Up, Down, Home and End never move the caret in the field', (
+      tester,
+    ) async {
+      copyAll(['abcdef', 'abcxyz']);
+      await show(tester);
+      await tester.enterText(find.byType(TextField), 'abc');
+      await tester.pump();
+      final field = tester.widget<TextField>(find.byType(TextField));
+      final caret = field.controller!.selection;
+      for (final k in [
+        LogicalKeyboardKey.arrowDown,
+        LogicalKeyboardKey.arrowUp,
+        LogicalKeyboardKey.home,
+        LogicalKeyboardKey.end,
+      ]) {
+        await key(tester, k);
+        expect(field.controller!.selection, caret, reason: '$k');
+      }
+    });
+  });
+
   group('search field borders', () {
     testWidgets('1 px border, darker on hover, 2 px focus ring', (
       tester,

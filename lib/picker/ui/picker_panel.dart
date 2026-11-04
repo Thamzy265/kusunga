@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
 import '../../history/clip_item.dart';
@@ -49,6 +50,7 @@ class _PickerPanelState extends State<PickerPanel>
   Timer? _countTimer;
   var _countHold = false;
   var _countDirty = false;
+  String? _lastSpokenCount;
 
   PickerController get _controller => widget.controller;
   int get _nowMs => widget.now?.call() ?? DateTime.now().millisecondsSinceEpoch;
@@ -153,8 +155,32 @@ class _PickerPanelState extends State<PickerPanel>
       _countDirty = true;
     } else {
       setState(() => _spokenCount = _countText());
+      _speakCount();
       _holdCount();
     }
+  }
+
+  // Flutter's live regions are not always spoken by VoiceOver on macOS, so the
+  // count and the selected row are also sent as explicit announcements.
+  void _speak(String message, {bool assertive = false}) {
+    if (!mounted || message.isEmpty) return;
+    unawaited(
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        message,
+        Directionality.of(context),
+        assertiveness: assertive
+            ? Assertiveness.assertive
+            : Assertiveness.polite,
+      ),
+    );
+  }
+
+  // The count, once per change (not again for the same words).
+  void _speakCount() {
+    if (_bound == null || _spokenCount == _lastSpokenCount) return;
+    _lastSpokenCount = _spokenCount;
+    _speak(_spokenCount);
   }
 
   void _holdCount() {
@@ -162,9 +188,13 @@ class _PickerPanelState extends State<PickerPanel>
     _countTimer?.cancel();
     _countTimer = Timer(_countEvery, () {
       _countHold = false;
+      // "12 items" when the picker opens: spoken once the first hold ends, so
+      // it follows the panel and field names.
+      if (_lastSpokenCount == null) _speakCount();
       if (_countDirty && mounted) {
         _countDirty = false;
         setState(() => _spokenCount = _countText());
+        _speakCount();
         _holdCount();
       }
     });
@@ -183,8 +213,12 @@ class _PickerPanelState extends State<PickerPanel>
   void _select(int index) {
     if (_filtered.isEmpty) return;
     final i = index.clamp(0, _filtered.length - 1);
+    final changed = _filtered[i].id != _selectedId;
     setState(() => _selectedId = _filtered[i].id);
     _scrollTo(i);
+    // The caret never moves (the keys are consumed), so VoiceOver and Narrator
+    // have nothing to say on their own: say the row.
+    if (changed) _speak(_rowName(i, _filtered[i]), assertive: true);
   }
 
   void _scrollTo(int index) {
