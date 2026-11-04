@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-04 — M1.3 History picker and paste — Paste permission root cause (developer investigation)
+- Changed: none in code. The macOS log (tccd) shows the PM's Settings toggle granted kTCCServiceAccessibility, while CGPreflightPostEventAccess reads kTCCServicePostEvent, which stays denied; on macOS 27 PostEvent "does not allow prompting", so "Allow pasting" only creates a denied row. Also 4 Kusunga copies with the same bundle id are registered (build Debug, build Release, Xcode DerivedData test host, one stale path). Ad-hoc signing ties every grant and the keychain "Always Allow" to one build's hash. The Mac's only signing identity (Apple Development: William Nasoni) is revoked.
+- Gates: developer investigating · tester pass · reviewer approve · QA part 2 blocked · PM merge waiting
+- Open findings: H1 (wrong TCC service — ADR 0003's "PostEvent only" assumption may not hold on macOS 27) strongest; H2 (stale copies) possible
+- Decisions: waiting for PM — stable local signing (free Personal Team) before the diagnostic build
+- Blockers: PM
+
 ## 2026-11-04 — M1.3 History picker and paste — Paste permission not effective
 - Changed: QA (7bf5fb8, on the branch): after the PM removed and re-granted the permission and relaunched, paste still falls back to copy-only (`pastePermissionMissing`). Build is ad-hoc signed, sandboxed. Developer investigating root cause without a rebuild (TCC PostEvent vs Accessibility, stale copies with the same bundle id, unstable ad-hoc signing identity).
 - Gates: developer investigating · tester pass · reviewer approve · QA part 2 blocked · PM merge waiting
