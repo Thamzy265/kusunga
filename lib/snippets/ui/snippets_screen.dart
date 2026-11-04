@@ -320,7 +320,11 @@ class SnippetsScreenState extends State<SnippetsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               for (final b in _service.banners)
-                                _Banner(banner: b, onRetry: _service.reload),
+                                _Banner(
+                                  banner: b,
+                                  reason: _service.unavailableReason,
+                                  onRetry: _service.reload,
+                                ),
                             ],
                           ),
                         ),
@@ -808,18 +812,35 @@ class _ActionButton extends StatelessWidget {
 }
 
 class _Banner extends StatelessWidget {
-  const _Banner({required this.banner, required this.onRetry});
+  const _Banner({
+    required this.banner,
+    required this.reason,
+    required this.onRetry,
+  });
 
   final SnippetBanner banner;
+  final SnippetsUnavailable reason;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
     final t = KusungaTokens.of(context);
     final text = switch (banner) {
-      SnippetBanner.unavailable =>
-        "Snippets can't be saved right now, because Kusunga can't reach your "
-            'keychain. Your saved snippets still paste.',
+      // UI spec, Copy, "Banners" (by mode).
+      SnippetBanner.unavailable => switch (reason) {
+        SnippetsUnavailable.keychain =>
+          "Snippets can't be opened right now, because Kusunga can't reach "
+              'your keychain.',
+        SnippetsUnavailable.newerFile =>
+          'Your snippets were saved by a newer version of Kusunga. Update '
+              'Kusunga to see them.',
+        SnippetsUnavailable.updateFailed =>
+          "Kusunga couldn't update your saved data, so nothing was changed. "
+              'Quit and reopen Kusunga to try again.',
+        SnippetsUnavailable.backupFailed =>
+          "Kusunga couldn't make a safety copy of your data, so nothing was "
+              'changed. Free up some disk space, then quit and reopen Kusunga.',
+      },
       SnippetBanner.readError =>
         "Kusunga couldn't read your snippets. Try again.",
     };

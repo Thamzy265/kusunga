@@ -15,6 +15,22 @@ enum SnippetBanner {
   readError,
 }
 
+/// Why snippets can't be opened in this session (UI spec, Copy, "Banners").
+/// In every case the list is empty and editing is off.
+enum SnippetsUnavailable {
+  /// The keychain (or the data folder, or the cipher) can't be used.
+  keychain,
+
+  /// The file was saved by a newer Kusunga.
+  newerFile,
+
+  /// The update to this version (a migration) failed and was rolled back.
+  updateFailed,
+
+  /// The safety copy before the update could not be made.
+  backupFailed,
+}
+
 enum SnippetSave {
   saved,
 
@@ -46,6 +62,7 @@ class SnippetService extends ChangeNotifier {
     required this._store,
     required this._log,
     required bool editable,
+    this.unavailableReason = SnippetsUnavailable.keychain,
     int Function()? clock,
     required this._writeClipboard,
   }) : _editable = editable,
@@ -63,6 +80,9 @@ class SnippetService extends ChangeNotifier {
   final int Function() _clock;
   final Future<bool> Function(String text) _writeClipboard;
   final _banners = <SnippetBanner>{};
+
+  /// Which banner text the unavailable banner shows (when editing is off).
+  final SnippetsUnavailable unavailableReason;
   List<SnippetItem> _items = const [];
   var _closed = false;
   var _disposed = false;

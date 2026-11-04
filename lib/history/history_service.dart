@@ -19,6 +19,7 @@ enum HistoryBanner {
   memoryOnly,
   readError,
   incompatible,
+  backupFailed,
   writeError,
   clearError,
 }
@@ -34,24 +35,35 @@ class HistoryService extends ChangeNotifier {
     int Function()? clock,
     Future<void> Function(String text)? writeClipboard,
     SnippetStore? snippetStore,
+    SnippetsUnavailable? snippetsUnavailable,
   }) : _clock = clock ?? (() => DateTime.now().millisecondsSinceEpoch),
        _writeClipboard =
            writeClipboard ??
            ((text) => Clipboard.setData(ClipboardData(text: text))),
        _persists =
            !notices.contains(HistoryNotice.memoryOnly) &&
-           !notices.contains(HistoryNotice.incompatible),
+           !notices.contains(HistoryNotice.incompatible) &&
+           !notices.contains(HistoryNotice.backupFailed),
        _banners = {
          if (notices.contains(HistoryNotice.memoryOnly))
            HistoryBanner.memoryOnly,
          if (notices.contains(HistoryNotice.readError)) HistoryBanner.readError,
          if (notices.contains(HistoryNotice.incompatible))
            HistoryBanner.incompatible,
+         if (notices.contains(HistoryNotice.backupFailed))
+           HistoryBanner.backupFailed,
        } {
     snippets = SnippetService(
       store: snippetStore ?? MemorySnippetStore(),
       log: _log,
       editable: _persists,
+      unavailableReason:
+          snippetsUnavailable ??
+          (notices.contains(HistoryNotice.backupFailed)
+              ? SnippetsUnavailable.backupFailed
+              : notices.contains(HistoryNotice.incompatible)
+              ? SnippetsUnavailable.newerFile
+              : SnippetsUnavailable.keychain),
       clock: _clock,
       writeClipboard: _source.writeOwn,
     );

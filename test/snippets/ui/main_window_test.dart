@@ -154,7 +154,7 @@ void main() {
       );
       expect(button.onPressed, isNull);
       expect(
-        find.textContaining("Snippets can't be saved right now"),
+        find.textContaining("Snippets can't be opened right now"),
         findsOneWidget,
       );
     });

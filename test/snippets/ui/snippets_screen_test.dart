@@ -361,8 +361,8 @@ void main() {
       await show(tester);
       expect(
         find.text(
-          "Snippets can't be saved right now, because Kusunga can't reach "
-          'your keychain. Your saved snippets still paste.',
+          "Snippets can't be opened right now, because Kusunga can't reach "
+          'your keychain.',
         ),
         findsOneWidget,
       );

@@ -696,7 +696,8 @@ void main() {
       history = make(notices: const {HistoryNotice.memoryOnly});
       await show(tester);
       expect(find.text('Try again'), findsNothing);
-      final banner = find.textContaining("Snippets can't be saved right now");
+      // Banner copy by mode (UI spec, "Banners", 7aca3ca).
+      final banner = find.textContaining("Snippets can't be opened right now");
       expect(banner, findsOneWidget);
       expect(
         tester

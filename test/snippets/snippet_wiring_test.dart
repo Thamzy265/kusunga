@@ -80,8 +80,8 @@ void main() {
   });
 
   test(
-    'a backup that cannot be written (TB-1): memory only with the '
-    'incompatible notice, its own log code, the v2 file left as it is',
+    'a backup that cannot be written (TB-1): memory only with its own '
+    'notice (F1), its own log code, the v2 file left as it is',
     () async {
       final v2 = await open(
         FakeKeyStore(stored: _key),
@@ -95,7 +95,7 @@ void main() {
       final opened = await open(FakeKeyStore(stored: _key));
       expect(opened.store, isA<MemoryHistoryStore>());
       expect(opened.snippets, isA<MemorySnippetStore>());
-      expect(opened.notices, {HistoryNotice.incompatible});
+      expect(opened.notices, {HistoryNotice.backupFailed});
       expect(log.codes, contains(LogCode.migrationBackupFailed));
       expect(log.codes, isNot(contains(LogCode.storeUnreadable)));
       expect(File(path).readAsBytesSync(), before);
