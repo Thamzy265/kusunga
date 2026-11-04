@@ -10,6 +10,7 @@ Phase: MVP. Approved by the PM on 2026-11-03 (deck: `docs/slides/mvp-plan.html`)
 - DPIA: a short DPIA before the beta (added to M1.9).
 - Plan approved; M1.1 starts.
 - M1.2 (2026-11-03): Mac key in the login keychain until M1.9 signed builds.
+- M1.3 (2026-11-04): taken-shortcut reporting accepted as a Mac limitation (Windows only).
 - M1.3 (2026-11-04): direct notarised Mac download with the App Sandbox on (ADR 0003); default picker shortcut ⌘⇧V / Ctrl+Shift+V; pasted item stays on the clipboard; design approved.
 - M1.2 (2026-11-03): default history 200 items (range 10–5,000); keychain failure → memory only with a warning; Apple Developer account only if unsigned builds cannot use the Keychain; scope change approved.
 Research behind this plan: `docs/marketing/competitor-research.md`.
@@ -55,7 +56,7 @@ Everything stays on the device. No account, no server.
   - AC: if the Mac Accessibility permission is missing, the app explains why it is needed and how to grant it.
   - AC: Kusunga posts the paste keystroke only after confirming the app that had focus is in front again (up to 500 ms); otherwise, and for Windows admin windows, it copies the item and says "press ⌘V / Ctrl+V".
   - AC: after pasting, the pasted item stays on the clipboard (PM 2026-11-04).
-  - AC: a shortcut taken by another app is reported and the user can choose another.
+  - AC: a shortcut taken by another app is reported where the OS reports it (Windows `RegisterHotKey` fails); on Mac the OS lets two apps share a shortcut and does not tell Kusunga, so this is a known limitation; the user can always choose another (PM 2026-11-04).
 - [ ] **M1.4 Saved snippets** — large (new data store, personal data).
   - AC: create, edit, delete and reorder snippets with a name, content and type (phone, email, link, address, other).
   - AC: snippets show in the picker in their own tab, and pinning a history item turns it into a snippet.
