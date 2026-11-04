@@ -637,9 +637,10 @@ class _SnippetRowState extends State<SnippetRow> {
 
     final row = LayoutBuilder(
       builder: (context, box) {
-        // Below 600 px of 100% text the actions go into the More menu.
+        // Below a 600 px window (at 100% text; the spec's breakpoint is the
+        // window width, not the row's) the actions go into the More menu.
         final scale = MediaQuery.textScalerOf(context).scale(1);
-        final narrow = box.maxWidth < 600 * scale;
+        final narrow = MediaQuery.sizeOf(context).width < 600 * scale;
         final texts = ExcludeSemantics(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
