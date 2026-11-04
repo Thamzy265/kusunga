@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-04 — M1.3 History picker and paste — Paste permission not effective
+- Changed: QA (7bf5fb8, on the branch): after the PM removed and re-granted the permission and relaunched, paste still falls back to copy-only (`pastePermissionMissing`). Build is ad-hoc signed, sandboxed. Developer investigating root cause without a rebuild (TCC PostEvent vs Accessibility, stale copies with the same bundle id, unstable ad-hoc signing identity).
+- Gates: developer investigating · tester pass · reviewer approve · QA part 2 blocked · PM merge waiting
+- Open findings: real paste never shown on a real Mac yet
+- Decisions: none
+- Blockers: Developer — root cause of CGPreflightPostEventAccess staying false
+- Sources: https://developer.apple.com/forums/thread/724603 ; https://developer.apple.com/forums/thread/744440 ; https://developer.apple.com/forums/thread/758554 ; https://developer.apple.com/forums/thread/727984
+
 ## 2026-11-04 — M1.3 History picker and paste — PM redid the paste permission
 - Changed: PM removed the old Kusunga Accessibility entries and granted the permission again for the c175b71 build. QA running part 2.
 - Gates: developer pass · tester pass · reviewer approve · QA part 2 running · PM merge waiting
