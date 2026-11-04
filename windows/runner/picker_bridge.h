@@ -22,7 +22,8 @@
 //  - Dart calls "registerShortcut" {key, modifiers} (answers "ok", "taken" or
 //    "invalid"), "unregisterShortcut", "openPicker", "closePicker",
 //    "paste" {text, post} (answers a PasteResult name), "showToast",
-//    "hideToast", "canPost" and "requestPostAccess" (both always true here);
+//    "hideToast", "canPost" and "requestPostAccess" (both always true here),
+//    "permissionSnapshot" (no answer: a Mac-only diagnostic);
 //  - native calls "shortcutPressed" (and shows the picker once Dart has
 //    answered, or after 300 ms) and "dismissed".
 // The window that had focus is remembered by handle only, in memory, from the

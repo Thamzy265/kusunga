@@ -10,7 +10,8 @@ import FlutterMacOS
 ///  - Dart calls `registerShortcut {key, modifiers}` (answers "ok", "taken" or
 ///    "invalid"), `unregisterShortcut`, `openPicker`, `closePicker`,
 ///    `paste {text, post}` (answers a PasteResult name), `showToast`,
-///    `hideToast`, `canPost` and `requestPostAccess`;
+///    `hideToast`, `canPost`, `permissionSnapshot` (a number for the log) and
+///    `requestPostAccess`;
 ///  - native calls `shortcutPressed` (and shows the picker once Dart has
 ///    answered, or after 300 ms) and `dismissed`.
 /// The app that has focus is remembered by process id only, in memory, from the
@@ -76,6 +77,8 @@ final class PickerBridge {
     case "hideToast":
       windows?.hideToast()
       result(nil)
+    case "permissionSnapshot":
+      result(PermissionSnapshot.current())
     case "canPost":
       result(CGPreflightPostEventAccess())
     case "requestPostAccess":

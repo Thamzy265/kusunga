@@ -136,6 +136,13 @@ class PickerController extends ChangeNotifier {
     if (_disposed) return;
     _applyRegistration(_shortcut, result);
     _notify();
+    await _logPermissions();
+  }
+
+  /// The permission state as one code and a number (design: codes only).
+  Future<void> _logPermissions() async {
+    final mask = await port.permissionSnapshot();
+    if (mask != null && !_disposed) _log.log(LogCode.permissionSnapshot, mask);
   }
 
   void _applyRegistration(PickerShortcut tried, ShortcutRegistration result) {
@@ -243,6 +250,7 @@ class PickerController extends ChangeNotifier {
     final text = _history?.textOf(id);
     if (text == null) return;
     _pasting = true;
+    await _logPermissions();
     PasteOutcome outcome;
     try {
       outcome = await port.paste(text, post: _pasteMode == PasteMode.auto);
@@ -259,6 +267,8 @@ class PickerController extends ChangeNotifier {
     switch (outcome) {
       case PasteOutcome.pasted:
         break;
+      case PasteOutcome.pastedForced:
+        _log.log(LogCode.pasteForcedPost);
       case PasteOutcome.noPermission:
         _log.log(LogCode.pastePermissionMissing);
         if (isMac) {

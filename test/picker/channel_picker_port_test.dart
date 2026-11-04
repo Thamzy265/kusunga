@@ -90,6 +90,7 @@ void main() {
         'targetGone': PasteOutcome.targetGone,
         'targetElevated': PasteOutcome.targetElevated,
         'copyOnly': PasteOutcome.copyOnly,
+        'pastedForced': PasteOutcome.pastedForced,
         'failed': PasteOutcome.failed,
       };
       for (final e in names.entries) {
@@ -146,6 +147,26 @@ void main() {
         await p.showToast();
         await p.hideToast();
         await p.unregisterShortcut();
+      }
+    });
+  });
+
+  group('permission snapshot', () {
+    test('asks native and passes the number on', () async {
+      answer = (_) => 5;
+      expect(await port().permissionSnapshot(), 5);
+      expect(calls.single.method, 'permissionSnapshot');
+    });
+
+    test('anything but a number, an error or no native side is null', () async {
+      for (final reply in <Object?>[
+        'x',
+        null,
+        PlatformException(code: 'x'),
+        MissingPluginException(),
+      ]) {
+        answer = (_) => reply;
+        expect(await port().permissionSnapshot(), isNull, reason: '$reply');
       }
     });
   });

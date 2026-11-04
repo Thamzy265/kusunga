@@ -261,6 +261,9 @@ void PickerBridge::HandleCall(
   } else if (method == "hideToast") {
     HideToast();
     result->Success();
+  } else if (method == "permissionSnapshot") {
+    // A Mac-only diagnostic (the Mac privacy permissions): no answer here.
+    result->Success();
   } else if (method == "canPost" || method == "requestPostAccess") {
     // Windows needs no permission to send keys (administrator windows are
     // handled in the paste flow).

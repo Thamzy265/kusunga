@@ -24,6 +24,8 @@ final class FakePastePlatform: PastePlatform {
   /// Modifier keys are down until this time (nil: not held; Int.max: held).
   var modifiersHeldUntilMs: Int?
   var canPost = true
+  /// The debug switch that posts even without permission.
+  var forcePost = false
   /// The key that types "v" in the pretend layout (nil: none does).
   var keyCode: UInt16? = 9
 
@@ -55,6 +57,7 @@ final class FakePastePlatform: PastePlatform {
   }
 
   func canPostEvents() -> Bool { canPost }
+  func forcePostEnabled() -> Bool { forcePost }
   func pasteKeyCode() -> UInt16? { keyCode }
 
   func postPaste() { log.append("post@\(now)") }
@@ -713,5 +716,51 @@ class FocusRetryTests: XCTestCase {
     XCTAssertTrue(retry.shouldRetry(frontmost: nil))
     XCTAssertTrue(retry.shouldRetry(frontmost: 1))
     XCTAssertFalse(retry.shouldRetry(frontmost: 300))
+  }
+}
+
+// MARK: - Permission diagnostics and the debug force-post switch
+
+class PermissionDiagnosticsTests: XCTestCase {
+  func testTheStateIsOneSmallNumber() {
+    XCTAssertEqual(PermissionSnapshot.mask(post: false, accessibility: false, listen: false), 0)
+    XCTAssertEqual(PermissionSnapshot.mask(post: true, accessibility: false, listen: false), 1)
+    XCTAssertEqual(PermissionSnapshot.mask(post: false, accessibility: true, listen: false), 2)
+    XCTAssertEqual(PermissionSnapshot.mask(post: false, accessibility: false, listen: true), 4)
+    XCTAssertEqual(PermissionSnapshot.mask(post: true, accessibility: true, listen: true), 7)
+  }
+
+  func testWithoutPermissionAndWithoutTheSwitchNothingIsPosted() {
+    let platform = FakePastePlatform()
+    platform.canPost = false
+    let flow = PasteFlow(platform: platform, writer: FakePasteboardWriter(), ownPid: 1)
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .noPermission)
+    XCTAssertFalse(platform.log.contains { $0.hasPrefix("post") })
+  }
+
+  func testTheSwitchPostsAnywayAndSaysSo() {
+    let platform = FakePastePlatform()
+    platform.canPost = false
+    platform.forcePost = true
+    let flow = PasteFlow(platform: platform, writer: FakePasteboardWriter(), ownPid: 1)
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .pastedForced)
+    XCTAssertTrue(platform.log.contains { $0.hasPrefix("post") })
+  }
+
+  func testTheSwitchChangesNothingWhenPermissionIsThere() {
+    let platform = FakePastePlatform()
+    platform.forcePost = true
+    let flow = PasteFlow(platform: platform, writer: FakePasteboardWriter(), ownPid: 1)
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .pasted)
+  }
+
+  func testTheSwitchNeverPostsIntoTheWrongApp() {
+    let platform = FakePastePlatform()
+    platform.canPost = false
+    platform.forcePost = true
+    platform.frontAfterMs = nil
+    let flow = PasteFlow(platform: platform, writer: FakePasteboardWriter(), ownPid: 1)
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .focusTimeout)
+    XCTAssertFalse(platform.log.contains { $0.hasPrefix("post") })
   }
 }

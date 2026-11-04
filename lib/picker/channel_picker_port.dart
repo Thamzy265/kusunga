@@ -16,7 +16,9 @@ import 'shortcut.dart';
 ///    `hideToast`;
 ///  - `paste {text, post}` answers `pasted`, `noPermission`, `focusTimeout`,
 ///    `targetGone`, `targetElevated`, `copyOnly` or `failed`;
-///  - `canPost` and `requestPostAccess` answer a bool.
+///  - `canPost` and `requestPostAccess` answer a bool; `permissionSnapshot`
+///    answers a number (bit 1 post allowed, 2 accessibility trusted, 4 listen
+///    allowed) for the log; `paste` may also answer `pastedForced` (debug).
 /// Native to Dart: `shortcutPressed` (native shows the picker
 /// when Dart has answered) and `dismissed`.
 class ChannelPickerPort implements PickerPort {
@@ -81,6 +83,7 @@ class ChannelPickerPort implements PickerPort {
     final reply = await _invoke<Object?>('paste', {'text': text, 'post': post});
     return switch (reply) {
       'pasted' => PasteOutcome.pasted,
+      'pastedForced' => PasteOutcome.pastedForced,
       'noPermission' => PasteOutcome.noPermission,
       'focusTimeout' => PasteOutcome.focusTimeout,
       'targetGone' => PasteOutcome.targetGone,
@@ -95,6 +98,12 @@ class ChannelPickerPort implements PickerPort {
 
   @override
   Future<void> hideToast() => _invoke<void>('hideToast');
+
+  @override
+  Future<int?> permissionSnapshot() async {
+    final reply = await _invoke<Object?>('permissionSnapshot');
+    return reply is int ? reply : null;
+  }
 
   @override
   Future<bool> canPost() async => await _invoke<Object?>('canPost') == true;

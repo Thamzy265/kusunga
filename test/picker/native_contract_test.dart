@@ -52,7 +52,7 @@ void main() {
     final swift = read('macos/Runner/PickerBridge.swift');
     final cpp = read('windows/runner/picker_bridge.cpp');
 
-    test('Dart sends the nine methods we expect', () {
+    test('Dart sends the ten methods we expect', () {
       expect(sent, {
         'registerShortcut',
         'unregisterShortcut',
@@ -62,6 +62,7 @@ void main() {
         'showToast',
         'hideToast',
         'canPost',
+        'permissionSnapshot',
         'requestPostAccess',
       });
     });
@@ -75,6 +76,7 @@ void main() {
       'showToast',
       'hideToast',
       'canPost',
+      'permissionSnapshot',
       'requestPostAccess',
     }) {
       test('Mac handles $name', () => expect(swift, contains('case "$name"')));

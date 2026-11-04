@@ -19,6 +19,9 @@ class FakePickerPort implements PickerPort {
   Completer<void>? pasteGate;
   Object? pasteThrows;
   bool canPostAnswer = false;
+
+  /// What permissionSnapshot answers (null: no answer, nothing is logged).
+  int? snapshotAnswer;
   bool requestAnswer = false;
 
   @override
@@ -58,6 +61,12 @@ class FakePickerPort implements PickerPort {
 
   @override
   Future<void> hideToast() async => calls.add('hideToast');
+
+  @override
+  Future<int?> permissionSnapshot() async {
+    calls.add('snapshot');
+    return snapshotAnswer;
+  }
 
   @override
   Future<bool> canPost() async {

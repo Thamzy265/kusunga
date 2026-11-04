@@ -28,6 +28,10 @@ enum LogCode {
   // Copy-only for another reason: paste mode, a key still held, an unreadable
   // integrity level, or no key that types "v".
   pasteCopyOnly,
+  // Permission state (detail: 1 post, 2 accessibility trusted, 4 listen) at
+  // start-up and before each paste, and a debug-build forced post.
+  permissionSnapshot,
+  pasteForcedPost,
   pasteTargetElevated,
   pasteTargetGone,
 }

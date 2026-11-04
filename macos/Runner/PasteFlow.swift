@@ -15,6 +15,9 @@ protocol PastePlatform: AnyObject {
   func modifiersDown() -> Bool
   /// `CGPreflightPostEventAccess()`: does not prompt.
   func canPostEvents() -> Bool
+  /// Debug builds only: post even if macOS says posting is not allowed, to test
+  /// whether the event arrives. Always false in a Release build.
+  func forcePostEnabled() -> Bool
   /// The key code of the key that types "v" in the current keyboard layout,
   /// or nil if no key does (then nothing is sent).
   func pasteKeyCode() -> UInt16?
@@ -32,6 +35,7 @@ protocol PasteboardWriting {
 /// How a paste ended. The raw values are the answers to Dart (see
 /// lib/picker/channel_picker_port.dart).
 extension PastePlatform {
+  func forcePostEnabled() -> Bool { false }
   /// The US layout key for V. The real Mac looks it up in the layout.
   func pasteKeyCode() -> UInt16? { 9 }
 }
@@ -73,6 +77,20 @@ enum PasteKey {
   }
 }
 
+/// The permission state as one small number for the log: 1 post allowed,
+/// 2 accessibility trusted (read only: never asks), 4 listen allowed.
+enum PermissionSnapshot {
+  static func mask(post: Bool, accessibility: Bool, listen: Bool) -> Int {
+    (post ? 1 : 0) | (accessibility ? 2 : 0) | (listen ? 4 : 0)
+  }
+
+  static func current() -> Int {
+    mask(
+      post: CGPreflightPostEventAccess(), accessibility: AXIsProcessTrusted(),
+      listen: CGPreflightListenEventAccess())
+  }
+}
+
 /// What Esc does (E1): the history window comes back without being activated,
 /// and the app the user was in gets the focus back. Kusunga itself is
 /// activated only if it was the app in front.
@@ -91,6 +109,7 @@ struct ClosePlan: Equatable {
 
 enum PasteResult: String {
   case pasted
+  case pastedForced
   case noPermission
   case focusTimeout
   case targetGone
@@ -132,7 +151,10 @@ final class PasteFlow {
       return .focusTimeout
     }
     if !post { return .copyOnly }
-    if !platform.canPostEvents() { return .noPermission }
+    var forced = false
+    if !platform.canPostEvents() {
+      if platform.forcePostEnabled() { forced = true } else { return .noPermission }
+    }
     // No key types "v" in this layout: pressing a different key could do
     // something else, so only the copy is done.
     if platform.pasteKeyCode() == nil { return .copyOnly }
@@ -144,7 +166,7 @@ final class PasteFlow {
     // Focus can be taken while we waited: check again, right before posting.
     guard platform.frontmostPid() == target else { return .focusTimeout }
     platform.postPaste()
-    return .pasted
+    return forced ? .pastedForced : .pasted
   }
 
   private func waitUntil(_ limitMs: Int, _ condition: () -> Bool) -> Bool {
@@ -216,6 +238,15 @@ final class MacPastePlatform: PastePlatform {
   }
 
   func canPostEvents() -> Bool { CGPreflightPostEventAccess() }
+
+  func forcePostEnabled() -> Bool {
+    #if DEBUG
+      // Off by default. Launch with `-KusungaForcePost YES` to turn it on.
+      return UserDefaults.standard.bool(forKey: "KusungaForcePost")
+    #else
+      return false
+    #endif
+  }
 
   func pasteKeyCode() -> UInt16? {
     PasteKey.code(forV: PasteKey.translateInCurrentLayout)

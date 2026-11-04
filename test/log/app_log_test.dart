@@ -44,6 +44,8 @@ void main() {
         'pasteFocusTimeout',
         'pastePermissionMissing',
         'pasteCopyOnly',
+        'permissionSnapshot',
+        'pasteForcedPost',
         'pasteTargetElevated',
         'pasteTargetGone',
       ]),

@@ -103,6 +103,54 @@ void main() {
     });
   });
 
+  group('permission diagnostics', () {
+    ctest('the state is logged as one code with a number at start-up', (
+      tester,
+    ) async {
+      port.snapshotAnswer = 4;
+      await build().start();
+      expect(log.codes, [LogCode.permissionSnapshot]);
+      expect(log.details, [4]);
+    });
+
+    ctest('and before every paste attempt', (tester) async {
+      final id = saveText('secret words');
+      port.snapshotAnswer = 3;
+      await build().start();
+      await c.attach(history);
+      port.press();
+      await c.pasteItem(id);
+      expect(log.codes, [
+        LogCode.permissionSnapshot,
+        LogCode.permissionSnapshot,
+      ]);
+      expect(log.details, [3, 3]);
+      expect(
+        port.calls.indexOf('paste'),
+        greaterThan(port.calls.lastIndexOf('snapshot') - 1),
+      );
+    });
+
+    ctest('no answer from native logs nothing', (tester) async {
+      await build().start();
+      expect(log.codes, isEmpty);
+    });
+
+    ctest('a forced post (debug switch) is logged and shows no toast', (
+      tester,
+    ) async {
+      final id = saveText('a');
+      await build().start();
+      await c.attach(history);
+      port.press();
+      port.pasteAnswer = PasteOutcome.pastedForced;
+      await c.pasteItem(id);
+      expect(log.codes, [LogCode.pasteForcedPost]);
+      expect(c.toast, isNull);
+      expect(c.mode, WindowMode.manage);
+    });
+  });
+
   group('opening and closing the picker', () {
     ctest('the shortcut switches to picker mode', (tester) async {
       await build().start();

@@ -18,6 +18,11 @@ enum ShortcutRegistration {
 enum PasteOutcome {
   pasted,
 
+  /// Debug builds only: the debug switch posted the keystroke although macOS
+  /// said it is not allowed (to test whether the event arrives). Treated as
+  /// [pasted].
+  pastedForced,
+
   /// Mac: Kusunga is not allowed to post key events.
   noPermission,
 
@@ -80,6 +85,11 @@ abstract interface class PickerPort {
   /// Shows the small "Copied" toast near the pointer without taking focus.
   Future<void> showToast();
   Future<void> hideToast();
+
+  /// A small number for the log, never content: 1 if posting events is
+  /// allowed, 2 if the Accessibility status is trusted (read only), 4 if
+  /// listening is allowed. Null if native code gave no answer.
+  Future<int?> permissionSnapshot();
 
   /// Mac: may Kusunga post key events? Does not prompt. Windows: true.
   Future<bool> canPost();
