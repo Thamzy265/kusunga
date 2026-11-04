@@ -145,7 +145,11 @@ class SqliteHistoryStore implements HistoryStore {
         db.execute('PRAGMA user_version = ${m.version}');
         db.execute('COMMIT');
       } catch (e) {
-        db.execute('ROLLBACK');
+        if (!db.autocommit) {
+          try {
+            db.execute('ROLLBACK');
+          } catch (_) {}
+        }
         throw MigrationFailed(m.version, e);
       }
     }
@@ -212,7 +216,14 @@ class SqliteHistoryStore implements HistoryStore {
       _db.execute('COMMIT');
       return result;
     } catch (_) {
-      _db.execute('ROLLBACK');
+      // SQLite may already have rolled back (a full disk, RAISE(ROLLBACK)):
+      // roll back only if a transaction is still open, and never let a
+      // failing ROLLBACK hide the first error (F6).
+      if (!_db.autocommit) {
+        try {
+          _db.execute('ROLLBACK');
+        } catch (_) {}
+      }
       rethrow;
     }
   }

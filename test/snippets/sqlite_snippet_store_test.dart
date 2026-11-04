@@ -225,6 +225,63 @@ void main() {
 
       List<String> names() => store.list().map((s) => s.name).toList();
 
+      test('a full disk (SQLITE_FULL) keeps its own error, and the store '
+          'still works afterwards (F6)', () {
+        final pages =
+            db.select('PRAGMA page_count').single.values.single as int;
+        db.execute('PRAGMA max_page_count = ${pages + 2}');
+        final big = 'z' * 500000;
+        Object? error;
+        try {
+          store.insert(
+            name: 'Big',
+            content: big,
+            type: SnippetType.other,
+            nowMs: 2,
+          );
+        } catch (e) {
+          error = e;
+        }
+        expect(
+          error,
+          isA<SqliteException>().having((e) => e.resultCode, 'code', 13),
+          reason: '$error',
+        );
+        expect(db.autocommit, isTrue, reason: 'no transaction left open');
+        expect(names(), ['A', 'B', 'C', 'D']);
+        db.execute('PRAGMA max_page_count = 1073741823');
+        store.insert(
+          name: 'E',
+          content: 'e',
+          type: SnippetType.other,
+          nowMs: 3,
+        );
+        expect(names(), ['A', 'B', 'C', 'D', 'E']);
+      });
+
+      test('a ROLLBACK that itself fails never hides the first error', () {
+        // A trigger aborts the update; the transaction is then rolled back.
+        db.execute(
+          'CREATE TEMP TRIGGER fail BEFORE UPDATE OF content ON snippets '
+          "BEGIN SELECT RAISE(ROLLBACK, 'disk'); END",
+        );
+        final a = store.list().first.id;
+        expect(
+          () => store.update(
+            a,
+            name: 'A2',
+            content: 'changed',
+            type: SnippetType.email,
+            nowMs: 9,
+          ),
+          throwsA(
+            isA<SqliteException>().having((e) => e.message, 'message', 'disk'),
+          ),
+        );
+        expect(db.autocommit, isTrue);
+        expect(store.contentOf(a), 'A');
+      });
+
       test('move', () {
         db.execute(
           'CREATE TEMP TRIGGER fail AFTER UPDATE OF position ON snippets '

@@ -24,7 +24,14 @@ class SqliteSnippetStore implements SnippetStore {
       _db.execute('COMMIT');
       return result;
     } catch (_) {
-      _db.execute('ROLLBACK');
+      // SQLite may already have rolled back (a full disk, RAISE(ROLLBACK)):
+      // roll back only if a transaction is still open, and never let a
+      // failing ROLLBACK hide the first error (F6).
+      if (!_db.autocommit) {
+        try {
+          _db.execute('ROLLBACK');
+        } catch (_) {}
+      }
       rethrow;
     }
   }
