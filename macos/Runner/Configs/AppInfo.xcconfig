@@ -12,3 +12,7 @@ PRODUCT_BUNDLE_IDENTIFIER = com.wnasoni.kusunga
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 William Nasoni. All rights reserved.
+
+// Local signing (git-ignored). Optional: a checkout without the file builds ad-hoc,
+// exactly as before (CI does). See Local.xcconfig.example.
+#include? "Local.xcconfig"

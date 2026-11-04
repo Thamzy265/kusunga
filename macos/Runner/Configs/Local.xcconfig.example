@@ -1,0 +1,9 @@
+// Local signing for test builds. Copy this file to Local.xcconfig (git-ignored)
+// and put your own team id in. Without Local.xcconfig the app is signed ad-hoc.
+//
+// A stable signing identity keeps macOS privacy grants (Accessibility, Input
+// Monitoring) and login-keychain "Always Allow" across rebuilds. Find your team
+// id with:  security find-identity -v -p codesigning   (the OU of the certificate)
+DEVELOPMENT_TEAM = YOURTEAMID
+CODE_SIGN_STYLE = Automatic
+CODE_SIGN_IDENTITY = Apple Development
