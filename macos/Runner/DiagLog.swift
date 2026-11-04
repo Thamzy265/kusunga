@@ -22,7 +22,7 @@ enum DiagLog {
     "pasteFocusTimeout", "pastePermissionMissing", "pasteCopyOnly", "permissionSnapshot",
     "pasteForcedPost", "pasteTargetElevated", "pasteTargetGone", "snippetSaveFailed",
     "snippetDeleteFailed", "snippetMoveFailed", "snippetCapReached", "snippetsUnavailable",
-    "pasteSource",
+    "pasteSource", "migrationBackupFailed", "snippetOpenFailed",
     // Native
     "pasteResult", "postKeyNone", "postKeyCode", "postForced", "postFrontmostOk", "postTiming",
     "postSourceState", "postSourceNil", "postTap", "postEventNil", "postSent",

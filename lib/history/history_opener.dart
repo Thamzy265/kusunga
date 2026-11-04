@@ -111,6 +111,12 @@ Future<OpenedHistory> openHistory({
   } on UnsupportedSchemaVersion {
     log.log(LogCode.storeIncompatible);
     return OpenedHistory(MemoryHistoryStore(), {HistoryNotice.incompatible});
+  } on MigrationBackupFailed {
+    // The file is fine; only the copy could not be made. It is left exactly
+    // as it is (never moved aside as unreadable) and this session is memory
+    // only, as for a failed migration.
+    log.log(LogCode.migrationBackupFailed);
+    return OpenedHistory(MemoryHistoryStore(), {HistoryNotice.incompatible});
   } on MigrationFailed {
     log.log(LogCode.storeIncompatible);
     return OpenedHistory(MemoryHistoryStore(), {HistoryNotice.incompatible});

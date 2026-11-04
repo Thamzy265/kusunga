@@ -25,6 +25,14 @@ class UnsupportedSchemaVersion implements Exception {
   String toString() => 'UnsupportedSchemaVersion($found)';
 }
 
+/// The copy kept before a migration could not be written (disk full, no
+/// rights, something else at that path). Nothing in the database was
+/// changed.
+class MigrationBackupFailed implements Exception {
+  @override
+  String toString() => 'MigrationBackupFailed';
+}
+
 /// A migration failed. It was rolled back; the backup copy is kept.
 class MigrationFailed implements Exception {
   MigrationFailed(this.version, this.cause);
@@ -114,7 +122,18 @@ class SqliteHistoryStore implements HistoryStore {
     if (from == target) return;
 
     final backup = from > 0 ? File('$path.bak') : null;
-    backup?.writeAsBytesSync(File(path).readAsBytesSync(), flush: true);
+    if (backup != null) {
+      try {
+        backup.writeAsBytesSync(File(path).readAsBytesSync(), flush: true);
+      } catch (_) {
+        // A half-written copy is no backup: remove it if it is a file. The
+        // database itself has not been touched.
+        try {
+          if (FileSystemEntity.isFileSync(backup.path)) backup.deleteSync();
+        } catch (_) {}
+        throw MigrationBackupFailed();
+      }
+    }
 
     for (final m in all.where((m) => m.version > from)) {
       m.onRun?.call();

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/clipboard/channel_clipboard_source.dart';
+import 'package:kusunga/history/clip_item.dart';
 import 'package:kusunga/history/history_opener.dart';
 import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/memory_history_store.dart';
@@ -77,6 +78,30 @@ void main() {
       expect(opened.snippets, isA<MemorySnippetStore>());
     });
   });
+
+  test(
+    'a backup that cannot be written (TB-1): memory only with the '
+    'incompatible notice, its own log code, the v2 file left as it is',
+    () async {
+      final v2 = await open(
+        FakeKeyStore(stored: _key),
+        migrations: kMigrations.sublist(0, 2),
+      );
+      v2.store.insertOrBump('kept', ClipKind.text, 1);
+      v2.store.close();
+      final path = '${dir.path}/kusunga.db';
+      final before = File(path).readAsBytesSync();
+      Directory('$path.bak').createSync(); // the copy cannot be written
+      final opened = await open(FakeKeyStore(stored: _key));
+      expect(opened.store, isA<MemoryHistoryStore>());
+      expect(opened.snippets, isA<MemorySnippetStore>());
+      expect(opened.notices, {HistoryNotice.incompatible});
+      expect(log.codes, contains(LogCode.migrationBackupFailed));
+      expect(log.codes, isNot(contains(LogCode.storeUnreadable)));
+      expect(File(path).readAsBytesSync(), before);
+      expect(Directory('$path.bak').existsSync(), isTrue, reason: 'not ours');
+    },
+  );
 
   group('HistoryService.snippets', () {
     HistoryService make(Set<HistoryNotice> notices) => HistoryService(

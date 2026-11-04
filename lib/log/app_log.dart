@@ -44,6 +44,11 @@ enum LogCode {
   snippetsUnavailable,
   // Every paste from the picker: detail 0 history, 1 snippet.
   pasteSource,
+  // The copy kept before a migration could not be written: the file is left
+  // as it is and this session is memory only (TB-1).
+  migrationBackupFailed,
+  // The whole text of a snippet could not be read for Edit (TB-2).
+  snippetOpenFailed,
 }
 
 abstract interface class ErrorLog {
