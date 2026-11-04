@@ -72,60 +72,32 @@ void main() {
     return c;
   }
 
-  ctest('a second Enter while the snapshot is in flight pastes only once', (
+  ctest('a second Enter while the paste is in flight pastes only once', (
     tester,
   ) async {
     final id = saveText('a');
     final c = await open();
-    port.gate = Completer<int?>();
+    port.pasteGate = Completer<void>();
     final first = c.pasteItem(id);
     final second = c.pasteItem(id);
-    port.gate!.complete(7);
+    port.pasteGate!.complete();
     await first;
     await second;
     expect(port.pastes.length, 1);
-    expect(log.codes.where((x) => x.name == 'permissionSnapshot').length, 1);
   });
 
-  ctest('the snapshot is taken before the paste, with the number as the '
-      'detail, and never carries the text', (tester) async {
+  ctest('a paste asks native for nothing first: the paste-time permission '
+      'state is logged natively (F6), so there is no extra round trip', (
+    tester,
+  ) async {
     final id = saveText('top secret words');
     port.snapshotAnswer = 7;
     final c = await open();
+    port.calls.clear();
     log.codes.clear();
-    log.details.clear();
     await c.pasteItem(id);
-    expect(log.details, [7]);
-    expect(
-      port.calls.lastIndexOf('snapshot'),
-      lessThan(port.calls.indexOf('paste')),
-    );
-  });
-
-  ctest('a slow snapshot still ends in the paste, and the picker did not '
-      'close meanwhile', (tester) async {
-    final id = saveText('a');
-    final c = await open();
-    port.gate = Completer<int?>();
-    final done = c.pasteItem(id);
-    await tester.pump(const Duration(seconds: 2));
-    expect(c.mode, WindowMode.picker);
-    expect(port.pastes, isEmpty);
-    port.gate!.complete(null);
-    await done;
-    expect(port.pastes.length, 1);
-  });
-
-  ctest('the controller is disposed while the snapshot is in flight: no '
-      'log, no error', (tester) async {
-    final id = saveText('a');
-    final c = await open();
-    port.gate = Completer<int?>();
-    log.codes.clear();
-    final done = c.pasteItem(id);
-    c.dispose();
-    port.gate!.complete(3);
-    await done;
+    expect(port.calls.first, 'paste');
+    expect(port.calls, isNot(contains('snapshot')));
     expect(log.codes, isEmpty);
   });
 
@@ -186,18 +158,5 @@ void main() {
     log.codes.clear();
     await c.pasteItem(id);
     expect(log.codes, isEmpty);
-  });
-
-  ctest('the snapshot is also taken when the paste is copy-only mode and '
-      'when it fails', (tester) async {
-    final id = saveText('a');
-    final c = await open();
-    port.pasteAnswer = PasteOutcome.failed;
-    port.snapshotAnswer = 1;
-    log.codes.clear();
-    log.details.clear();
-    await c.pasteItem(id);
-    expect(log.details, [1]);
-    expect(c.toast, isNotNull);
   });
 }

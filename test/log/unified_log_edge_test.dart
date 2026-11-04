@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/log/app_log.dart';
@@ -11,6 +12,17 @@ class _Recording implements ErrorLog {
   void log(LogCode code, [int? detail]) =>
       lines.add(detail == null ? code.name : '${code.name} $detail');
 }
+
+final knownNative = () {
+  final swift = File('macos/Runner/DiagLog.swift').readAsStringSync();
+  final block = swift.substring(
+    swift.indexOf('static let knownCodes'),
+    swift.indexOf('#if DEBUG'),
+  );
+  return {
+    for (final m in RegExp(r'"([A-Za-z0-9]+)"').allMatches(block)) m.group(1)!,
+  };
+}();
 
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
@@ -57,7 +69,7 @@ void main() {
     expect(seen.length, LogCode.values.length);
     for (final a in seen) {
       expect(a.keys.toSet(), {'code', 'detail'}, reason: 'no other field');
-      expect(a['code'], matches(RegExp(r'^[A-Za-z0-9]{1,40}$')));
+      expect(knownNative, contains(a['code']));
       expect(a['detail'], isNull);
     }
   });

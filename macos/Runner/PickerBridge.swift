@@ -183,6 +183,9 @@ final class PickerBridge {
 
   private func runPaste(text: String, post: Bool) -> PasteResult {
     pasting = true
+    // The permission state at the moment of the paste (a number), taken here so
+    // Dart needs no extra round trip before the paste.
+    DiagLog.log("permissionSnapshot", PermissionSnapshot.current())
     defer {
       pasting = false
       target = nil

@@ -838,7 +838,7 @@ class PasteFlowDiagnosticsTests: XCTestCase {
   func testEveryOutcomeEndsWithItsNumberAndNeverTheText() {
     platform.canPost = false
     _ = flow.run(text: "my private text", target: 200, post: true)
-    XCTAssertEqual(lines.last, "pasteResult \(PasteResult.allCases.firstIndex(of: .noPermission)!)")
+    XCTAssertEqual(lines.last, "pasteResult \(PasteResult.noPermission.logNumber)")
     XCTAssertFalse(lines.joined().contains("private"))
     let gone = FakePastePlatform()
     gone.running = []
@@ -846,7 +846,7 @@ class PasteFlowDiagnosticsTests: XCTestCase {
     let f = PasteFlow(platform: gone, writer: FakePasteboardWriter(), ownPid: 1,
       diag: { [unowned self] c, d in self.lines.append(d == nil ? c : "\(c) \(d!)") })
     _ = f.run(text: "x", target: 200, post: true)
-    XCTAssertEqual(lines.last, "pasteResult \(PasteResult.allCases.firstIndex(of: .targetGone)!)")
+    XCTAssertEqual(lines.last, "pasteResult \(PasteResult.targetGone.logNumber)")
   }
 }
 
@@ -937,5 +937,16 @@ class DismissCoordinatorTests: XCTestCase {
   func testTheRuleTakesTheFlag() {
     XCTAssertFalse(DismissRule.shouldDismiss(target: 200, targetQuit: true, targetAlive: true))
     XCTAssertTrue(DismissRule.shouldDismiss(target: 200, targetQuit: false, targetAlive: true))
+  }
+}
+
+class PasteResultNumberTests: XCTestCase {
+  func testTheLogNumbersArePinned() {
+    let pinned: [PasteResult: Int] = [
+      .pasted: 0, .pastedForced: 1, .noPermission: 2, .focusTimeout: 3,
+      .targetGone: 4, .copyOnly: 5, .failed: 6,
+    ]
+    for r in PasteResult.allCases { XCTAssertEqual(r.logNumber, pinned[r], "\(r)") }
+    XCTAssertEqual(Set(PasteResult.allCases.map { $0.logNumber }).count, PasteResult.allCases.count)
   }
 }

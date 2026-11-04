@@ -113,22 +113,19 @@ void main() {
       expect(log.details, [4]);
     });
 
-    ctest('and before every paste attempt', (tester) async {
+    ctest('a paste makes no snapshot round trip (native logs it, F6)', (
+      tester,
+    ) async {
       final id = saveText('secret words');
       port.snapshotAnswer = 3;
       await build().start();
       await c.attach(history);
       port.press();
+      port.calls.clear();
+      log.codes.clear();
       await c.pasteItem(id);
-      expect(log.codes, [
-        LogCode.permissionSnapshot,
-        LogCode.permissionSnapshot,
-      ]);
-      expect(log.details, [3, 3]);
-      expect(
-        port.calls.indexOf('paste'),
-        greaterThan(port.calls.lastIndexOf('snapshot') - 1),
-      );
+      expect(port.calls, isNot(contains('snapshot')));
+      expect(log.codes, isEmpty);
     });
 
     ctest('no answer from native logs nothing', (tester) async {

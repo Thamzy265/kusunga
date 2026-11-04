@@ -12,6 +12,18 @@ String read(String path) => File(path).readAsStringSync();
 String stripComments(String swift) =>
     swift.split('\n').where((l) => !l.trimLeft().startsWith('//')).join('\n');
 
+/// The closed list of unified-log code names (macos/Runner/DiagLog.swift).
+Set<String> knownCodes() {
+  final swift = read('macos/Runner/DiagLog.swift');
+  final block = swift.substring(
+    swift.indexOf('static let knownCodes'),
+    swift.indexOf('#if DEBUG'),
+  );
+  return {
+    for (final m in RegExp(r'"([A-Za-z0-9]+)"').allMatches(block)) m.group(1)!,
+  };
+}
+
 void main() {
   group('optional Local.xcconfig (d94a892)', () {
     test('AppInfo.xcconfig includes it with the optional form only', () {
@@ -382,7 +394,7 @@ void main() {
     });
 
     test('every string passed to DiagLog or diag(...) in Swift is a code', () {
-      final code = RegExp(r'^[A-Za-z0-9]{1,40}$');
+      final known = knownCodes();
       final call = RegExp(r'(?:DiagLog\.log|diag)\(\s*"([^"]*)"');
       var seen = 0;
       for (final e in Directory('macos/Runner').listSync(recursive: true)) {
@@ -390,8 +402,8 @@ void main() {
         for (final m in call.allMatches(stripComments(e.readAsStringSync()))) {
           seen++;
           expect(
-            code.hasMatch(m.group(1)!),
-            isTrue,
+            known,
+            contains(m.group(1)!),
             reason: '${e.path}: ${m.group(1)}',
           );
         }
@@ -401,9 +413,9 @@ void main() {
 
     test('every Dart log code name passes the native check, or it would be '
         'dropped silently', () {
-      final code = RegExp(r'^[A-Za-z0-9]{1,40}$');
+      final known = knownCodes();
       for (final c in LogCode.values) {
-        expect(code.hasMatch(c.name), isTrue, reason: c.name);
+        expect(known, contains(c.name));
       }
       expect(
         LogCode.values.map((c) => c.name).toSet().length,

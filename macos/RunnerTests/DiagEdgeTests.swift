@@ -18,7 +18,7 @@ class DiagLogEdgeTests: XCTestCase {
 
   override func tearDown() { DiagLog.extraCodesForTests = [] }
 
-  func testTheLengthLimitIsExactlyOneToForty() {
+  func testOnlyKnownNamesAreCodes() {
     XCTAssertFalse(DiagLog.isCode(""))
     // The accepted names are a closed list now (B1): a shape such as "a" or 40
     // letters is no longer a code, a known name is.

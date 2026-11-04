@@ -255,7 +255,6 @@ class PickerController extends ChangeNotifier {
     final text = _history?.textOf(id);
     if (text == null) return;
     _pasting = true;
-    await _logPermissions();
     PasteOutcome outcome;
     try {
       outcome = await port.paste(text, post: _pasteMode == PasteMode.auto);

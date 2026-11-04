@@ -33,6 +33,13 @@ protocol PasteboardWriting {
 }
 
 /// How a paste ended. The raw values are the answers to Dart (see
+/// lib/picker/channel_picker_port.dart); `logNumber` is the number written to
+/// the log after `pasteResult`. The numbers are pinned: a new case gets a new
+/// number and never shifts the others.
+///   0 pasted, 1 pastedForced, 2 noPermission, 3 focusTimeout, 4 targetGone,
+///   5 copyOnly, 6 failed.
+///
+/// The raw values are the answers to Dart (see
 /// lib/picker/channel_picker_port.dart).
 extension PastePlatform {
   func forcePostEnabled() -> Bool { false }
@@ -115,6 +122,18 @@ enum PasteResult: String, CaseIterable {
   case targetGone
   case copyOnly
   case failed
+
+  var logNumber: Int {
+    switch self {
+    case .pasted: return 0
+    case .pastedForced: return 1
+    case .noPermission: return 2
+    case .focusTimeout: return 3
+    case .targetGone: return 4
+    case .copyOnly: return 5
+    case .failed: return 6
+    }
+  }
 }
 
 /// Design note, "How paste works" (Mac): write the text and our marker, hide
@@ -147,7 +166,7 @@ final class PasteFlow {
   func run(text: String, target: pid_t?, post: Bool) -> PasteResult {
     let start = platform.nowMs()
     let result = steps(text: text, target: target, post: post, start: start)
-    diag("pasteResult", PasteResult.allCases.firstIndex(of: result))
+    diag("pasteResult", result.logNumber)
     return result
   }
 

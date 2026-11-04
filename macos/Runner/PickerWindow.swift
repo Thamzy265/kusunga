@@ -155,12 +155,12 @@ final class PickerWindowController {
   /// few times, up to about half a second, until it is key.
   static let focusRetryDelays = FocusRetry.delays
 
-  /// Makes Kusunga active, the window key, and the Flutter view the first
-  /// responder (a changed window style can drop it).
   /// Takes the keyboard again (the picker stays open after the app it came from
   /// quit).
   func retakeKeyboard() { takeKeyboard() }
 
+  /// Makes Kusunga active, the window key, and the Flutter view the first
+  /// responder (a changed window style can drop it).
   private func takeKeyboard() {
     PickerWindowController.activateKusunga()
     window.makeKeyAndOrderFront(nil)
