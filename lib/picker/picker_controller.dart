@@ -2,7 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../history/clip_item.dart';
 import '../history/history_service.dart';
+import '../snippets/snippet.dart';
+import '../snippets/ui/snippet_text.dart';
 import '../log/app_log.dart';
 import 'picker_port.dart';
 import 'picker_search.dart';
@@ -79,8 +82,54 @@ class PickerController extends ChangeNotifier {
   /// background whenever the history changes.
   final search = PickerSearch();
 
-  /// The same for the Snippets tab (name and content).
+  /// The same for the Snippets tab. It indexes exactly the text a snippet
+  /// row shows ("Name — content"), so every match is visible (F8), and it is
+  /// warmed in the background like [search] (L1).
   final snippetSearch = PickerSearch();
+  List<SnippetItem>? _snippetSource;
+  var _snippetEntries = const <ClipItem>[];
+  var _snippetById = const <int, SnippetItem>{};
+
+  /// What search sees of each snippet, in order. Rebuilt only when the
+  /// snippets change, so the index is reused between openings.
+  List<ClipItem> get snippetEntries {
+    final items = _history?.snippets.items ?? const <SnippetItem>[];
+    if (!identical(items, _snippetSource)) {
+      // Entries of unchanged snippets are kept: only a new or edited
+      // snippet's line is built again, so a save never rebuilds 1,000 lines.
+      final old = {for (final e in _snippetEntries) e.id: e};
+      final oldById = _snippetById;
+      _snippetSource = items;
+      _snippetById = {for (final s in items) s.id: s};
+      _snippetEntries = [
+        for (final s in items)
+          _sameLine(oldById[s.id], s) ? old[s.id]! : _entryFor(s),
+      ];
+    }
+    return _snippetEntries;
+  }
+
+  SnippetItem? snippetById(int id) {
+    snippetEntries; // in step with the current list
+    return _snippetById[id];
+  }
+
+  static bool _sameLine(SnippetItem? a, SnippetItem b) =>
+      a != null && a.name == b.name && a.preview == b.preview;
+
+  static ClipItem _entryFor(SnippetItem s) => ClipItem(
+    id: s.id,
+    kind: ClipKind.text,
+    preview: snippetLine(s),
+    isTruncated: s.isTruncated,
+    createdAt: s.createdAt,
+    lastCopiedAt: s.updatedAt,
+  );
+
+  /// The search entries for [snippets]: the row text as the preview.
+  static List<ClipItem> searchEntriesFor(List<SnippetItem> snippets) => [
+    for (final s in snippets) _entryFor(s),
+  ];
   Timer? _warmTimer;
 
   StreamSubscription<PickerNativeEvent>? _events;
@@ -179,8 +228,10 @@ class PickerController extends ChangeNotifier {
     await start();
     if (_disposed) return;
     _history?.removeListener(_scheduleWarm);
+    _history?.snippets.removeListener(_scheduleWarm);
     _history = history;
     history.addListener(_scheduleWarm);
+    history.snippets.addListener(_scheduleWarm);
     _scheduleWarm();
     _pasteMode = PasteMode.parse(history.setting('paste_mode'));
     if (_unsavedShortcut) {
@@ -209,7 +260,11 @@ class PickerController extends ChangeNotifier {
   void _scheduleWarm() {
     if (_warmTimer != null || _disposed) return;
     final items = _history?.items;
-    if (items == null || !search.warm(items)) return;
+    if (items == null) return;
+    // Both indexes, in small steps (not short-circuited: each gets its step).
+    final moreHistory = search.warm(items);
+    final moreSnippets = snippetSearch.warm(snippetEntries);
+    if (!moreHistory && !moreSnippets) return;
     _warmTimer = Timer(const Duration(milliseconds: 1), () {
       _warmTimer = null;
       _scheduleWarm();
@@ -446,6 +501,7 @@ class PickerController extends ChangeNotifier {
     _toastTimer?.cancel();
     _warmTimer?.cancel();
     _history?.removeListener(_scheduleWarm);
+    _history?.snippets.removeListener(_scheduleWarm);
     unawaited(_events?.cancel());
     super.dispose();
   }

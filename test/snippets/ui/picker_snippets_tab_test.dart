@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/memory_history_store.dart';
 import 'package:kusunga/picker/picker_controller.dart';
+import 'package:kusunga/picker/picker_search.dart';
 import 'package:kusunga/picker/ui/picker_panel.dart';
 import 'package:kusunga/snippets/memory_snippet_store.dart';
 import 'package:kusunga/snippets/snippet.dart';
@@ -239,5 +240,27 @@ void main() {
       find.byKey(const ValueKey('picker-row-text')),
     );
     expect(text.maxLines, 1);
+  });
+
+  testWidgets('a match is always in the row and highlighted (F8)', (
+    tester,
+  ) async {
+    addSnippet('Home', '\n  1 High Street', SnippetType.address);
+    addSnippet('Work email', 'will@example.com', SnippetType.email);
+    await show(tester);
+    await switchTab(tester);
+    for (final q in ['home', 'home — 1', 'street', 'l@ex', 'ail — w']) {
+      await tester.enterText(find.byType(TextField), q);
+      await tester.pump();
+      final rows = rowTexts(tester);
+      expect(rows, isNotEmpty, reason: q);
+      for (final r in rows) {
+        expect(PickerSearch.ranges(r, q), isNotEmpty, reason: '$q in $r');
+      }
+    }
+    // Text that only matched across the hidden line break is not a match.
+    await tester.enterText(find.byType(TextField), 'home 1');
+    await tester.pump();
+    expect(rowTexts(tester), isEmpty);
   });
 }

@@ -12,6 +12,7 @@ import '../../history/ui/text_display.dart';
 import '../../snippets/snippet.dart';
 import '../../snippets/snippet_service.dart';
 import '../../snippets/ui/snippet_icons.dart';
+import '../../snippets/ui/snippet_text.dart';
 import '../../theme/tokens.dart';
 import '../../ui/tab_strip.dart';
 import '../picker_controller.dart';
@@ -51,9 +52,6 @@ class _PickerPanelState extends State<PickerPanel>
   /// decision D3): this state is new each time the picker opens.
   var _snippetsTab = false;
   String _tabAnnouncement = '';
-  List<SnippetItem>? _snippetSource;
-  var _snippetEntries = const <ClipItem>[];
-  var _snippetById = const <int, SnippetItem>{};
   var _query = '';
   int? _selectedId;
   var _filtered = const <ClipItem>[];
@@ -140,30 +138,9 @@ class _PickerPanelState extends State<PickerPanel>
     _updateCount();
   }
 
-  // What search sees of a snippet: its name and its content.
-  List<ClipItem> _snippetsForSearch() {
-    final items = _boundSnippets?.items ?? const <SnippetItem>[];
-    if (!identical(items, _snippetSource)) {
-      _snippetSource = items;
-      _snippetById = {for (final s in items) s.id: s};
-      _snippetEntries = [
-        for (final s in items)
-          ClipItem(
-            id: s.id,
-            kind: ClipKind.text,
-            preview: '${s.name}\n${s.preview}',
-            isTruncated: s.isTruncated,
-            createdAt: s.createdAt,
-            lastCopiedAt: s.updatedAt,
-          ),
-      ];
-    }
-    return _snippetEntries;
-  }
-
   void _recompute() {
     final all = _snippetsTab
-        ? _snippetsForSearch()
+        ? _controller.snippetEntries
         : _bound?.items ?? const <ClipItem>[];
     _total = all.length;
     _filtered = (_snippetsTab ? _controller.snippetSearch : _controller.search)
@@ -516,7 +493,7 @@ class _PickerPanelState extends State<PickerPanel>
   }
 
   String _rowName(int index, ClipItem item) {
-    final snippet = _snippetsTab ? _snippetById[item.id] : null;
+    final snippet = _snippetsTab ? _controller.snippetById(item.id) : null;
     final base = snippet != null
         ? snippetPickerName(snippet)
         : HistoryRow.semanticName(item, _nowMs);
@@ -535,7 +512,7 @@ class _PickerPanelState extends State<PickerPanel>
         return _PickerRow(
           key: ValueKey(item.id),
           item: item,
-          snippet: _snippetsTab ? _snippetById[item.id] : null,
+          snippet: _snippetsTab ? _controller.snippetById(item.id) : null,
           number: i < 9 ? i + 1 : null,
           selected: i == selected,
           query: _query,
@@ -546,15 +523,6 @@ class _PickerPanelState extends State<PickerPanel>
       },
     );
   }
-}
-
-/// "Phone, My mobile, 07700 900123": the type, the name and one line of the
-/// content (at most 500 characters), for screen readers.
-String snippetPickerName(SnippetItem s) {
-  final text = PickerSearch.display(s.preview);
-  final shown = cutUnits(text, 500);
-  final more = text.length > 500 || s.isTruncated ? '…' : '';
-  return '${s.type.label}, ${PickerSearch.display(s.name)}, $shown$more';
 }
 
 class _SearchField extends StatelessWidget {
@@ -676,10 +644,10 @@ class _PickerRowState extends State<_PickerRow> {
       fontWeight: selected ? FontWeight.bold : FontWeight.normal,
     );
     final snippet = widget.snippet;
+    // A snippet row shows exactly the text search matched (F8).
     final display = snippet == null
         ? PickerSearch.display(item.preview)
-        : '${PickerSearch.display(snippet.name)} — '
-              '${PickerSearch.display(snippet.preview)}';
+        : snippetLine(snippet);
 
     return Semantics(
       identifier: snippet == null

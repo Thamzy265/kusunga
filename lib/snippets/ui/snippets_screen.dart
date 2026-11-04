@@ -5,13 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
-import '../../history/clip_item.dart';
 import '../../history/ui/text_display.dart';
 import '../../theme/tokens.dart';
 import '../snippet.dart';
 import '../snippet_service.dart';
 import 'snippet_editor.dart';
 import 'snippet_icons.dart';
+import 'snippet_text.dart';
+
+export 'snippet_text.dart' show OneLine;
 
 /// The Snippets tab of the main window: the user's snippets in their order,
 /// with Copy, Edit, Move up, Move down and Delete (with Undo). Spec:
@@ -414,14 +416,6 @@ class SnippetsScreenState extends State<SnippetsScreen> {
   }
 }
 
-/// The one-line form of a name or a content preview, for display and screen
-/// readers: control and invisible characters shown, white space as one space.
-abstract final class OneLine {
-  static final _white = RegExp(r'\s+');
-  static String of(String text) =>
-      visibleText(text).replaceAll(_white, ' ').trim();
-}
-
 /// One snippet: type icon, name, one line of content, and the row actions
 /// (shown on hover or focus; in a "More" menu under 600 px).
 class SnippetRow extends StatefulWidget {
@@ -463,12 +457,7 @@ class SnippetRow extends StatefulWidget {
   final int slideTick;
 
   /// "My mobile, Phone, 07700 900123".
-  static String semanticName(SnippetItem item) {
-    final text = OneLine.of(item.preview);
-    final cut = text.length > 500 || item.isTruncated ? '…' : '';
-    return '${OneLine.of(item.name)}, ${item.type.label}, '
-        '${cutUnits(text, 500)}$cut';
-  }
+  static String semanticName(SnippetItem item) => snippetRowName(item);
 
   @override
   State<SnippetRow> createState() => _SnippetRowState();
