@@ -54,7 +54,7 @@ Main window, Snippets tab (the window size is unchanged: 800 × 632, min 360 × 
 └─────────────────────────────────────────────────────┘
 ```
 
-Editor (a sheet over the window; a full-window view under 480 px):
+Editor (a sheet over the window; a full-window view under 600 px):
 
 ```
 ┌ New snippet ───────────────────────────────┐
@@ -95,7 +95,7 @@ Picker with tabs (the same 560 × 420 panel as M1.3):
 | Save as snippet (history row action) | New action between Copy and Delete | Shown on hover | Focusable with Tab; shortcut S on the focused row | Off in memory-only mode and at the cap | n/a | n/a | n/a | Opens the editor filled in: first line as the name (40 characters), suggested type, full text | n/a | n/a | n/a |
 | Picker tabs (History, Snippets) | Opens on the tab chosen in D3 (History recommended) | Hover background | Focus stays in the search field; ⌃Tab / ⌃⇧Tab (Ctrl+Tab on Windows) switch tabs; a click works too | n/a | n/a | Snippets tab with none: "No snippets yet" / "Save one from Kusunga's main window." | n/a | Switching keeps the query, filters the new tab, selects its first row and announces "Snippets, 4 items" | n/a | n/a | n/a |
 | Picker snippet row | Number 1–9 for the first nine, type icon, "Name — content" on one line | `color.surface.hover` | Selected: `color.selection` + ▶ marker; announced "1, Phone, My mobile, 07700 900123" | n/a | n/a | n/a | n/a | Pasted as in M1.3 | Ellipsis; matches bold + underlined | n/a | Paste falls back to copy only, as in M1.3 |
-| Snippets banner (memory-only, incompatible) | Hidden | n/a | Focusable, announced (polite) | n/a | n/a | n/a | "Snippets can't be saved right now, because Kusunga can't reach your keychain. Your saved snippets still paste." | n/a | Wraps | n/a | n/a |
+| Snippets banner (unavailable modes) | Hidden | n/a | Focusable, announced (polite) | n/a | n/a | n/a | Text by mode (see Copy, "Banners"); in every mode the snippets can't be read, so the list below is empty and New, Edit and Save as snippet are off | n/a | Wraps | n/a | n/a |
 | Footer count | "N snippets" | n/a | Status, not focusable | n/a | n/a | "0 snippets" | n/a | Updates (polite, throttled to 2 s) | n/a | n/a | n/a |
 
 ## Breakpoints
@@ -142,7 +142,12 @@ Picker with tabs (the same 560 × 420 panel as M1.3):
 - Empty states:
   - Main window: "No snippets yet" / "Save things you paste often, like your phone number or email."
   - Picker: "No snippets yet" / "Save one from Kusunga's main window."
-- Banner: "Snippets can't be saved right now, because Kusunga can't reach your keychain. Your saved snippets still paste."
+- Banners, by mode (draft — wording to be confirmed by the PM):
+  - Keychain unreachable: "Snippets can't be opened right now, because Kusunga can't reach your keychain."
+  - Newer file: "Your snippets were saved by a newer version of Kusunga. Update Kusunga to see them."
+  - Update failed: "Kusunga couldn't update your saved data, so nothing was changed. Quit and reopen Kusunga to try again."
+  - Safety copy couldn't be made (History and Snippets): "Kusunga couldn't make a safety copy of your data, so nothing was changed. Free up some disk space, then quit and reopen Kusunga."
+- Editor banner when the full text can't be read: "Couldn't open the snippet. Try again."
 - Picker:
   - Placeholder "Search snippets…" on the Snippets tab.
   - Footer hints "⌃Tab Switch" (Windows "Ctrl+Tab Switch") and "N snippets" / "N matches".

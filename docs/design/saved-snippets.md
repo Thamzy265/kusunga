@@ -67,7 +67,7 @@ CREATE INDEX idx_snippets_position ON snippets (position);
 - **Pinning** a history item copies its full text (`contentOf`) into a new snippet. The suggested name is the first line, cut to 40 characters, and the type is suggested from the content. The history item stays where it is (PM decision D2).
 - **Not stored:** where the content came from, or how often it is pasted. There's no use for it yet.
 - **Migration:** v2 → v3 is expand-only, a new table. The runner keeps the `.bak` copy until success (M1.2). A v2 build seeing a v3 file runs memory-only with the "incompatible" banner and leaves the file untouched (M1.2 C1). A test checks that v2 → v3 keeps every history item and setting.
-- **Memory-only mode** (keychain unreachable): snippets can't be saved. The Snippets tab shows the banner and disables New, Edit and Pin, so the user never types something that is lost on quit. The picker still pastes snippets that were loaded.
+- **Memory-only mode** (keychain unreachable): snippets can't be saved. The Snippets tab shows the banner and disables New, Edit and Pin, so the user never types something that is lost on quit. The snippets can't be read in these modes, so the Snippets tabs are empty and say why (UI spec, Banners).
 
 ## Options
 
