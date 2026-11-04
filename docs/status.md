@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-04 — M1.3 History picker and paste — Reviewer: approve
+- Changed: reviewer confirmed G2r, T1, R1 fixed (each new test fails on c0a297a). CI run 41802611042 green on macOS and Windows. No findings open.
+- Gates: developer pass · tester pass · reviewer approve · QA running · PM merge waiting
+- Open findings: none
+- Decisions: none
+- Blockers: QA part 2 needs the PM to allow pasting; Windows runtime still unrun (CI only)
+
 ## 2026-11-04 — M1.3 History picker and paste — QA re-run started
 - Changed: QA built c175b71; PM opened it and answered the keychain prompt. QA re-runs part 1.
 - Gates: developer pass · tester pass · reviewer confirming c175b71 · QA running · PM merge waiting
