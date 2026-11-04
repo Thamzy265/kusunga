@@ -91,7 +91,7 @@ No network. Failure paths:
 
 ## Observability
 
-Log codes only: `hotkeyRegisterFailed`, `pasteFocusTimeout`, `pastePermissionMissing`, `pasteTargetElevated`, `pasteTargetGone`. No content, no app names, no window titles. QA watches picker-open and paste latency.
+Log codes only: `hotkeyRegisterFailed`, `pasteFocusTimeout`, `pastePermissionMissing`, `pasteCopyOnly` (copy-only for any other reason: paste mode, a modifier key still held, an unreadable integrity level, no key that types "v"), `pasteTargetElevated`, `pasteTargetGone`. No content, no app names, no window titles. QA watches picker-open and paste latency.
 
 ## Trust boundaries and abuse cases
 

@@ -16,7 +16,9 @@
 //
 // Channels (names match lib/clipboard/channel_clipboard_source.dart and
 // lib/lifecycle/app_lifecycle.dart):
-//  - event "com.wnasoni.kusunga/clipboard/events": copies.
+//  - event "com.wnasoni.kusunga/clipboard/events": copies. A text event has
+//    "own": true when the copy carries Kusunga's own marker format
+//    ("com.wnasoni.kusunga.self", written by the picker).
 //    Listening starts the watcher (AddClipboardFormatListener); cancelling
 //    stops it.
 //  - method "com.wnasoni.kusunga/clipboard": "accessBehavior"
@@ -54,6 +56,7 @@ class ClipboardBridge {
   UINT format_exclude_ = 0;
   UINT format_can_include_ = 0;
   UINT format_viewer_ignore_ = 0;
+  UINT format_own_ = 0;
 };
 
 #endif  // RUNNER_CLIPBOARD_BRIDGE_H_

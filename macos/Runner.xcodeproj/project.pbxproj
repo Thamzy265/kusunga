@@ -21,7 +21,15 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		A1B2C3D4E5F60718293A4B35 /* DiagLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B25 /* DiagLog.swift */; };
+		A1B2C3D4E5F60718293A4B33 /* PickerBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B23 /* PickerBridge.swift */; };
+		A1B2C3D4E5F60718293A4B32 /* PickerWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B22 /* PickerWindow.swift */; };
+		A1B2C3D4E5F60718293A4B31 /* HotKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B21 /* HotKeys.swift */; };
+		A1B2C3D4E5F60718293A4B30 /* PasteFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B20 /* PasteFlow.swift */; };
 		331C80D8294CF71000263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C80D7294CF71000263BE5 /* RunnerTests.swift */; };
+		A1B2C3D4E5F60718293A4B34 /* PickerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B24 /* PickerTests.swift */; };
+		E7E57ED001A2B3C4D5E6F701 /* PickerEdgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E57ED001A2B3C4D5E6F702 /* PickerEdgeTests.swift */; };
+		E7E57ED002A2B3C4D5E6F701 /* DiagEdgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E57ED002A2B3C4D5E6F702 /* DiagEdgeTests.swift */; };
 		335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */; };
 		33CC10F12044A3C60003C045 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC10F02044A3C60003C045 /* AppDelegate.swift */; };
 		A1B2C3D4E5F60718293A4B13 /* ClipboardBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B03 /* ClipboardBridge.swift */; };
@@ -64,8 +72,16 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A1B2C3D4E5F60718293A4B25 /* DiagLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagLog.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B23 /* PickerBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickerBridge.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B22 /* PickerWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickerWindow.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B21 /* HotKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeys.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B20 /* PasteFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteFlow.swift; sourceTree = "<group>"; };
 		331C80D5294CF71000263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		331C80D7294CF71000263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B24 /* PickerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickerTests.swift; sourceTree = "<group>"; };
+		E7E57ED001A2B3C4D5E6F702 /* PickerEdgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickerEdgeTests.swift; sourceTree = "<group>"; };
+		E7E57ED002A2B3C4D5E6F702 /* DiagEdgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagEdgeTests.swift; sourceTree = "<group>"; };
 		333000ED22D3DE5D00554162 /* Warnings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Warnings.xcconfig; sourceTree = "<group>"; };
 		335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = GeneratedPluginRegistrant.swift; sourceTree = "<group>"; };
 		33CC10ED2044A3C60003C045 /* kusunga.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "kusunga.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -111,6 +127,9 @@
 			isa = PBXGroup;
 			children = (
 				331C80D7294CF71000263BE5 /* RunnerTests.swift */,
+				A1B2C3D4E5F60718293A4B24 /* PickerTests.swift */,
+				E7E57ED001A2B3C4D5E6F702 /* PickerEdgeTests.swift */,
+				E7E57ED002A2B3C4D5E6F702 /* DiagEdgeTests.swift */,
 			);
 			path = RunnerTests;
 			sourceTree = "<group>";
@@ -176,6 +195,11 @@
 				A1B2C3D4E5F60718293A4B03 /* ClipboardBridge.swift */,
 				A1B2C3D4E5F60718293A4B02 /* AppLifecycle.swift */,
 				A1B2C3D4E5F60718293A4B01 /* ClipboardWatcher.swift */,
+				A1B2C3D4E5F60718293A4B25 /* DiagLog.swift */,
+				A1B2C3D4E5F60718293A4B23 /* PickerBridge.swift */,
+				A1B2C3D4E5F60718293A4B22 /* PickerWindow.swift */,
+				A1B2C3D4E5F60718293A4B21 /* HotKeys.swift */,
+				A1B2C3D4E5F60718293A4B20 /* PasteFlow.swift */,
 				33CC11122044BFA00003C045 /* MainFlutterWindow.swift */,
 				33E51913231747F40026EE4D /* DebugProfile.entitlements */,
 				33E51914231749380026EE4D /* Release.entitlements */,
@@ -356,6 +380,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				331C80D8294CF71000263BE5 /* RunnerTests.swift in Sources */,
+				A1B2C3D4E5F60718293A4B34 /* PickerTests.swift in Sources */,
+				E7E57ED001A2B3C4D5E6F701 /* PickerEdgeTests.swift in Sources */,
+				E7E57ED002A2B3C4D5E6F701 /* DiagEdgeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -368,6 +395,11 @@
 				A1B2C3D4E5F60718293A4B13 /* ClipboardBridge.swift in Sources */,
 				A1B2C3D4E5F60718293A4B12 /* AppLifecycle.swift in Sources */,
 				A1B2C3D4E5F60718293A4B11 /* ClipboardWatcher.swift in Sources */,
+				A1B2C3D4E5F60718293A4B35 /* DiagLog.swift in Sources */,
+				A1B2C3D4E5F60718293A4B33 /* PickerBridge.swift in Sources */,
+				A1B2C3D4E5F60718293A4B32 /* PickerWindow.swift in Sources */,
+				A1B2C3D4E5F60718293A4B31 /* HotKeys.swift in Sources */,
+				A1B2C3D4E5F60718293A4B30 /* PasteFlow.swift in Sources */,
 				335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -483,7 +515,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -565,7 +597,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
@@ -615,7 +647,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;

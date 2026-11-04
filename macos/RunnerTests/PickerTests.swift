@@ -1,0 +1,1073 @@
+import Cocoa
+import XCTest
+
+@testable import Kusunga
+
+// MARK: - Paste flow
+
+/// A pretend Mac: time only moves when the flow sleeps, so the 500 ms and
+/// 300 ms limits are tested without waiting.
+final class FakePastePlatform: PastePlatform {
+  var log: [String] = []
+  var now = 0
+
+  var front: pid_t? = 100
+  var running: Set<pid_t> = [200]
+  var activateResult = true
+  /// The target becomes the frontmost app this many ms after activate (nil:
+  /// never).
+  var frontAfterMs: Int? = 20
+  var activatedAt: Int?
+  /// Another app grabs the front at this time (nil: never).
+  var stealAtMs: Int?
+  var stealer: pid_t = 300
+  /// Modifier keys are down until this time (nil: not held; Int.max: held).
+  var modifiersHeldUntilMs: Int?
+  var canPost = true
+  /// The debug switch that posts even without permission.
+  var forcePost = false
+  /// The key that types "v" in the pretend layout (nil: none does).
+  var keyCode: UInt16? = 9
+
+  private func advance() {
+    if let a = activatedAt, let d = frontAfterMs, now >= a + d, front != 300 {
+      front = 200
+    }
+    if let s = stealAtMs, now >= s { front = stealer }
+  }
+
+  func hidePicker() { log.append("hide") }
+
+  func frontmostPid() -> pid_t? {
+    advance()
+    return front
+  }
+
+  func isRunning(_ pid: pid_t) -> Bool { running.contains(pid) }
+
+  func activate(_ pid: pid_t) -> Bool {
+    log.append("activate")
+    if activateResult { activatedAt = now }
+    return activateResult
+  }
+
+  func modifiersDown() -> Bool {
+    guard let until = modifiersHeldUntilMs else { return false }
+    return now < until
+  }
+
+  func canPostEvents() -> Bool { canPost }
+  func forcePostEnabled() -> Bool { forcePost }
+  func pasteKeyCode() -> UInt16? { keyCode }
+
+  func postPaste() { log.append("post@\(now)") }
+
+  func sleep(ms: Int) { now += ms }
+  func nowMs() -> Int { now }
+}
+
+final class FakePasteboardWriter: PasteboardWriting {
+  var written: [String] = []
+  var succeeds = true
+  var onWrite: (() -> Void)?
+  func writeText(_ text: String) -> Bool {
+    written.append(text)
+    onWrite?()
+    return succeeds
+  }
+}
+
+class PasteFlowTests: XCTestCase {
+  var platform: FakePastePlatform!
+  var writer: FakePasteboardWriter!
+  var flow: PasteFlow!
+
+  override func setUp() {
+    platform = FakePastePlatform()
+    writer = FakePasteboardWriter()
+    flow = PasteFlow(platform: platform, writer: writer, ownPid: 1)
+  }
+
+  func testWritesHidesActivatesThenPostsInThatOrder() {
+    writer.onWrite = { [unowned self] in self.platform.log.append("write") }
+    let result = flow.run(text: "hello", target: 200, post: true)
+    XCTAssertEqual(result, .pasted)
+    XCTAssertEqual(platform.log.first, "write")
+    XCTAssertEqual(Array(platform.log.prefix(3)), ["write", "hide", "activate"])
+    XCTAssertTrue(platform.log.last!.hasPrefix("post@"))
+    XCTAssertEqual(platform.log.filter { $0.hasPrefix("post") }.count, 1)
+    XCTAssertEqual(writer.written, ["hello"])
+  }
+
+  func testPostsOnlyAfterTheTargetIsFrontmost() {
+    platform.frontAfterMs = 120
+    let result = flow.run(text: "x", target: 200, post: true)
+    XCTAssertEqual(result, .pasted)
+    let postedAt = Int(platform.log.last!.dropFirst(5))!
+    XCTAssertGreaterThanOrEqual(postedAt, 120)
+  }
+
+  func testFocusNotBackWithinHalfASecondNeverPosts() {
+    platform.frontAfterMs = nil
+    let result = flow.run(text: "x", target: 200, post: true)
+    XCTAssertEqual(result, .focusTimeout)
+    XCTAssertFalse(platform.log.contains { $0.hasPrefix("post") })
+    XCTAssertGreaterThanOrEqual(platform.now, 500)
+    XCTAssertLessThanOrEqual(platform.now, 520, "gives up at 500 ms")
+    XCTAssertEqual(writer.written, ["x"], "the text is on the clipboard anyway")
+  }
+
+  func testFocusArrivingJustInTimeStillPastes() {
+    platform.frontAfterMs = 490
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .pasted)
+  }
+
+  func testFocusArrivingTooLateDoesNotPaste() {
+    platform.frontAfterMs = 530
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .focusTimeout)
+    XCTAssertFalse(platform.log.contains { $0.hasPrefix("post") })
+  }
+
+  func testNeverPostsIntoKusungaItself() {
+    for target in [nil, 1] as [pid_t?] {
+      setUp()
+      platform.front = 1
+      let result = flow.run(text: "x", target: target, post: true)
+      XCTAssertEqual(result, .targetGone, "target \(String(describing: target))")
+      XCTAssertFalse(platform.log.contains("activate"))
+      XCTAssertFalse(platform.log.contains { $0.hasPrefix("post") })
+      XCTAssertEqual(writer.written, ["x"])
+    }
+  }
+
+  func testTargetThatQuitIsReportedAndNothingIsPosted() {
+    platform.running = []
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .targetGone)
+    XCTAssertFalse(platform.log.contains { $0.hasPrefix("post") })
+  }
+
+  func testActivationThatIsRefusedIsTargetGone() {
+    platform.activateResult = false
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .targetGone)
+    XCTAssertFalse(platform.log.contains { $0.hasPrefix("post") })
+  }
+
+  func testCopyOnlyModeActivatesButDoesNotPost() {
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: false), .copyOnly)
+    XCTAssertTrue(platform.log.contains("activate"))
+    XCTAssertFalse(platform.log.contains { $0.hasPrefix("post") })
+  }
+
+  func testMissingPermissionCopiesOnly() {
+    platform.canPost = false
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .noPermission)
+    XCTAssertFalse(platform.log.contains { $0.hasPrefix("post") })
+    XCTAssertTrue(platform.log.contains("activate"), "focus still goes back")
+  }
+
+  func testWaitsForTheModifierKeysToBeReleased() {
+    platform.modifiersHeldUntilMs = 150
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .pasted)
+    let postedAt = Int(platform.log.last!.dropFirst(5))!
+    XCTAssertGreaterThanOrEqual(postedAt, 150)
+  }
+
+  func testKeysHeldForeverAreWaitedForAtMost300ms() {
+    platform.modifiersHeldUntilMs = Int.max
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .pasted)
+    let postedAt = Int(platform.log.last!.dropFirst(5))!
+    // Focus came back at ~20 ms; the wait then adds up to 300 ms.
+    XCTAssertLessThanOrEqual(postedAt, 20 + 300 + 30)
+    XCTAssertGreaterThanOrEqual(postedAt, 300)
+  }
+
+  func testFocusStolenWhileWaitingForTheKeysNeverPosts() {
+    platform.modifiersHeldUntilMs = 200
+    platform.stealAtMs = 100
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .focusTimeout)
+    XCTAssertFalse(platform.log.contains { $0.hasPrefix("post") })
+  }
+
+  func testAnotherAppInFrontAtTheStartIsNotPostedInto() {
+    platform.frontAfterMs = nil
+    platform.front = 300
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .focusTimeout)
+    XCTAssertFalse(platform.log.contains { $0.hasPrefix("post") })
+  }
+
+  func testAClipboardThatCannotBeWrittenIsReportedAndNothingElseHappensToTheTarget() {
+    writer.succeeds = false
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .failed)
+    XCTAssertFalse(platform.log.contains("activate"))
+    XCTAssertFalse(platform.log.contains { $0.hasPrefix("post") })
+    XCTAssertTrue(platform.log.contains("hide"), "the picker still goes away")
+  }
+
+  func testTheFullTextIsWrittenNotAPreview() {
+    let long = String(repeating: "ab", count: 50_000)
+    _ = flow.run(text: long, target: 200, post: true)
+    XCTAssertEqual(writer.written, [long])
+  }
+
+  func testPollingIsEveryTenMilliseconds() {
+    platform.frontAfterMs = nil
+    _ = flow.run(text: "x", target: 200, post: true)
+    XCTAssertEqual(platform.now % 10, 0)
+  }
+}
+
+// MARK: - The pasteboard marker (on a private pasteboard, never the real one)
+
+class PasteboardMarkerTests: XCTestCase {
+  var pasteboard: NSPasteboard!
+
+  override func setUp() {
+    pasteboard = NSPasteboard(
+      name: NSPasteboard.Name("com.wnasoni.kusunga.test.\(UUID().uuidString)"))
+  }
+
+  override func tearDown() {
+    pasteboard.releaseGlobally()
+  }
+
+  func testWritesTheTextAndOurMarker() {
+    let writer = NSPasteboardWriter(pasteboard: pasteboard)
+    XCTAssertTrue(writer.writeText("hello\nworld 🙂"))
+    XCTAssertEqual(pasteboard.string(forType: .string), "hello\nworld 🙂")
+    XCTAssertTrue(pasteboard.types?.map { $0.rawValue }.contains("com.wnasoni.kusunga.self") ?? false)
+  }
+
+  func testReplacesWhatWasThere() {
+    pasteboard.clearContents()
+    pasteboard.setString("old", forType: .string)
+    pasteboard.setString("x", forType: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+    XCTAssertTrue(NSPasteboardWriter(pasteboard: pasteboard).writeText("new"))
+    XCTAssertEqual(pasteboard.string(forType: .string), "new")
+    XCTAssertFalse(
+      pasteboard.types?.map { $0.rawValue }.contains("org.nspasteboard.ConcealedType") ?? true,
+      "an old secret marker must not stay on a new item")
+  }
+
+  func testTheWatcherSeesOurWriteAsOurOwn() {
+    var events: [[String: Any]] = []
+    let watched = ClipboardPoller(pasteboard: pasteboard) { events.append($0) }
+    watched.prime()
+    XCTAssertTrue(NSPasteboardWriter(pasteboard: pasteboard).writeText("from picker"))
+    watched.tick()
+    XCTAssertEqual(events.count, 1)
+    XCTAssertEqual(events[0]["type"] as? String, "text")
+    XCTAssertEqual(events[0]["text"] as? String, "from picker")
+    XCTAssertEqual(events[0]["own"] as? Bool, true)
+  }
+
+  func testAnOrdinaryCopyHasNoOwnFlag() {
+    var events: [[String: Any]] = []
+    let watched = ClipboardPoller(pasteboard: pasteboard) { events.append($0) }
+    watched.prime()
+    pasteboard.clearContents()
+    pasteboard.setString("plain", forType: .string)
+    watched.tick()
+    XCTAssertEqual(events.count, 1)
+    XCTAssertNil(events[0]["own"])
+  }
+}
+
+class ClipboardPollerOwnMarkerTests: XCTestCase {
+  var pasteboard: FakePasteboard!
+  var events: [[String: Any]]!
+  var poller: ClipboardPoller!
+
+  override func setUp() {
+    pasteboard = FakePasteboard()
+    events = []
+    poller = ClipboardPoller(pasteboard: pasteboard) { [unowned self] in self.events.append($0) }
+    poller.prime()
+  }
+
+  let own = "com.wnasoni.kusunga.self"
+
+  func testMarkerIsReportedAsOwn() {
+    pasteboard.copy("a", types: ["public.utf8-plain-text", own])
+    poller.tick()
+    XCTAssertEqual(events.count, 1)
+    XCTAssertEqual(events[0]["own"] as? Bool, true)
+  }
+
+  func testTheMarkerNeverSkipsTheSecretCheck() {
+    // Any app can add our marker. A secret marker still wins, and the text is
+    // never read.
+    for secret in [
+      "org.nspasteboard.ConcealedType", "org.nspasteboard.TransientType",
+      "org.nspasteboard.AutoGeneratedType",
+    ] {
+      setUp()
+      pasteboard.copy("secret", types: ["public.utf8-plain-text", own, secret])
+      poller.tick()
+      XCTAssertEqual(events.count, 1, secret)
+      XCTAssertEqual(events[0]["type"] as? String, "concealed", secret)
+      XCTAssertNil(events[0]["own"], secret)
+      XCTAssertNil(events[0]["text"], secret)
+      XCTAssertEqual(pasteboard.textReads, 0, "never read: \(secret)")
+    }
+  }
+
+  func testMarkerWithoutTextIsIgnored() {
+    pasteboard.copy(nil, types: [own])
+    poller.tick()
+    XCTAssertTrue(events.isEmpty)
+  }
+
+  func testOwnFlagComesWithTheTextOfARetriedRead() {
+    pasteboard.copy(nil, types: ["public.utf8-plain-text", own])
+    poller.tick()
+    XCTAssertTrue(events.isEmpty)
+    pasteboard.text = "late"
+    poller.tick()  // read, held
+    poller.tick()  // confirmed
+    XCTAssertEqual(events.count, 1)
+    XCTAssertEqual(events[0]["text"] as? String, "late")
+    XCTAssertEqual(events[0]["own"] as? Bool, true)
+  }
+
+  func testTooLargeOwnTextIsStillTooLarge() {
+    pasteboard.copy(
+      String(repeating: "x", count: ClipboardPolicy.maxBytes + 1),
+      types: ["public.utf8-plain-text", own])
+    poller.tick()
+    XCTAssertEqual(events.count, 1)
+    XCTAssertEqual(events[0]["type"] as? String, "tooLarge")
+  }
+
+  func testMarkerConstantMatchesTheDesign() {
+    XCTAssertEqual(ClipboardPolicy.ownMarkerType, "com.wnasoni.kusunga.self")
+  }
+}
+
+// MARK: - Shortcut keys
+
+class HotKeyMapTests: XCTestCase {
+  func testEveryKeyTheAppAllowsHasAUniqueCode() {
+    var names = (97...122).map { String(UnicodeScalar($0)!) }
+    names += (0...9).map { String($0) }
+    names += (1...12).map { "f\($0)" }
+    names.append("space")
+    var seen = Set<UInt32>()
+    for n in names {
+      guard let code = HotKeyMap.keyCode(for: n) else {
+        return XCTFail("no code for \(n)")
+      }
+      XCTAssertTrue(seen.insert(code).inserted, "duplicate code for \(n)")
+    }
+    XCTAssertEqual(names.count, 26 + 10 + 12 + 1)
+  }
+
+  func testKnownCodes() {
+    XCTAssertEqual(HotKeyMap.keyCode(for: "v"), 9)
+    XCTAssertEqual(HotKeyMap.keyCode(for: "a"), 0)
+    XCTAssertEqual(HotKeyMap.keyCode(for: "z"), 6)
+    XCTAssertEqual(HotKeyMap.keyCode(for: "1"), 18)
+    XCTAssertEqual(HotKeyMap.keyCode(for: "0"), 29)
+    XCTAssertEqual(HotKeyMap.keyCode(for: "space"), 49)
+    XCTAssertEqual(HotKeyMap.keyCode(for: "f1"), 122)
+    XCTAssertEqual(HotKeyMap.keyCode(for: "f12"), 111)
+  }
+
+  func testOtherNamesAreRejected() {
+    for n in ["", "V", "enter", "f13", "ab", "é", "esc", "tab"] {
+      XCTAssertNil(HotKeyMap.keyCode(for: n), n)
+    }
+  }
+
+  func testModifiersBecomeCarbonFlags() {
+    XCTAssertEqual(HotKeyMap.carbonModifiers(["meta"]), 0x0100)
+    XCTAssertEqual(HotKeyMap.carbonModifiers(["shift"]), 0x0200)
+    XCTAssertEqual(HotKeyMap.carbonModifiers(["alt"]), 0x0800)
+    XCTAssertEqual(HotKeyMap.carbonModifiers(["ctrl"]), 0x1000)
+    XCTAssertEqual(HotKeyMap.carbonModifiers(["shift", "meta"]), 0x0300)
+    XCTAssertEqual(HotKeyMap.carbonModifiers([]), 0)
+  }
+
+  func testUnknownModifiersAreRejected() {
+    XCTAssertNil(HotKeyMap.carbonModifiers(["meta", "hyper"]))
+    XCTAssertNil(HotKeyMap.carbonModifiers(["Meta"]))
+  }
+}
+
+final class FakeHotKeyBackend: HotKeyBackend {
+  var taken: Set<String> = []
+  var failWith: String?
+  var log: [String] = []
+  var live: [Int: String] = [:]
+  private var next = 1
+
+  func register(keyCode: UInt32, modifiers: UInt32) -> HotKeyRegistration {
+    let id = "\(keyCode)/\(modifiers)"
+    log.append("register \(id)")
+    if let f = failWith { return .failed(f) }
+    if taken.contains(id) || live.values.contains(id) { return .taken }
+    let handle = next
+    next += 1
+    live[handle] = id
+    return .ok(handle)
+  }
+
+  func unregister(_ handle: Int) {
+    log.append("unregister \(live[handle] ?? "?")")
+    live[handle] = nil
+  }
+}
+
+class HotKeyRegistryTests: XCTestCase {
+  var backend: FakeHotKeyBackend!
+  var registry: HotKeyRegistry!
+
+  override func setUp() {
+    backend = FakeHotKeyBackend()
+    registry = HotKeyRegistry(backend: backend)
+  }
+
+  func testRegistersAValidShortcut() {
+    XCTAssertEqual(registry.set(key: "v", modifiers: ["shift", "meta"]), "ok")
+    XCTAssertEqual(backend.live.values.sorted(), ["9/768"])
+  }
+
+  func testAnInvalidKeyOrModifierNeverReachesTheSystem() {
+    XCTAssertEqual(registry.set(key: "enter", modifiers: ["meta"]), "invalid")
+    XCTAssertEqual(registry.set(key: "v", modifiers: ["hyper"]), "invalid")
+    XCTAssertEqual(registry.set(key: "v", modifiers: []), "invalid", "needs a modifier")
+    XCTAssertTrue(backend.log.isEmpty)
+  }
+
+  func testShiftAloneIsNotEnough() {
+    XCTAssertEqual(registry.set(key: "v", modifiers: ["shift"]), "invalid")
+    XCTAssertTrue(backend.log.isEmpty)
+  }
+
+  func testTheNewShortcutIsRegisteredBeforeTheOldOneIsReleased() {
+    _ = registry.set(key: "v", modifiers: ["shift", "meta"])
+    backend.log.removeAll()
+    XCTAssertEqual(registry.set(key: "k", modifiers: ["alt"]), "ok")
+    XCTAssertEqual(backend.log, ["register 40/2048", "unregister 9/768"])
+    XCTAssertEqual(backend.live.values.sorted(), ["40/2048"])
+  }
+
+  func testATakenShortcutKeepsTheOldOne() {
+    _ = registry.set(key: "v", modifiers: ["shift", "meta"])
+    backend.taken = ["40/2048"]
+    XCTAssertEqual(registry.set(key: "k", modifiers: ["alt"]), "taken")
+    XCTAssertEqual(backend.live.values.sorted(), ["9/768"], "old one still works")
+    XCTAssertEqual(registry.set(key: "j", modifiers: ["alt"]), "ok", "and the next try works")
+  }
+
+  func testAnotherFailureIsInvalidAndKeepsTheOldOne() {
+    _ = registry.set(key: "v", modifiers: ["shift", "meta"])
+    backend.failWith = "oops"
+    XCTAssertEqual(registry.set(key: "k", modifiers: ["alt"]), "invalid")
+    XCTAssertEqual(backend.live.count, 1)
+  }
+
+  func testTheSameShortcutAgainIsAQuietSuccess() {
+    _ = registry.set(key: "v", modifiers: ["shift", "meta"])
+    backend.log.removeAll()
+    XCTAssertEqual(registry.set(key: "v", modifiers: ["meta", "shift"]), "ok")
+    XCTAssertTrue(backend.log.isEmpty, "our own registration must not look taken")
+  }
+
+  func testClearReleasesTheShortcutAndAllowsRegisteringItAgain() {
+    _ = registry.set(key: "v", modifiers: ["shift", "meta"])
+    registry.clear()
+    XCTAssertTrue(backend.live.isEmpty)
+    registry.clear()
+    XCTAssertEqual(backend.log.filter { $0.hasPrefix("unregister") }.count, 1)
+    XCTAssertEqual(registry.set(key: "v", modifiers: ["shift", "meta"]), "ok")
+  }
+
+  func testAPressCallsTheHandlerOnlyForOurShortcut() {
+    var presses = 0
+    registry.onPress = { presses += 1 }
+    _ = registry.set(key: "v", modifiers: ["shift", "meta"])
+    registry.handlePress(handle: backend.live.keys.first!)
+    registry.handlePress(handle: 999)
+    XCTAssertEqual(presses, 1)
+  }
+}
+
+// MARK: - Window placement
+
+class PickerGeometryTests: XCTestCase {
+  let screen = NSRect(x: 0, y: 0, width: 1440, height: 875)
+
+  func testPickerIsCentredAcrossAndInTheUpperPartOfTheScreen() {
+    let f = PickerGeometry.pickerFrame(in: screen)
+    XCTAssertEqual(f.size, NSSize(width: 560, height: 420))
+    XCTAssertEqual(f.midX, screen.midX, accuracy: 0.5)
+    XCTAssertEqual(f.maxY, screen.maxY - screen.height / 6, accuracy: 0.5)
+    XCTAssertTrue(screen.contains(f))
+  }
+
+  func testOnASecondScreenItIsCentredThere() {
+    let second = NSRect(x: 1440, y: -200, width: 1920, height: 1080)
+    let f = PickerGeometry.pickerFrame(in: second)
+    XCTAssertEqual(f.midX, second.midX, accuracy: 0.5)
+    XCTAssertTrue(second.contains(f))
+  }
+
+  func testASmallScreenGets90PercentWidthButNotLessThan360() {
+    let small = NSRect(x: 0, y: 0, width: 700, height: 500)
+    let f = PickerGeometry.pickerFrame(in: small)
+    XCTAssertEqual(f.width, 630, accuracy: 0.5)
+    XCTAssertTrue(small.contains(f))
+    let narrow = NSRect(x: 0, y: 0, width: 380, height: 600)
+    XCTAssertEqual(PickerGeometry.pickerFrame(in: narrow).width, 360, accuracy: 0.5)
+  }
+
+  func testNeverTallerThanTheScreenOrShorterThanTheMinimum() {
+    let short = NSRect(x: 0, y: 0, width: 1000, height: 400)
+    let f = PickerGeometry.pickerFrame(in: short)
+    XCTAssertLessThanOrEqual(f.height, 400)
+    XCTAssertGreaterThanOrEqual(f.height, 240)
+    XCTAssertTrue(short.contains(f))
+  }
+
+  func testToastSitsJustBelowAndRightOfThePointer() {
+    let f = PickerGeometry.toastFrame(pointer: NSPoint(x: 500, y: 500), in: screen)
+    XCTAssertEqual(f.size, NSSize(width: 360, height: 96))
+    XCTAssertEqual(f.minX, 512, accuracy: 0.5)
+    XCTAssertEqual(f.maxY, 488, accuracy: 0.5)
+  }
+
+  func testToastStaysOnTheScreenAtTheEdges() {
+    for p in [
+      NSPoint(x: 1439, y: 874), NSPoint(x: 1, y: 1), NSPoint(x: 1439, y: 1), NSPoint(x: 1, y: 874),
+    ] {
+      let f = PickerGeometry.toastFrame(pointer: p, in: screen)
+      XCTAssertTrue(screen.contains(f), "\(p) -> \(f)")
+    }
+  }
+
+  func testTheScreenWithThePointerIsChosen() {
+    let a = NSRect(x: 0, y: 0, width: 1000, height: 800)
+    let b = NSRect(x: 1000, y: 0, width: 1000, height: 800)
+    XCTAssertEqual(PickerGeometry.screenFrame(containing: NSPoint(x: 1500, y: 100), among: [a, b]), b)
+    XCTAssertEqual(PickerGeometry.screenFrame(containing: NSPoint(x: 10, y: 10), among: [a, b]), a)
+    // On a seam or outside every screen: the first one.
+    XCTAssertEqual(PickerGeometry.screenFrame(containing: NSPoint(x: 5000, y: 5000), among: [a, b]), a)
+    XCTAssertNil(PickerGeometry.screenFrame(containing: .zero, among: []))
+  }
+}
+
+// MARK: - The key that types "v" (Dvorak and other layouts)
+
+class PasteKeyTests: XCTestCase {
+  /// A layout as two tables, key code -> typed letter: with no modifier and with
+  /// Command held (the table that decides what Cmd+key does).
+  private func layout(_ plain: [UInt16: String], command: [UInt16: String]? = nil)
+    -> (UInt16, Bool) -> String?
+  {
+    { code, cmd in cmd ? (command ?? plain)[code] : plain[code] }
+  }
+
+  func testQwertyUsesKeyCode9() {
+    XCTAssertEqual(PasteKey.code(forV: layout([9: "v", 0: "a"])), 9)
+  }
+
+  func testPlainDvorakFindsWhereVIs() {
+    // On plain Dvorak key code 9 types "." (also with Command) and "v" sits at 47.
+    XCTAssertEqual(PasteKey.code(forV: layout([9: ".", 47: "v", 8: "j"])), 47)
+  }
+
+  func testDvorakQwertyCommandUsesTheQwertyCommandTable() {
+    // "Dvorak - QWERTY ⌘": typing is Dvorak, but with Command held the keys are
+    // QWERTY, so Cmd+key 47 would be Cmd+. and the right key is 9.
+    let plain: [UInt16: String] = [9: ".", 47: "v"]
+    let command: [UInt16: String] = [9: "v", 47: "."]
+    XCTAssertEqual(PasteKey.code(forV: layout(plain, command: command)), 9)
+  }
+
+  func testNoKeyTypingVMeansNoPasteKey() {
+    XCTAssertNil(PasteKey.code(forV: layout([9: "м", 0: "ф"])))
+    XCTAssertNil(PasteKey.code(forV: layout([:])))
+  }
+
+  func testOnlyAPlainLowerCaseVCounts() {
+    XCTAssertNil(PasteKey.code(forV: layout([9: "V", 10: "vv", 11: " v"])))
+  }
+
+  func testTheStandardKeyWinsIfTwoKeysTypeV() {
+    XCTAssertEqual(PasteKey.code(forV: layout([3: "v", 9: "v"])), 9)
+  }
+
+  func testOnlyRealKeyCodesAreTried() {
+    XCTAssertNil(PasteKey.code(forV: layout([200: "v"])))
+  }
+}
+
+class PasteFlowKeyTests: XCTestCase {
+  func testNoKeyForVCopiesOnlyAndNeverPosts() {
+    let platform = FakePastePlatform()
+    platform.keyCode = nil
+    let flow = PasteFlow(platform: platform, writer: FakePasteboardWriter(), ownPid: 1)
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .copyOnly)
+    XCTAssertFalse(platform.log.contains { $0.hasPrefix("post") })
+    XCTAssertTrue(platform.log.contains("activate"))
+  }
+}
+
+// MARK: - Esc and click outside (E1)
+
+class ClosePlanTests: XCTestCase {
+  func testEscWithATargetGivesTheFocusBackToItAndDoesNotActivateKusunga() {
+    let plan = ClosePlan.make(manageWasVisible: true, target: 200)
+    XCTAssertTrue(plan.showManage)
+    XCTAssertFalse(plan.activateKusunga)
+    XCTAssertEqual(plan.reactivate, 200)
+  }
+
+  func testEscWithATargetAndNoHistoryWindowJustReturnsToTheTarget() {
+    let plan = ClosePlan.make(manageWasVisible: false, target: 200)
+    XCTAssertFalse(plan.showManage)
+    XCTAssertFalse(plan.activateKusunga)
+    XCTAssertEqual(plan.reactivate, 200)
+  }
+
+  func testWhenKusungaItselfWasInFrontItComesBack() {
+    let plan = ClosePlan.make(manageWasVisible: true, target: nil)
+    XCTAssertTrue(plan.showManage)
+    XCTAssertTrue(plan.activateKusunga)
+    XCTAssertNil(plan.reactivate)
+  }
+
+  func testNothingToRestoreActivatesNothing() {
+    let plan = ClosePlan.make(manageWasVisible: false, target: nil)
+    XCTAssertFalse(plan.showManage)
+    XCTAssertFalse(plan.activateKusunga)
+    XCTAssertNil(plan.reactivate)
+  }
+}
+
+// MARK: - The picker window can take keys (B1)
+
+class PickerWindowKeyTests: XCTestCase {
+  func testTheMainWindowClassCanBecomeKeyAndMainEvenWhenBorderless() {
+    let window = MainFlutterWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 560, height: 420),
+      styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: true)
+    XCTAssertTrue(window.canBecomeKey)
+    XCTAssertTrue(window.canBecomeMain)
+    window.styleMask = [.borderless]
+    XCTAssertTrue(window.canBecomeKey, "a borderless window must still take keystrokes")
+    XCTAssertTrue(window.canBecomeMain)
+  }
+
+  func testAPlainBorderlessWindowCannotWhichIsWhyTheOverrideExists() {
+    let plain = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 10, height: 10), styleMask: [.borderless],
+      backing: .buffered, defer: true)
+    XCTAssertFalse(plain.canBecomeKey)
+  }
+
+  func testTheFocusRetriesCoverTheFirstHalfSecondAndStop() {
+    let delays = PickerWindowController.focusRetryDelays
+    XCTAssertEqual(delays, delays.sorted())
+    XCTAssertGreaterThanOrEqual(delays.count, 3)
+    XCTAssertLessThanOrEqual(delays.last!, 0.6)
+    XCTAssertGreaterThan(delays.first!, 0)
+  }
+}
+
+// MARK: - Asking for the keyboard again (R1)
+
+class FocusRetryTests: XCTestCase {
+  func testAllDelaysAreMeasuredFromTheOpenAndEndWithinHalfASecond() {
+    let delays = FocusRetry.delays
+    XCTAssertEqual(delays, delays.sorted())
+    XCTAssertGreaterThan(delays.first!, 0)
+    XCTAssertLessThanOrEqual(delays.last!, 0.5)
+    XCTAssertEqual(PickerWindowController.focusRetryDelays, delays)
+  }
+
+  func testKeepsTryingWhileTheTargetIsStillInFront() {
+    var retry = FocusRetry(own: 1, target: 200)
+    XCTAssertTrue(retry.shouldRetry(frontmost: 200))
+    XCTAssertTrue(retry.shouldRetry(frontmost: 200))
+  }
+
+  func testKeepsTryingWhileKusungaIsInFront() {
+    var retry = FocusRetry(own: 1, target: 200)
+    XCTAssertTrue(retry.shouldRetry(frontmost: 1))
+  }
+
+  func testStopsWhenAnotherAppCameForward() {
+    var retry = FocusRetry(own: 1, target: 200)
+    XCTAssertFalse(retry.shouldRetry(frontmost: 300))
+    var late = FocusRetry(own: 1, target: 200)
+    XCTAssertTrue(late.shouldRetry(frontmost: 1))
+    XCTAssertFalse(late.shouldRetry(frontmost: 300))
+  }
+
+  func testStopsWhenTheUserWentBackToTheTargetAfterKusungaWasInFront() {
+    var retry = FocusRetry(own: 1, target: 200)
+    XCTAssertTrue(retry.shouldRetry(frontmost: 1))
+    XCTAssertFalse(retry.shouldRetry(frontmost: 200))
+  }
+
+  func testWithNoTargetOnlyKusungaOrNothingCountsAsInFront() {
+    var retry = FocusRetry(own: 1, target: nil)
+    XCTAssertTrue(retry.shouldRetry(frontmost: nil))
+    XCTAssertTrue(retry.shouldRetry(frontmost: 1))
+    XCTAssertFalse(retry.shouldRetry(frontmost: 300))
+  }
+}
+
+// MARK: - Permission diagnostics and the debug force-post switch
+
+class PermissionDiagnosticsTests: XCTestCase {
+  func testTheStateIsOneSmallNumber() {
+    XCTAssertEqual(PermissionSnapshot.mask(post: false, accessibility: false, listen: false), 0)
+    XCTAssertEqual(PermissionSnapshot.mask(post: true, accessibility: false, listen: false), 1)
+    XCTAssertEqual(PermissionSnapshot.mask(post: false, accessibility: true, listen: false), 2)
+    XCTAssertEqual(PermissionSnapshot.mask(post: false, accessibility: false, listen: true), 4)
+    XCTAssertEqual(PermissionSnapshot.mask(post: true, accessibility: true, listen: true), 7)
+  }
+
+  func testWithoutPermissionAndWithoutTheSwitchNothingIsPosted() {
+    let platform = FakePastePlatform()
+    platform.canPost = false
+    let flow = PasteFlow(platform: platform, writer: FakePasteboardWriter(), ownPid: 1)
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .noPermission)
+    XCTAssertFalse(platform.log.contains { $0.hasPrefix("post") })
+  }
+
+  func testTheSwitchPostsAnywayAndSaysSo() {
+    let platform = FakePastePlatform()
+    platform.canPost = false
+    platform.forcePost = true
+    let flow = PasteFlow(platform: platform, writer: FakePasteboardWriter(), ownPid: 1)
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .pastedForced)
+    XCTAssertTrue(platform.log.contains { $0.hasPrefix("post") })
+  }
+
+  func testTheSwitchChangesNothingWhenPermissionIsThere() {
+    let platform = FakePastePlatform()
+    platform.forcePost = true
+    let flow = PasteFlow(platform: platform, writer: FakePasteboardWriter(), ownPid: 1)
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .pasted)
+  }
+
+  func testTheSwitchNeverPostsIntoTheWrongApp() {
+    let platform = FakePastePlatform()
+    platform.canPost = false
+    platform.forcePost = true
+    platform.frontAfterMs = nil
+    let flow = PasteFlow(platform: platform, writer: FakePasteboardWriter(), ownPid: 1)
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .focusTimeout)
+    XCTAssertFalse(platform.log.contains { $0.hasPrefix("post") })
+  }
+}
+
+// MARK: - Diagnostics in the unified log
+
+class DiagLogTests: XCTestCase {
+  func testOnlyShortAlphanumericCodesAreAccepted() {
+    XCTAssertTrue(DiagLog.isCode("permissionSnapshot"))
+    XCTAssertTrue(DiagLog.isCode("postKeyCode"))
+    for bad in ["", "has space", "text with content", "a.b", "é", String(repeating: "a", count: 41), "x\ny"] {
+      XCTAssertFalse(DiagLog.isCode(bad), bad)
+    }
+  }
+
+  /// Written to the real unified log from the test host, so
+  /// `log show --predicate 'subsystem == "com.wnasoni.kusunga"' --info` can be
+  /// checked by hand.
+  func testWritesALineTheLogCommandCanFind() {
+    DiagLog.log("diagSelfTest", 7)
+  }
+}
+
+class PasteFlowDiagnosticsTests: XCTestCase {
+  var lines: [String] = []
+  var platform: FakePastePlatform!
+  var flow: PasteFlow!
+
+  override func setUp() {
+    lines = []
+    platform = FakePastePlatform()
+    flow = PasteFlow(
+      platform: platform, writer: FakePasteboardWriter(), ownPid: 1,
+      diag: { [unowned self] code, detail in
+        self.lines.append(detail == nil ? code : "\(code) \(detail!)")
+      })
+  }
+
+  func testEveryStepOfAPasteIsLogged() {
+    XCTAssertEqual(flow.run(text: "secret words", target: 200, post: true), .pasted)
+    XCTAssertTrue(lines.contains("postKeyCode 9"), "\(lines)")
+    XCTAssertTrue(lines.contains("postFrontmostOk 1"), "\(lines)")
+    XCTAssertTrue(lines.contains { $0.hasPrefix("postTiming ") }, "\(lines)")
+    XCTAssertEqual(lines.last, "pasteResult 0")
+  }
+
+  func testTheTimeFromEnterToThePostIsTheVirtualElapsedTime() {
+    platform.frontAfterMs = 120
+    _ = flow.run(text: "x", target: 200, post: true)
+    let timing = lines.first { $0.hasPrefix("postTiming ") }!
+    XCTAssertGreaterThanOrEqual(Int(timing.dropFirst(11))!, 120)
+  }
+
+  func testFocusStolenBeforeThePostIsLoggedAndNothingIsPosted() {
+    platform.modifiersHeldUntilMs = 200
+    platform.stealAtMs = 100
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .focusTimeout)
+    XCTAssertTrue(lines.contains("postFrontmostOk 0"), "\(lines)")
+    XCTAssertFalse(lines.contains { $0.hasPrefix("postTiming") })
+  }
+
+  func testAForcedPostIsLogged() {
+    platform.canPost = false
+    platform.forcePost = true
+    _ = flow.run(text: "x", target: 200, post: true)
+    XCTAssertTrue(lines.contains("postForced 1"), "\(lines)")
+  }
+
+  func testNoKeyForVIsLogged() {
+    platform.keyCode = nil
+    _ = flow.run(text: "x", target: 200, post: true)
+    XCTAssertTrue(lines.contains("postKeyNone"), "\(lines)")
+  }
+
+  func testEveryOutcomeEndsWithItsNumberAndNeverTheText() {
+    platform.canPost = false
+    _ = flow.run(text: "my private text", target: 200, post: true)
+    XCTAssertEqual(lines.last, "pasteResult \(PasteResult.noPermission.logNumber)")
+    XCTAssertFalse(lines.joined().contains("private"))
+    let gone = FakePastePlatform()
+    gone.running = []
+    lines = []
+    let f = PasteFlow(platform: gone, writer: FakePasteboardWriter(), ownPid: 1,
+      diag: { [unowned self] c, d in self.lines.append(d == nil ? c : "\(c) \(d!)") })
+    _ = f.run(text: "x", target: 200, post: true)
+    XCTAssertEqual(lines.last, "pasteResult \(PasteResult.targetGone.logNumber)")
+  }
+}
+
+// MARK: - The target quits while the picker is open
+
+class DismissRuleTests: XCTestCase {
+  func testALostFocusWithAGoneTargetKeepsThePickerOpen() {
+    XCTAssertFalse(DismissRule.shouldDismiss(target: 200, targetAlive: false))
+  }
+
+  func testALostFocusWithALiveTargetOrNoTargetClosesIt() {
+    XCTAssertTrue(DismissRule.shouldDismiss(target: 200, targetAlive: true))
+    XCTAssertTrue(DismissRule.shouldDismiss(target: nil, targetAlive: false))
+  }
+}
+
+// MARK: - The target quits while the picker is open (F2): both orders
+
+class DismissCoordinatorTests: XCTestCase {
+  var scheduled: [() -> Void] = []
+  var decisions: [Bool] = []
+  var alive = true
+  var coordinator: DismissCoordinator!
+
+  override func setUp() {
+    scheduled = []
+    decisions = []
+    alive = true
+    clock = 100
+    coordinator = DismissCoordinator(now: { [unowned self] in self.clock })
+  }
+
+  var clock: TimeInterval = 100
+
+  private func focusLost(target: pid_t? = 200) {
+    coordinator.focusLost(
+      target: target,
+      schedule: { [unowned self] _, work in self.scheduled.append(work) },
+      decide: { [unowned self] in self.decisions.append($0) })
+  }
+
+  private func runScheduled() {
+    let work = scheduled
+    scheduled = []
+    work.forEach { $0() }
+  }
+
+  func testFocusLostThenTheTargetQuitKeepsThePicker() {
+    focusLost()
+    XCTAssertTrue(decisions.isEmpty, "decided only after the short wait")
+    coordinator.noteTargetQuit()
+    runScheduled()
+    XCTAssertEqual(decisions, [false])
+  }
+
+  func testTheTargetQuitThenFocusLostKeepsThePicker() {
+    coordinator.noteTargetQuit()
+    focusLost()
+    runScheduled()
+    XCTAssertEqual(decisions, [false])
+  }
+
+  func testFocusLostAloneClosesThePicker() {
+    focusLost()
+    runScheduled()
+    XCTAssertEqual(decisions, [true])
+  }
+
+  func testADeadPidWithoutAQuitNoticeIsNotAReason() {
+    // The quit notice explains a lost focus; a pid that merely looks dead
+    // would keep the picker for every later click (QA attempt 6).
+    focusLost()
+    alive = false
+    runScheduled()
+    XCTAssertEqual(decisions, [true])
+  }
+
+  func testNoTargetClosesEvenIfSomeAppQuit() {
+    coordinator.noteTargetQuit()
+    focusLost(target: nil)
+    runScheduled()
+    XCTAssertEqual(decisions, [true])
+  }
+
+  func testTheFlagIsClearedForTheNextOpening() {
+    coordinator.noteTargetQuit()
+    coordinator.reset()
+    focusLost()
+    runScheduled()
+    XCTAssertEqual(decisions, [true])
+  }
+
+  /// One keep uses up the reason: the user can click away afterwards (R1).
+  func testQuitThenFocusLostThenFocusLostAgainGivesKeepThenClose() {
+    coordinator.noteTargetQuit()
+    focusLost()
+    runScheduled()
+    focusLost()
+    runScheduled()
+    XCTAssertEqual(decisions, [false, true])
+  }
+
+  func testFocusLostThenQuitThenFocusLostAgainGivesKeepThenClose() {
+    focusLost()
+    coordinator.noteTargetQuit()
+    runScheduled()
+    focusLost()
+    runScheduled()
+    XCTAssertEqual(decisions, [false, true])
+  }
+
+  func testAFreshQuitAfterAKeepIsKeptAgain() {
+    coordinator.noteTargetQuit()
+    focusLost()
+    runScheduled()
+    coordinator.noteTargetQuit()
+    focusLost()
+    runScheduled()
+    XCTAssertEqual(decisions, [false, false])
+  }
+
+  /// QA attempt 6: the quit itself caused no focus change (Kusunga stayed the
+  /// active app), so the user's first click, 1.7 s later, was wrongly kept.
+  func testAQuitThatCausedNoFocusLossDoesNotKeepTheUsersLaterClick() {
+    coordinator.noteTargetQuit()
+    clock += 1.7
+    focusLost()
+    runScheduled()
+    XCTAssertEqual(decisions, [true])
+  }
+
+  func testTheQuitsOwnFocusLossIsKeptAndTheNextClickCloses() {
+    coordinator.noteTargetQuit()
+    clock += 0.05
+    focusLost()
+    runScheduled()
+    clock += 1.7
+    focusLost()
+    runScheduled()
+    XCTAssertEqual(decisions, [false, true])
+  }
+
+  func testAFocusLossJustBeforeTheQuitNoticeStillCounts() {
+    focusLost()
+    clock += 0.3
+    coordinator.noteTargetQuit()
+    runScheduled()
+    XCTAssertEqual(decisions, [false])
+  }
+
+  func testAFocusLossFarBeforeTheQuitNoticeDoesNot() {
+    focusLost()
+    clock += 2
+    coordinator.noteTargetQuit()
+    runScheduled()
+    XCTAssertEqual(decisions, [true])
+  }
+
+  func testTheRuleTakesTheFlag() {
+    XCTAssertFalse(DismissRule.shouldDismiss(target: 200, targetQuit: true, targetAlive: true))
+    XCTAssertTrue(DismissRule.shouldDismiss(target: 200, targetQuit: false, targetAlive: true))
+  }
+}
+
+class PasteResultNumberTests: XCTestCase {
+  func testTheLogNumbersArePinned() {
+    let pinned: [PasteResult: Int] = [
+      .pasted: 0, .pastedForced: 1, .noPermission: 2, .focusTimeout: 3,
+      .targetGone: 4, .copyOnly: 5, .failed: 6,
+    ]
+    for r in PasteResult.allCases { XCTAssertEqual(r.logNumber, pinned[r], "\(r)") }
+    XCTAssertEqual(Set(PasteResult.allCases.map { $0.logNumber }).count, PasteResult.allCases.count)
+  }
+}
+
+// MARK: - The permission state at paste time is part of the flow (R2)
+
+class PasteFlowPermissionLogTests: XCTestCase {
+  var lines: [String] = []
+
+  private func runFlow(
+    configure: (FakePastePlatform, FakePasteboardWriter) -> Void = { _, _ in }, post: Bool = true
+  ) {
+    lines = []
+    let platform = FakePastePlatform()
+    let writer = FakePasteboardWriter()
+    configure(platform, writer)
+    let flow = PasteFlow(
+      platform: platform, writer: writer, ownPid: 1,
+      diag: { [unowned self] code, detail in
+        self.lines.append(detail == nil ? code : "\(code) \(detail!)")
+      },
+      permissionMask: { 5 })
+    _ = flow.run(text: "private words", target: 200, post: post)
+  }
+
+  private func assertSnapshotThenResult(_ name: String) {
+    guard let snap = lines.firstIndex(of: "permissionSnapshot 5"),
+      let result = lines.firstIndex(where: { $0.hasPrefix("pasteResult") })
+    else { return XCTFail("\(name): \(lines)") }
+    XCTAssertLessThan(snap, result, name)
+    XCTAssertEqual(lines.filter { $0.hasPrefix("permissionSnapshot") }.count, 1, name)
+    XCTAssertFalse(lines.joined().contains("private"), name)
+  }
+
+  func testEveryKindOfOutcomeLogsTheStateBeforeItsResult() {
+    runFlow { _, w in w.succeeds = false }
+    assertSnapshotThenResult("failed write")
+    runFlow(post: false)
+    assertSnapshotThenResult("copy only")
+    runFlow { p, _ in p.canPost = false }
+    assertSnapshotThenResult("no permission")
+    runFlow()
+    assertSnapshotThenResult("pasted")
+    runFlow { p, _ in p.running = [] }
+    assertSnapshotThenResult("target gone")
+  }
+
+  func testTheDefaultIsTheRealState() {
+    let flow = PasteFlow(platform: FakePastePlatform(), writer: FakePasteboardWriter(), ownPid: 1)
+    _ = flow
+    XCTAssertTrue((0...7).contains(PermissionSnapshot.current()))
+  }
+}

@@ -49,3 +49,6 @@ xcuserdata/
 **/windows/flutter/ephemeral/
 **/windows/flutter/generated_plugin_registrant.*
 **/windows/flutter/generated_plugins.cmake
+
+# Local signing settings (team id); see macos/Runner/Configs/Local.xcconfig.example
+**/macos/Runner/Configs/Local.xcconfig

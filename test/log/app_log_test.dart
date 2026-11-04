@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/log/app_log.dart';
+import 'package:kusunga/log/unified_log.dart';
 
 void main() {
   late Directory dir;
@@ -35,4 +37,130 @@ void main() {
     final log = FileErrorLog(File('${dir.path}/nope/kusunga.log'));
     expect(() => log.log(LogCode.writeFailed), returnsNormally);
   });
+
+  test('the picker codes exist, with exactly the names in the design note', () {
+    expect(
+      LogCode.values.map((c) => c.name),
+      containsAll([
+        'hotkeyRegisterFailed',
+        'pasteFocusTimeout',
+        'pastePermissionMissing',
+        'pasteCopyOnly',
+        'permissionSnapshot',
+        'pasteForcedPost',
+        'pasteTargetElevated',
+        'pasteTargetGone',
+      ]),
+    );
+  });
+
+  group('DeferredErrorLog', () {
+    test(
+      'holds codes until the real log is ready, then writes them in order',
+      () {
+        final late = DeferredErrorLog();
+        late.log(LogCode.hotkeyRegisterFailed);
+        late.log(LogCode.writeFailed, 5);
+        final real = _Recording();
+        late.attach(real);
+        late.log(LogCode.pasteTargetGone);
+        expect(real.lines, [
+          'hotkeyRegisterFailed',
+          'writeFailed 5',
+          'pasteTargetGone',
+        ]);
+      },
+    );
+
+    test('keeps at most 20 waiting codes, newest last', () {
+      final late = DeferredErrorLog();
+      for (var i = 0; i < 30; i++) {
+        late.log(LogCode.writeFailed, i);
+      }
+      final real = _Recording();
+      late.attach(real);
+      expect(real.lines.length, 20);
+      expect(real.lines.first, 'writeFailed 10');
+      expect(real.lines.last, 'writeFailed 29');
+    });
+
+    test('attaching twice keeps the first log and writes nothing twice', () {
+      final late = DeferredErrorLog();
+      late.log(LogCode.readFailed);
+      final a = _Recording();
+      final b = _Recording();
+      late.attach(a);
+      late.attach(b);
+      late.log(LogCode.flushFailed);
+      expect(a.lines, ['readFailed', 'flushFailed']);
+      expect(b.lines, isEmpty);
+    });
+  });
+
+  group('unified log mirror', () {
+    final binding = TestWidgetsFlutterBinding.ensureInitialized();
+    const channel = MethodChannel('com.wnasoni.kusunga/diag');
+    final calls = <MethodCall>[];
+    Object? reply;
+
+    setUp(() {
+      calls.clear();
+      reply = null;
+      binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        c,
+      ) async {
+        calls.add(c);
+        if (reply is Exception) throw reply!;
+        return null;
+      });
+    });
+    tearDown(
+      () => binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        null,
+      ),
+    );
+
+    test(
+      'ChannelUnifiedLog sends the code name and the number, nothing else',
+      () async {
+        final log = ChannelUnifiedLog();
+        log.log(LogCode.permissionSnapshot, 5);
+        log.log(LogCode.pasteTargetGone);
+        await Future<void>.delayed(Duration.zero);
+        expect(calls.map((c) => c.method), ['log', 'log']);
+        expect(calls[0].arguments, {'code': 'permissionSnapshot', 'detail': 5});
+        expect(calls[1].arguments, {'code': 'pasteTargetGone', 'detail': null});
+      },
+    );
+
+    test('a missing native side or an error never throws', () async {
+      reply = PlatformException(code: 'x');
+      expect(
+        () => ChannelUnifiedLog().log(LogCode.writeFailed),
+        returnsNormally,
+      );
+      await Future<void>.delayed(Duration.zero);
+    });
+
+    test('DeferredErrorLog sends to the mirror at once and to the file once '
+        'it is known, never twice', () {
+      final mirror = _Recording();
+      final late = DeferredErrorLog(mirror: mirror);
+      late.log(LogCode.hotkeyRegisterFailed);
+      expect(mirror.lines, ['hotkeyRegisterFailed']);
+      final file = _Recording();
+      late.attach(file);
+      late.log(LogCode.pasteTargetGone);
+      expect(file.lines, ['hotkeyRegisterFailed', 'pasteTargetGone']);
+      expect(mirror.lines, ['hotkeyRegisterFailed', 'pasteTargetGone']);
+    });
+  });
+}
+
+class _Recording implements ErrorLog {
+  final lines = <String>[];
+  @override
+  void log(LogCode code, [int? detail]) =>
+      lines.add(detail == null ? code.name : '${code.name} $detail');
 }

@@ -82,6 +82,7 @@ Everything stays on the device. No account, no server.
   - AC: release notes and a rollback plan exist; the PM approves the release.
   - AC: a short DPIA is written in `docs/design/dpia.md` and the PM signs it off before the beta.
   - AC: the app's licence page includes the SQLite3 Multiple Ciphers MIT notice (reviewer note, 2026-11-03).
+  - AC: the minimum macOS (12.0, forced by Xcode 27.2 in M1.3) is stated in ADR 0003 or the README and in the release notes (reviewer note C7, 2026-11-04).
   - Before start: decide whether to build sqlite3mc from source instead of the SHA-256-pinned prebuilt download (reviewer note, 2026-11-03).
 
 ## M2 — Secure vault (bank details, IDs)
@@ -119,3 +120,7 @@ Needs its own design note and deck. Mobile cannot record clipboard history in th
 - Typo-tolerant picker search — trigger: ≥ 10 beta users report "can't find" in feedback — noted 2026-11-04 by lead
 - Sharing snippets with a team — not part of the personal use case — trigger: > 20 requests from teams — noted 2026-11-03 by lead
 - Refresh only the changed rows of the history list — the list reloads all rows (up to 2,000 characters each) after every copy, which is fine for 200 items — trigger: the list takes longer than 100 ms to refresh with 5,000 items, or idle CPU above 1% while copying — noted 2026-11-03 by developer
+- Windows tray "Open picker" pastes into the previous window — the tray click itself takes focus, so Kusunga can't know which window had it; copy-only is safe — trigger: ≥ 5 beta reports about it — noted 2026-11-04 by developer
+- Unicode-aware picker search (ß/ss, composed vs decomposed accents) — substring search with simple case folding covers most text — trigger: ≥ 3 beta reports of not finding accented or ß text — noted 2026-11-04 by lead
+- Picker shortcut pressed within 120 ms of clicking away is ignored, and a click within 1 s of the target app quitting needs one extra click — nothing is lost or pasted — trigger: ≥ 3 beta reports, or the next change to the picker's dismiss logic — noted 2026-11-04 by lead (reviewer C1, N2)
+- Picker test tidy-ups: the fake scheduler honours the 0.12 s delay (N1), remove the unused targetAlive parameter (N3), a source guard that runPaste uses the real permissionMask, and the signing-id guard also checks the local id outside macos/ios/tool/.github — trigger: the next change to these files or M1.9 start, whichever is first — noted 2026-11-04 by lead (reviewer notes)

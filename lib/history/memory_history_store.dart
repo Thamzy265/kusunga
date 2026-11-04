@@ -83,6 +83,40 @@ class MemoryHistoryStore implements HistoryStore {
   }
 
   @override
+  bool bumpIfPresent(String content, int nowMs) {
+    final i = _items.indexWhere((e) => e.record.content == content);
+    if (i < 0) return false;
+    final old = _items.removeAt(i);
+    _items.insert(
+      0,
+      _Entry(
+        old.id,
+        ClipRecord(
+          content: old.record.content,
+          kind: old.record.kind,
+          createdAt: old.record.createdAt,
+          lastCopiedAt: _nextTimestamp(nowMs),
+        ),
+      ),
+    );
+    return true;
+  }
+
+  final _settings = <String, String>{};
+
+  @override
+  String? readSetting(String key) {
+    checkSettingKey(key);
+    return _settings[key];
+  }
+
+  @override
+  void writeSetting(String key, String value) {
+    checkSetting(key, value);
+    _settings[key] = value;
+  }
+
+  @override
   ClipRecord? delete(int id) {
     final i = _items.indexWhere((e) => e.id == id);
     return i < 0 ? null : _items.removeAt(i).record;

@@ -8,6 +8,7 @@ class KusungaTokens extends ThemeExtension<KusungaTokens> {
   const KusungaTokens({
     required this.surface,
     required this.surfaceHover,
+    required this.selection,
     required this.text,
     required this.textMuted,
     required this.border,
@@ -20,6 +21,10 @@ class KusungaTokens extends ThemeExtension<KusungaTokens> {
 
   final Color surface;
   final Color surfaceHover;
+
+  /// The selected row of the picker (M1.3): 3:1 on the surface, with `text`
+  /// at 4.5:1 on it.
+  final Color selection;
   final Color text;
   final Color textMuted;
   final Color border;
@@ -52,6 +57,7 @@ class KusungaTokens extends ThemeExtension<KusungaTokens> {
   static const light = KusungaTokens(
     surface: Color(0xFFFFFFFF),
     surfaceHover: Color(0xFFEEF3F2),
+    selection: Color(0xFF5B91CC),
     text: Color(0xFF1B1F1E),
     textMuted: Color(0xFF4A5553),
     border: Color(0xFF6F7977),
@@ -65,6 +71,7 @@ class KusungaTokens extends ThemeExtension<KusungaTokens> {
   static const dark = KusungaTokens(
     surface: Color(0xFF1A1D1C),
     surfaceHover: Color(0xFF272C2B),
+    selection: Color(0xFF4A6C96),
     text: Color(0xFFECEFEE),
     textMuted: Color(0xFFAAB4B1),
     border: Color(0xFF8A9693),
@@ -103,6 +110,7 @@ class KusungaTokens extends ThemeExtension<KusungaTokens> {
   KusungaTokens copyWith({
     Color? surface,
     Color? surfaceHover,
+    Color? selection,
     Color? text,
     Color? textMuted,
     Color? border,
@@ -114,6 +122,7 @@ class KusungaTokens extends ThemeExtension<KusungaTokens> {
   }) => KusungaTokens(
     surface: surface ?? this.surface,
     surfaceHover: surfaceHover ?? this.surfaceHover,
+    selection: selection ?? this.selection,
     text: text ?? this.text,
     textMuted: textMuted ?? this.textMuted,
     border: border ?? this.border,
@@ -130,6 +139,7 @@ class KusungaTokens extends ThemeExtension<KusungaTokens> {
     return KusungaTokens(
       surface: Color.lerp(surface, other.surface, t)!,
       surfaceHover: Color.lerp(surfaceHover, other.surfaceHover, t)!,
+      selection: Color.lerp(selection, other.selection, t)!,
       text: Color.lerp(text, other.text, t)!,
       textMuted: Color.lerp(textMuted, other.textMuted, t)!,
       border: Color.lerp(border, other.border, t)!,

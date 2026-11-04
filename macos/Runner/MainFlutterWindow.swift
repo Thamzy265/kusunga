@@ -10,7 +10,15 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     ClipboardBridge.shared.register(messenger: flutterViewController.engine.binaryMessenger)
+    PickerBridge.shared.register(
+      messenger: flutterViewController.engine.binaryMessenger, window: self,
+      viewController: flutterViewController)
 
     super.awakeFromNib()
   }
+
+  // The picker and the toast are borderless, and a borderless window cannot
+  // become the key window (take keystrokes) unless it says so.
+  override var canBecomeKey: Bool { true }
+  override var canBecomeMain: Bool { true }
 }

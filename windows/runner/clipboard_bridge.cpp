@@ -67,6 +67,7 @@ ClipboardBridge::ClipboardBridge(flutter::BinaryMessenger* messenger,
       ::RegisterClipboardFormatW(L"ExcludeClipboardContentFromMonitorProcessing");
   format_can_include_ = ::RegisterClipboardFormatW(L"CanIncludeInClipboardHistory");
   format_viewer_ignore_ = ::RegisterClipboardFormatW(L"Clipboard Viewer Ignore");
+  format_own_ = ::RegisterClipboardFormatW(L"com.wnasoni.kusunga.self");
 
   const auto& codec = flutter::StandardMethodCodec::GetInstance();
 
@@ -215,6 +216,11 @@ void ClipboardBridge::OnClipboardUpdate() {
   }
   auto e = Event("text");
   e[EncodableValue("text")] = EncodableValue(text);
+  // Any app can add our marker, so it never skips the secret check above; it
+  // only tells Dart "if this text is already saved, move it to the top".
+  if (::IsClipboardFormatAvailable(format_own_)) {
+    e[EncodableValue("own")] = EncodableValue(true);
+  }
   Emit(std::move(e));
 }
 

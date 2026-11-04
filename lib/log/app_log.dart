@@ -20,6 +20,20 @@ enum LogCode {
   clipboardChannelError,
   accessCheckFailed,
   flushFailed,
+  // M1.3 picker (design note, "Observability"): codes only, never content,
+  // app names or window titles.
+  hotkeyRegisterFailed,
+  pasteFocusTimeout,
+  pastePermissionMissing,
+  // Copy-only for another reason: paste mode, a key still held, an unreadable
+  // integrity level, or no key that types "v".
+  pasteCopyOnly,
+  // Permission state (detail: 1 post, 2 accessibility trusted, 4 listen) at
+  // start-up and before each paste, and a debug-build forced post.
+  permissionSnapshot,
+  pasteForcedPost,
+  pasteTargetElevated,
+  pasteTargetGone,
 }
 
 abstract interface class ErrorLog {
@@ -58,4 +72,41 @@ class NullErrorLog implements ErrorLog {
   const NullErrorLog();
   @override
   void log(LogCode code, [int? detail]) {}
+}
+
+/// A log that can be used before the log file is known (the data folder is
+/// found asynchronously). Codes sent early wait, at most 20 of them, and are
+/// written in order when the real log is attached. Used once only: a second
+/// [attach] is ignored.
+class DeferredErrorLog implements ErrorLog {
+  /// [mirror] (the unified log) gets every code at once; the file log, once it
+  /// is known, gets the ones that waited.
+  DeferredErrorLog({this.mirror});
+
+  static const maxWaiting = 20;
+  final ErrorLog? mirror;
+
+  ErrorLog? _real;
+  final _waiting = <(LogCode, int?)>[];
+
+  void attach(ErrorLog real) {
+    if (_real != null) return;
+    _real = real;
+    for (final (code, detail) in _waiting) {
+      real.log(code, detail);
+    }
+    _waiting.clear();
+  }
+
+  @override
+  void log(LogCode code, [int? detail]) {
+    mirror?.log(code, detail);
+    final real = _real;
+    if (real != null) {
+      real.log(code, detail);
+      return;
+    }
+    _waiting.add((code, detail));
+    if (_waiting.length > maxWaiting) _waiting.removeAt(0);
+  }
 }

@@ -36,6 +36,14 @@ void main() {
         );
       });
 
+      test(
+        'the selected row (picker) is 3:1 on the surface with 4.5:1 text',
+        () {
+          expect(contrast(t.selection, t.surface), greaterThanOrEqualTo(3));
+          expect(contrast(t.text, t.selection), greaterThanOrEqualTo(4.5));
+        },
+      );
+
       test('borders, icons and the focus ring meet 3:1', () {
         expect(contrast(t.border, t.surface), greaterThanOrEqualTo(3));
         expect(contrast(t.borderHover, t.surface), greaterThanOrEqualTo(3));

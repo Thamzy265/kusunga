@@ -34,6 +34,9 @@ class HistoryService extends ChangeNotifier {
        _writeClipboard =
            writeClipboard ??
            ((text) => Clipboard.setData(ClipboardData(text: text))),
+       _persists =
+           !notices.contains(HistoryNotice.memoryOnly) &&
+           !notices.contains(HistoryNotice.incompatible),
        _banners = {
          if (notices.contains(HistoryNotice.memoryOnly))
            HistoryBanner.memoryOnly,
@@ -51,6 +54,7 @@ class HistoryService extends ChangeNotifier {
   final int Function() _clock;
   final Future<void> Function(String text) _writeClipboard;
   final Set<HistoryBanner> _banners;
+  final bool _persists;
   final _waiting = <_Waiting>[]; // oldest first
   var _nextWaitingId = -1;
   StreamSubscription<ClipboardEvent>? _subscription;
@@ -62,6 +66,10 @@ class HistoryService extends ChangeNotifier {
   /// Newest first, with copies that are waiting to be saved on top.
   List<ClipItem> get items => _items;
   int get limit => _store.limit;
+
+  /// False when this session is memory only (keychain or file problem): what
+  /// is saved, settings included, is gone after a quit.
+  bool get persistsSettings => _persists;
   Set<HistoryBanner> get banners => Set.unmodifiable(_banners);
   PasteAccess get pasteAccess => _pasteAccess;
 
@@ -93,12 +101,12 @@ class HistoryService extends ChangeNotifier {
               ? LogCode.clipboardLocked
               : LogCode.clipboardChannelError,
         );
-      case ClipboardText(:final text):
-        _capture(text);
+      case ClipboardText(:final text, :final ownMarker):
+        _capture(text, ownMarker: ownMarker);
     }
   }
 
-  void _capture(String text) {
+  void _capture(String text, {bool ownMarker = false}) {
     if (text.trim().isEmpty) return;
     if (isOverCap(text)) {
       _log.log(LogCode.clipboardTooLarge);
@@ -106,6 +114,13 @@ class HistoryService extends ChangeNotifier {
     }
     // Retry what is waiting first (oldest first), so order is kept.
     _flushWaiting();
+    // Our own marker (the picker pasted this) only moves text that is already
+    // saved. Any app can add the marker, so text we do not know is an
+    // ordinary copy and is saved like one.
+    if (ownMarker && _bumpSaved(text)) {
+      _refresh();
+      return;
+    }
     final entry = _Waiting(_nextWaitingId--, text, classify(text), _clock());
     if (_waiting.isEmpty) {
       _save(entry);
@@ -113,6 +128,16 @@ class HistoryService extends ChangeNotifier {
       _addWaiting(entry);
     }
     _refresh();
+  }
+
+  bool _bumpSaved(String text) {
+    try {
+      return _store.bumpIfPresent(text, _clock());
+    } catch (error) {
+      final code = error is SqliteException ? error.extendedResultCode : null;
+      _log.log(LogCode.writeFailed, code);
+      return false;
+    }
   }
 
   void _flushWaiting() {
@@ -200,6 +225,34 @@ class HistoryService extends ChangeNotifier {
       await _writeClipboard(text);
       return true;
     } catch (_) {
+      return false;
+    }
+  }
+
+  /// The whole text of an item (also one still waiting to be saved), or null
+  /// if it is gone.
+  String? textOf(int id) => _closed ? null : _contentOf(id);
+
+  /// A saved setting (`picker_shortcut`, `paste_mode`), or null if it was
+  /// never saved or cannot be read.
+  String? setting(String key) {
+    if (_closed) return null;
+    try {
+      return _store.readSetting(key);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Saves a setting. Returns false if it could not be saved.
+  bool saveSetting(String key, String value) {
+    if (_closed) return false;
+    try {
+      _store.writeSetting(key, value);
+      return true;
+    } catch (error) {
+      final code = error is SqliteException ? error.extendedResultCode : null;
+      _log.log(LogCode.writeFailed, code);
       return false;
     }
   }

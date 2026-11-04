@@ -42,6 +42,85 @@ void main() {
 
   List<String> texts() => service.items.map((i) => i.preview).toList();
 
+  group('copies marked as ours (the picker pasted them)', () {
+    test('saved text moves to the top and nothing new is saved', () {
+      source.copy('a');
+      source.copy('b');
+      source.controller.add(const ClipboardText('a', ownMarker: true));
+      expect(texts(), ['a', 'b']);
+      expect(store.count, 2);
+    });
+
+    test('text that is not saved is a normal copy and is saved', () {
+      source.controller.add(const ClipboardText('new', ownMarker: true));
+      expect(texts(), ['new']);
+      expect(store.count, 1);
+    });
+
+    test('the marker never skips the usual checks', () {
+      source.controller.add(const ClipboardText('   ', ownMarker: true));
+      source.controller.add(
+        ClipboardText('x' * (ClipItem.maxContentLength + 1), ownMarker: true),
+      );
+      expect(texts(), isEmpty);
+      expect(log.codes, [LogCode.clipboardTooLarge]);
+    });
+
+    test('a secret-marked copy is skipped even if it also has our marker', () {
+      // Native code reports it as concealed and sends no text at all.
+      source.controller.add(const ClipboardSkipped(SkipReason.concealed));
+      expect(texts(), isEmpty);
+    });
+
+    test('a failed write is kept waiting like any other copy', () {
+      source.copy('a');
+      store.failWrites = true;
+      source.controller.add(const ClipboardText('a', ownMarker: true));
+      expect(service.banners, contains(HistoryBanner.writeError));
+    });
+  });
+
+  group('settings and the whole text of an item', () {
+    test('settings are saved in the store and read back', () {
+      expect(service.setting('picker_shortcut'), isNull);
+      expect(service.saveSetting('picker_shortcut', 'ctrl+alt+k'), isTrue);
+      expect(service.setting('picker_shortcut'), 'ctrl+alt+k');
+      expect(store.readSetting('picker_shortcut'), 'ctrl+alt+k');
+    });
+
+    test('a setting that cannot be saved reports false and logs a code', () {
+      store.failWrites = true;
+      expect(service.saveSetting('paste_mode', 'auto'), isFalse);
+      expect(log.codes, [LogCode.writeFailed]);
+      expect(service.saveSetting('nonsense', 'x'), isFalse);
+    });
+
+    test('a setting that cannot be read is null', () {
+      expect(service.setting('nonsense'), isNull);
+    });
+
+    test(
+      'textOf gives the whole text, also for a copy waiting to be saved',
+      () {
+        final long = 'y' * 5000;
+        source.copy(long);
+        expect(service.textOf(service.items.single.id), long);
+        store.failWrites = true;
+        source.copy('waiting');
+        final waitingId = service.items.first.id;
+        expect(waitingId, isNegative);
+        expect(service.textOf(waitingId), 'waiting');
+        expect(service.textOf(424242), isNull);
+      },
+    );
+
+    test('after close nothing is read or saved', () async {
+      await service.close();
+      expect(service.setting('paste_mode'), isNull);
+      expect(service.saveSetting('paste_mode', 'auto'), isFalse);
+    });
+  });
+
   test('a copied text appears at once, as text or link', () {
     var notified = 0;
     service.addListener(() => notified++);

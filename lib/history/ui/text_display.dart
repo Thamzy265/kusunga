@@ -2,9 +2,17 @@
 /// copied text cannot pretend to be something else (design note, abuse cases).
 String visibleText(String text) {
   final out = StringBuffer();
-  final runes = text.replaceAll('\r\n', '\n').runes;
-  for (final r in runes) {
-    if (r == 0x0A || r == 0x09) {
+  final runes = text.replaceAll('\r\n', '\n').runes.toList();
+  for (var i = 0; i < runes.length; i++) {
+    final r = runes[i];
+    // A zero width joiner between two emoji is part of one emoji (a family, a
+    // rainbow flag): it stays. Anywhere else it is shown as a code.
+    if (r == 0x200D &&
+        i > 0 &&
+        i + 1 < runes.length &&
+        _joinsEmoji(runes[i - 1], runes[i + 1])) {
+      out.writeCharCode(r);
+    } else if (r == 0x0A || r == 0x09) {
       out.writeCharCode(r);
     } else if (r < 0x20) {
       out.writeCharCode(0x2400 + r); // Control Pictures block
@@ -55,3 +63,12 @@ int _minutes(int nowMs, int thenMs) {
 }
 
 String _plural(int n, String unit) => '$n $unit${n == 1 ? '' : 's'} ago';
+
+bool _isEmoji(int r) =>
+    (r >= 0x1F000 && r <= 0x1FAFF) || // pictographs, skin tones, symbols
+    (r >= 0x2600 && r <= 0x27BF) || // misc symbols, dingbats (hearts, ...)
+    (r >= 0x2B00 && r <= 0x2BFF) ||
+    r == 0x2764;
+
+bool _joinsEmoji(int before, int after) =>
+    (_isEmoji(before) || before == 0xFE0F) && _isEmoji(after);

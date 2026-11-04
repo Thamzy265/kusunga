@@ -29,6 +29,21 @@ void main() {
       expect(visibleText('a\u0085b'), 'a[U+0085]b');
     });
 
+    test('a joiner between two emoji stays; elsewhere it is a code', () {
+      expect(
+        visibleText('\u{1F468}\u200D\u{1F469}'),
+        '\u{1F468}\u200D\u{1F469}',
+      );
+      expect(
+        visibleText('\u{1F3F3}\uFE0F\u200D\u{1F308}'),
+        '\u{1F3F3}\uFE0F\u200D\u{1F308}',
+      );
+      expect(visibleText('a\u200D\u{1F469}'), 'a[U+200D]\u{1F469}');
+      expect(visibleText('\u{1F468}\u200Db'), '\u{1F468}[U+200D]b');
+      expect(visibleText('\u200D'), '[U+200D]');
+      expect(visibleText('\u{1F468}\u200D'), '\u{1F468}[U+200D]');
+    });
+
     test('text that pretends to be a different link stays readable', () {
       final sneaky =
           'https://example.com/${String.fromCharCode(0x202E)}fdp.exe';
