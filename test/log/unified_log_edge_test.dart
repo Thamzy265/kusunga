@@ -137,15 +137,4 @@ void main() {
     deferred.attach(file);
     expect(file.lines, ['writeFailed 2']);
   });
-
-  test('the tee keeps order and writes each code once per log', () {
-    final a = _Recording();
-    final b = _Recording();
-    final tee = TeeErrorLog([a, b]);
-    tee.log(LogCode.writeFailed, 1);
-    tee.log(LogCode.readFailed);
-    expect(a.lines, ['writeFailed 1', 'readFailed']);
-    expect(b.lines, a.lines);
-    TeeErrorLog(const []).log(LogCode.writeFailed);
-  });
 }

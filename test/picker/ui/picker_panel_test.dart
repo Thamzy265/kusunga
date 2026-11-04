@@ -748,7 +748,67 @@ void main() {
       handle.dispose();
     });
 
-    testWidgets('the selection and the count are live regions', (tester) async {
+    testWidgets('Windows: the selection and the count are live regions, and '
+        'nothing is announced explicitly (one channel)', (tester) async {
+      final handle = tester.ensureSemantics();
+      final said = <String>[];
+      tester.binding.defaultBinaryMessenger
+          .setMockDecodedMessageHandler<dynamic>(SystemChannels.accessibility, (
+            m,
+          ) async {
+            if ((m as Map)['type'] == 'announce') said.add('x');
+            return null;
+          });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger
+            .setMockDecodedMessageHandler<dynamic>(
+              SystemChannels.accessibility,
+              null,
+            ),
+      );
+      copyAll(['a', 'b']);
+      await show(tester, isMac: false);
+      await tester.pump(const Duration(seconds: 1));
+      await key(tester, LogicalKeyboardKey.arrowDown);
+      await tester.enterText(find.byType(TextField), 'a');
+      await tester.pump(const Duration(seconds: 1));
+      expect(said, isEmpty);
+      final live = tester.getSemantics(
+        find.byKey(const ValueKey('picker-selection-announcement')),
+      );
+      expect(live.flagsCollection.isLiveRegion, isTrue);
+      expect(
+        tester
+            .getSemantics(find.bySemanticsLabel('1 match'))
+            .flagsCollection
+            .isLiveRegion,
+        isTrue,
+      );
+      handle.dispose();
+    });
+
+    testWidgets('Mac: explicit announcements, and the live-region flags are '
+        'off so VoiceOver does not say things twice', (tester) async {
+      final handle = tester.ensureSemantics();
+      copyAll(['a', 'b']);
+      await show(tester);
+      final live = tester.getSemantics(
+        find.byKey(const ValueKey('picker-selection-announcement')),
+      );
+      expect(live.flagsCollection.isLiveRegion, isFalse);
+      expect(
+        tester
+            .getSemantics(find.bySemanticsLabel('2 items'))
+            .flagsCollection
+            .isLiveRegion,
+        isFalse,
+      );
+      handle.dispose();
+    });
+
+    testWidgets('the selection and the count are labelled (Mac)', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       copyAll(['a', 'b']);
       await show(tester);
@@ -756,7 +816,6 @@ void main() {
       final live = tester.getSemantics(
         find.byKey(const ValueKey('picker-selection-announcement')),
       );
-      expect(live.flagsCollection.isLiveRegion, isTrue);
       expect(live.label, '1, Text: b, copied just now');
       await key(tester, LogicalKeyboardKey.arrowDown);
       expect(

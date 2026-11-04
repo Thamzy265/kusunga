@@ -143,14 +143,6 @@ void main() {
       await Future<void>.delayed(Duration.zero);
     });
 
-    test('TeeErrorLog writes to every log', () {
-      final a = _Recording();
-      final b = _Recording();
-      TeeErrorLog([a, b]).log(LogCode.readFailed, 3);
-      expect(a.lines, ['readFailed 3']);
-      expect(b.lines, ['readFailed 3']);
-    });
-
     test('DeferredErrorLog sends to the mirror at once and to the file once '
         'it is known, never twice', () {
       final mirror = _Recording();

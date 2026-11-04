@@ -261,15 +261,6 @@ inline ShowCommand ShowCommandToOpenSmallWindow(bool no_activate) {
   return no_activate ? ShowCommand::kShowNoActivate : ShowCommand::kRestore;
 }
 
-// ---- The window the picker came from is gone ----
-
-// When the picker is deactivated because that window closed, it stays open:
-// Enter then only copies and shows the "Copied" toast. Any other deactivation
-// closes it.
-inline bool ShouldDismissOnDeactivate(bool has_target, bool target_alive) {
-  return !(has_target && !target_alive);
-}
-
 // ---- Scale of a monitor (W2) ----
 
 // 96 dpi is 1.0. 0 means "unknown".

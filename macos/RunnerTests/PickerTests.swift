@@ -862,3 +862,80 @@ class DismissRuleTests: XCTestCase {
     XCTAssertTrue(DismissRule.shouldDismiss(target: nil, targetAlive: false))
   }
 }
+
+// MARK: - The target quits while the picker is open (F2): both orders
+
+class DismissCoordinatorTests: XCTestCase {
+  var scheduled: [() -> Void] = []
+  var decisions: [Bool] = []
+  var alive = true
+  var coordinator: DismissCoordinator!
+
+  override func setUp() {
+    scheduled = []
+    decisions = []
+    alive = true
+    coordinator = DismissCoordinator()
+  }
+
+  private func focusLost(target: pid_t? = 200) {
+    coordinator.focusLost(
+      target: target, alive: { [unowned self] in self.alive },
+      schedule: { [unowned self] _, work in self.scheduled.append(work) },
+      decide: { [unowned self] in self.decisions.append($0) })
+  }
+
+  private func runScheduled() {
+    let work = scheduled
+    scheduled = []
+    work.forEach { $0() }
+  }
+
+  func testFocusLostThenTheTargetQuitKeepsThePicker() {
+    focusLost()
+    XCTAssertTrue(decisions.isEmpty, "decided only after the short wait")
+    coordinator.noteTargetQuit()
+    runScheduled()
+    XCTAssertEqual(decisions, [false])
+  }
+
+  func testTheTargetQuitThenFocusLostKeepsThePicker() {
+    coordinator.noteTargetQuit()
+    focusLost()
+    runScheduled()
+    XCTAssertEqual(decisions, [false])
+  }
+
+  func testFocusLostAloneClosesThePicker() {
+    focusLost()
+    runScheduled()
+    XCTAssertEqual(decisions, [true])
+  }
+
+  func testATargetThatIsGoneButNotYetReportedAlsoKeepsIt() {
+    focusLost()
+    alive = false
+    runScheduled()
+    XCTAssertEqual(decisions, [false])
+  }
+
+  func testNoTargetClosesEvenIfSomeAppQuit() {
+    coordinator.noteTargetQuit()
+    focusLost(target: nil)
+    runScheduled()
+    XCTAssertEqual(decisions, [true])
+  }
+
+  func testTheFlagIsClearedForTheNextOpening() {
+    coordinator.noteTargetQuit()
+    coordinator.reset()
+    focusLost()
+    runScheduled()
+    XCTAssertEqual(decisions, [true])
+  }
+
+  func testTheRuleTakesTheFlag() {
+    XCTAssertFalse(DismissRule.shouldDismiss(target: 200, targetQuit: true, targetAlive: true))
+    XCTAssertTrue(DismissRule.shouldDismiss(target: 200, targetQuit: false, targetAlive: true))
+  }
+}

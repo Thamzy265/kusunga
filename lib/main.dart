@@ -8,10 +8,8 @@ import 'package:path_provider/path_provider.dart';
 import 'app.dart';
 import 'clipboard/channel_clipboard_source.dart';
 import 'history/history_handle.dart';
-import 'history/history_opener.dart';
-import 'history/history_service.dart';
+import 'history/open_app_history.dart';
 import 'history/windows_key_store.dart';
-import 'history/memory_history_store.dart';
 import 'lifecycle/app_lifecycle.dart';
 import 'lifecycle/quit_flow.dart';
 import 'log/app_log.dart';
@@ -23,47 +21,21 @@ import 'tray/tray_service.dart';
 import 'window/window_manager_port.dart';
 import 'window/window_service.dart';
 
-/// Opens the encrypted history and starts listening for copies. It never
-/// throws: if anything is wrong the history runs in memory only, with a
-/// banner, and nothing is written to disk.
-Future<HistoryService> _openHistory(DeferredErrorLog deferred) async {
-  ErrorLog log = const NullErrorLog();
-  OpenedHistory opened;
-  try {
-    final dir = await getApplicationSupportDirectory();
-    await dir.create(recursive: true);
-    final file = FileErrorLog(
-      File('${dir.path}${Platform.pathSeparator}kusunga.log'),
-    );
-    // The file log (kept as it is) plus the unified log, for the codes the
-    // history service writes. Codes logged before this point already went to
-    // the unified log through the deferred log.
-    log = TeeErrorLog([file, ChannelUnifiedLog()]);
-    // Codes logged before the data folder was known (a shortcut that could
-    // not be registered) are written now.
-    deferred.attach(file);
-    opened = await openHistory(
-      keys: keyStoreFor(isWindows: Platform.isWindows),
-      directory: dir.path,
-      log: log,
-    );
-  } catch (_) {
-    log.log(LogCode.dataFolderUnavailable);
-    opened = OpenedHistory(MemoryHistoryStore(), {HistoryNotice.memoryOnly});
-  }
-  return HistoryService(
-    store: opened.store,
-    notices: opened.notices,
-    source: ChannelClipboardSource(),
-    log: log,
-  )..start();
-}
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final deferredLog = DeferredErrorLog(mirror: ChannelUnifiedLog());
-  final history = _openHistory(deferredLog);
+  // The unified log mirror is a macOS thing (the Windows side has none).
+  final deferredLog = DeferredErrorLog(
+    mirror: defaultTargetPlatform == TargetPlatform.macOS
+        ? ChannelUnifiedLog()
+        : null,
+  );
+  final history = openAppHistory(
+    deferred: deferredLog,
+    supportDirectory: getApplicationSupportDirectory,
+    keys: keyStoreFor(isWindows: Platform.isWindows),
+    source: ChannelClipboardSource(),
+  );
   final handle = HistoryHandle(history);
 
   final isDesktop =

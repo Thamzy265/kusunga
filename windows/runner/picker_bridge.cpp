@@ -529,14 +529,6 @@ void PickerBridge::ClosePicker() {
 
 void PickerBridge::WindowDeactivated() {
   if (mode_ != Mode::kPicker || pasting_) return;
-  // The window the picker came from closed: stay open (a paste then copies and
-  // shows the toast).
-  if (!kusunga::ShouldDismissOnDeactivate(target_ != nullptr,
-                                          target_ != nullptr && ::IsWindow(target_))) {
-    target_ = nullptr;
-    ::SetForegroundWindow(window_);
-    return;
-  }
   LeavePicker(manage_was_visible_, false);
   target_ = nullptr;
   channel_->InvokeMethod("dismissed", nullptr);

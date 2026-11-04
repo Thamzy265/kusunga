@@ -56,7 +56,33 @@ enum DiagLog {
 /// stays: Enter then copies and shows the "Copied" toast (the target is gone).
 /// Any other loss of focus closes it.
 enum DismissRule {
-  static func shouldDismiss(target: pid_t?, targetAlive: Bool) -> Bool {
-    !(target != nil && !targetAlive)
+  static func shouldDismiss(target: pid_t?, targetQuit: Bool = false, targetAlive: Bool) -> Bool {
+    !(target != nil && (targetQuit || !targetAlive))
+  }
+}
+
+/// Decides what a lost focus means. The decision is taken a short moment later,
+/// because macOS can report the quit before or after the focus change: the
+/// "target quit" flag is set by the quit notice and read when the wait ends, so
+/// either order gives the same answer.
+final class DismissCoordinator {
+  private(set) var targetQuit = false
+
+  func noteTargetQuit() { targetQuit = true }
+
+  /// A new opening, a closing or a paste: forget an earlier quit.
+  func reset() { targetQuit = false }
+
+  func focusLost(
+    target: pid_t?, alive: @escaping () -> Bool,
+    schedule: (TimeInterval, @escaping () -> Void) -> Void,
+    decide: @escaping (Bool) -> Void
+  ) {
+    schedule(0.12) { [weak self] in
+      guard let self = self else { return }
+      decide(
+        DismissRule.shouldDismiss(
+          target: target, targetQuit: self.targetQuit, targetAlive: alive()))
+    }
   }
 }

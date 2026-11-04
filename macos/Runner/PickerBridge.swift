@@ -25,6 +25,7 @@ final class PickerBridge {
   private let backend = CarbonHotKeyBackend()
   private lazy var registry = HotKeyRegistry(backend: backend)
   private var target: pid_t?
+  private let dismissal = DismissCoordinator()
   private var pasting = false
   private var openPending = false
   private var resignObserver: NSObjectProtocol?
@@ -59,7 +60,9 @@ final class PickerBridge {
         app.processIdentifier == t
       else { return }
       DiagLog.log("targetTerminated", nil)
-      self.target = nil
+      // The pid stays (a paste then finds it gone and only copies); the flag
+      // tells a lost focus that the quit was the reason.
+      self.dismissal.noteTargetQuit()
       if self.windows?.mode == .picker { self.windows?.retakeKeyboard() }
     }
 
@@ -124,6 +127,7 @@ final class PickerBridge {
     let me = ProcessInfo.processInfo.processIdentifier
     let front = NSWorkspace.shared.frontmostApplication?.processIdentifier
     target = (front != nil && front != me) ? front : nil
+    dismissal.reset()
     openPending = true
     var shown = false
     let show = { [weak self] in
@@ -139,7 +143,9 @@ final class PickerBridge {
   /// Esc.
   private func closePicker() {
     guard let windows = windows, windows.mode == .picker else { return }
-    let plan = ClosePlan.make(manageWasVisible: windows.manageWasVisible, target: target)
+    // A target that quit is as good as none: Kusunga was the app in front.
+    let plan = ClosePlan.make(
+      manageWasVisible: windows.manageWasVisible, target: dismissal.targetQuit ? nil : target)
     windows.leavePicker(showManage: plan.showManage, activate: plan.activateKusunga)
     if let t = plan.reactivate { _ = MacPastePlatform.activateApp(t) }
     target = nil
@@ -147,32 +153,25 @@ final class PickerBridge {
 
   private func windowLostFocus() {
     guard let windows = windows, windows.mode == .picker, !pasting else { return }
-    // If the app the picker came from is the one that just quit, the picker
-    // stays (macOS hands the focus to another app for a moment); Enter then
-    // copies and shows the toast. The check is repeated a moment later,
-    // because the quit can be reported after the focus change.
-    if !shouldDismissNow() {
-      DiagLog.log("pickerKeptTargetGone", nil)
-      target = nil
-      windows.retakeKeyboard()
-      return
-    }
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
-      guard let self = self, let windows = self.windows, windows.mode == .picker, !self.pasting
-      else { return }
-      if !self.shouldDismissNow() {
-        DiagLog.log("pickerKeptTargetGone", nil)
-        self.target = nil
-        windows.retakeKeyboard()
-        return
-      }
-      self.dismissPicker()
-    }
+    dismissal.focusLost(
+      target: target, alive: { [weak self] in self?.targetAlive() ?? false },
+      schedule: { delay, work in DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work) },
+      decide: { [weak self] dismiss in
+        guard let self = self, let windows = self.windows, windows.mode == .picker, !self.pasting
+        else { return }
+        if dismiss {
+          self.dismissPicker()
+        } else {
+          // The app the picker came from quit: stay open, Enter copies and
+          // shows the toast.
+          DiagLog.log("pickerKeptTargetGone", nil)
+          windows.retakeKeyboard()
+        }
+      })
   }
 
-  private func shouldDismissNow() -> Bool {
-    let alive = target.map { MacPastePlatform.isAlive($0) } ?? false
-    return DismissRule.shouldDismiss(target: target, targetAlive: alive)
+  private func targetAlive() -> Bool {
+    target.map { MacPastePlatform.isAlive($0) } ?? false
   }
 
   private func dismissPicker() {

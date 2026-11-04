@@ -110,16 +110,3 @@ class DeferredErrorLog implements ErrorLog {
     if (_waiting.length > maxWaiting) _waiting.removeAt(0);
   }
 }
-
-/// Writes every code to all of [logs].
-class TeeErrorLog implements ErrorLog {
-  TeeErrorLog(this.logs);
-  final List<ErrorLog> logs;
-
-  @override
-  void log(LogCode code, [int? detail]) {
-    for (final l in logs) {
-      l.log(code, detail);
-    }
-  }
-}

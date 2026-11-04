@@ -163,7 +163,8 @@ class _PickerPanelState extends State<PickerPanel>
   // Flutter's live regions are not always spoken by VoiceOver on macOS, so the
   // count and the selected row are also sent as explicit announcements.
   void _speak(String message, {bool assertive = false}) {
-    if (!mounted || message.isEmpty) return;
+    // Explicit announcements are the Mac channel; Windows uses live regions.
+    if (!mounted || message.isEmpty || !_controller.isMac) return;
     unawaited(
       SemanticsService.sendAnnouncement(
         View.of(context),
@@ -382,7 +383,9 @@ class _PickerPanelState extends State<PickerPanel>
             Expanded(child: body),
             Semantics(
               key: const ValueKey('picker-selection-announcement'),
-              liveRegion: true,
+              // One channel per platform: on Windows (Narrator) the live
+              // region, on a Mac (VoiceOver) the explicit announcement.
+              liveRegion: !_controller.isMac,
               label: announcement,
               child: const SizedBox.shrink(),
             ),
@@ -698,7 +701,7 @@ class _Footer extends StatelessWidget {
               ],
             ),
           Semantics(
-            liveRegion: true,
+            liveRegion: !isMac,
             label: spokenCount,
             excludeSemantics: true,
             child: Text(count, style: style),
