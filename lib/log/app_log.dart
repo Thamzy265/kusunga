@@ -79,7 +79,12 @@ class NullErrorLog implements ErrorLog {
 /// written in order when the real log is attached. Used once only: a second
 /// [attach] is ignored.
 class DeferredErrorLog implements ErrorLog {
+  /// [mirror] (the unified log) gets every code at once; the file log, once it
+  /// is known, gets the ones that waited.
+  DeferredErrorLog({this.mirror});
+
   static const maxWaiting = 20;
+  final ErrorLog? mirror;
 
   ErrorLog? _real;
   final _waiting = <(LogCode, int?)>[];
@@ -95,6 +100,7 @@ class DeferredErrorLog implements ErrorLog {
 
   @override
   void log(LogCode code, [int? detail]) {
+    mirror?.log(code, detail);
     final real = _real;
     if (real != null) {
       real.log(code, detail);
@@ -102,5 +108,18 @@ class DeferredErrorLog implements ErrorLog {
     }
     _waiting.add((code, detail));
     if (_waiting.length > maxWaiting) _waiting.removeAt(0);
+  }
+}
+
+/// Writes every code to all of [logs].
+class TeeErrorLog implements ErrorLog {
+  TeeErrorLog(this.logs);
+  final List<ErrorLog> logs;
+
+  @override
+  void log(LogCode code, [int? detail]) {
+    for (final l in logs) {
+      l.log(code, detail);
+    }
   }
 }

@@ -281,6 +281,12 @@ int main() {
   CHECK(ScaleFromDpi(192) == 2.0);
   CHECK(ScaleFromDpi(0) == 1.0);  // unknown: no scaling
 
+  // ---- the app the picker came from quits while it is open ----
+  CHECK(!ShouldDismissOnDeactivate(true, false));  // keep it: Enter copies, toast
+  CHECK(ShouldDismissOnDeactivate(true, true));
+  CHECK(ShouldDismissOnDeactivate(false, false));
+  CHECK(ShouldDismissOnDeactivate(false, true));
+
   // ---- paste flow ----
   {
     FakePlatform p;

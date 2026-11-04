@@ -21,6 +21,7 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		A1B2C3D4E5F60718293A4B35 /* DiagLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B25 /* DiagLog.swift */; };
 		A1B2C3D4E5F60718293A4B33 /* PickerBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B23 /* PickerBridge.swift */; };
 		A1B2C3D4E5F60718293A4B32 /* PickerWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B22 /* PickerWindow.swift */; };
 		A1B2C3D4E5F60718293A4B31 /* HotKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B21 /* HotKeys.swift */; };
@@ -70,6 +71,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A1B2C3D4E5F60718293A4B25 /* DiagLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagLog.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B23 /* PickerBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickerBridge.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B22 /* PickerWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickerWindow.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B21 /* HotKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeys.swift; sourceTree = "<group>"; };
@@ -190,6 +192,7 @@
 				A1B2C3D4E5F60718293A4B03 /* ClipboardBridge.swift */,
 				A1B2C3D4E5F60718293A4B02 /* AppLifecycle.swift */,
 				A1B2C3D4E5F60718293A4B01 /* ClipboardWatcher.swift */,
+				A1B2C3D4E5F60718293A4B25 /* DiagLog.swift */,
 				A1B2C3D4E5F60718293A4B23 /* PickerBridge.swift */,
 				A1B2C3D4E5F60718293A4B22 /* PickerWindow.swift */,
 				A1B2C3D4E5F60718293A4B21 /* HotKeys.swift */,
@@ -388,6 +391,7 @@
 				A1B2C3D4E5F60718293A4B13 /* ClipboardBridge.swift in Sources */,
 				A1B2C3D4E5F60718293A4B12 /* AppLifecycle.swift in Sources */,
 				A1B2C3D4E5F60718293A4B11 /* ClipboardWatcher.swift in Sources */,
+				A1B2C3D4E5F60718293A4B35 /* DiagLog.swift in Sources */,
 				A1B2C3D4E5F60718293A4B33 /* PickerBridge.swift in Sources */,
 				A1B2C3D4E5F60718293A4B32 /* PickerWindow.swift in Sources */,
 				A1B2C3D4E5F60718293A4B31 /* HotKeys.swift in Sources */,

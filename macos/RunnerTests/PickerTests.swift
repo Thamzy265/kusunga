@@ -764,3 +764,101 @@ class PermissionDiagnosticsTests: XCTestCase {
     XCTAssertFalse(platform.log.contains { $0.hasPrefix("post") })
   }
 }
+
+// MARK: - Diagnostics in the unified log
+
+class DiagLogTests: XCTestCase {
+  func testOnlyShortAlphanumericCodesAreAccepted() {
+    XCTAssertTrue(DiagLog.isCode("permissionSnapshot"))
+    XCTAssertTrue(DiagLog.isCode("postKeyCode"))
+    for bad in ["", "has space", "text with content", "a.b", "é", String(repeating: "a", count: 41), "x\ny"] {
+      XCTAssertFalse(DiagLog.isCode(bad), bad)
+    }
+  }
+
+  /// Written to the real unified log from the test host, so
+  /// `log show --predicate 'subsystem == "com.wnasoni.kusunga"' --info` can be
+  /// checked by hand.
+  func testWritesALineTheLogCommandCanFind() {
+    DiagLog.log("diagSelfTest", 7)
+  }
+}
+
+class PasteFlowDiagnosticsTests: XCTestCase {
+  var lines: [String] = []
+  var platform: FakePastePlatform!
+  var flow: PasteFlow!
+
+  override func setUp() {
+    lines = []
+    platform = FakePastePlatform()
+    flow = PasteFlow(
+      platform: platform, writer: FakePasteboardWriter(), ownPid: 1,
+      diag: { [unowned self] code, detail in
+        self.lines.append(detail == nil ? code : "\(code) \(detail!)")
+      })
+  }
+
+  func testEveryStepOfAPasteIsLogged() {
+    XCTAssertEqual(flow.run(text: "secret words", target: 200, post: true), .pasted)
+    XCTAssertTrue(lines.contains("postKeyCode 9"), "\(lines)")
+    XCTAssertTrue(lines.contains("postFrontmostOk 1"), "\(lines)")
+    XCTAssertTrue(lines.contains { $0.hasPrefix("postTiming ") }, "\(lines)")
+    XCTAssertEqual(lines.last, "pasteResult 0")
+  }
+
+  func testTheTimeFromEnterToThePostIsTheVirtualElapsedTime() {
+    platform.frontAfterMs = 120
+    _ = flow.run(text: "x", target: 200, post: true)
+    let timing = lines.first { $0.hasPrefix("postTiming ") }!
+    XCTAssertGreaterThanOrEqual(Int(timing.dropFirst(11))!, 120)
+  }
+
+  func testFocusStolenBeforeThePostIsLoggedAndNothingIsPosted() {
+    platform.modifiersHeldUntilMs = 200
+    platform.stealAtMs = 100
+    XCTAssertEqual(flow.run(text: "x", target: 200, post: true), .focusTimeout)
+    XCTAssertTrue(lines.contains("postFrontmostOk 0"), "\(lines)")
+    XCTAssertFalse(lines.contains { $0.hasPrefix("postTiming") })
+  }
+
+  func testAForcedPostIsLogged() {
+    platform.canPost = false
+    platform.forcePost = true
+    _ = flow.run(text: "x", target: 200, post: true)
+    XCTAssertTrue(lines.contains("postForced 1"), "\(lines)")
+  }
+
+  func testNoKeyForVIsLogged() {
+    platform.keyCode = nil
+    _ = flow.run(text: "x", target: 200, post: true)
+    XCTAssertTrue(lines.contains("postKeyNone"), "\(lines)")
+  }
+
+  func testEveryOutcomeEndsWithItsNumberAndNeverTheText() {
+    platform.canPost = false
+    _ = flow.run(text: "my private text", target: 200, post: true)
+    XCTAssertEqual(lines.last, "pasteResult \(PasteResult.allCases.firstIndex(of: .noPermission)!)")
+    XCTAssertFalse(lines.joined().contains("private"))
+    let gone = FakePastePlatform()
+    gone.running = []
+    lines = []
+    let f = PasteFlow(platform: gone, writer: FakePasteboardWriter(), ownPid: 1,
+      diag: { [unowned self] c, d in self.lines.append(d == nil ? c : "\(c) \(d!)") })
+    _ = f.run(text: "x", target: 200, post: true)
+    XCTAssertEqual(lines.last, "pasteResult \(PasteResult.allCases.firstIndex(of: .targetGone)!)")
+  }
+}
+
+// MARK: - The target quits while the picker is open
+
+class DismissRuleTests: XCTestCase {
+  func testALostFocusWithAGoneTargetKeepsThePickerOpen() {
+    XCTAssertFalse(DismissRule.shouldDismiss(target: 200, targetAlive: false))
+  }
+
+  func testALostFocusWithALiveTargetOrNoTargetClosesIt() {
+    XCTAssertTrue(DismissRule.shouldDismiss(target: 200, targetAlive: true))
+    XCTAssertTrue(DismissRule.shouldDismiss(target: nil, targetAlive: false))
+  }
+}

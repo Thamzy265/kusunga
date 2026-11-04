@@ -98,7 +98,7 @@ void main() {
 
     test('every Mac answer is a name Dart understands', () {
       final enumBlock = RegExp(
-        r'enum PasteResult: String \{([^}]*)\}',
+        r'enum PasteResult: String(?:, CaseIterable)? \{([^}]*)\}',
       ).firstMatch(swift)!.group(1)!;
       final names = RegExp(
         r'case (\w+)',

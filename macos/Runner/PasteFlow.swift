@@ -107,7 +107,7 @@ struct ClosePlan: Equatable {
   }
 }
 
-enum PasteResult: String {
+enum PasteResult: String, CaseIterable {
   case pasted
   case pastedForced
   case noPermission
@@ -131,14 +131,27 @@ final class PasteFlow {
   private let platform: PastePlatform
   private let writer: PasteboardWriting
   private let ownPid: pid_t
+  private let diag: (String, Int?) -> Void
 
-  init(platform: PastePlatform, writer: PasteboardWriting, ownPid: pid_t) {
+  /// [diag] gets a code and a number for every step (never any content).
+  init(
+    platform: PastePlatform, writer: PasteboardWriting, ownPid: pid_t,
+    diag: @escaping (String, Int?) -> Void = { _, _ in }
+  ) {
     self.platform = platform
     self.writer = writer
     self.ownPid = ownPid
+    self.diag = diag
   }
 
   func run(text: String, target: pid_t?, post: Bool) -> PasteResult {
+    let start = platform.nowMs()
+    let result = steps(text: text, target: target, post: post, start: start)
+    diag("pasteResult", PasteResult.allCases.firstIndex(of: result))
+    return result
+  }
+
+  private func steps(text: String, target: pid_t?, post: Bool, start: Int) -> PasteResult {
     let written = writer.writeText(text)
     platform.hidePicker()
     guard written else { return .failed }
@@ -157,15 +170,23 @@ final class PasteFlow {
     }
     // No key types "v" in this layout: pressing a different key could do
     // something else, so only the copy is done.
-    if platform.pasteKeyCode() == nil { return .copyOnly }
+    guard let keyCode = platform.pasteKeyCode() else {
+      diag("postKeyNone", nil)
+      return .copyOnly
+    }
+    diag("postKeyCode", Int(keyCode))
+    if forced { diag("postForced", 1) }
 
     // Let go of Cmd+Shift first, so the app does not see Cmd+Shift+V. Waiting
     // too long is not an error: the key event below carries only Cmd.
     _ = waitUntil(PasteFlow.modifierTimeoutMs, { !platform.modifiersDown() })
 
     // Focus can be taken while we waited: check again, right before posting.
-    guard platform.frontmostPid() == target else { return .focusTimeout }
+    let frontOk = platform.frontmostPid() == target
+    diag("postFrontmostOk", frontOk ? 1 : 0)
+    guard frontOk else { return .focusTimeout }
     platform.postPaste()
+    diag("postTiming", platform.nowMs() - start)
     return forced ? .pastedForced : .pasted
   }
 
@@ -202,9 +223,11 @@ final class NSPasteboardWriter: PasteboardWriting {
 /// The real Mac. [hide] hides the picker window.
 final class MacPastePlatform: PastePlatform {
   private let hide: () -> Void
+  private let diag: (String, Int?) -> Void
 
-  init(hide: @escaping () -> Void) {
+  init(hide: @escaping () -> Void, diag: @escaping (String, Int?) -> Void = { _, _ in }) {
     self.hide = hide
+    self.diag = diag
   }
 
   func hidePicker() { hide() }
@@ -213,7 +236,9 @@ final class MacPastePlatform: PastePlatform {
     NSWorkspace.shared.frontmostApplication?.processIdentifier
   }
 
-  func isRunning(_ pid: pid_t) -> Bool {
+  func isRunning(_ pid: pid_t) -> Bool { MacPastePlatform.isAlive(pid) }
+
+  static func isAlive(_ pid: pid_t) -> Bool {
     guard let app = NSRunningApplication(processIdentifier: pid) else { return false }
     return !app.isTerminated
   }
@@ -256,13 +281,24 @@ final class MacPastePlatform: PastePlatform {
     // The key that types "v" in the current layout (key code 9 on a US
     // layout), posted to the session with only the Command flag.
     guard let keyCode = pasteKeyCode() else { return }
-    let source = CGEventSource(stateID: .combinedSessionState)
+    let state = CGEventSourceStateID.combinedSessionState
+    let tap = CGEventTapLocation.cgSessionEventTap
+    let source = CGEventSource(stateID: state)
+    diag("postSourceState", Int(state.rawValue))
+    if source == nil { diag("postSourceNil", nil) }
+    diag("postTap", Int(tap.rawValue))
+    var posted = 0
     for down in [true, false] {
       guard let event = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: down)
-      else { continue }
+      else {
+        diag("postEventNil", down ? 1 : 0)
+        continue
+      }
       event.flags = .maskCommand
-      event.post(tap: .cgSessionEventTap)
+      event.post(tap: tap)
+      posted += 1
     }
+    diag("postSent", posted)
   }
 
   /// Waits while still handling events: the system tells us which app is in

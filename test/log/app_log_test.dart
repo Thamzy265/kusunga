@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/log/app_log.dart';
+import 'package:kusunga/log/unified_log.dart';
 
 void main() {
   late Directory dir;
@@ -92,6 +94,74 @@ void main() {
       late.log(LogCode.flushFailed);
       expect(a.lines, ['readFailed', 'flushFailed']);
       expect(b.lines, isEmpty);
+    });
+  });
+
+  group('unified log mirror', () {
+    final binding = TestWidgetsFlutterBinding.ensureInitialized();
+    const channel = MethodChannel('com.wnasoni.kusunga/diag');
+    final calls = <MethodCall>[];
+    Object? reply;
+
+    setUp(() {
+      calls.clear();
+      reply = null;
+      binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        c,
+      ) async {
+        calls.add(c);
+        if (reply is Exception) throw reply!;
+        return null;
+      });
+    });
+    tearDown(
+      () => binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        null,
+      ),
+    );
+
+    test(
+      'ChannelUnifiedLog sends the code name and the number, nothing else',
+      () async {
+        final log = ChannelUnifiedLog();
+        log.log(LogCode.permissionSnapshot, 5);
+        log.log(LogCode.pasteTargetGone);
+        await Future<void>.delayed(Duration.zero);
+        expect(calls.map((c) => c.method), ['log', 'log']);
+        expect(calls[0].arguments, {'code': 'permissionSnapshot', 'detail': 5});
+        expect(calls[1].arguments, {'code': 'pasteTargetGone', 'detail': null});
+      },
+    );
+
+    test('a missing native side or an error never throws', () async {
+      reply = PlatformException(code: 'x');
+      expect(
+        () => ChannelUnifiedLog().log(LogCode.writeFailed),
+        returnsNormally,
+      );
+      await Future<void>.delayed(Duration.zero);
+    });
+
+    test('TeeErrorLog writes to every log', () {
+      final a = _Recording();
+      final b = _Recording();
+      TeeErrorLog([a, b]).log(LogCode.readFailed, 3);
+      expect(a.lines, ['readFailed 3']);
+      expect(b.lines, ['readFailed 3']);
+    });
+
+    test('DeferredErrorLog sends to the mirror at once and to the file once '
+        'it is known, never twice', () {
+      final mirror = _Recording();
+      final late = DeferredErrorLog(mirror: mirror);
+      late.log(LogCode.hotkeyRegisterFailed);
+      expect(mirror.lines, ['hotkeyRegisterFailed']);
+      final file = _Recording();
+      late.attach(file);
+      late.log(LogCode.pasteTargetGone);
+      expect(file.lines, ['hotkeyRegisterFailed', 'pasteTargetGone']);
+      expect(mirror.lines, ['hotkeyRegisterFailed', 'pasteTargetGone']);
     });
   });
 }

@@ -15,6 +15,7 @@ import 'history/memory_history_store.dart';
 import 'lifecycle/app_lifecycle.dart';
 import 'lifecycle/quit_flow.dart';
 import 'log/app_log.dart';
+import 'log/unified_log.dart';
 import 'picker/channel_picker_port.dart';
 import 'picker/picker_controller.dart';
 import 'tray/tray_manager_port.dart';
@@ -31,10 +32,16 @@ Future<HistoryService> _openHistory(DeferredErrorLog deferred) async {
   try {
     final dir = await getApplicationSupportDirectory();
     await dir.create(recursive: true);
-    log = FileErrorLog(File('${dir.path}${Platform.pathSeparator}kusunga.log'));
+    final file = FileErrorLog(
+      File('${dir.path}${Platform.pathSeparator}kusunga.log'),
+    );
+    // The file log (kept as it is) plus the unified log, for the codes the
+    // history service writes. Codes logged before this point already went to
+    // the unified log through the deferred log.
+    log = TeeErrorLog([file, ChannelUnifiedLog()]);
     // Codes logged before the data folder was known (a shortcut that could
     // not be registered) are written now.
-    deferred.attach(log);
+    deferred.attach(file);
     opened = await openHistory(
       keys: keyStoreFor(isWindows: Platform.isWindows),
       directory: dir.path,
@@ -55,7 +62,7 @@ Future<HistoryService> _openHistory(DeferredErrorLog deferred) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final deferredLog = DeferredErrorLog();
+  final deferredLog = DeferredErrorLog(mirror: ChannelUnifiedLog());
   final history = _openHistory(deferredLog);
   final handle = HistoryHandle(history);
 

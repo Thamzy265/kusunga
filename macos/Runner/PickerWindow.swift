@@ -157,6 +157,10 @@ final class PickerWindowController {
 
   /// Makes Kusunga active, the window key, and the Flutter view the first
   /// responder (a changed window style can drop it).
+  /// Takes the keyboard again (the picker stays open after the app it came from
+  /// quit).
+  func retakeKeyboard() { takeKeyboard() }
+
   private func takeKeyboard() {
     PickerWindowController.activateKusunga()
     window.makeKeyAndOrderFront(nil)
@@ -222,6 +226,17 @@ final class PickerWindowController {
     applySmallShape(frame: PickerGeometry.toastFrame(pointer: NSEvent.mouseLocation, in: screen))
     window.ignoresMouseEvents = true
     window.orderFrontRegardless()
+    DiagLog.log("toastShown", window.isVisible ? 1 : 0)
+    DiagLog.log("toastAppActive", NSApp.isActive ? 1 : 0)
+    // Shown or not, look again shortly (Kusunga may have been the active app
+    // that was just handed over to another one) and put it back in front.
+    for delay in [0.05, 0.25] {
+      DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+        guard let self = self, self.mode == .toast else { return }
+        if !self.window.isVisible { self.window.orderFrontRegardless() }
+        DiagLog.log("toastRecheck", self.window.isVisible ? 1 : 0)
+      }
+    }
   }
 
   func hideToast() {

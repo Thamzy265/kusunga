@@ -37,6 +37,32 @@ final class PickerBridge {
     backend.onPress = { [weak self] handle in self?.registry.handlePress(handle: handle) }
     registry.onPress = { [weak self] in self?.beginOpen() }
 
+    // Dart mirrors its log codes here (codes and numbers only).
+    FlutterMethodChannel(name: "com.wnasoni.kusunga/diag", binaryMessenger: messenger)
+      .setMethodCallHandler { call, result in
+        if call.method == "log", let args = call.arguments as? [String: Any],
+          let code = args["code"] as? String
+        {
+          DiagLog.log(code, args["detail"] as? Int)
+          result(nil)
+        } else {
+          result(FlutterMethodNotImplemented)
+        }
+      }
+
+    // The app the picker came from quit: it is gone, so a paste only copies.
+    NSWorkspace.shared.notificationCenter.addObserver(
+      forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main
+    ) { [weak self] note in
+      guard let self = self, let t = self.target,
+        let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+        app.processIdentifier == t
+      else { return }
+      DiagLog.log("targetTerminated", nil)
+      self.target = nil
+      if self.windows?.mode == .picker { self.windows?.retakeKeyboard() }
+    }
+
     let channel = FlutterMethodChannel(
       name: "com.wnasoni.kusunga/picker", binaryMessenger: messenger)
     channel.setMethodCallHandler { [weak self] call, result in
@@ -121,6 +147,36 @@ final class PickerBridge {
 
   private func windowLostFocus() {
     guard let windows = windows, windows.mode == .picker, !pasting else { return }
+    // If the app the picker came from is the one that just quit, the picker
+    // stays (macOS hands the focus to another app for a moment); Enter then
+    // copies and shows the toast. The check is repeated a moment later,
+    // because the quit can be reported after the focus change.
+    if !shouldDismissNow() {
+      DiagLog.log("pickerKeptTargetGone", nil)
+      target = nil
+      windows.retakeKeyboard()
+      return
+    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
+      guard let self = self, let windows = self.windows, windows.mode == .picker, !self.pasting
+      else { return }
+      if !self.shouldDismissNow() {
+        DiagLog.log("pickerKeptTargetGone", nil)
+        self.target = nil
+        windows.retakeKeyboard()
+        return
+      }
+      self.dismissPicker()
+    }
+  }
+
+  private func shouldDismissNow() -> Bool {
+    let alive = target.map { MacPastePlatform.isAlive($0) } ?? false
+    return DismissRule.shouldDismiss(target: target, targetAlive: alive)
+  }
+
+  private func dismissPicker() {
+    guard let windows = windows else { return }
     windows.leavePicker(showManage: windows.manageWasVisible, activate: false)
     target = nil
     channel?.invokeMethod("dismissed", arguments: nil)
@@ -132,12 +188,12 @@ final class PickerBridge {
       pasting = false
       target = nil
     }
-    let platform = MacPastePlatform(hide: { [weak self] in
-      self?.windows?.leavePicker(showManage: false, activate: false)
-    })
+    let platform = MacPastePlatform(
+      hide: { [weak self] in self?.windows?.leavePicker(showManage: false, activate: false) },
+      diag: DiagLog.log)
     let flow = PasteFlow(
       platform: platform, writer: NSPasteboardWriter(),
-      ownPid: ProcessInfo.processInfo.processIdentifier)
+      ownPid: ProcessInfo.processInfo.processIdentifier, diag: DiagLog.log)
     return flow.run(text: text, target: target, post: post)
   }
 }
