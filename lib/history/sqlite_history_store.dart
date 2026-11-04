@@ -123,14 +123,21 @@ class SqliteHistoryStore implements HistoryStore {
 
     final backup = from > 0 ? File('$path.bak') : null;
     if (backup != null) {
+      // Only a copy this attempt created may be removed after a failure: a
+      // file that was already there (an earlier copy) is never deleted (F7).
+      final existed =
+          FileSystemEntity.typeSync(backup.path) !=
+          FileSystemEntityType.notFound;
       try {
         backup.writeAsBytesSync(File(path).readAsBytesSync(), flush: true);
       } catch (_) {
-        // A half-written copy is no backup: remove it if it is a file. The
+        // A half-written copy of our own is no backup: remove it. The
         // database itself has not been touched.
-        try {
-          if (FileSystemEntity.isFileSync(backup.path)) backup.deleteSync();
-        } catch (_) {}
+        if (!existed) {
+          try {
+            if (FileSystemEntity.isFileSync(backup.path)) backup.deleteSync();
+          } catch (_) {}
+        }
         throw MigrationBackupFailed();
       }
     }

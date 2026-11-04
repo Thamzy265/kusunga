@@ -100,6 +100,23 @@ void main() {
     expect(Directory('$path.bak').existsSync(), isTrue, reason: 'not ours');
   });
 
+  test('a backup that was already there and cannot be overwritten is kept '
+      '(F7)', () async {
+    final v2 = await open(
+      FakeKeyStore(stored: _key),
+      migrations: kMigrations.sublist(0, 2),
+    );
+    v2.store.close();
+    final path = '${dir.path}/kusunga.db';
+    final old = File('$path.bak')..writeAsStringSync('an earlier copy');
+    await Process.run('chmod', ['0444', old.path]);
+    addTearDown(() => Process.runSync('chmod', ['0644', old.path]));
+    final opened = await open(FakeKeyStore(stored: _key));
+    expect(opened.notices, {HistoryNotice.backupFailed});
+    expect(old.existsSync(), isTrue, reason: 'not made by this attempt');
+    expect(old.readAsStringSync(), 'an earlier copy');
+  }, skip: Platform.isWindows ? 'chmod' : false);
+
   group('HistoryService.snippets', () {
     HistoryService make(Set<HistoryNotice> notices) => HistoryService(
       store: MemoryHistoryStore(),
