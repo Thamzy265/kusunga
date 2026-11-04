@@ -260,6 +260,33 @@ void main() {
     });
   });
 
+  testWidgets('delete A, Copy, delete B: the Undo for B shows at once and '
+      'brings back B (F4)', (tester) async {
+    add('A', 'a');
+    add('B', 'b');
+    add('C', 'c');
+    await show(tester);
+    await tester.tap(hook('snippet-delete-${idOf('A')}'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(hook('snippet-copy-${idOf('C')}'));
+    await tester.pump();
+    await tester.tap(hook('snippet-delete-${idOf('B')}'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Copied'), findsNothing);
+    expect(find.text('Snippet deleted'), findsOneWidget);
+    await tester.tap(find.text('Undo'));
+    await tester.pump();
+    expect(names(), ['B', 'C']);
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+    expect(
+      find.text('Copied'),
+      findsNothing,
+      reason: 'the stale toast is gone',
+    );
+  });
+
   group('buttons', () {
     testWidgets('Move down by button keeps the order and focus', (
       tester,

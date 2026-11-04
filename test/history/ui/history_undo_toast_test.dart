@@ -50,4 +50,46 @@ void main() {
     expect(find.text('Copied'), findsOneWidget, reason: 'queued after Undo');
     await tester.pumpAndSettle(const Duration(seconds: 3));
   });
+
+  testWidgets('delete A, Copy, delete B: the Undo for B shows at once (F4)', (
+    tester,
+  ) async {
+    final source = FakeClipboardSource();
+    final service = HistoryService(
+      store: MemoryHistoryStore(),
+      source: source,
+      log: const NullErrorLog(),
+      writeClipboard: (_) async {},
+    )..start();
+    addTearDown(service.dispose);
+    for (final t in ['a', 'b', 'c']) {
+      source.copy(t);
+    }
+    tester.view.physicalSize = const Size(800, 632);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KusungaTokens.themeData(Brightness.light),
+        home: HistoryScreen(service: service),
+      ),
+    );
+    await tester.pump();
+    int id(String t) => service.items.firstWhere((i) => i.preview == t).id;
+    final b = id('b');
+    await tester.tap(find.bySemanticsIdentifier('history-delete-${id('a')}'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(find.bySemanticsIdentifier('history-copy-${id('c')}'));
+    await tester.pump();
+    await tester.tap(find.bySemanticsIdentifier('history-delete-$b'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Copied'), findsNothing);
+    expect(find.text('Deleted'), findsOneWidget);
+    await tester.tap(find.text('Undo'));
+    await tester.pump();
+    expect(service.items.map((i) => i.preview), ['c', 'b']);
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+  });
 }

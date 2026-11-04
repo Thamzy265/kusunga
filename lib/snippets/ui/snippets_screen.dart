@@ -255,7 +255,11 @@ class SnippetsScreenState extends State<SnippetsScreen> {
     if (record == null) return;
     _pendingUndo = record;
     final m = _messenger.currentState;
-    m?.hideCurrentSnackBar();
+    // The new Undo shows at once: any toast queued behind the old Undo is
+    // out of date (F4).
+    m
+      ?..clearSnackBars()
+      ..removeCurrentSnackBar();
     final controller = m?.showSnackBar(
       SnackBar(
         content: const Text('Snippet deleted'),
