@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-04 — M1.3 History picker and paste — Paste works; review approved with notes
+- Changed (branch feat/history-picker, eb432b2): local signing through a git-ignored Local.xcconfig (CI stays ad-hoc); Mac deployment target 12.0 (forced by Xcode 27.2); permission codes mirrored to the macOS unified log (closed code list); picker kept open once when its target app quits; "Copied" toast on focus loss; VoiceOver/Narrator announce the count and selected row; tester bugs B1–B3 and reviewer findings F1–F6, R1, R2, C1–C6 fixed.
+- Root cause of copy-only: the Accessibility entry belonged to an older ad-hoc build. With a stable signature and a fresh entry, permissionSnapshot = 7. H1 (wrong TCC service) not confirmed; ADR 0003 unchanged.
+- Gates: developer done · tester pass (B1–B3 fixed) · reviewer approve with notes · QA part 2 attempt 5 pass (9/9 pastes, p95 170 ms, AC5, AC6, modifier release) · PM VoiceOver pass · CI pending on eb432b2 · PM relaunch recheck and merge waiting
+- Open findings (Low, notes): shortcut press within 120 ms of clicking away is ignored; record the macOS 12 minimum in ADR 0003 or the README before M1.9; source guard that runPaste uses the real permissionMask; signing-id guard does not cross-check the local id outside macos/ios/tool/.github.
+- Decisions: PM said (2026-11-04): "Rebuild with system log" — in answer to how to read the diagnostic codes. PM said (2026-11-04): "Both work" — VoiceOver check of the picker after the fix. PM said (2026-11-04): "Yes, rewrite them" — rewrite the unpushed commits so the team and certificate ids never reach GitHub (done before push; backup branch backup/pre-rewrite-history-picker kept locally).
+- Blockers: none
+
 ## 2026-11-04 — Local signing for test builds — PM decision
 - Changed: none yet. PM to sign in to Xcode and create an Apple Development certificate (Personal Team); the developer then signs local test builds with it via a git-ignored local xcconfig. CI stays ad-hoc. Does not replace the paid Developer ID account needed for M1.9.
 - Gates: n/a — decision
