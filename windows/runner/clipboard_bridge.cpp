@@ -119,6 +119,10 @@ bool WriteClipboardText(HWND window, UINT format_own, const std::string& text,
   }
   ::CloseClipboard();
   // Read at once, before any message is handled: this number is ours.
+  // TO CONFIRM ON REAL WINDOWS (F5): that no other process can change the
+  // clipboard between CloseClipboard and this read, and that the number does
+  // not move again for our own write afterwards. The Mac records the number
+  // its clear returns instead; Windows has no such return value.
   if (own) own->EndWrite(::GetClipboardSequenceNumber());
   return ok;
 }

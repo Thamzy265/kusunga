@@ -1031,3 +1031,28 @@ class OwnClipboardChangeEdgeTests: XCTestCase {
     XCTAssertTrue(got.isEmpty)
   }
 }
+
+/// F5: the own change is recorded from the number `clearContents()` returns,
+/// not from a read after the writes (where another app's change could be
+/// read instead). The writes themselves do not move the count.
+class OwnChangeRecordTests: XCTestCase {
+  func testTheWritesAfterClearContentsDoNotMoveTheChangeCount() {
+    let pb = NSPasteboard(name: NSPasteboard.Name("kusunga.test.f5.\(UUID().uuidString)"))
+    defer { pb.releaseGlobally() }
+    let cleared = pb.clearContents()
+    _ = pb.setString("text", forType: .string)
+    _ = pb.setString("1", forType: NSPasteboard.PasteboardType(ClipboardPolicy.ownMarkerType))
+    XCTAssertEqual(pb.changeCount, cleared + NSPasteboardWriter.changesAfterClear)
+  }
+
+  func testTheWriterRecordsTheNumberClearContentsGave() {
+    let pb = NSPasteboard(name: NSPasteboard.Name("kusunga.test.f5.\(UUID().uuidString)"))
+    defer { pb.releaseGlobally() }
+    let changes = OwnClipboardChanges()
+    let writer = NSPasteboardWriter(pasteboard: pb, ownChanges: changes)
+    let before = pb.changeCount
+    XCTAssertTrue(writer.writeText("mine"))
+    XCTAssertEqual(writer.lastRecorded, before + 1)
+    XCTAssertTrue(changes.consume(before + 1))
+  }
+}
