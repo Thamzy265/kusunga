@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-04 — M1.4 Saved snippets — Design approved
+- Changed: design note docs/design/saved-snippets.md, UI spec docs/ui/saved-snippets.md, deck docs/slides/saved-snippets.html; merged to main. Size: large — new data store (snippets table, schema v3), personal data the user types in, new UI.
+- Gates: design approved · developer not started · tester · reviewer · QA · PM merge waiting
+- Open findings: none
+- Decisions: PM said (2026-11-04): "Approve as is" — in answer to "Do you approve the snippets design with all four recommendations?" Accepted: D1 pasting a snippet does not add it to history; D2 pinning copies (the item stays in history); D3 the picker always opens on History; D4 bank and card details allowed, with a note in the editor; design and UI spec approved.
+- Blockers: PM — GitHub billing (CI) before the M1.4 merge
+
 ## 2026-11-04 — M1.3 History picker and paste — Merged
 - Changed: PR Thamzy265/kusunga#3 merged into main as 6e5a183. M1.3 ticked in docs/PLAN.md.
 - Gates: developer done · tester pass · reviewer approve with notes · QA pass · PM VoiceOver pass · CI not run (GitHub billing; PM accepted local results) · PM merge approved
