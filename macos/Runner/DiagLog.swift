@@ -20,7 +20,9 @@ enum DiagLog {
     "storeOpenFailed", "writeFailed", "readFailed", "clipboardLocked", "clipboardTooLarge",
     "clipboardChannelError", "accessCheckFailed", "flushFailed", "hotkeyRegisterFailed",
     "pasteFocusTimeout", "pastePermissionMissing", "pasteCopyOnly", "permissionSnapshot",
-    "pasteForcedPost", "pasteTargetElevated", "pasteTargetGone",
+    "pasteForcedPost", "pasteTargetElevated", "pasteTargetGone", "snippetSaveFailed",
+    "snippetDeleteFailed", "snippetMoveFailed", "snippetCapReached", "snippetsUnavailable",
+    "pasteSource",
     // Native
     "pasteResult", "postKeyNone", "postKeyCode", "postForced", "postFrontmostOk", "postTiming",
     "postSourceState", "postSourceNil", "postTap", "postEventNil", "postSent",

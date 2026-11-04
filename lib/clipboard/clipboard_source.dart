@@ -44,4 +44,11 @@ enum PasteAccess {
 abstract interface class ClipboardSource {
   Stream<ClipboardEvent> get events;
   Future<PasteAccess> pasteAccess();
+
+  /// Puts [text] on the clipboard as Kusunga's own change: native code
+  /// remembers the change number it made (Mac changeCount, Windows
+  /// GetClipboardSequenceNumber) and the watcher skips that one change, so a
+  /// copied snippet is not added to history (PM decision D1). Returns false if
+  /// it could not be written.
+  Future<bool> writeOwn(String text);
 }

@@ -34,6 +34,16 @@ enum LogCode {
   pasteForcedPost,
   pasteTargetElevated,
   pasteTargetGone,
+  // M1.4 snippets (design note, "Observability"): codes only, never a name,
+  // content or type.
+  snippetSaveFailed,
+  snippetDeleteFailed,
+  snippetMoveFailed,
+  snippetCapReached,
+  // Memory-only or incompatible database: snippets can't be saved.
+  snippetsUnavailable,
+  // Every paste from the picker: detail 0 history, 1 snippet.
+  pasteSource,
 }
 
 abstract interface class ErrorLog {

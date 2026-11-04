@@ -8,6 +8,9 @@ import '../clipboard/clipboard_source.dart';
 import '../log/app_log.dart';
 import 'clip_classifier.dart';
 import 'clip_item.dart';
+import '../snippets/memory_snippet_store.dart';
+import '../snippets/snippet_service.dart';
+import '../snippets/snippet_store.dart';
 import 'history_opener.dart';
 import 'history_store.dart';
 
@@ -30,6 +33,7 @@ class HistoryService extends ChangeNotifier {
     Set<HistoryNotice> notices = const {},
     int Function()? clock,
     Future<void> Function(String text)? writeClipboard,
+    SnippetStore? snippetStore,
   }) : _clock = clock ?? (() => DateTime.now().millisecondsSinceEpoch),
        _writeClipboard =
            writeClipboard ??
@@ -43,7 +47,19 @@ class HistoryService extends ChangeNotifier {
          if (notices.contains(HistoryNotice.readError)) HistoryBanner.readError,
          if (notices.contains(HistoryNotice.incompatible))
            HistoryBanner.incompatible,
-       };
+       } {
+    snippets = SnippetService(
+      store: snippetStore ?? MemorySnippetStore(),
+      log: _log,
+      editable: _persists,
+      clock: _clock,
+      writeClipboard: _source.writeOwn,
+    );
+  }
+
+  /// The saved snippets, on the same database (M1.4). Editing is off when
+  /// this session is memory only.
+  late final SnippetService snippets;
 
   /// Copies that could not be saved are kept in memory, up to this many.
   static const maxWaiting = 20;
@@ -369,6 +385,7 @@ class HistoryService extends ChangeNotifier {
         if (_trySave(w) != _Save.retryLater) _waiting.remove(w);
       }
     } catch (_) {}
+    snippets.close();
     try {
       _store.close();
     } catch (_) {
@@ -387,6 +404,7 @@ class HistoryService extends ChangeNotifier {
     if (_disposed) return;
     _disposed = true;
     _closed = true;
+    snippets.dispose();
     unawaited(_subscription?.cancel());
     super.dispose();
   }

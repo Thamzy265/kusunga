@@ -9,6 +9,8 @@ import '../log/app_log.dart';
 import 'history_store.dart';
 import 'key_store.dart';
 import 'memory_history_store.dart';
+import '../snippets/memory_snippet_store.dart';
+import '../snippets/snippet_store.dart';
 import 'migrations.dart';
 import 'sqlite_history_store.dart';
 
@@ -28,9 +30,18 @@ enum HistoryNotice {
 }
 
 class OpenedHistory {
-  const OpenedHistory(this.store, this.notices);
+  OpenedHistory(this.store, this.notices, [SnippetStore? snippets])
+    : snippets =
+          snippets ??
+          (store is SqliteHistoryStore
+              ? store.snippetStore()
+              : MemorySnippetStore());
   final HistoryStore store;
   final Set<HistoryNotice> notices;
+
+  /// The snippets: in the same encrypted file, or in memory when the history
+  /// is (memory-only or incompatible).
+  final SnippetStore snippets;
 }
 
 String generateKeyHex(Random random) => [
