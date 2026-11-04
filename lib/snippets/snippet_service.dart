@@ -106,6 +106,14 @@ class SnippetService extends ChangeNotifier {
     }
   }
 
+  /// The whole text for Edit, or null (logged as snippetOpenFailed) if it
+  /// cannot be read. The editor never edits from the short preview.
+  String? fullTextForEdit(int id) {
+    final text = textOf(id);
+    if (text == null && !_closed) _log.log(LogCode.snippetOpenFailed);
+    return text;
+  }
+
   int? _code(Object error) =>
       error is SqliteException ? error.extendedResultCode : null;
 

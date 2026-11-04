@@ -22,6 +22,7 @@ const snippetCapMessage =
     'You have 1,000 snippets, the most Kusunga keeps. Delete one to add '
     'another.';
 const _saveFailedMessage = "Couldn't save the snippet. Try again.";
+const _openFailedMessage = "Couldn't open the snippet. Try again.";
 const _vaultNote =
     'For bank or card details, wait for the secure vault in a later update.';
 
@@ -69,6 +70,11 @@ class _SnippetEditorState extends State<_SnippetEditor> {
   String? _banner;
   var _closing = false;
 
+  /// Edit could not read the whole text: the content is shown read-only (its
+  /// preview) and Save reads the whole text again before it saves, so a long
+  /// snippet is never overwritten by its preview (TB-2).
+  var _contentUnread = false;
+
   SnippetItem? get _editing => widget.start.editing;
   bool get _fromHistory => widget.start.historyText != null;
   String get _title => _editing == null ? 'New snippet' : 'Edit snippet';
@@ -82,7 +88,10 @@ class _SnippetEditorState extends State<_SnippetEditor> {
     final String content;
     if (editing != null) {
       name = editing.name;
-      content = widget.service.textOf(editing.id) ?? editing.preview;
+      final full = widget.service.fullTextForEdit(editing.id);
+      _contentUnread = full == null;
+      if (_contentUnread) _banner = _openFailedMessage;
+      content = full ?? editing.preview;
       _type = editing.type;
       _typeSuggested = false;
     } else if (history != null) {
@@ -124,10 +133,23 @@ class _SnippetEditorState extends State<_SnippetEditor> {
       _type != _initialType;
 
   void _save() {
+    if (_closing) return;
+    var content = _content.text;
+    if (_contentUnread) {
+      final full = widget.service.fullTextForEdit(_editing!.id);
+      if (full == null) {
+        setState(() {
+          _problems = const {};
+          _banner = _openFailedMessage;
+        });
+        return;
+      }
+      content = full;
+    }
     final r = widget.service.save(
       id: _editing?.id,
       name: _name.text,
-      content: _content.text,
+      content: content,
       type: _type,
     );
     switch (r.outcome) {
@@ -297,6 +319,7 @@ class _SnippetEditorState extends State<_SnippetEditor> {
             controller: _content,
             focusNode: _contentNode,
             autofocus: _fromHistory,
+            readOnly: _contentUnread,
             minLines: 3,
             maxLines: 8,
             keyboardType: TextInputType.multiline,

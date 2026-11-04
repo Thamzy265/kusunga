@@ -8,18 +8,18 @@ import 'package:kusunga/snippets/snippet_store.dart';
 import 'package:kusunga/snippets/ui/snippet_editor.dart';
 import 'package:kusunga/theme/tokens.dart';
 
-import '../snippet_service_test.dart' show FlakySnippetStore;
+import '../qa_support.dart';
 import '../../support/fakes.dart';
 
 void main() {
-  late FlakySnippetStore store;
+  late ContentReadFailsStore store;
   late SnippetService service;
   late FakeLog log;
   int? result;
   var closed = false;
 
   setUp(() {
-    store = FlakySnippetStore();
+    store = ContentReadFailsStore();
     log = FakeLog();
     service = SnippetService(
       store: store,
@@ -428,5 +428,49 @@ void main() {
     await save(tester);
     expect(log.codes, [LogCode.snippetSaveFailed]);
     expect(SnippetStore.maxCount, 1000);
+  });
+
+  group('the whole text cannot be read (TB-2)', () {
+    late int id;
+    final long = '${'y' * 2999}END';
+
+    setUp(() {
+      id = service
+          .save(name: 'Long', content: long, type: SnippetType.other)
+          .id!;
+      store.failContentReads = true;
+    });
+
+    testWidgets('Edit opens read-only: the banner says so, the content '
+        'cannot be changed, and Save changes nothing', (tester) async {
+      await open(tester, SnippetEditorStart.edit(service.items.single));
+      expect(
+        find.text("Couldn't open the snippet. Try again."),
+        findsOneWidget,
+      );
+      expect(
+        tester.widget<TextField>(field('snippet-editor-content')).readOnly,
+        isTrue,
+      );
+      expect(log.codes, contains(LogCode.snippetOpenFailed));
+      await tester.enterText(field('snippet-editor-name'), 'Renamed');
+      await save(tester);
+      expect(closed, isFalse);
+      store.failContentReads = false;
+      expect(store.contentOf(id), long);
+      expect(store.list().single.name, 'Long');
+    });
+
+    testWidgets('once the text can be read again, Save keeps it whole', (
+      tester,
+    ) async {
+      await open(tester, SnippetEditorStart.edit(service.items.single));
+      await tester.enterText(field('snippet-editor-name'), 'Renamed');
+      store.failContentReads = false;
+      await save(tester);
+      expect(closed, isTrue);
+      expect(store.contentOf(id), long);
+      expect(store.list().single.name, 'Renamed');
+    });
   });
 }
