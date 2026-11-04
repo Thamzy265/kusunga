@@ -101,7 +101,7 @@ final class PickerBridge {
       if shown { return }
       shown = true
       self?.openPending = false
-      self?.windows?.enterPicker()
+      self?.windows?.enterPicker(target: self?.target)
     }
     channel.invokeMethod("shortcutPressed", arguments: nil) { _ in show() }
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { show() }

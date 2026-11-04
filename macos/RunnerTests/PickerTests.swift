@@ -671,3 +671,47 @@ class PickerWindowKeyTests: XCTestCase {
     XCTAssertGreaterThan(delays.first!, 0)
   }
 }
+
+// MARK: - Asking for the keyboard again (R1)
+
+class FocusRetryTests: XCTestCase {
+  func testAllDelaysAreMeasuredFromTheOpenAndEndWithinHalfASecond() {
+    let delays = FocusRetry.delays
+    XCTAssertEqual(delays, delays.sorted())
+    XCTAssertGreaterThan(delays.first!, 0)
+    XCTAssertLessThanOrEqual(delays.last!, 0.5)
+    XCTAssertEqual(PickerWindowController.focusRetryDelays, delays)
+  }
+
+  func testKeepsTryingWhileTheTargetIsStillInFront() {
+    var retry = FocusRetry(own: 1, target: 200)
+    XCTAssertTrue(retry.shouldRetry(frontmost: 200))
+    XCTAssertTrue(retry.shouldRetry(frontmost: 200))
+  }
+
+  func testKeepsTryingWhileKusungaIsInFront() {
+    var retry = FocusRetry(own: 1, target: 200)
+    XCTAssertTrue(retry.shouldRetry(frontmost: 1))
+  }
+
+  func testStopsWhenAnotherAppCameForward() {
+    var retry = FocusRetry(own: 1, target: 200)
+    XCTAssertFalse(retry.shouldRetry(frontmost: 300))
+    var late = FocusRetry(own: 1, target: 200)
+    XCTAssertTrue(late.shouldRetry(frontmost: 1))
+    XCTAssertFalse(late.shouldRetry(frontmost: 300))
+  }
+
+  func testStopsWhenTheUserWentBackToTheTargetAfterKusungaWasInFront() {
+    var retry = FocusRetry(own: 1, target: 200)
+    XCTAssertTrue(retry.shouldRetry(frontmost: 1))
+    XCTAssertFalse(retry.shouldRetry(frontmost: 200))
+  }
+
+  func testWithNoTargetOnlyKusungaOrNothingCountsAsInFront() {
+    var retry = FocusRetry(own: 1, target: nil)
+    XCTAssertTrue(retry.shouldRetry(frontmost: nil))
+    XCTAssertTrue(retry.shouldRetry(frontmost: 1))
+    XCTAssertFalse(retry.shouldRetry(frontmost: 300))
+  }
+}

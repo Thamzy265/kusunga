@@ -40,6 +40,34 @@ enum PickerGeometry {
   }
 }
 
+/// When to ask for the keyboard again after the picker is shown. The delays
+/// are all measured from the moment it opened, so the last one is the total.
+/// Asking stops as soon as another app has come forward (or the user went back
+/// to the app they came from after Kusunga was in front): taking the focus
+/// back then would fight the user.
+struct FocusRetry {
+  static let delays: [TimeInterval] = [0.05, 0.15, 0.3, 0.5]
+
+  let own: pid_t
+  let target: pid_t?
+  private var sawKusunga = false
+
+  init(own: pid_t, target: pid_t?) {
+    self.own = own
+    self.target = target
+  }
+
+  mutating func shouldRetry(frontmost: pid_t?) -> Bool {
+    guard let front = frontmost else { return true }
+    if front == own {
+      sawKusunga = true
+      return true
+    }
+    // The app the user came from is still in front only until Kusunga arrives.
+    return front == target && !sawKusunga
+  }
+}
+
 /// Switches the one window between its normal shape (the history screen) and
 /// the two small shapes: the picker and the toast. Remembers how the window was
 /// so it can be put back exactly.
@@ -125,7 +153,7 @@ final class PickerWindowController {
   /// global shortcut or a menu-bar click is still being handled), and then the
   /// window cannot be key and gets no keystrokes. The window is asked again a
   /// few times, up to about half a second, until it is key.
-  static let focusRetryDelays: [TimeInterval] = [0.05, 0.15, 0.3, 0.5]
+  static let focusRetryDelays = FocusRetry.delays
 
   /// Makes Kusunga active, the window key, and the Flutter view the first
   /// responder (a changed window style can drop it).
@@ -135,16 +163,25 @@ final class PickerWindowController {
     window.makeFirstResponder(viewController.view)
   }
 
-  private func retryTakingKeyboard(_ remaining: ArraySlice<TimeInterval>) {
-    guard let delay = remaining.first else { return }
-    DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-      guard let self = self, self.mode == .picker else { return }
-      if !(self.window.isKeyWindow && NSApp.isActive) { self.takeKeyboard() }
-      self.retryTakingKeyboard(remaining.dropFirst())
+  /// After the picker is shown, Kusunga may not be active yet (a global
+  /// shortcut or a menu-bar click is still being handled), and then the window
+  /// is not key and gets no keystrokes. It is asked again at fixed times after
+  /// the open (at most 0.5 s), until it is key, and not at all once another
+  /// app has come forward.
+  private func retryTakingKeyboard(target: pid_t?) {
+    let start = DispatchTime.now()
+    var retry = FocusRetry(own: ProcessInfo.processInfo.processIdentifier, target: target)
+    for delay in FocusRetry.delays {
+      DispatchQueue.main.asyncAfter(deadline: start + delay) { [weak self] in
+        guard let self = self, self.mode == .picker else { return }
+        let front = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        guard retry.shouldRetry(frontmost: front) else { return }
+        if !(self.window.isKeyWindow && NSApp.isActive) { self.takeKeyboard() }
+      }
     }
   }
 
-  func enterPicker() {
+  func enterPicker(target: pid_t?) {
     if mode == .normal {
       manageWasVisible = window.isVisible && !window.isMiniaturized
     } else if mode == .toast {
@@ -155,7 +192,7 @@ final class PickerWindowController {
     window.ignoresMouseEvents = false
     applySmallShape(frame: PickerGeometry.pickerFrame(in: screenFrame()))
     takeKeyboard()
-    retryTakingKeyboard(PickerWindowController.focusRetryDelays[...])
+    retryTakingKeyboard(target: target)
   }
 
   /// Puts the window back to its normal shape. [showManage] brings the history
