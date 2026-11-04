@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-04 — M1.3 History picker and paste — QA re-run started
+- Changed: QA built c175b71; PM opened it and answered the keychain prompt. QA re-runs part 1.
+- Gates: developer pass · tester pass · reviewer confirming c175b71 · QA running · PM merge waiting
+- Open findings: none
+- Decisions: PM said (2026-11-04): "Done, Always Allow" — in answer to "Tell me once you've opened the app and clicked Always Allow."
+- Blockers: QA part 2 needs the PM to allow pasting
+
 ## 2026-11-04 — M1.3 History picker and paste — Last Low notes fixed
 - Changed: ace9313 (G2r per-reason log codes, new `pasteCopyOnly`; T1 recording timer restarts on each key, "Shortcut not changed." announced on give-up) and c175b71 (R1 activation retries ≤ 0.5 s and stop when the user switches away). 806 pass / 2 skipped, XCTest 143; lead re-ran the check. Pushed. Reviewer confirming; QA building the one app for part 2.
 - Gates: developer pass · tester pass · reviewer confirming · QA part 2 open · PM merge waiting
