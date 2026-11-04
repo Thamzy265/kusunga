@@ -102,6 +102,9 @@ final class PickerWindowController {
     window.ignoresMouseEvents = s.ignoresMouseEvents
     viewController.backgroundColor = s.viewBackground
     window.setFrame(s.frame, display: false)
+    // A changed window style can drop the first responder: keys must reach the
+    // Flutter view again (the shortcut recorder in the history window).
+    window.makeFirstResponder(viewController.view)
     saved = nil
   }
 
@@ -118,6 +121,29 @@ final class PickerWindowController {
     window.setFrame(frame, display: true)
   }
 
+  /// After the picker is shown, Kusunga may not be the active app yet (a
+  /// global shortcut or a menu-bar click is still being handled), and then the
+  /// window cannot be key and gets no keystrokes. The window is asked again a
+  /// few times, up to about half a second, until it is key.
+  static let focusRetryDelays: [TimeInterval] = [0.05, 0.15, 0.3, 0.5]
+
+  /// Makes Kusunga active, the window key, and the Flutter view the first
+  /// responder (a changed window style can drop it).
+  private func takeKeyboard() {
+    PickerWindowController.activateKusunga()
+    window.makeKeyAndOrderFront(nil)
+    window.makeFirstResponder(viewController.view)
+  }
+
+  private func retryTakingKeyboard(_ remaining: ArraySlice<TimeInterval>) {
+    guard let delay = remaining.first else { return }
+    DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+      guard let self = self, self.mode == .picker else { return }
+      if !(self.window.isKeyWindow && NSApp.isActive) { self.takeKeyboard() }
+      self.retryTakingKeyboard(remaining.dropFirst())
+    }
+  }
+
   func enterPicker() {
     if mode == .normal {
       manageWasVisible = window.isVisible && !window.isMiniaturized
@@ -128,8 +154,8 @@ final class PickerWindowController {
     mode = .picker
     window.ignoresMouseEvents = false
     applySmallShape(frame: PickerGeometry.pickerFrame(in: screenFrame()))
-    PickerWindowController.activateKusunga()
-    window.makeKeyAndOrderFront(nil)
+    takeKeyboard()
+    retryTakingKeyboard(PickerWindowController.focusRetryDelays[...])
   }
 
   /// Puts the window back to its normal shape. [showManage] brings the history
@@ -140,8 +166,7 @@ final class PickerWindowController {
     restoreSaved()
     if showManage {
       if activate {
-        PickerWindowController.activateKusunga()
-        window.makeKeyAndOrderFront(nil)
+        takeKeyboard()
       } else {
         window.orderFront(nil)
       }
@@ -170,10 +195,12 @@ final class PickerWindowController {
   }
 
   static func activateKusunga() {
+    // Both: from a global shortcut or a menu-bar click the cooperative
+    // `activate()` of macOS 14 and later can be refused while the other app is
+    // still in front, and the older call is the one that forces it.
+    NSApp.activate(ignoringOtherApps: true)
     if #available(macOS 14.0, *) {
       NSApp.activate()
-    } else {
-      NSApp.activate(ignoringOtherApps: true)
     }
   }
 }

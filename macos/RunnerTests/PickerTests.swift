@@ -641,3 +641,33 @@ class ClosePlanTests: XCTestCase {
     XCTAssertNil(plan.reactivate)
   }
 }
+
+// MARK: - The picker window can take keys (B1)
+
+class PickerWindowKeyTests: XCTestCase {
+  func testTheMainWindowClassCanBecomeKeyAndMainEvenWhenBorderless() {
+    let window = MainFlutterWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 560, height: 420),
+      styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: true)
+    XCTAssertTrue(window.canBecomeKey)
+    XCTAssertTrue(window.canBecomeMain)
+    window.styleMask = [.borderless]
+    XCTAssertTrue(window.canBecomeKey, "a borderless window must still take keystrokes")
+    XCTAssertTrue(window.canBecomeMain)
+  }
+
+  func testAPlainBorderlessWindowCannotWhichIsWhyTheOverrideExists() {
+    let plain = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 10, height: 10), styleMask: [.borderless],
+      backing: .buffered, defer: true)
+    XCTAssertFalse(plain.canBecomeKey)
+  }
+
+  func testTheFocusRetriesCoverTheFirstHalfSecondAndStop() {
+    let delays = PickerWindowController.focusRetryDelays
+    XCTAssertEqual(delays, delays.sorted())
+    XCTAssertGreaterThanOrEqual(delays.count, 3)
+    XCTAssertLessThanOrEqual(delays.last!, 0.6)
+    XCTAssertGreaterThan(delays.first!, 0)
+  }
+}
