@@ -29,6 +29,7 @@
 		331C80D8294CF71000263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C80D7294CF71000263BE5 /* RunnerTests.swift */; };
 		A1B2C3D4E5F60718293A4B34 /* PickerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B24 /* PickerTests.swift */; };
 		E7E57ED001A2B3C4D5E6F701 /* PickerEdgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E57ED001A2B3C4D5E6F702 /* PickerEdgeTests.swift */; };
+		E7E57ED002A2B3C4D5E6F701 /* DiagEdgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E57ED002A2B3C4D5E6F702 /* DiagEdgeTests.swift */; };
 		335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */; };
 		33CC10F12044A3C60003C045 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC10F02044A3C60003C045 /* AppDelegate.swift */; };
 		A1B2C3D4E5F60718293A4B13 /* ClipboardBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B03 /* ClipboardBridge.swift */; };
@@ -80,6 +81,7 @@
 		331C80D7294CF71000263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B24 /* PickerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickerTests.swift; sourceTree = "<group>"; };
 		E7E57ED001A2B3C4D5E6F702 /* PickerEdgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickerEdgeTests.swift; sourceTree = "<group>"; };
+		E7E57ED002A2B3C4D5E6F702 /* DiagEdgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagEdgeTests.swift; sourceTree = "<group>"; };
 		333000ED22D3DE5D00554162 /* Warnings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Warnings.xcconfig; sourceTree = "<group>"; };
 		335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = GeneratedPluginRegistrant.swift; sourceTree = "<group>"; };
 		33CC10ED2044A3C60003C045 /* kusunga.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "kusunga.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -127,6 +129,7 @@
 				331C80D7294CF71000263BE5 /* RunnerTests.swift */,
 				A1B2C3D4E5F60718293A4B24 /* PickerTests.swift */,
 				E7E57ED001A2B3C4D5E6F702 /* PickerEdgeTests.swift */,
+				E7E57ED002A2B3C4D5E6F702 /* DiagEdgeTests.swift */,
 			);
 			path = RunnerTests;
 			sourceTree = "<group>";
@@ -379,6 +382,7 @@
 				331C80D8294CF71000263BE5 /* RunnerTests.swift in Sources */,
 				A1B2C3D4E5F60718293A4B34 /* PickerTests.swift in Sources */,
 				E7E57ED001A2B3C4D5E6F701 /* PickerEdgeTests.swift in Sources */,
+				E7E57ED002A2B3C4D5E6F701 /* DiagEdgeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
