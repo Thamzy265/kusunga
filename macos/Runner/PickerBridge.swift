@@ -154,7 +154,7 @@ final class PickerBridge {
   private func windowLostFocus() {
     guard let windows = windows, windows.mode == .picker, !pasting else { return }
     dismissal.focusLost(
-      target: target, alive: { [weak self] in self?.targetAlive() ?? false },
+      target: target,
       schedule: { delay, work in DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work) },
       decide: { [weak self] dismiss in
         guard let self = self, let windows = self.windows, windows.mode == .picker, !self.pasting
@@ -174,10 +174,6 @@ final class PickerBridge {
           windows.retakeKeyboard()
         }
       })
-  }
-
-  private func targetAlive() -> Bool {
-    target.map { MacPastePlatform.isAlive($0) } ?? false
   }
 
   private func dismissPicker() {

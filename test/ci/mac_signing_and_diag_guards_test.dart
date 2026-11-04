@@ -435,13 +435,11 @@ void main() {
     final bridge = stripComments(read('macos/Runner/PickerBridge.swift'));
 
     test('Mac: the decision goes through the coordinator and the rule, with '
-        'the quit flag and the liveness check', () {
+        'the quit notice only', () {
       expect(bridge, contains('dismissal.focusLost('));
       expect(bridge, contains('dismissal.noteTargetQuit()'));
-      expect(
-        bridge,
-        contains('target.map { MacPastePlatform.isAlive(\$0) } ?? false'),
-      );
+      // Only the quit notice explains a lost focus (not a pid that looks dead).
+      expect(bridge, isNot(contains('isAlive')));
       final diag = read('macos/Runner/DiagLog.swift');
       expect(
         diag,

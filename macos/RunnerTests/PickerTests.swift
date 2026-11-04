@@ -875,12 +875,15 @@ class DismissCoordinatorTests: XCTestCase {
     scheduled = []
     decisions = []
     alive = true
-    coordinator = DismissCoordinator()
+    clock = 100
+    coordinator = DismissCoordinator(now: { [unowned self] in self.clock })
   }
+
+  var clock: TimeInterval = 100
 
   private func focusLost(target: pid_t? = 200) {
     coordinator.focusLost(
-      target: target, alive: { [unowned self] in self.alive },
+      target: target,
       schedule: { [unowned self] _, work in self.scheduled.append(work) },
       decide: { [unowned self] in self.decisions.append($0) })
   }
@@ -912,11 +915,13 @@ class DismissCoordinatorTests: XCTestCase {
     XCTAssertEqual(decisions, [true])
   }
 
-  func testATargetThatIsGoneButNotYetReportedAlsoKeepsIt() {
+  func testADeadPidWithoutAQuitNoticeIsNotAReason() {
+    // The quit notice explains a lost focus; a pid that merely looks dead
+    // would keep the picker for every later click (QA attempt 6).
     focusLost()
     alive = false
     runScheduled()
-    XCTAssertEqual(decisions, [false])
+    XCTAssertEqual(decisions, [true])
   }
 
   func testNoTargetClosesEvenIfSomeAppQuit() {
@@ -961,6 +966,43 @@ class DismissCoordinatorTests: XCTestCase {
     focusLost()
     runScheduled()
     XCTAssertEqual(decisions, [false, false])
+  }
+
+  /// QA attempt 6: the quit itself caused no focus change (Kusunga stayed the
+  /// active app), so the user's first click, 1.7 s later, was wrongly kept.
+  func testAQuitThatCausedNoFocusLossDoesNotKeepTheUsersLaterClick() {
+    coordinator.noteTargetQuit()
+    clock += 1.7
+    focusLost()
+    runScheduled()
+    XCTAssertEqual(decisions, [true])
+  }
+
+  func testTheQuitsOwnFocusLossIsKeptAndTheNextClickCloses() {
+    coordinator.noteTargetQuit()
+    clock += 0.05
+    focusLost()
+    runScheduled()
+    clock += 1.7
+    focusLost()
+    runScheduled()
+    XCTAssertEqual(decisions, [false, true])
+  }
+
+  func testAFocusLossJustBeforeTheQuitNoticeStillCounts() {
+    focusLost()
+    clock += 0.3
+    coordinator.noteTargetQuit()
+    runScheduled()
+    XCTAssertEqual(decisions, [false])
+  }
+
+  func testAFocusLossFarBeforeTheQuitNoticeDoesNot() {
+    focusLost()
+    clock += 2
+    coordinator.noteTargetQuit()
+    runScheduled()
+    XCTAssertEqual(decisions, [true])
   }
 
   func testTheRuleTakesTheFlag() {

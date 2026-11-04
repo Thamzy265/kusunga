@@ -62,26 +62,42 @@ enum DismissRule {
 }
 
 /// Decides what a lost focus means. The decision is taken a short moment later,
-/// because macOS can report the quit before or after the focus change: the
-/// "target quit" flag is set by the quit notice and read when the wait ends, so
-/// either order gives the same answer.
+/// because macOS can report the quit before or after the focus change. The quit
+/// only explains a focus loss that happens close to it (within [window]
+/// seconds): when Kusunga stays the active app the quit changes no focus, and a
+/// click 2 seconds later is the user's own and must close the picker.
 final class DismissCoordinator {
-  private(set) var targetQuit = false
+  /// How close (in seconds) a lost focus must be to the quit to be caused by it.
+  static let window: TimeInterval = 1.0
 
-  func noteTargetQuit() { targetQuit = true }
+  private let now: () -> TimeInterval
+  private var quitAt: TimeInterval?
+
+  init(now: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
+    self.now = now
+  }
+
+  var targetQuit: Bool { quitAt != nil }
+
+  func noteTargetQuit() { quitAt = now() }
 
   /// A new opening, a closing or a paste: forget an earlier quit.
-  func reset() { targetQuit = false }
+  func reset() { quitAt = nil }
 
+  /// Only the quit notice explains a lost focus, not a pid that merely looks
+  /// dead: the notice arrives at the moment of the quit, and a dead pid would
+  /// keep the picker for every later click as well.
   func focusLost(
-    target: pid_t?, alive: @escaping () -> Bool,
+    target: pid_t?,
     schedule: (TimeInterval, @escaping () -> Void) -> Void,
     decide: @escaping (Bool) -> Void
   ) {
+    let lostAt = now()
     schedule(0.12) { [weak self] in
       guard let self = self else { return }
+      let explained = self.quitAt.map { abs($0 - lostAt) <= DismissCoordinator.window } ?? false
       let dismiss = DismissRule.shouldDismiss(
-        target: target, targetQuit: self.targetQuit, targetAlive: alive())
+        target: target, targetQuit: explained, targetAlive: true)
       // One keep uses up the reason: the user can click away afterwards.
       if !dismiss { self.reset() }
       decide(dismiss)
