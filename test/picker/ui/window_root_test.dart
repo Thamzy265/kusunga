@@ -46,7 +46,7 @@ void main() {
     tester,
   ) async {
     await pumpApp(tester);
-    expect(find.text('History'), findsOneWidget);
+    expect(find.text('History'), findsNWidgets(2)); // tab and heading
     expect(find.text('Picker shortcut: ⇧⌘V'), findsOneWidget);
     expect(find.text('Search history…'), findsNothing);
     controller.dispose();
@@ -81,7 +81,7 @@ void main() {
     port.dismiss();
     await tester.pump();
     await tester.pump();
-    expect(find.text('History'), findsOneWidget);
+    expect(find.text('History'), findsNWidgets(2)); // tab and heading
     controller.dispose();
   });
 
@@ -102,7 +102,7 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
     await tester.pump();
     expect(find.text('Copied — press ⌘V to paste.'), findsNothing);
-    expect(find.text('History'), findsOneWidget);
+    expect(find.text('History'), findsNWidgets(2)); // tab and heading
     controller.dispose();
   });
 
@@ -118,7 +118,7 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(port.pastes.single.text, 'hello there');
-    expect(find.text('History'), findsOneWidget);
+    expect(find.text('History'), findsNWidgets(2)); // tab and heading
     controller.dispose();
   });
 
@@ -195,7 +195,7 @@ void main() {
     await tester.pumpWidget(KusungaApp(history: Future.value(history)));
     await tester.pump();
     await tester.pump();
-    expect(find.text('History'), findsOneWidget);
+    expect(find.text('History'), findsNWidgets(2)); // tab and heading
     expect(find.textContaining('Picker shortcut'), findsNothing);
   });
 }

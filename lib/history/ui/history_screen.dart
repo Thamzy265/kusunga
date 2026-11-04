@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../clipboard/clipboard_source.dart';
+import '../../snippets/ui/snippet_editor.dart';
 import '../../theme/tokens.dart';
 import '../clip_item.dart';
 import '../history_service.dart';
@@ -62,6 +63,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     super.initState();
     _seen.addAll(_service.items.map((i) => i.id));
     _service.addListener(_onChange);
+    _service.snippets.addListener(_onSnippets);
     _footer = _footerText();
     _holdFooter();
     // Relative times ("2 min") move on without any other event.
@@ -73,6 +75,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void dispose() {
     _service.removeListener(_onChange);
+    _service.snippets.removeListener(_onSnippets);
     _clock?.cancel();
     _footerTimer?.cancel();
     _scroll.dispose();
@@ -101,6 +104,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
       _footer = _footerText();
       _holdFooter();
     }
+    if (mounted) setState(() {});
+  }
+
+  // "Save as snippet" turns off at the cap.
+  void _onSnippets() {
     if (mounted) setState(() {});
   }
 
@@ -152,6 +160,30 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final ok = await _service.copy(id);
     if (!mounted) return;
     _toast(ok ? 'Copied' : "Couldn't copy. Try again.");
+  }
+
+  /// "Save as snippet": the editor, filled in from the whole text. The item
+  /// stays in history (PM decision D2).
+  Future<void> _saveAsSnippet(int id) async {
+    final snippets = _service.snippets;
+    if (!snippets.canEdit) return;
+    if (snippets.atCap) {
+      _toast(snippetCapMessage, duration: const Duration(seconds: 5));
+      return;
+    }
+    final text = _service.textOf(id);
+    if (text == null) return;
+    final saved = await showSnippetEditor(
+      context,
+      service: snippets,
+      start: SnippetEditorStart.fromHistory(text),
+    );
+    if (saved == null || !mounted) return;
+    _toast('Snippet saved');
+    // The focus goes back to the row it came from.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _nodes[id]?.requestFocus();
+    });
   }
 
   void _delete(int id) {
@@ -417,6 +449,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
               onCopy: () => _copy(item.id),
               onDelete: () => _delete(item.id),
               onMove: (m) => _move(item.id, m),
+              onSaveAsSnippet: () => _saveAsSnippet(item.id),
+              canSaveAsSnippet: _service.snippets.canCreate,
             );
           },
         ),

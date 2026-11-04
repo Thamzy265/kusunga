@@ -6,7 +6,8 @@ import '../clip_item.dart';
 import 'text_display.dart';
 
 /// One item in the history list: kind icon, up to 2 lines of text, time, and
-/// Copy and Delete buttons that show on hover or focus.
+/// Copy, Save as snippet (M1.4) and Delete buttons that show on hover or
+/// focus.
 class HistoryRow extends StatefulWidget {
   const HistoryRow({
     super.key,
@@ -18,6 +19,8 @@ class HistoryRow extends StatefulWidget {
     required this.onCopy,
     required this.onDelete,
     required this.onMove,
+    required this.onSaveAsSnippet,
+    required this.canSaveAsSnippet,
   });
 
   final ClipItem item;
@@ -29,6 +32,13 @@ class HistoryRow extends StatefulWidget {
   final bool autofocus;
   final VoidCallback onCopy;
   final VoidCallback onDelete;
+
+  /// "Save as snippet" (button, or S on the focused row).
+  final VoidCallback onSaveAsSnippet;
+
+  /// False in memory-only mode and at 1,000 snippets: the button is off. S
+  /// still calls [onSaveAsSnippet], which explains the cap.
+  final bool canSaveAsSnippet;
 
   /// Moves focus: -1 previous, 1 next, and the two ends.
   final void Function(RowMove move) onMove;
@@ -99,6 +109,11 @@ class _HistoryRowState extends State<HistoryRow> {
     } else if (key == LogicalKeyboardKey.delete ||
         key == LogicalKeyboardKey.backspace) {
       widget.onDelete();
+    } else if (key == LogicalKeyboardKey.keyS &&
+        !HardwareKeyboard.instance.isMetaPressed &&
+        !HardwareKeyboard.instance.isControlPressed &&
+        !HardwareKeyboard.instance.isAltPressed) {
+      widget.onSaveAsSnippet();
     } else {
       return KeyEventResult.ignored;
     }
@@ -146,6 +161,14 @@ class _HistoryRowState extends State<HistoryRow> {
         onPressed: widget.onCopy,
       ),
     );
+    final saveButton = hideUnlessActive(
+      _RowButton(
+        identifier: 'history-save-snippet-${item.id}',
+        label: 'Save as snippet',
+        description: description,
+        onPressed: widget.canSaveAsSnippet ? widget.onSaveAsSnippet : null,
+      ),
+    );
     final deleteButton = hideUnlessActive(
       _RowButton(
         identifier: 'history-delete-${item.id}',
@@ -158,7 +181,10 @@ class _HistoryRowState extends State<HistoryRow> {
 
     final row = LayoutBuilder(
       builder: (context, box) {
-        final narrow = box.maxWidth < 600;
+        // Narrow below 600 px of 100% text: at 200% text the time and the
+        // three buttons need twice the room.
+        final scale = MediaQuery.textScalerOf(context).scale(1);
+        final narrow = box.maxWidth < 600 * scale;
         final icon = ExcludeSemantics(
           child: Icon(
             item.kind == ClipKind.link ? Icons.link : Icons.notes,
@@ -192,7 +218,7 @@ class _HistoryRowState extends State<HistoryRow> {
                       child: Wrap(
                         crossAxisAlignment: WrapCrossAlignment.center,
                         spacing: KusungaTokens.space2,
-                        children: [time, copyButton, deleteButton],
+                        children: [time, copyButton, saveButton, deleteButton],
                       ),
                     ),
                   ],
@@ -207,6 +233,7 @@ class _HistoryRowState extends State<HistoryRow> {
                     time,
                     SizedBox(width: KusungaTokens.space2),
                     copyButton,
+                    saveButton,
                     deleteButton,
                   ],
                 ),
@@ -291,7 +318,7 @@ class _RowButton extends StatelessWidget {
   final String identifier;
   final String label;
   final String description;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final bool danger;
 
   @override
@@ -300,6 +327,7 @@ class _RowButton extends StatelessWidget {
     return Semantics(
       identifier: identifier,
       button: true,
+      enabled: onPressed != null,
       label: label,
       hint: description,
       excludeSemantics: true,

@@ -59,8 +59,9 @@ class TabStrip extends StatelessWidget {
       role: SemanticsRole.tabBar,
       container: true,
       explicitChildNodes: true,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      // The tabs wrap onto two rows at 200% text in the smallest window (UI
+      // spec, "320 px"); the picker keeps them on one row itself.
+      child: Wrap(
         children: [
           for (var i = 0; i < labels.length; i++)
             _Tab(

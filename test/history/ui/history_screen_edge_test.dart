@@ -722,8 +722,8 @@ void main() {
   });
 
   group('keyboard only', () {
-    testWidgets('Tab goes from a row to its Copy button, then Delete, then '
-        'the next row', (tester) async {
+    testWidgets('Tab goes from a row to its Copy button, then Save as '
+        'snippet, then Delete', (tester) async {
       await show(tester);
       copyTexts(['a', 'b']);
       await tester.pumpAndSettle();
@@ -749,6 +749,9 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
       expect(focusedButton(), 'Copy');
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(focusedButton(), 'Save as snippet');
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
       expect(focusedButton(), 'Delete');
