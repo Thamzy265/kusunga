@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-04 — M1.3 History picker and paste — QA part 1 started
+- Changed: QA built one debug app (4147f9b). PM opened it and answered the keychain prompt. QA runs everything that works before pasting is allowed.
+- Gates: developer pass · tester pass · reviewer approve with notes · QA running · PM merge waiting
+- Open findings: none
+- Decisions: PM said (2026-11-04): "Done, Always Allow" — in answer to "Tell me once you've opened the app and clicked Always Allow."
+- Blockers: QA part 2 needs the PM to allow pasting (Kusunga's "Allow pasting" + System Settings)
+
 ## 2026-11-04 — M1.3 History picker and paste — Reviewer: approve with notes
 - Changed: D1, W3, W4 fixed (0c37d35, 4147f9b). CI run 41726239937 green on macOS and Windows. All 12 findings across the rounds fixed (1 withdrawn). Note: a maximised history window comes back at normal size when the picker closes without activating Kusunga (accepted trade-off).
 - Gates: developer pass · tester pass · reviewer approve with notes · QA open · PM merge waiting
