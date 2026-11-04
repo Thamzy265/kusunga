@@ -107,6 +107,12 @@ void main() {
     });
   });
 
+  test('pin name skips lines that only look blank (F2)', () {
+    expect(pinName('\u200B\u2060\nReal name\nmore'), 'Real name');
+    expect(pinName(' \u00A0\uFEFF \n\u202E\nSecond'), 'Second');
+    expect(pinName('\u200B\n\u2060'), '');
+  });
+
   test('pin name: first line, cut to 40 characters', () {
     expect(pinName('Hello\nworld'), 'Hello');
     expect(pinName('\n\n  second line first  \nthird'), 'second line first');

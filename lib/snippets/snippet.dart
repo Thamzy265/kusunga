@@ -164,7 +164,8 @@ SnippetType suggestType(String content) {
 String pinName(String content) {
   for (final line in content.split(_lineBreaks)) {
     final name = normaliseName(line);
-    if (name.isEmpty) continue;
+    // A line of only invisible characters would give a blank-looking name.
+    if (isBlankName(name)) continue;
     final runes = name.runes.toList();
     if (runes.length <= pinNameLength) return name;
     return String.fromCharCodes(runes.take(pinNameLength)).trimRight();
