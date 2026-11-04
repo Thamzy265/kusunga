@@ -1,6 +1,6 @@
 # M1.4 Saved snippets — UI spec
 
-Date: 2026-11-04 — Design note: `docs/design/saved-snippets.md` — Status: draft, waiting for PM
+Date: 2026-11-04 — Design note: `docs/design/saved-snippets.md` — Status: approved by PM 2026-11-04
 
 ## User and task
 

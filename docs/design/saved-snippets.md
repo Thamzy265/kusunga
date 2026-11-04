@@ -1,6 +1,6 @@
 # M1.4 Saved snippets — design note
 
-Date: 2026-11-04 — Size: large — new data store (snippets table), new personal data the user types in (phone numbers, emails, addresses, possibly other people's details), new UI in the main window and the picker — Phase: MVP — Status: draft, waiting for PM
+Date: 2026-11-04 — Size: large — new data store (snippets table), new personal data the user types in (phone numbers, emails, addresses, possibly other people's details), new UI in the main window and the picker — Phase: MVP — Status: approved by PM 2026-11-04
 
 ## Context
 

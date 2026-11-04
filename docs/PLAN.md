@@ -12,6 +12,7 @@ Phase: MVP. Approved by the PM on 2026-11-03 (deck: `docs/slides/mvp-plan.html`)
 - M1.2 (2026-11-03): Mac key in the login keychain until M1.9 signed builds.
 - M1.3 (2026-11-04): taken-shortcut reporting accepted as a Mac limitation (Windows only).
 - M1.3 (2026-11-04): direct notarised Mac download with the App Sandbox on (ADR 0003); default picker shortcut ⌘⇧V / Ctrl+Shift+V; pasted item stays on the clipboard; design approved.
+- M1.4 (2026-11-04): snippets in the same encrypted file; pasting a snippet does not add it to history; pinning copies (the item stays in history); the picker always opens on History; bank and card details allowed with a note until the M2 vault; design approved.
 - M1.2 (2026-11-03): default history 200 items (range 10–5,000); keychain failure → memory only with a warning; Apple Developer account only if unsigned builds cannot use the Keychain; scope change approved.
 Research behind this plan: `docs/marketing/competitor-research.md`.
 
@@ -61,6 +62,7 @@ Everything stays on the device. No account, no server.
   - AC: create, edit, delete and reorder snippets with a name, content and type (phone, email, link, address, other).
   - AC: snippets show in the picker in their own tab, and pinning a history item turns it into a snippet.
   - AC: snippets are never removed by the history limit.
+  - Design: `docs/design/saved-snippets.md`, UI spec `docs/ui/saved-snippets.md`, deck `docs/slides/saved-snippets.html` (approved 2026-11-04).
 - [ ] **M1.5 Typed shortcuts** — large (keyboard monitoring, trust boundary).
   - AC: each snippet can have a shortcut such as `;email`; typing it in any app replaces it with the snippet.
   - AC: shortcuts do not fire in password fields or in apps on the ignore list.
@@ -124,3 +126,6 @@ Needs its own design note and deck. Mobile cannot record clipboard history in th
 - Unicode-aware picker search (ß/ss, composed vs decomposed accents) — substring search with simple case folding covers most text — trigger: ≥ 3 beta reports of not finding accented or ß text — noted 2026-11-04 by lead
 - Picker shortcut pressed within 120 ms of clicking away is ignored, and a click within 1 s of the target app quitting needs one extra click — nothing is lost or pasted — trigger: ≥ 3 beta reports, or the next change to the picker's dismiss logic — noted 2026-11-04 by lead (reviewer C1, N2)
 - Picker test tidy-ups: the fake scheduler honours the 0.12 s delay (N1), remove the unused targetAlive parameter (N3), a source guard that runPaste uses the real permissionMask, and the signing-id guard also checks the local id outside macos/ios/tool/.github — trigger: the next change to these files or M1.9 start, whichever is first — noted 2026-11-04 by lead (reviewer notes)
+- Snippet placeholders ({date}, cursor position) — not needed for fixed text like a phone number — trigger: ≥ 10 beta requests — noted 2026-11-04 by lead
+- Snippet folders or tags — a flat list is enough at a few dozen snippets — trigger: median beta user has > 50 snippets, or ≥ 10 requests — noted 2026-11-04 by lead
+- Paste counts and "most used" snippet order — no use until the list is long — trigger: median beta user has > 30 snippets — noted 2026-11-04 by lead
