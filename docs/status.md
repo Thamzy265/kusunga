@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-04 — M1.3 History picker and paste — CI not started (GitHub billing) — PM risk acceptance
+- Changed: QA part 2 attempt 7 pass on adc39d1 (one click closes the picker after the target quits; copy-only plus toast; pastes pass). Reviewer approve with notes on adc39d1; notes are Later lines in docs/PLAN.md.
+- Gates: developer done · tester pass · reviewer approve with notes · QA pass · PM VoiceOver pass · CI not run: GitHub refused to start jobs ("recent account payments have failed or your spending limit needs to be increased") · local results: ./tool/check.sh 893 passed, XCTest TEST SUCCEEDED, ./tool/test_windows_policy.sh all passed (lead, on a727633) · Windows build and runtime not tested · PM merge waiting
+- Risk accepted by PM: merge M1.3 on local results; Windows build and tests unverified since the Windows picker dismissal change (F3). Condition: the first GitHub CI run that completes after billing is fixed must be green on both OSes; the M1.2 condition (first macOS CI on main green) still stands.
+- Decisions: PM said (2026-11-04): "Accept local results" — in answer to how to handle GitHub's checks before the merge.
+- Blockers: PM — GitHub billing (Actions)
+
 ## 2026-11-04 — M1.3 History picker and paste — Paste works; review approved with notes
 - Changed (branch feat/history-picker, eb432b2): local signing through a git-ignored Local.xcconfig (CI stays ad-hoc); Mac deployment target 12.0 (forced by Xcode 27.2); permission codes mirrored to the macOS unified log (closed code list); picker kept open once when its target app quits; "Copied" toast on focus loss; VoiceOver/Narrator announce the count and selected row; tester bugs B1–B3 and reviewer findings F1–F6, R1, R2, C1–C6 fixed.
 - Root cause of copy-only: the Accessibility entry belonged to an older ad-hoc build. With a stable signature and a fresh entry, permissionSnapshot = 7. H1 (wrong TCC service) not confirmed; ADR 0003 unchanged.
