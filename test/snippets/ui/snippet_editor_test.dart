@@ -601,4 +601,28 @@ void main() {
     expect(find.text('Enter a name.'), findsOneWidget);
     expect(store.list(), isEmpty);
   });
+
+  testWidgets('any pop with changes asks first (F3: maybePop, back)', (
+    tester,
+  ) async {
+    await open(tester, const SnippetEditorStart.create());
+    await tester.enterText(field('snippet-editor-name'), 'Draft');
+    await tester.pump();
+    final navigator = Navigator.of(
+      tester.element(field('snippet-editor-name')),
+    );
+    await navigator.maybePop();
+    await tester.pumpAndSettle();
+    expect(find.text('Discard changes?'), findsOneWidget);
+    expect(closed, isFalse);
+    await tester.tap(find.text('Keep editing'));
+    await tester.pumpAndSettle();
+    expect(find.text('Draft'), findsOneWidget);
+    // With nothing changed, a pop closes at once.
+    await tester.enterText(field('snippet-editor-name'), '');
+    await tester.pump();
+    await navigator.maybePop();
+    await tester.pumpAndSettle();
+    expect(closed, isTrue);
+  });
 }

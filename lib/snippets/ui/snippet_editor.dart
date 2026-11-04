@@ -428,8 +428,11 @@ class _SnippetEditorState extends State<_SnippetEditor> {
       ],
     );
     final editor = PopScope<int>(
-      // Esc (and any other way back) asks first if something changed.
-      canPop: _closing || !_changed,
+      // Every other way back (maybePop, the system back) goes through
+      // _cancel, which reads the fields at that moment: a value computed at
+      // build time would be stale after typing (F3). Closing itself uses
+      // Navigator.pop, which PopScope does not block.
+      canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _cancel();
       },

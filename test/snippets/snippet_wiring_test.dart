@@ -79,29 +79,26 @@ void main() {
     });
   });
 
-  test(
-    'a backup that cannot be written (TB-1): memory only with its own '
-    'notice (F1), its own log code, the v2 file left as it is',
-    () async {
-      final v2 = await open(
-        FakeKeyStore(stored: _key),
-        migrations: kMigrations.sublist(0, 2),
-      );
-      v2.store.insertOrBump('kept', ClipKind.text, 1);
-      v2.store.close();
-      final path = '${dir.path}/kusunga.db';
-      final before = File(path).readAsBytesSync();
-      Directory('$path.bak').createSync(); // the copy cannot be written
-      final opened = await open(FakeKeyStore(stored: _key));
-      expect(opened.store, isA<MemoryHistoryStore>());
-      expect(opened.snippets, isA<MemorySnippetStore>());
-      expect(opened.notices, {HistoryNotice.backupFailed});
-      expect(log.codes, contains(LogCode.migrationBackupFailed));
-      expect(log.codes, isNot(contains(LogCode.storeUnreadable)));
-      expect(File(path).readAsBytesSync(), before);
-      expect(Directory('$path.bak').existsSync(), isTrue, reason: 'not ours');
-    },
-  );
+  test('a backup that cannot be written (TB-1): memory only with its own '
+      'notice (F1), its own log code, the v2 file left as it is', () async {
+    final v2 = await open(
+      FakeKeyStore(stored: _key),
+      migrations: kMigrations.sublist(0, 2),
+    );
+    v2.store.insertOrBump('kept', ClipKind.text, 1);
+    v2.store.close();
+    final path = '${dir.path}/kusunga.db';
+    final before = File(path).readAsBytesSync();
+    Directory('$path.bak').createSync(); // the copy cannot be written
+    final opened = await open(FakeKeyStore(stored: _key));
+    expect(opened.store, isA<MemoryHistoryStore>());
+    expect(opened.snippets, isA<MemorySnippetStore>());
+    expect(opened.notices, {HistoryNotice.backupFailed});
+    expect(log.codes, contains(LogCode.migrationBackupFailed));
+    expect(log.codes, isNot(contains(LogCode.storeUnreadable)));
+    expect(File(path).readAsBytesSync(), before);
+    expect(Directory('$path.bak').existsSync(), isTrue, reason: 'not ours');
+  });
 
   group('HistoryService.snippets', () {
     HistoryService make(Set<HistoryNotice> notices) => HistoryService(
