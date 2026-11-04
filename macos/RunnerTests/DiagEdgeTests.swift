@@ -4,7 +4,7 @@ import XCTest
 
 @testable import Kusunga
 
-// Tester probes for the M1.3 diagnostics (6e24bed, 0888574): what the unified
+// Tester probes for the M1.3 diagnostics (6e24bed, 0a56e9b): what the unified
 // log accepts, when a forced post may happen, and when the picker stays open.
 // Nothing here posts a real key event or touches the real pasteboard.
 

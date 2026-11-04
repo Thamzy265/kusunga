@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/log/app_log.dart';
 import 'package:kusunga/log/unified_log.dart';
 
-/// Edge cases for the unified-log mirror (0888574): what Dart can send, and
+/// Edge cases for the unified-log mirror (0a56e9b): what Dart can send, and
 /// that a missing or failing native side is never an error.
 class _Recording implements ErrorLog {
   final lines = <String>[];

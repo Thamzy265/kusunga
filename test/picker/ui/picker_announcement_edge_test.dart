@@ -1,5 +1,5 @@
 // Independent edge cases for the VoiceOver / Narrator announcements added in
-// ae791ad (count: polite, throttled 500 ms, no repeats; row: assertive, only
+// 97a3665 (count: polite, throttled 500 ms, no repeats; row: assertive, only
 // when the selection changes).
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

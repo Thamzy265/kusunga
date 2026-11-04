@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/log/app_log.dart';
 
-/// Guards for 0888574 and d94a892 on the Mac: the optional local signing file,
+/// Guards for 0a56e9b and d94a892 on the Mac: the optional local signing file,
 /// the deployment target, the debug-only force-post switch and the diagnostics
 /// channel. These read the sources and the Xcode settings; nothing is built or
 /// signed.
@@ -341,7 +341,7 @@ void main() {
     });
   });
 
-  group('the diagnostics channel (0888574)', () {
+  group('the diagnostics channel (0a56e9b)', () {
     final bridge = stripComments(read('macos/Runner/PickerBridge.swift'));
     final diag = read('macos/Runner/DiagLog.swift');
 
