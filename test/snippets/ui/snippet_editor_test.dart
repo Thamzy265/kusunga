@@ -589,4 +589,16 @@ void main() {
       variant: TargetPlatformVariant.only(TargetPlatform.macOS),
     );
   });
+
+  testWidgets('a name of only invisible characters gets "Enter a name." (R3)', (
+    tester,
+  ) async {
+    await open(tester, const SnippetEditorStart.create());
+    await tester.enterText(field('snippet-editor-name'), '\u200B \u2060\uFEFF');
+    await tester.enterText(field('snippet-editor-content'), 'text');
+    await save(tester);
+    expect(closed, isFalse);
+    expect(find.text('Enter a name.'), findsOneWidget);
+    expect(store.list(), isEmpty);
+  });
 }

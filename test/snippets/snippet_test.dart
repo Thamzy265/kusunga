@@ -31,6 +31,33 @@ void main() {
       });
     });
 
+    test(
+      'a name of only white space or invisible characters is empty (R3)',
+      () {
+        for (final blank in [
+          '   ',
+          '\t\u00A0\u3000',
+          '\u200B\u200C\u200D',
+          '\u2060\uFEFF',
+          '\u202E\u202D\u2066\u2069',
+          '\u200E\u200F\u061C',
+          '\u00AD\u034F\u180E',
+          '\u{E0041}\u{E0042}', // tag characters
+          '\u0001\u007F\u0085',
+          ' \u200B \u2060 ',
+        ]) {
+          expect(
+            checkSnippet(blank, 'x'),
+            {SnippetProblem.emptyName},
+            reason: blank.runes.map((r) => r.toRadixString(16)).join(' '),
+          );
+        }
+        // A visible letter among them is a name.
+        expect(checkSnippet('\u200Ba\u200B', 'x'), isEmpty);
+        expect(checkSnippet('🙂', 'x'), isEmpty);
+      },
+    );
+
     test('names over 100 characters, counted as characters', () {
       expect(checkSnippet('n' * 100, 'x'), isEmpty);
       expect(checkSnippet('n' * 101, 'x'), {SnippetProblem.longName});

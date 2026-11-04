@@ -92,11 +92,43 @@ enum SnippetProblem { emptyName, longName, emptyContent, longContent }
 /// The problems with [name] (already normalised) and [content]. Content is
 /// "empty" when it is only white space, as for history.
 Set<SnippetProblem> checkSnippet(String name, String content) => {
-  if (name.trim().isEmpty) SnippetProblem.emptyName,
+  if (isBlankName(name)) SnippetProblem.emptyName,
   if (name.runes.length > maxSnippetNameLength) SnippetProblem.longName,
   if (content.trim().isEmpty) SnippetProblem.emptyContent,
   if (isOverCap(content)) SnippetProblem.longContent,
 };
+
+/// True if [name] has nothing a person can see: only white space, control
+/// characters, or invisible format characters (zero width, bidi marks,
+/// word joiner, BOM, soft hyphen, tag characters). Such a name gets
+/// "Enter a name." (R3).
+bool isBlankName(String name) {
+  for (final r in name.runes) {
+    if (!_isBlankRune(r)) return false;
+  }
+  return true;
+}
+
+bool _isBlankRune(int r) =>
+    r <= 0x20 || // controls and space
+    (r >= 0x7F && r <= 0xA0) || // DEL, C1 controls, no-break space
+    r == 0xAD || // soft hyphen
+    r == 0x034F || // combining grapheme joiner
+    r == 0x061C || // Arabic letter mark
+    r == 0x115F ||
+    r == 0x1160 || // Hangul fillers
+    r == 0x1680 ||
+    r == 0x180E ||
+    (r >= 0x2000 && r <= 0x200F) || // spaces, zero width, LRM, RLM
+    (r >= 0x2028 && r <= 0x202F) || // separators, bidi, narrow space
+    (r >= 0x205F &&
+        r <= 0x206F) || // word joiner, invisible operators, isolates
+    r == 0x3000 ||
+    r == 0x3164 ||
+    r == 0xFEFF ||
+    r == 0xFFA0 ||
+    (r >= 0xFE00 && r <= 0xFE0F) || // variation selectors
+    (r >= 0xE0000 && r <= 0xE007F); // tag characters
 
 /// What the stores accept; anything else is an [ArgumentError].
 void checkSnippetFields(String name, String content) {
