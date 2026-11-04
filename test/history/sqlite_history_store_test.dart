@@ -36,11 +36,11 @@ void main() {
     });
     tearDown(() => dir.deleteSync(recursive: true));
 
-    test('schema version is 2 and the tables match the design', () {
+    test('schema version is 3 and the tables match the design', () {
       SqliteHistoryStore.open(path: path, keyHex: _key).close();
       final db = sqlite3.open(path);
       db.execute("PRAGMA hexkey = '$_key'");
-      expect(db.select('PRAGMA user_version').single.values.single, 2);
+      expect(db.select('PRAGMA user_version').single.values.single, 3);
       final cols = db
           .select('PRAGMA table_info(clip_items)')
           .map((r) => r['name'])
@@ -196,9 +196,9 @@ void main() {
   group('migrations', () {
     late Directory dir;
     late String path;
-    // A later step than the shipped ones (version 2 is the picker step).
+    // A later step than the shipped ones (version 3 is the snippets step).
     final v2 = Migration(
-      version: 3,
+      version: 4,
       statements: ['ALTER TABLE clip_items ADD COLUMN note TEXT'],
     );
 
@@ -228,7 +228,7 @@ void main() {
       );
       expect(b.list().single.preview, 'old data');
       b.close();
-      expect(version(), 3);
+      expect(version(), 4);
       expect(File('$path.bak').existsSync(), isFalse);
     });
 
@@ -238,7 +238,7 @@ void main() {
         keyHex: _key,
         migrations: kMigrations.sublist(0, 1),
       );
-      expect(kMigrations.length, 2, reason: 'version 2 is the picker step');
+      expect(kMigrations[1].statements, isEmpty, reason: 'the picker step');
       v1.setLimit(50);
       for (var i = 0; i < 30; i++) {
         v1.insertOrBump('item $i', i.isEven ? ClipKind.text : ClipKind.link, i);
@@ -260,7 +260,7 @@ void main() {
       expect(v2store.readSetting('picker_shortcut'), isNull);
       v2store.writeSetting('picker_shortcut', 'ctrl+alt+k');
       v2store.close();
-      expect(version(), 2);
+      expect(version(), 3);
       expect(File('$path.bak').existsSync(), isFalse);
 
       final again = SqliteHistoryStore.open(path: path, keyHex: _key);
@@ -273,7 +273,7 @@ void main() {
       SqliteHistoryStore.open(path: path, keyHex: _key).close();
       var backupSeen = false;
       final spy = Migration(
-        version: 3,
+        version: 4,
         statements: ['ALTER TABLE clip_items ADD COLUMN note TEXT'],
         onRun: () => backupSeen = File('$path.bak').existsSync(),
       );
@@ -291,7 +291,7 @@ void main() {
       a.close();
 
       final bad = Migration(
-        version: 3,
+        version: 4,
         statements: [
           'ALTER TABLE clip_items ADD COLUMN note TEXT',
           'THIS IS NOT SQL',
@@ -305,7 +305,7 @@ void main() {
         ),
         throwsA(isA<MigrationFailed>()),
       );
-      expect(version(), 2);
+      expect(version(), 3);
       expect(File('$path.bak').existsSync(), isTrue);
 
       final again = SqliteHistoryStore.open(path: path, keyHex: _key);
@@ -323,7 +323,7 @@ void main() {
         () => SqliteHistoryStore.open(path: path, keyHex: _key),
         throwsA(isA<UnsupportedSchemaVersion>()),
       );
-      expect(version(), 3);
+      expect(version(), 4);
     });
 
     test('migration versions start at 1 and have no gaps', () {

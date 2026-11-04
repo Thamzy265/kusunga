@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'dart:convert';
 
+import '../snippets/sqlite_snippet_store.dart';
 import 'clip_item.dart';
 import 'history_store.dart';
 import 'migrations.dart';
@@ -131,6 +132,11 @@ class SqliteHistoryStore implements HistoryStore {
     }
     if (backup != null && backup.existsSync()) backup.deleteSync();
   }
+
+  /// The snippets on this same encrypted connection (schema version 3).
+  /// Closing the history closes it.
+  SqliteSnippetStore snippetStore() => _snippets ??= SqliteSnippetStore(_db);
+  SqliteSnippetStore? _snippets;
 
   @override
   int get limit => _limit;
