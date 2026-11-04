@@ -181,10 +181,11 @@ class _HistoryRowState extends State<HistoryRow> {
 
     final row = LayoutBuilder(
       builder: (context, box) {
-        // Narrow below 600 px of 100% text: at 200% text the time and the
-        // three buttons need twice the room.
+        // Narrow below a 600 px window (the spec's breakpoint is the window
+        // width, not the row's; F9), at 100% text: at 200% text the time and
+        // the three buttons need twice the room.
         final scale = MediaQuery.textScalerOf(context).scale(1);
-        final narrow = box.maxWidth < 600 * scale;
+        final narrow = MediaQuery.sizeOf(context).width < 600 * scale;
         final icon = ExcludeSemantics(
           child: Icon(
             item.kind == ClipKind.link ? Icons.link : Icons.notes,
