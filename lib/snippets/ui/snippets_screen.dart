@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
+import '../../history/ui/history_row.dart' show RowMove;
 import '../../history/ui/text_display.dart';
 import '../../theme/tokens.dart';
 import '../snippet.dart';
@@ -231,12 +232,33 @@ class SnippetsScreenState extends State<SnippetsScreen> {
     _focusRow(item.id);
   }
 
-  void _moveFocus(int id, int by) {
+  /// Up/Down, Home/End and Cmd+Up/Down on a row (as in the History list).
+  /// The focus moves at once: a key press alone draws no frame, so waiting
+  /// for the next one would leave the focus where it was (QA-M14-2).
+  void _moveFocus(int id, RowMove move) {
     final items = _service.items;
     final i = items.indexWhere((s) => s.id == id);
-    final target = i + by;
-    if (i < 0 || target < 0 || target >= items.length) return;
-    _focusRow(items[target].id);
+    if (i < 0) return;
+    final target = switch (move) {
+      RowMove.previous => (i - 1).clamp(0, items.length - 1),
+      RowMove.next => (i + 1).clamp(0, items.length - 1),
+      RowMove.first => 0,
+      RowMove.last => items.length - 1,
+    };
+    final targetId = items[target].id;
+    final node = _nodes[targetId];
+    if (node != null && (node.context?.mounted ?? false)) {
+      node.requestFocus();
+      return;
+    }
+    // Rows are built lazily: scroll the row into being, then focus it.
+    if (_scroll.hasClients) {
+      _scroll.jumpTo(target == 0 ? 0 : _scroll.position.maxScrollExtent);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _nodes[targetId]?.requestFocus();
+    });
+    setState(() {});
   }
 
   void _delete(SnippetItem item) {
@@ -407,7 +429,7 @@ class SnippetsScreenState extends State<SnippetsScreen> {
               onMoveUp: () => _move(item, -1),
               onMoveDown: () => _move(item, 1),
               onDelete: () => _delete(item),
-              onFocusMove: (by) => _moveFocus(item.id, by),
+              onFocusMove: (move) => _moveFocus(item.id, move),
             );
           },
         ),
@@ -450,7 +472,9 @@ class SnippetRow extends StatefulWidget {
   final VoidCallback onMoveUp;
   final VoidCallback onMoveDown;
   final VoidCallback onDelete;
-  final void Function(int by) onFocusMove;
+
+  /// Moves the focus: previous, next, and the two ends.
+  final void Function(RowMove move) onFocusMove;
 
   /// After a move: +1 slides in from below, -1 from above (150 ms).
   final int slideFrom;
@@ -498,14 +522,21 @@ class _SnippetRowState extends State<SnippetRow> {
     final key = event.logicalKey;
     final hw = HardwareKeyboard.instance;
     final alt = hw.isAltPressed && !hw.isMetaPressed && !hw.isControlPressed;
+    // On a Mac, Cmd+Up and Cmd+Down are first and last (and fn+Left/Right
+    // arrive as Home and End), as in the History list.
+    final cmd = hw.isMetaPressed;
     if (key == LogicalKeyboardKey.arrowUp) {
       alt
           ? _ifEditable(widget.onMoveUp, !widget.isFirst)
-          : widget.onFocusMove(-1);
+          : widget.onFocusMove(cmd ? RowMove.first : RowMove.previous);
     } else if (key == LogicalKeyboardKey.arrowDown) {
       alt
           ? _ifEditable(widget.onMoveDown, !widget.isLast)
-          : widget.onFocusMove(1);
+          : widget.onFocusMove(cmd ? RowMove.last : RowMove.next);
+    } else if (key == LogicalKeyboardKey.home) {
+      widget.onFocusMove(RowMove.first);
+    } else if (key == LogicalKeyboardKey.end) {
+      widget.onFocusMove(RowMove.last);
     } else if (key == LogicalKeyboardKey.enter ||
         key == LogicalKeyboardKey.numpadEnter) {
       widget.onCopy();
