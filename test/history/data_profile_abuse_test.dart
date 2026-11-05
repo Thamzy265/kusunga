@@ -4,9 +4,8 @@
 // move aside, back up, clear or overwrite anything in the default folder, and
 // must never write, replace or delete the keychain key.
 //
-// Tests marked `skip: 'BUG-P...'` are repros for bugs found: they fail today
-// (checked by removing the skip) and are skipped only so the suite stays
-// green until the developer fixes them. Do not delete them.
+// The symlink tests were repros for BUG-P1 and BUG-P2 (skipped until the
+// fix). Do not delete them.
 import 'dart:io';
 import 'dart:math';
 
@@ -22,13 +21,8 @@ import 'package:path/path.dart' as p;
 
 import '../support/fakes.dart';
 
-const _bugSymlinkDir =
-    'BUG-P1: a profiles/<name> symlink is followed, so the profile session '
-    'opens, migrates, trims and clears whatever it points to (the default '
-    'folder)';
-const _bugSymlinkFile =
-    'BUG-P2: a symlinked file inside the profile folder is followed (the '
-    'default database / log / backup is read or overwritten)';
+// BUG-P1 (symlinked profiles/ or profiles/<name>) and BUG-P2 (symlinked
+// files in the profile folder) were fixed; their repros below now run.
 
 /// A key store that records every call, so "never writes, replaces or
 /// deletes the key" is checked on the wrapper the profile really receives.
@@ -650,7 +644,7 @@ void main() {
       expect(s.items, isEmpty, reason: 'the real history was read');
       await hammer(s, src);
       expect(defaultState(), before);
-    }, skip: _bugSymlinkDir);
+    }, skip: Platform.isWindows ? 'creating a symlink needs rights' : null);
 
     test('profiles is a symlink to the default folder (profiles/qa then '
         'lands inside it)', () async {
@@ -666,7 +660,7 @@ void main() {
         isEmpty,
         reason: 'a profile session wrote outside the support folder',
       );
-    }, skip: _bugSymlinkDir);
+    }, skip: Platform.isWindows ? 'creating a symlink needs rights' : null);
 
     test('profiles/qa is a symlink to a folder outside the support folder: '
         'nothing is written there', () async {
@@ -678,7 +672,7 @@ void main() {
       final s = await open(const ActiveDataProfile('qa'), keys, source: src);
       await hammer(s, src);
       expect(outside.listSync(), isEmpty);
-    }, skip: _bugSymlinkDir);
+    }, skip: Platform.isWindows ? 'creating a symlink needs rights' : null);
 
     test('profiles/qa is a dangling symlink: memory only or a clean failure, '
         'never a write through it', () async {
@@ -706,7 +700,7 @@ void main() {
         await hammer(s, src);
         expect(defaultState(), before);
       },
-      skip: _bugSymlinkFile,
+      skip: 'BUG-P2: a symlinked file in the profile folder is followed',
     );
 
     test(
@@ -723,7 +717,7 @@ void main() {
         await s.close();
         expect(defaultState(), before, reason: 'the real log was appended to');
       },
-      skip: _bugSymlinkFile,
+      skip: 'BUG-P2: a symlinked file in the profile folder is followed',
     );
 
     test('an older profile DB whose .bak is a symlink to the real .bak must '
@@ -748,6 +742,6 @@ void main() {
         before,
         reason: 'the migration backup was written through the link',
       );
-    }, skip: _bugSymlinkFile);
+    }, skip: 'BUG-P2: a symlinked file in the profile folder is followed');
   });
 }

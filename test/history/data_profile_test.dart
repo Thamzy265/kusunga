@@ -278,6 +278,35 @@ void main() {
       },
     );
 
+    test('a symlink at profiles/ or profiles/<name> is refused: memory '
+        'only, dataProfileRejected 2, and no file anywhere (BUG-P1)', () async {
+      final keys = FakeKeyStore(stored: generateKeyHex(Random(8)));
+      final before = await seedDefault(keys);
+      final outside = Directory.systemTemp.createTempSync('kusunga_out_');
+      addTearDown(() => outside.deleteSync(recursive: true));
+      for (final linkAt in ['profiles', 'profiles/qa']) {
+        log.codes.clear();
+        log.details.clear();
+        final link = Link(p.join(base.path, linkAt));
+        if (linkAt == 'profiles/qa') {
+          Directory(p.join(base.path, 'profiles')).createSync();
+        }
+        link.createSync(outside.path);
+        final service = await open(const ActiveDataProfile('qa'), keys);
+        expect(service.banners, contains(HistoryBanner.memoryOnly));
+        expect(service.items, isEmpty);
+        final at = log.codes.indexOf(LogCode.dataProfileRejected);
+        expect(at, isNonNegative, reason: linkAt);
+        expect(log.details[at], 2, reason: linkAt);
+        expect(outside.listSync(), isEmpty, reason: linkAt);
+        expect(defaultFiles(), before, reason: linkAt);
+        link.deleteSync();
+        if (linkAt == 'profiles/qa') {
+          Directory(p.join(base.path, 'profiles')).deleteSync();
+        }
+      }
+    }, skip: Platform.isWindows ? 'creating a symlink needs rights' : null);
+
     test('the start is logged as a closed code, never with the name or the '
         'path', () async {
       final keys = FakeKeyStore(stored: generateKeyHex(Random(6)));

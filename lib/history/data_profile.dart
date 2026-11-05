@@ -78,15 +78,43 @@ dataProfileSetup(
       );
     case ActiveDataProfile(:final name):
       log.log(LogCode.dataProfileActive);
-      final sep = Platform.pathSeparator;
       return (
         supportDirectory: () async {
           final base = await supportDirectory();
-          return Directory('${base.path}${sep}profiles$sep$name');
+          return _profileFolder(base, name, log);
         },
         keys: _ReadOnlyKeyStore(keys, log),
       );
   }
+}
+
+/// The `detail` of `dataProfileRejected` when a link was found on the way to
+/// the profile folder.
+const dataProfileLinkDetail = 2;
+
+/// `<base>/profiles/<name>`, or a throw (so the session is memory only and
+/// creates nothing) if `profiles` or `profiles/<name>` is a link, or the
+/// folder resolves anywhere else. A link there could point at the default
+/// folder, and Trim or Clear history would then delete real data (BUG-P1).
+Directory _profileFolder(Directory base, String name, ErrorLog log) {
+  final sep = Platform.pathSeparator;
+  final profiles = '${base.path}${sep}profiles';
+  final folder = '$profiles$sep$name';
+  Never refuse() {
+    log.log(LogCode.dataProfileRejected, dataProfileLinkDetail);
+    throw const FileSystemException('data profile path has a link');
+  }
+
+  for (final path in [profiles, folder]) {
+    if (FileSystemEntity.isLinkSync(path)) refuse();
+  }
+  if (Directory(folder).existsSync()) {
+    final real = Directory(folder).resolveSymbolicLinksSync();
+    final expected =
+        '${base.resolveSymbolicLinksSync()}${sep}profiles$sep$name';
+    if (real != expected) refuse();
+  }
+  return Directory(folder);
 }
 
 class _ReadOnlyKeyStore implements KeyStore {
