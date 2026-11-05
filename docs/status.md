@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-05 — M1.4 Saved snippets — QA may launch Kusunga — PM decision
+- Changed: QA resume found Kusunga not running (Mac restarted 09:34 for macOS 27.2; build unchanged, CDHash 6288d6c5…). Notes in docs/qa/m1.md (cc5c2dd, not pushed).
+- Gates: developer done · tester pass · reviewer approve with notes · QA in progress · PM merge waiting
+- Open findings: as before
+- Decisions: PM said (2026-11-05): "Yes, QA may launch" — in answer to "May QA launch Kusunga itself for this test session?" Scope: this M1.4 QA session only. Dialogs stay with the PM.
+- Blockers: none for QA; PM — GitHub billing or acceptance of local results for M1.4
+
 ## 2026-11-05 — M1.4 Saved snippets — QA blocked by a keychain prompt
 - Changed: QA confirmed the installed build (CDHash 6288d6c5…, commit 9be61eb) and permissionSnapshot 7 after relaunch. A macOS keychain dialog ("Kusunga wants to use your confidential information stored in 'com.wnasoni.kusunga'…") then appeared; per the PM rule QA stopped and left it untouched. No real-app flow ran; no screenshots (the window shows the PM's history). Notes in docs/qa/m1.md (de1fc6b on feat/saved-snippets).
 - Gates: developer done · tester pass · reviewer approve with notes · QA blocked (0/3 criteria on the real app; ./tool/check.sh 1,189 passed) · PM merge waiting
