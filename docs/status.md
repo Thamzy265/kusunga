@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-05 — M1.4 Saved snippets — Developer, tester and reviewer done; review approved with notes
+- Changed (branch feat/saved-snippets, 9be61eb, pushed): snippets table (schema v3) in the encrypted store, main-window History/Snippets tabs, snippet editor, reorder, delete with Undo, Save as snippet, picker Snippets tab (⌃Tab), D1 history skip (Mac: own change count; Windows: unverified), `pasteSource` log code. Tester bugs TB-1, TB-2, TB-4, TB-5, R2, R3 fixed (6cf48f6..2a848f1). Reviewer L1, F1–F10, C1 fixed (7aca3ca..9be61eb); F5 fixed on Mac, skipped on Windows (Low; needs real Windows; "TO CONFIRM ON REAL WINDOWS" comment at clipboard_bridge.cpp:122).
+- Checks: ./tool/check.sh 1,189 passed (reviewer, on 9be61eb); XCTest 231 passed (developer); ./tool/test_windows_policy.sh passed. CI not run (GitHub billing). Windows not compiled.
+- Gates: developer done · tester pass · reviewer approve with notes · QA pending · PM merge waiting
+- Open findings (Low, notes): N1 the "keychain" Snippets banner also shows for other memory-only causes; N2 after a failed migration History and Snippets give different advice; F5 Windows part skipped; R1 Clear history deletes .bak/.unreadable files that may now hold snippets (PM decision). Banner wording is a lead draft for PM confirmation.
+- Decisions: none
+- Blockers: PM — GitHub billing (CI) or acceptance of local results for M1.4; banner wording; R1
+
 ## 2026-11-04 — M1.4 Saved snippets — Overnight permissions — PM decision
 - Changed: none. The lead runs the gates overnight (developer, tester, reviewer, QA); no merge, no risk acceptance and no skipped finding without the PM.
 - Gates: developer in progress · tester · reviewer · QA · PM merge waiting
