@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-05 — M1.4 Saved snippets — AC3 test profile — PM decision
+- Changed: none yet. The developer adds a debug-only switch so Kusunga uses a separate test data folder; QA runs the history-limit test (AC3) on throwaway data.
+- Gates: developer in progress · tester · reviewer · QA · PM merge waiting
+- Open findings: as in the previous entry
+- Decisions: PM said (2026-11-05): "Add a test profile" — in answer to "How should QA test the history limit without losing your 411 history items?" (options: a debug-only test profile, or automated tests only).
+- Blockers: PM — GitHub billing or acceptance of local results for M1.4; VoiceOver sign-off
+
 ## 2026-11-05 — M1.4 Saved snippets — QA session 3: fail (2 Major accessibility bugs); developer escalated
 - Changed: QA-M14-1 (tabs stacked) fixed in 826938d; tester 26 tests (bf06141), no bugs; reviewer approve with notes on bf06141. QA session 3 on the rebuilt signed Debug app (CDHash 0167a366…, commit bf06141; PM said "Mac is free"): AC1 works functionally, AC2 pass (D1, D2, D3, F8, pasteSource 1), AC3 not run on the real app (setting Keep to 10 would permanently delete about 400 of the PM's history items), privacy pass. Evidence docs/qa/m1.md "M1.4 session 3" (86f6f7c, not pushed); videos in qa-artifacts/m1.4/.
 - Gates: developer reopened · tester pass · reviewer approve with notes · QA fail · PM merge waiting
