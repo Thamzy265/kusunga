@@ -139,4 +139,30 @@ void main() {
     await tester.pump();
     expect(focused(tester, 'Snippet 0'), isTrue);
   });
+
+  testWidgets('a snippet saved while a row deep in the list has the focus '
+      '(it is added at the end) leaves the focus on that row, on screen '
+      '(the Snippets side of BUG-H3)', (tester) async {
+    for (var i = 0; i < 60; i++) {
+      add('Snippet $i');
+    }
+    await show(tester);
+    await click(tester, 'Snippet 0');
+    for (var i = 0; i < 20; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+    }
+    expect(focused(tester, 'Snippet 20'), isTrue);
+    for (var i = 0; i < 5; i++) {
+      add('New $i');
+      await tester.pump();
+      expect(focused(tester, 'Snippet 20'), isTrue, reason: 'after New $i');
+    }
+    final row = tester.getRect(find.text('Snippet 20'));
+    final view = tester.getRect(find.byType(CustomScrollView));
+    expect(row.top >= view.top && row.bottom <= view.bottom, isTrue);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    expect(focused(tester, 'Snippet 21'), isTrue);
+  });
 }

@@ -105,7 +105,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
       _footer = _footerText();
       _holdFooter();
     }
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _keepFocusedRowInView(),
+      );
+    }
   }
 
   // "Save as snippet" turns off at the cap.
@@ -259,47 +264,118 @@ class _HistoryScreenState extends State<HistoryScreen> {
       RowMove.first => 0,
       RowMove.last => items.length - 1,
     };
-    _showAndFocus(items[target].id);
+    _showAndFocus(
+      items[target].id,
+      end: switch (move) {
+        RowMove.first => _End.first,
+        RowMove.last => _End.last,
+        _ => null,
+      },
+    );
   }
 
   /// Bumped by every focus request: one still waiting for a frame gives up
   /// when a newer one came after it (End then Home in one frame).
   var _focusTicket = 0;
 
-  /// Scrolls the row [id] fully into view and focuses it (WCAG 2.4.11): at
-  /// once if the row is built, else once it is, after scrolling towards it
-  /// frame by frame (rows differ in height, so its place is only estimated
-  /// until it is built).
-  void _showAndFocus(int id) => _focusStep(id, ++_focusTicket, 200);
+  /// True while a focus request is still scrolling towards its row.
+  var _focusPending = false;
 
-  void _focusStep(int id, int ticket, int triesLeft) {
+  /// Scrolls the row [id] fully into view and focuses it (WCAG 2.4.11): at
+  /// once if the row is laid out, else once it is, after scrolling towards it
+  /// frame by frame (rows differ in height, so its place is only estimated
+  /// until it is built). [end]: the request is for the first or last row, so
+  /// if that row goes meanwhile (a full history trims its oldest copy) the
+  /// new first or last row is the target (BUG-H1).
+  void _showAndFocus(int id, {_End? end}) {
+    final index = _service.items.indexWhere((e) => e.id == id);
+    _focusStep(id, index, end, ++_focusTicket, 200);
+  }
+
+  void _focusStep(int id, int index, _End? end, int ticket, int triesLeft) {
     if (!mounted || ticket != _focusTicket) return;
+    final items = _service.items;
+    if (items.isEmpty) {
+      _focusPending = false;
+      _screenFocus.requestFocus();
+      return;
+    }
+    var at = items.indexWhere((e) => e.id == id);
+    if (at < 0 || (end == _End.last && at != items.length - 1)) {
+      // The row went while the list scrolled to it: never leave the focus on
+      // nothing. The new end row, or the row now at its place.
+      at = switch (end) {
+        _End.first => 0,
+        _End.last => items.length - 1,
+        null => index.clamp(0, items.length - 1),
+      };
+      id = items[at].id;
+    }
     final node = _nodes[id];
-    final row = node?.context;
-    if (node != null && row != null && row.mounted) {
-      row.findRenderObject()?.showOnScreen();
+    final box = _laidOutRow(node);
+    if (node != null && box != null) {
+      _focusPending = false;
+      box.showOnScreen();
       node.requestFocus();
       return;
     }
-    if (triesLeft == 0 || !_scroll.hasClients) return;
-    _scrollTowards(id);
+    // A row that is built but off screen (the focused row is kept alive when
+    // new copies push it down) takes the focus now; the scroll follows.
+    if (node != null && (node.context?.mounted ?? false)) node.requestFocus();
+    if (triesLeft == 0 || !_scroll.hasClients) {
+      _focusPending = false;
+      return;
+    }
+    _focusPending = true;
+    _scrollTowards(at, items);
     WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _focusStep(id, ticket, triesLeft - 1),
+      (_) => _focusStep(id, at, end, ticket, triesLeft - 1),
     );
     WidgetsBinding.instance.ensureVisualUpdate();
   }
 
-  /// One step towards the row [id], which is not built: towards either end
-  /// of the list for the first and last rows, else from the nearest built
-  /// row, by the average height of the built rows.
+  /// The row's box if it is laid out in the list now: not a row whose element
+  /// is gone (a resize or a scroll disposed it: BUG-H2), and not one only kept
+  /// alive off screen.
+  RenderBox? _laidOutRow(FocusNode? node) {
+    final context = node?.context;
+    if (context == null || !context.mounted) return null;
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.attached || !box.hasSize) return null;
+    RenderObject? child = box;
+    while (child != null &&
+        child.parentData is! SliverMultiBoxAdaptorParentData) {
+      child = child.parent;
+    }
+    final data = child?.parentData;
+    if (data is SliverMultiBoxAdaptorParentData && data.keptAlive) return null;
+    return box;
+  }
+
+  /// After the list changed (new copies above, a trim): the focused row is
+  /// scrolled back into view, unless a focus request is already on its way.
+  void _keepFocusedRowInView() {
+    if (!mounted || _focusPending) return;
+    for (final MapEntry(key: id, value: node) in _nodes.entries) {
+      if (!node.hasFocus) continue;
+      final box = _laidOutRow(node);
+      if (box != null) {
+        box.showOnScreen();
+      } else {
+        _showAndFocus(id);
+      }
+      return;
+    }
+  }
+
+  /// One step towards the row at [target], which is not laid out: towards
+  /// either end of the list for the first and last rows, else from the
+  /// nearest laid-out row, by the average height of the laid-out rows.
   ///
   /// A step is at most 40 screens. Rows differ in height, so the list builds
   /// every row on the way to an offset; one jump across 5,000 rows built them
   /// all in one frame and took far longer than the same rows in small steps.
-  void _scrollTowards(int id) {
-    final items = _service.items;
-    final target = items.indexWhere((e) => e.id == id);
-    if (target < 0) return;
+  void _scrollTowards(int target, List<ClipItem> items) {
     final pos = _scroll.position;
     final double to;
     if (target == 0) {
@@ -317,8 +393,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (next != pos.pixels) pos.jumpTo(next);
   }
 
-  /// Where the row at [target] probably is: from the nearest built row, by
-  /// the average height of the built rows, centred on the screen.
+  /// Where the row at [target] probably is: from the nearest laid-out row,
+  /// by the average height of the laid-out rows, centred on the screen.
   double? _estimatedOffset(
     List<ClipItem> items,
     int target,
@@ -328,14 +404,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
     var heights = 0.0;
     var count = 0;
     for (var i = 0; i < items.length; i++) {
-      final ro = _nodes[items[i].id]?.context?.findRenderObject();
-      if (ro is! RenderBox || !ro.attached || !ro.hasSize) continue;
-      final viewport = RenderAbstractViewport.maybeOf(ro);
+      final box = _laidOutRow(_nodes[items[i].id]);
+      if (box == null) continue;
+      final viewport = RenderAbstractViewport.maybeOf(box);
       if (viewport == null) continue;
-      heights += ro.size.height + KusungaTokens.space1;
+      heights += box.size.height + KusungaTokens.space1;
       count++;
       if (nearest == null || (i - target).abs() < (nearest.$1 - target).abs()) {
-        nearest = (i, viewport.getOffsetToReveal(ro, 0).offset);
+        nearest = (i, viewport.getOffsetToReveal(box, 0).offset);
       }
     }
     if (nearest == null) return null;
@@ -513,6 +589,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _list(List<ClipItem> items, bool setupCard) {
     final now = _nowMs;
+    final indexOf = {for (var i = 0; i < items.length; i++) items[i].id: i};
     return SliverSemantics(
       label: 'Clipboard history, ${items.length} items',
       explicitChildNodes: true,
@@ -520,6 +597,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
         padding: EdgeInsets.only(bottom: KusungaTokens.space6 * 2),
         sliver: SliverList.separated(
           itemCount: items.length,
+          // Rows keep their element (and so their focus) when copies arrive
+          // above them or a row above goes: matched by item id, not by place
+          // (BUG-H3: the focus moved to another row, which a Delete would hit).
+          findItemIndexCallback: (key) =>
+              key is ValueKey<int> ? indexOf[key.value] : null,
           separatorBuilder: (_, _) => SizedBox(height: KusungaTokens.space1),
           itemBuilder: (context, i) {
             final item = items[i];
@@ -773,3 +855,6 @@ class _UndoDeleteAction extends Action<_UndoDeleteIntent> {
     return null;
   }
 }
+
+/// A focus request for the first or the last row.
+enum _End { first, last }

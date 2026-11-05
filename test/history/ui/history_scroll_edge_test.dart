@@ -257,7 +257,7 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(focusedItem(), isNotNull);
       expectFocusedOnScreen(tester, 'after the target vanished');
-    }, skip: true); // BUG-H1
+    }); // BUG-H1
 
     testWidgets('copies arriving at the top while End steps: End still '
         'ends on the oldest row, on screen', (tester) async {
@@ -313,7 +313,7 @@ void main() {
       await framesAfter(tester, LogicalKeyboardKey.arrowUp);
       expect(focusedText(), 'item ${199 - 20 + 1}');
       expectFocusedOnScreen(tester, 'Up after new copies');
-    }, skip: true); // BUG-H3
+    }); // BUG-H3
 
     testWidgets('the focused row copied again (it moves to the top): the '
         'focus follows it and Down goes on from the top', (tester) async {
@@ -350,7 +350,7 @@ void main() {
       await framesAfter(tester, LogicalKeyboardKey.end);
       expect(focusedText(), 'item 0');
       expectFocusedOnScreen(tester, 'End in the short window');
-    }, skip: true); // BUG-H2
+    }); // BUG-H2
 
     testWidgets('Down 40 times in a window that is short from the start '
         '(380x260) keeps each row on screen, without exceptions', (

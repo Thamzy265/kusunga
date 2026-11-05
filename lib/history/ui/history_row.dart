@@ -59,7 +59,8 @@ class HistoryRow extends StatefulWidget {
 
 enum RowMove { previous, next, first, last }
 
-class _HistoryRowState extends State<HistoryRow> {
+class _HistoryRowState extends State<HistoryRow>
+    with AutomaticKeepAliveClientMixin {
   var _hovered = false;
   var _within = false;
   late final bool _animateIn = widget.animateIn;
@@ -86,8 +87,17 @@ class _HistoryRowState extends State<HistoryRow> {
   }
 
   void _rebuild() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    updateKeepAlive();
   }
+
+  /// The focused row (or the row of a focused button) stays alive when it is
+  /// pushed off screen (new copies arrive above it): its focus node stays
+  /// attached, so the focus never jumps to another row, which a Delete would
+  /// then hit (BUG-H3). The screen scrolls it back into view.
+  @override
+  bool get wantKeepAlive => widget.focusNode.hasFocus;
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
@@ -122,6 +132,7 @@ class _HistoryRowState extends State<HistoryRow> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final t = KusungaTokens.of(context);
     final item = widget.item;
     final active = _hovered || _within || widget.focusNode.hasFocus;
