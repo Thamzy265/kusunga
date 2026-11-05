@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-05 — M1.4 Saved snippets — Tester round 3; developer stuck; PM approves plan and risk
+- Changed: developer fixed H1–H3, P3, late log link (a44e597, 7dcbca1, 77a2080, 52e9ddd); check.sh 1,476 passed ×2. Tester round 3 (7fbe638) found BUG-L4 (high, regression: two writers on one log overwrite lines), L2, L3 (low), BUG-H6 (high: focused History row trimmed, focus lost), BUG-H4 (End in 5,000 rows 7× slower while copies arrive), BUG-H5 (design: re-show of focused row fights mouse scrolling), BUG-P4 and two known limits (hard links created between check and open, or to files outside the default folder).
+- Escalation: developer on Opus at high effort failed a third tester round; raised to the PM instead of another loop.
+- Gates: developer in progress · tester round 4 pending · reviewer · QA · PM merge waiting
+- Plan approved: fix L4 (back to per-line open with a link check; also fixes L2, L3), H6 (focus moves to the nearest remaining item), H4 (find the cause; measure in a real build); H5: keep the focused row in view only while the arrow keys are used, not after the user scrolls.
+- Risk accepted by PM (2026-11-05): accepted: the test profile can still reach other files through a hard link created between Kusunga's check and the file open, or a hard link to files outside the default data folder (BUG-P4 and the two "KNOWN LIMIT" tests) — scope: M1.4, Debug builds only (the test profile does not exist in Release) — expiry/review: none — PM said: "You can go ahead" — in answer to "Do you approve my plan to finish this round?"
+- Blockers: PM — GitHub billing or acceptance of local results for M1.4; VoiceOver sign-off
+
 ## 2026-11-05 — M1.4 Saved snippets — Tester round 2 fixed; History scroll bug added to scope — PM decision
 - Changed: tester (dcf4468..683cdcd) found BUG-P1/P2 (symlinked test-profile folder or files followed into real data), BUG-U3 (arrow keys don't scroll long snippet lists), U2, U1; developer fixed all (c933c6f, 4485bb4, fd67224, 6bef2e6 mistyped switch rejected, 2ba3b1a robust timing test, 36e2a4a docs). check.sh 1,423 passed ×3; XCTest 231 passed. Developer found the History tab has the same scroll bug (WCAG 2.4.11).
 - Gates: developer in progress · tester round 2 pending · reviewer · QA · PM merge waiting
