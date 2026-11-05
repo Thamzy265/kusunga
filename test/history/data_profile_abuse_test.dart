@@ -900,41 +900,35 @@ void main() {
       expect(defaultState(), before);
     }, skip: Platform.isWindows ? 'creating a symlink needs rights' : null);
 
-    test(
-      'KNOWN RISK: a link created AFTER the check, while the session runs, '
-      'is followed by the log (reachable)',
-      () async {
-        final keys = FakeKeyStore(stored: hex);
-        File(p.join(base.path, 'kusunga.log')).writeAsStringSync('real\n');
-        final deferred = DeferredErrorLog(mirror: mirror);
-        final setup = dataProfileSetup(
-          const ActiveDataProfile('qa'),
-          supportDirectory: () async => base,
-          keys: keys,
-          log: deferred,
-        );
-        final service = await openAppHistory(
-          deferred: deferred,
-          supportDirectory: setup.supportDirectory,
-          keys: setup.keys,
-          source: FakeClipboardSource(),
-        );
-        services.add(service);
-        final before = defaultState();
-        final logFile = File(p.join(profileDir('qa').path, 'kusunga.log'));
-        logFile.deleteSync();
-        Link(logFile.path).createSync(p.join(base.path, 'kusunga.log'));
-        deferred.log(LogCode.dataFolderUnavailable);
-        expect(
-          defaultState(),
-          before,
-          reason: 'the real log was appended to through a late link',
-        );
-      },
-      skip: Platform.isWindows
-          ? 'creating a symlink needs rights'
-          : 'KNOWN RISK (reachable): the check happens once, before opening',
-    );
+    test('KNOWN RISK: a link created AFTER the check, while the session runs, '
+        'is followed by the log (reachable)', () async {
+      final keys = FakeKeyStore(stored: hex);
+      File(p.join(base.path, 'kusunga.log')).writeAsStringSync('real\n');
+      final deferred = DeferredErrorLog(mirror: mirror);
+      final setup = dataProfileSetup(
+        const ActiveDataProfile('qa'),
+        supportDirectory: () async => base,
+        keys: keys,
+        log: deferred,
+      );
+      final service = await openAppHistory(
+        deferred: deferred,
+        supportDirectory: setup.supportDirectory,
+        keys: setup.keys,
+        source: FakeClipboardSource(),
+      );
+      services.add(service);
+      final before = defaultState();
+      final logFile = File(p.join(profileDir('qa').path, 'kusunga.log'));
+      logFile.deleteSync();
+      Link(logFile.path).createSync(p.join(base.path, 'kusunga.log'));
+      deferred.log(LogCode.dataFolderUnavailable);
+      expect(
+        defaultState(),
+        before,
+        reason: 'the real log was appended to through a late link',
+      );
+    }, skip: Platform.isWindows ? 'creating a symlink needs rights' : null);
 
     test(
       'a pre-existing folder whose case differs (profiles/QA) is refused '

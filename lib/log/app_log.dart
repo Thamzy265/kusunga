@@ -65,6 +65,13 @@ abstract interface class ErrorLog {
 /// Appends `time code detail` lines to a file and keeps it under 1 MB by
 /// moving the old file to `<name>.1` (one old file is kept). A logging failure
 /// is swallowed: the log must never crash the app.
+///
+/// The file is opened once and the handle kept, so a link put in place of
+/// the log later (by anyone, while Kusunga runs) is never written through:
+/// the lines go on to the file that was opened. It is never opened through a
+/// link either (BUG-P2 late link). On Windows, where an open file cannot be
+/// renamed or deleted, it is opened for each line instead, after the same
+/// link check (TODO: keep a handle there too, opened with FILE_SHARE_DELETE).
 class FileErrorLog implements ErrorLog {
   FileErrorLog(this.file, {DateTime Function()? now, this.maxBytes = 1000000})
     : _now = now ?? DateTime.now;
@@ -72,20 +79,54 @@ class FileErrorLog implements ErrorLog {
   final File file;
   final int maxBytes;
   final DateTime Function() _now;
+  RandomAccessFile? _handle;
+
+  static final _keepHandle = !Platform.isWindows;
 
   @override
   void log(LogCode code, [int? detail]) {
     try {
-      if (file.existsSync() && file.lengthSync() >= maxBytes) {
-        file.renameSync('${file.path}.1');
-      }
       final line =
           '${_now().toUtc().toIso8601String()} ${code.name}'
           '${detail == null ? '' : ' $detail'}\n';
-      file.writeAsStringSync(line, mode: FileMode.append);
+      if (!_keepHandle) {
+        if (FileSystemEntity.isLinkSync(file.path)) return;
+        if (file.existsSync() && file.lengthSync() >= maxBytes) {
+          file.renameSync('${file.path}.1');
+        }
+        file.writeAsStringSync(line, mode: FileMode.append);
+        return;
+      }
+      var handle = _handle ??= _open();
+      if (handle == null) return;
+      if (handle.lengthSync() >= maxBytes) {
+        handle.closeSync();
+        _handle = null;
+        file.renameSync('${file.path}.1');
+        handle = _handle = _open();
+        if (handle == null) return;
+      }
+      handle
+        ..writeStringSync(line)
+        ..flushSync();
     } catch (_) {
       // Nothing sensible to do: never throw from the log.
     }
+  }
+
+  /// The log file opened for appending, or null if it is a link or cannot be
+  /// opened (tried again on the next line).
+  RandomAccessFile? _open() {
+    if (FileSystemEntity.isLinkSync(file.path)) return null;
+    return file.openSync(mode: FileMode.append);
+  }
+
+  /// Closes the kept handle (the next line opens the file again).
+  void close() {
+    try {
+      _handle?.closeSync();
+    } catch (_) {}
+    _handle = null;
   }
 }
 
