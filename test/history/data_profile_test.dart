@@ -307,6 +307,39 @@ void main() {
       }
     }, skip: Platform.isWindows ? 'creating a symlink needs rights' : null);
 
+    test('a symlinked file in the profile folder is refused before anything '
+        'is opened, written or backed up (BUG-P2)', () async {
+      final keys = FakeKeyStore(stored: generateKeyHex(Random(9)));
+      final before = await seedDefault(keys);
+      final dir = Directory(p.join(base.path, 'profiles', 'qa'))
+        ..createSync(recursive: true);
+      for (final file in [
+        'kusunga.db',
+        'kusunga.db-wal',
+        'kusunga.log',
+        'kusunga.db.bak',
+        'kusunga.db.unreadable-2026-11-01',
+      ]) {
+        log.codes.clear();
+        log.details.clear();
+        final link = Link(p.join(dir.path, file))
+          ..createSync(p.join(base.path, 'kusunga.db.bak'));
+        final service = await open(const ActiveDataProfile('qa'), keys);
+        expect(
+          service.banners,
+          contains(HistoryBanner.memoryOnly),
+          reason: file,
+        );
+        final at = log.codes.indexOf(LogCode.dataProfileRejected);
+        expect(at, isNonNegative, reason: file);
+        expect(log.details[at], 2, reason: file);
+        expect(dir.listSync().map((e) => p.basename(e.path)), [file]);
+        expect(defaultFiles(), before, reason: file);
+        await service.close();
+        link.deleteSync();
+      }
+    }, skip: Platform.isWindows ? 'creating a symlink needs rights' : null);
+
     test('the start is logged as a closed code, never with the name or the '
         'path', () async {
       final keys = FakeKeyStore(stored: generateKeyHex(Random(6)));

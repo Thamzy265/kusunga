@@ -700,7 +700,7 @@ void main() {
         await hammer(s, src);
         expect(defaultState(), before);
       },
-      skip: 'BUG-P2: a symlinked file in the profile folder is followed',
+      skip: Platform.isWindows ? 'creating a symlink needs rights' : null,
     );
 
     test(
@@ -717,7 +717,7 @@ void main() {
         await s.close();
         expect(defaultState(), before, reason: 'the real log was appended to');
       },
-      skip: 'BUG-P2: a symlinked file in the profile folder is followed',
+      skip: Platform.isWindows ? 'creating a symlink needs rights' : null,
     );
 
     test('an older profile DB whose .bak is a symlink to the real .bak must '
@@ -742,6 +742,6 @@ void main() {
         before,
         reason: 'the migration backup was written through the link',
       );
-    }, skip: 'BUG-P2: a symlinked file in the profile folder is followed');
+    }, skip: Platform.isWindows ? 'creating a symlink needs rights' : null);
   });
 }

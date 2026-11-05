@@ -93,9 +93,10 @@ dataProfileSetup(
 const dataProfileLinkDetail = 2;
 
 /// `<base>/profiles/<name>`, or a throw (so the session is memory only and
-/// creates nothing) if `profiles` or `profiles/<name>` is a link, or the
-/// folder resolves anywhere else. A link there could point at the default
-/// folder, and Trim or Clear history would then delete real data (BUG-P1).
+/// creates nothing) if `profiles` or `profiles/<name>` is a link, the
+/// folder resolves anywhere else, or anything in it is a link. A link there
+/// could point at the default folder, and Trim or Clear history would then
+/// delete real data (BUG-P1, BUG-P2).
 Directory _profileFolder(Directory base, String name, ErrorLog log) {
   final sep = Platform.pathSeparator;
   final profiles = '${base.path}${sep}profiles';
@@ -113,6 +114,11 @@ Directory _profileFolder(Directory base, String name, ErrorLog log) {
     final expected =
         '${base.resolveSymbolicLinksSync()}${sep}profiles$sep$name';
     if (real != expected) refuse();
+    // A linked file inside (the database and its -wal/-shm, the log, the
+    // .bak, a moved-aside file) would be read, appended to or overwritten
+    // through the link: refuse before anything is opened (BUG-P2).
+    final entries = Directory(folder).listSync(followLinks: false);
+    if (entries.any((e) => e is Link)) refuse();
   }
   return Directory(folder);
 }
