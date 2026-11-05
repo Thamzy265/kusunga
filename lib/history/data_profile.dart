@@ -35,11 +35,16 @@ class RejectedDataProfile extends DataProfile {
 
 const _flag = '-KusungaDataProfile';
 final _safeName = RegExp(r'^[a-z0-9-]{1,32}$');
+final _anyForm = RegExp(r'^-+kusungadataprofile', caseSensitive: false);
 
 /// The profile from the launch arguments. [debug] is only for tests: a
 /// Release or Profile build ignores the switch.
 DataProfile dataProfileFrom(List<String> args, {bool debug = kDebugMode}) {
   if (!debug) return const NoDataProfile();
+  // A mistyped switch (`-KusungaDataProfile=qa`, `--KusungaDataProfile`, any
+  // case) is rejected too: it must never mean the real folder.
+  final mistyped = args.any((a) => a != _flag && _anyForm.hasMatch(a));
+  if (mistyped) return const RejectedDataProfile();
   final at = args.indexOf(_flag);
   if (at < 0) return const NoDataProfile();
   if (at + 1 >= args.length || args.lastIndexOf(_flag) != at) {

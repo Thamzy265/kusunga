@@ -5,15 +5,10 @@ class MainFlutterWindow: NSWindow {
   override func awakeFromNib() {
     let project = FlutterDartProject()
     #if DEBUG
-      // Debug builds only: `-KusungaDataProfile <name>` (a test data folder,
-      // PM decision 2026-11-05) is passed on to Dart, which checks the name.
-      // Only the launch arguments count, never a saved preference. A value
-      // that is not text is passed on as "" so Dart rejects it (memory only)
-      // rather than using the real data.
-      let launchArgs = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
-      if let value = launchArgs["KusungaDataProfile"] {
-        project.dartEntrypointArguments = ["-KusungaDataProfile", value as? String ?? ""]
-      }
+      // Debug builds only: the launch arguments go on to Dart, which looks
+      // for `-KusungaDataProfile <name>` (a test data folder, PM decision
+      // 2026-11-05) and rejects a bad name or a mistyped switch.
+      project.dartEntrypointArguments = Array(CommandLine.arguments.dropFirst())
     #endif
     let flutterViewController = FlutterViewController(project: project)
     let windowFrame = self.frame

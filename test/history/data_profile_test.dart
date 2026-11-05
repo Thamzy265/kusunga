@@ -71,6 +71,21 @@ void main() {
       );
     });
 
+    for (final args in [
+      ['-KusungaDataProfile=qa'],
+      ['--KusungaDataProfile', 'qa'],
+      ['--KusungaDataProfile=qa'],
+      ['-KusungaDataProfileqa'],
+      ['-kusungadataprofile', 'qa'],
+      ['-KusungaDataProfile', 'qa', '--KusungaDataProfile=qb'],
+    ]) {
+      test('a mistyped switch ${args.join(' ')} is rejected (memory only), '
+          'never the default folder', () {
+        expect(parse(args), isA<RejectedDataProfile>());
+        expect(parse(args, debug: false), isA<NoDataProfile>());
+      });
+    }
+
     test('Release (and Profile) builds ignore it: the default folder', () {
       expect(
         parse(['-KusungaDataProfile', 'qa'], debug: false),

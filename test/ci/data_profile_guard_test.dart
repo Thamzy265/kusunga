@@ -39,19 +39,26 @@ void main() {
     }
   });
 
-  test('the Mac side passes it on only inside #if DEBUG', () {
+  test('the Mac side passes the launch arguments on only inside #if DEBUG', () {
+    // Dart decides (exact form, name, mistyped forms): the Mac side passes
+    // the command line on, in Debug only, as the Windows runner does.
     final swift = stripComments(read('macos/Runner/MainFlutterWindow.swift'));
     final ifDebug = swift.indexOf('#if DEBUG');
     final endIf = swift.indexOf('#endif', ifDebug);
     expect(ifDebug, isNonNegative);
     expect(endIf, greaterThan(ifDebug));
     final inside = swift.substring(ifDebug, endIf);
-    expect(inside, contains('"$key"'));
-    expect(inside, contains('dartEntrypointArguments'));
+    expect(
+      inside,
+      contains(
+        'project.dartEntrypointArguments = Array(CommandLine.arguments'
+        '.dropFirst())',
+      ),
+    );
     expect(inside, isNot(contains('#else')));
     final outside = swift.substring(0, ifDebug) + swift.substring(endIf);
-    expect(outside, isNot(contains(key)));
     expect(outside, isNot(contains('dartEntrypointArguments')));
+    expect(outside, isNot(contains('CommandLine')));
   });
 
   test('the key name appears nowhere else in the app sources', () {
@@ -64,8 +71,7 @@ void main() {
       if (!RegExp(r'\.(swift|dart|cpp|h)$').hasMatch(e.path)) continue;
       final text = stripComments(e.readAsStringSync());
       final n = key.allMatches(text).length;
-      if (e.path.endsWith('MainFlutterWindow.swift') ||
-          e.path.endsWith('data_profile.dart')) {
+      if (e.path.endsWith('data_profile.dart')) {
         expect(n, greaterThan(0), reason: e.path);
       } else {
         expect(n, 0, reason: e.path);
