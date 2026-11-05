@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-05 — M1.4 Saved snippets — Tester round 2 fixed; History scroll bug added to scope — PM decision
+- Changed: tester (dcf4468..683cdcd) found BUG-P1/P2 (symlinked test-profile folder or files followed into real data), BUG-U3 (arrow keys don't scroll long snippet lists), U2, U1; developer fixed all (c933c6f, 4485bb4, fd67224, 6bef2e6 mistyped switch rejected, 2ba3b1a robust timing test, 36e2a4a docs). check.sh 1,423 passed ×3; XCTest 231 passed. Developer found the History tab has the same scroll bug (WCAG 2.4.11).
+- Gates: developer in progress · tester round 2 pending · reviewer · QA · PM merge waiting
+- Open findings: History arrow-key scroll (being fixed); earlier Low notes N1, N2, F5 (Windows), R1 unchanged
+- Decisions: PM said (2026-11-05): "Fix it here" — in answer to "Should the developer fix the History tab's arrow-key scrolling on this branch?"
+- Blockers: PM — GitHub billing or acceptance of local results for M1.4; VoiceOver sign-off
+
 ## 2026-11-05 — M1.4 Saved snippets — AC3 test profile — PM decision
 - Changed: none yet. The developer adds a debug-only switch so Kusunga uses a separate test data folder; QA runs the history-limit test (AC3) on throwaway data.
 - Gates: developer in progress · tester · reviewer · QA · PM merge waiting
