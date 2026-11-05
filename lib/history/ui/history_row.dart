@@ -71,6 +71,10 @@ class _HistoryRowState extends State<HistoryRow> {
   @override
   void initState() {
     super.initState();
+    // A row rebuilt at another place (a copy arrived above it) can start
+    // with the focus already on its node: no focus change will say so
+    // (BUG-H7).
+    _hadFocus = widget.focusNode.hasFocus;
     widget.focusNode.addListener(_rebuild);
   }
 
@@ -80,6 +84,7 @@ class _HistoryRowState extends State<HistoryRow> {
     if (old.focusNode != widget.focusNode) {
       old.focusNode.removeListener(_rebuild);
       widget.focusNode.addListener(_rebuild);
+      _hadFocus = widget.focusNode.hasFocus;
     }
   }
 

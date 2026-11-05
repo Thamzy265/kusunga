@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -210,6 +211,48 @@ void main() {
     for (var i = 1; i <= 15; i++) {
       await key(tester, LogicalKeyboardKey.arrowUp);
       expectFocusedOnScreen(tester, 'Up #$i after Undo');
+    }
+  });
+
+  group('a copy (or two) while a row has the focus, then a wheel scroll that '
+      'disposes the row: every arrow key carries on (BUG-H7)', () {
+    Future<void> wheel(WidgetTester tester, double dy) async {
+      final mouse = TestPointer(1, PointerDeviceKind.mouse);
+      await tester.sendEventToBinding(
+        mouse.hover(tester.getCenter(find.byType(CustomScrollView))),
+      );
+      await tester.sendEventToBinding(mouse.scroll(Offset(0, dy)));
+      await tester.pumpAndSettle();
+    }
+
+    for (final copies in [1, 2]) {
+      for (final (name, k, expected) in [
+        ('Down', LogicalKeyboardKey.arrowDown, 'item 298'),
+        // The row just above the focused one: the oldest of the copies.
+        ('Up', LogicalKeyboardKey.arrowUp, 'c0'),
+        ('End', LogicalKeyboardKey.end, 'item 0'),
+        ('Home', LogicalKeyboardKey.home, 'c${copies - 1}'),
+      ]) {
+        testWidgets('$copies cop${copies == 1 ? 'y' : 'ies'}, wheel, $name', (
+          tester,
+        ) async {
+          fill(300);
+          await show(tester);
+          await focusTop(tester, 300);
+          for (var i = 0; i < copies; i++) {
+            source.copy('c$i');
+            await tester.pumpAndSettle();
+          }
+          expect(focusedText(), 'item 299');
+          await wheel(tester, 5000);
+          await key(tester, k);
+          expect(focusedText(), expected, reason: '$name after the wheel');
+          expectFocusedOnScreen(tester, name);
+          await key(tester, LogicalKeyboardKey.arrowDown);
+          expect(focusedItem(), isNotNull, reason: 'a second key');
+          expectFocusedOnScreen(tester, 'Down after $name');
+        });
+      }
     }
   });
 }

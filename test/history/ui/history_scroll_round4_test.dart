@@ -354,7 +354,7 @@ void main() {
       expectFocusedOnScreen(tester, 'Down after copy + wheel');
       await key(tester, LogicalKeyboardKey.arrowDown);
       expectFocusedOnScreen(tester, 'second Down');
-    }, skip: true);
+    });
 
     testWidgets('a click on a row, then copies: the focus stays on the '
         'clicked item and the list is not scrolled', (tester) async {
