@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../../clipboard/clipboard_source.dart';
@@ -188,8 +189,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (saved == null || !mounted) return;
     _toast('Snippet saved');
     // The focus goes back to the row it came from.
+    final ticket = ++_focusTicket;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _nodes[id]?.requestFocus();
+      if (mounted && ticket == _focusTicket) _showAndFocus(id);
     });
   }
 
@@ -226,13 +228,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
       if (identical(_pendingUndo, record)) _pendingUndo = null;
     });
     if (neighbour == null) {
+      final ticket = ++_focusTicket;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _screenFocus.requestFocus();
+        if (mounted && ticket == _focusTicket) _screenFocus.requestFocus();
       });
     }
     if (hadFocus && neighbour != null) {
+      final ticket = ++_focusTicket;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _nodes[neighbour]?.requestFocus();
+        if (mounted && ticket == _focusTicket) _showAndFocus(neighbour);
       });
     }
   }
@@ -255,21 +259,90 @@ class _HistoryScreenState extends State<HistoryScreen> {
       RowMove.first => 0,
       RowMove.last => items.length - 1,
     };
-    final targetId = items[target].id;
-    final node = _nodes[targetId];
-    if (node != null && (node.context?.mounted ?? false)) {
+    _showAndFocus(items[target].id);
+  }
+
+  /// Bumped by every focus request: one still waiting for a frame gives up
+  /// when a newer one came after it (End then Home in one frame).
+  var _focusTicket = 0;
+
+  /// Scrolls the row [id] fully into view and focuses it (WCAG 2.4.11): at
+  /// once if the row is built, else once it is, after scrolling towards it
+  /// frame by frame (rows differ in height, so its place is only estimated
+  /// until it is built).
+  void _showAndFocus(int id) => _focusStep(id, ++_focusTicket, 200);
+
+  void _focusStep(int id, int ticket, int triesLeft) {
+    if (!mounted || ticket != _focusTicket) return;
+    final node = _nodes[id];
+    final row = node?.context;
+    if (node != null && row != null && row.mounted) {
+      row.findRenderObject()?.showOnScreen();
       node.requestFocus();
       return;
     }
-    // Rows are built lazily: the row to focus (the first or last one of a long
-    // list) may not exist yet. Scroll it into being, then focus it.
-    if (_scroll.hasClients) {
-      _scroll.jumpTo(target == 0 ? 0 : _scroll.position.maxScrollExtent);
+    if (triesLeft == 0 || !_scroll.hasClients) return;
+    _scrollTowards(id);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _focusStep(id, ticket, triesLeft - 1),
+    );
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  /// One step towards the row [id], which is not built: towards either end
+  /// of the list for the first and last rows, else from the nearest built
+  /// row, by the average height of the built rows.
+  ///
+  /// A step is at most 40 screens. Rows differ in height, so the list builds
+  /// every row on the way to an offset; one jump across 5,000 rows built them
+  /// all in one frame and took far longer than the same rows in small steps.
+  void _scrollTowards(int id) {
+    final items = _service.items;
+    final target = items.indexWhere((e) => e.id == id);
+    if (target < 0) return;
+    final pos = _scroll.position;
+    final double to;
+    if (target == 0) {
+      to = pos.minScrollExtent;
+    } else if (target == items.length - 1) {
+      to = pos.maxScrollExtent;
+    } else {
+      to = _estimatedOffset(items, target, pos) ?? pos.pixels;
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _nodes[targetId]?.requestFocus();
-    });
-    setState(() {});
+    final step = pos.viewportDimension * 40;
+    final next = (pos.pixels + (to - pos.pixels).clamp(-step, step)).clamp(
+      pos.minScrollExtent,
+      pos.maxScrollExtent,
+    );
+    if (next != pos.pixels) pos.jumpTo(next);
+  }
+
+  /// Where the row at [target] probably is: from the nearest built row, by
+  /// the average height of the built rows, centred on the screen.
+  double? _estimatedOffset(
+    List<ClipItem> items,
+    int target,
+    ScrollPosition pos,
+  ) {
+    (int, double)? nearest;
+    var heights = 0.0;
+    var count = 0;
+    for (var i = 0; i < items.length; i++) {
+      final ro = _nodes[items[i].id]?.context?.findRenderObject();
+      if (ro is! RenderBox || !ro.attached || !ro.hasSize) continue;
+      final viewport = RenderAbstractViewport.maybeOf(ro);
+      if (viewport == null) continue;
+      heights += ro.size.height + KusungaTokens.space1;
+      count++;
+      if (nearest == null || (i - target).abs() < (nearest.$1 - target).abs()) {
+        nearest = (i, viewport.getOffsetToReveal(ro, 0).offset);
+      }
+    }
+    if (nearest == null) return null;
+    final (index, top) = nearest;
+    return top +
+        (target - index) * (heights / count) -
+        pos.viewportDimension / 2;
   }
 
   Future<void> _confirmClear() async {
