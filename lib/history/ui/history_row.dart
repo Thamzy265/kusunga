@@ -21,6 +21,7 @@ class HistoryRow extends StatefulWidget {
     required this.onMove,
     required this.onSaveAsSnippet,
     required this.canSaveAsSnippet,
+    this.onDisposedWithFocus,
   });
 
   final ClipItem item;
@@ -43,6 +44,9 @@ class HistoryRow extends StatefulWidget {
   /// Moves focus: -1 previous, 1 next, and the two ends.
   final void Function(RowMove move) onMove;
 
+  /// The row goes away (scrolled out of the built range) while it has focus.
+  final VoidCallback? onDisposedWithFocus;
+
   /// The accessible name: "Link: https://example.com…, copied 2 minutes ago".
   static String semanticName(ClipItem item, int nowMs) {
     final kind = item.kind == ClipKind.link ? 'Link' : 'Text';
@@ -59,8 +63,7 @@ class HistoryRow extends StatefulWidget {
 
 enum RowMove { previous, next, first, last }
 
-class _HistoryRowState extends State<HistoryRow>
-    with AutomaticKeepAliveClientMixin {
+class _HistoryRowState extends State<HistoryRow> {
   var _hovered = false;
   var _within = false;
   late final bool _animateIn = widget.animateIn;
@@ -83,21 +86,21 @@ class _HistoryRowState extends State<HistoryRow>
   @override
   void dispose() {
     widget.focusNode.removeListener(_rebuild);
+    // Scrolled out of the built range (or replaced) while it had the focus:
+    // the screen decides where the focus goes, so it never falls to whatever
+    // row had it before (BUG-H3).
+    if (_hadFocus) widget.onDisposedWithFocus?.call();
     super.dispose();
   }
 
-  void _rebuild() {
-    if (!mounted) return;
-    setState(() {});
-    updateKeepAlive();
-  }
+  /// Whether the row had the focus at the last focus change. Read in
+  /// [dispose]: by then the Focus below has already let go of the node.
+  var _hadFocus = false;
 
-  /// The focused row (or the row of a focused button) stays alive when it is
-  /// pushed off screen (new copies arrive above it): its focus node stays
-  /// attached, so the focus never jumps to another row, which a Delete would
-  /// then hit (BUG-H3). The screen scrolls it back into view.
-  @override
-  bool get wantKeepAlive => widget.focusNode.hasFocus;
+  void _rebuild() {
+    _hadFocus = widget.focusNode.hasFocus;
+    if (mounted) setState(() {});
+  }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
@@ -132,7 +135,6 @@ class _HistoryRowState extends State<HistoryRow>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
     final t = KusungaTokens.of(context);
     final item = widget.item;
     final active = _hovered || _within || widget.focusNode.hasFocus;

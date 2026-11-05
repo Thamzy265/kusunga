@@ -214,7 +214,6 @@ void main() {
           reason: 'Delete removed the row that had the focus',
         );
       },
-      skip: true,
     ); // BUG-H6
 
     testWidgets(
@@ -237,7 +236,6 @@ void main() {
           expectFocusedOnScreen(tester, 'copy $i');
         }
       },
-      skip: true,
     ); // BUG-H6
 
     testWidgets(
@@ -265,7 +263,6 @@ void main() {
         expect(focusedItem()?.id, service.items.last.id);
         expectFocusedOnScreen(tester, 'End with continuous copies');
       },
-      skip: true,
     ); // BUG-H6
 
     testWidgets('Home on a full list with a copy arriving every frame: it '
@@ -310,9 +307,11 @@ void main() {
       expectFocusedOnScreen(tester, 'mixed keys and copies');
     });
 
-    testWidgets('BUG-H5 (design question): a user scrolling with the wheel '
-        'while a row has the focus is not pulled back to that row by every '
-        'new copy', (tester) async {
+    testWidgets('BUG-H5 (PM decision 2026-11-05): after the user scrolls '
+        'with the wheel, a new copy does not pull the list back to the '
+        'focused row; the next arrow key brings the focus back into view', (
+      tester,
+    ) async {
       fill(300);
       await show(tester);
       await focusTop(tester);
@@ -336,7 +335,15 @@ void main() {
             'the new copy scrolled the list from $before back to '
             '${position.pixels}',
       );
-    }, skip: true);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+      expect(focusedText(), 'item 298');
+      expectFocusedOnScreen(tester, 'the next arrow key');
+      // While the arrow keys are in use, a new copy keeps the row in view.
+      source.copy('fresh 2');
+      await tester.pumpAndSettle();
+      expectFocusedOnScreen(tester, 'a copy after the arrow key');
+    });
 
     testWidgets('BUG-H4: End in 5,000 rows with six copies arriving takes '
         'no more than 3x as long as without copies', (tester) async {
@@ -362,6 +369,6 @@ void main() {
         '${withCopies.elapsedMilliseconds} ms',
       );
       expect(withCopies.elapsedMilliseconds, lessThan(plainMs * 3));
-    }, skip: true);
+    });
   });
 }

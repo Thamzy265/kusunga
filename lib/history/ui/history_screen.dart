@@ -63,6 +63,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void initState() {
     super.initState();
     _seen.addAll(_service.items.map((i) => i.id));
+    _shownIds = [for (final item in _service.items) item.id];
     _service.addListener(_onChange);
     _service.snippets.addListener(_onSnippets);
     _footer = _footerText();
@@ -105,12 +106,108 @@ class _HistoryScreenState extends State<HistoryScreen> {
       _footer = _footerText();
       _holdFooter();
     }
+    final items = _service.items;
+    final next = _focusPending ? null : _survivorOfFocusedRow(items);
+    _shownIds = [for (final item in items) item.id];
     if (mounted) {
       setState(() {});
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _keepFocusedRowInView(),
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (next != null) {
+          if (_lostFocusId != null && !_followFocus) {
+            // Scrolled away with the mouse: the next arrow key goes on from
+            // the item that took the gone one's place.
+            _lostFocusId = next;
+          } else {
+            _showAndFocus(next);
+          }
+        } else if (_followFocus) {
+          _keepFocusedRowInView();
+        }
+      });
     }
+  }
+
+  /// The ids of the rows as last shown, in order.
+  List<int> _shownIds = const [];
+
+  /// If the focused row's item is gone (a full history trims its oldest copy
+  /// on every new one), the item that takes its place: the nearest older one
+  /// still there, else the nearest newer one. The focus never ends on nothing
+  /// (BUG-H6).
+  int? _survivorOfFocusedRow(List<ClipItem> items) {
+    if (items.isEmpty) return null;
+    int? focused = _lostFocusId;
+    for (final MapEntry(key: id, value: node) in _nodes.entries) {
+      if (node.hasFocus) focused = id;
+    }
+    if (focused == null) return null;
+    final ids = {for (final item in items) item.id};
+    if (ids.contains(focused)) return null;
+    final at = _shownIds.indexOf(focused);
+    if (at < 0) return items.last.id;
+    for (var i = at + 1; i < _shownIds.length; i++) {
+      if (ids.contains(_shownIds[i])) return _shownIds[i];
+    }
+    for (var i = at - 1; i >= 0; i--) {
+      if (ids.contains(_shownIds[i])) return _shownIds[i];
+    }
+    return items.last.id;
+  }
+
+  /// True while the arrow keys move the focus: the focused row is then kept
+  /// in view when the list changes. A scroll or a click with the mouse or
+  /// the trackpad turns it off, so a new copy never pulls the list back; the
+  /// next arrow key turns it on again (BUG-H5, PM decision 2026-11-05).
+  var _followFocus = true;
+
+  void _stopFollowing([Object? _]) => _followFocus = false;
+
+  /// The item whose row had the focus when the row went away (scrolled out
+  /// with the mouse or the trackpad); null while a row has the focus.
+  int? _lostFocusId;
+
+  /// The focused row [id] was disposed. After this frame: if the row is
+  /// built again (it only moved), it keeps the focus; else the focus waits on
+  /// the screen (never on another row, which a Delete would then hit), and
+  /// either the list follows it back into view (arrow keys in use) or the
+  /// next arrow key goes on from it.
+  void _rowLostFocus(int id) {
+    if (_focusPending) return;
+    final ticket = _focusTicket;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // A focus request since then (an arrow key, End finishing) decides.
+      if (!mounted || _focusPending || ticket != _focusTicket) return;
+      final node = _nodes[id];
+      if (node != null && (node.context?.mounted ?? false)) {
+        if (!node.hasFocus) node.requestFocus();
+        return;
+      }
+      if (!_service.items.any((e) => e.id == id)) return;
+      _lostFocusId = id;
+      _screenFocus.requestFocus();
+      if (_followFocus) _showAndFocus(id);
+    });
+  }
+
+  /// Arrow keys while the focus waits on the screen (its row was scrolled
+  /// away): they go on from that row.
+  KeyEventResult _onScreenKey(FocusNode node, KeyEvent event) {
+    final id = _lostFocusId;
+    if (id == null || !node.hasPrimaryFocus || event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+    final cmd = HardwareKeyboard.instance.isMetaPressed;
+    final move = switch (event.logicalKey) {
+      LogicalKeyboardKey.arrowDown => cmd ? RowMove.last : RowMove.next,
+      LogicalKeyboardKey.arrowUp => cmd ? RowMove.first : RowMove.previous,
+      LogicalKeyboardKey.home => RowMove.first,
+      LogicalKeyboardKey.end => RowMove.last,
+      _ => null,
+    };
+    if (move == null) return KeyEventResult.ignored;
+    _move(id, move);
+    return KeyEventResult.handled;
   }
 
   // "Save as snippet" turns off at the cap.
@@ -133,7 +230,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     });
   }
 
-  FocusNode _nodeFor(int id) => _nodes.putIfAbsent(id, FocusNode.new);
+  FocusNode _nodeFor(int id) => _nodes.putIfAbsent(id, () {
+    final node = FocusNode();
+    node.addListener(() {
+      if (node.hasFocus) _lostFocusId = null;
+    });
+    return node;
+  });
 
   void _prune(List<ClipItem> items) {
     final ids = items.map((i) => i.id).toSet();
@@ -255,6 +358,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   void _move(int id, RowMove move) {
+    _followFocus = true;
     final items = _service.items;
     final i = items.indexWhere((e) => e.id == id);
     if (i < 0 || items.isEmpty) return;
@@ -301,7 +405,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return;
     }
     var at = items.indexWhere((e) => e.id == id);
-    if (at < 0 || (end == _End.last && at != items.length - 1)) {
+    if (at < 0 ||
+        (end == _End.last && at != items.length - 1) ||
+        (end == _End.first && at != 0)) {
       // The row went while the list scrolled to it: never leave the focus on
       // nothing. The new end row, or the row now at its place.
       at = switch (end) {
@@ -315,6 +421,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final box = _laidOutRow(node);
     if (node != null && box != null) {
       _focusPending = false;
+      _lostFocusId = null;
       box.showOnScreen();
       node.requestFocus();
       return;
@@ -511,6 +618,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           },
           child: Focus(
             focusNode: _screenFocus,
+            onKeyEvent: _onScreenKey,
             child: Scaffold(
               backgroundColor: t.surface,
               body: SafeArea(
@@ -522,41 +630,48 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       // Header, banners and the setup card scroll with the list, so
                       // nothing is cut off at 200% text on a small window.
                       Expanded(
-                        child: CustomScrollView(
-                          controller: _scroll,
-                          slivers: [
-                            SliverToBoxAdapter(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  _Header(
-                                    service: _service,
-                                    count: items.length,
-                                    onClear: _confirmClear,
-                                    confirmLower: _confirmLower,
-                                    onSaveFailed: () => _toast(
-                                      "Couldn't save that number. Try again.",
+                        child: Listener(
+                          onPointerDown: _stopFollowing,
+                          onPointerSignal: _stopFollowing,
+                          onPointerPanZoomStart: _stopFollowing,
+                          child: CustomScrollView(
+                            controller: _scroll,
+                            slivers: [
+                              SliverToBoxAdapter(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    _Header(
+                                      service: _service,
+                                      count: items.length,
+                                      onClear: _confirmClear,
+                                      confirmLower: _confirmLower,
+                                      onSaveFailed: () => _toast(
+                                        "Couldn't save that number. Try again.",
+                                      ),
                                     ),
-                                  ),
-                                  SizedBox(height: KusungaTokens.space3),
-                                  for (final b in _service.banners)
-                                    _Banner(
-                                      banner: b,
-                                      onDismiss: () => _service.dismiss(b),
-                                    ),
-                                  if (setupCard) _SetupCard(service: _service),
-                                  if (widget.topSlot != null) widget.topSlot!,
-                                ],
+                                    SizedBox(height: KusungaTokens.space3),
+                                    for (final b in _service.banners)
+                                      _Banner(
+                                        banner: b,
+                                        onDismiss: () => _service.dismiss(b),
+                                      ),
+                                    if (setupCard)
+                                      _SetupCard(service: _service),
+                                    if (widget.topSlot != null) widget.topSlot!,
+                                  ],
+                                ),
                               ),
-                            ),
-                            if (items.isEmpty)
-                              const SliverFillRemaining(
-                                hasScrollBody: false,
-                                child: _EmptyState(),
-                              )
-                            else
-                              _list(items, setupCard),
-                          ],
+                              if (items.isEmpty)
+                                const SliverFillRemaining(
+                                  hasScrollBody: false,
+                                  child: _EmptyState(),
+                                )
+                              else
+                                _list(items, setupCard),
+                            ],
+                          ),
                         ),
                       ),
                       SizedBox(height: KusungaTokens.space2),
@@ -589,7 +704,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _list(List<ClipItem> items, bool setupCard) {
     final now = _nowMs;
-    final indexOf = {for (var i = 0; i < items.length; i++) items[i].id: i};
     return SliverSemantics(
       label: 'Clipboard history, ${items.length} items',
       explicitChildNodes: true,
@@ -597,11 +711,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         padding: EdgeInsets.only(bottom: KusungaTokens.space6 * 2),
         sliver: SliverList.separated(
           itemCount: items.length,
-          // Rows keep their element (and so their focus) when copies arrive
-          // above them or a row above goes: matched by item id, not by place
-          // (BUG-H3: the focus moved to another row, which a Delete would hit).
-          findItemIndexCallback: (key) =>
-              key is ValueKey<int> ? indexOf[key.value] : null,
+
           separatorBuilder: (_, _) => SizedBox(height: KusungaTokens.space1),
           itemBuilder: (context, i) {
             final item = items[i];
@@ -615,6 +725,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               onCopy: () => _copy(item.id),
               onDelete: () => _delete(item.id),
               onMove: (m) => _move(item.id, m),
+              onDisposedWithFocus: () => _rowLostFocus(item.id),
               onSaveAsSnippet: () => _saveAsSnippet(item.id),
               canSaveAsSnippet: _service.snippets.canCreate,
             );
