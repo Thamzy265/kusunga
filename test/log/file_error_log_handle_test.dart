@@ -122,7 +122,7 @@ void main() {
     expect(all, hasLength(3000));
     final shape = RegExp(r'^\S+Z (flushFailed|storeUnreadable) \d+$');
     expect(all.every(shape.hasMatch), isTrue, reason: 'a garbled line');
-  }, skip: posix ?? 'BUG-L4');
+  }, skip: posix);
 
   test('two writers, one rotates: the other one keeps writing to '
       'the live file, not to the old one (lines would vanish from the log '
@@ -153,7 +153,7 @@ void main() {
     log.close();
     expect(file.existsSync(), isTrue, reason: 'the log is silently gone');
     expect(lines(file).map((l) => l.split(' ').last), contains('3'));
-  }, skip: posix ?? 'BUG-L2');
+  }, skip: posix);
 
   test('BUG-L2: the log file is moved aside from outside: later lines '
       'reach the file at the log path', () {
@@ -163,7 +163,7 @@ void main() {
     log.log(LogCode.flushFailed, 2);
     log.close();
     expect(file.existsSync(), isTrue);
-  }, skip: posix ?? 'BUG-L2');
+  }, skip: posix);
 
   test('BUG-L3: a rotation that cannot rename (".1" is a non-empty folder) '
       'does not stop the log for good', () {
@@ -180,7 +180,7 @@ void main() {
       isTrue,
       reason: 'after the failed rotation every later line is dropped',
     );
-  }, skip: posix ?? 'BUG-L3');
+  }, skip: posix);
 
   test('a log that cannot be opened (the folder is gone) never throws', () {
     dir.deleteSync(recursive: true);

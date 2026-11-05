@@ -1085,38 +1085,44 @@ void main() {
       expect(defaultState(), before);
     }, skip: posix);
 
-    test('BUG-P4: a hard link created AFTER the check, before the open, is '
-        'followed (reachable)', () async {
-      final keys = FakeKeyStore(stored: hex);
-      final before = await seedDefault(keys);
-      final deferred = DeferredErrorLog(mirror: mirror);
-      final setup = dataProfileSetup(
-        const ActiveDataProfile('qa'),
-        supportDirectory: () async => base,
-        keys: keys,
-        log: deferred,
-      );
-      final checked = await setup.supportDirectory(); // the check passes
-      profileDir('qa').createSync(recursive: true);
-      expect(
-        await hardLink(
-          p.join(base.path, 'kusunga.db'),
-          p.join(checked.path, 'kusunga.db'),
-        ),
-        isTrue,
-      );
-      final src = FakeClipboardSource();
-      final service = await openAppHistory(
-        deferred: deferred,
-        supportDirectory: () async => checked,
-        keys: setup.keys,
-        source: src,
-      );
-      services.add(service);
-      expect(service.items, isEmpty, reason: 'the real history was read');
-      await hammer(service, src);
-      expect(defaultState(), before);
-    }, skip: posix ?? 'KNOWN RISK (reachable): checked once, opened later');
+    test(
+      'BUG-P4: a hard link created AFTER the check, before the open, is '
+      'followed (reachable)',
+      () async {
+        final keys = FakeKeyStore(stored: hex);
+        final before = await seedDefault(keys);
+        final deferred = DeferredErrorLog(mirror: mirror);
+        final setup = dataProfileSetup(
+          const ActiveDataProfile('qa'),
+          supportDirectory: () async => base,
+          keys: keys,
+          log: deferred,
+        );
+        final checked = await setup.supportDirectory(); // the check passes
+        profileDir('qa').createSync(recursive: true);
+        expect(
+          await hardLink(
+            p.join(base.path, 'kusunga.db'),
+            p.join(checked.path, 'kusunga.db'),
+          ),
+          isTrue,
+        );
+        final src = FakeClipboardSource();
+        final service = await openAppHistory(
+          deferred: deferred,
+          supportDirectory: () async => checked,
+          keys: setup.keys,
+          source: src,
+        );
+        services.add(service);
+        expect(service.items, isEmpty, reason: 'the real history was read');
+        await hammer(service, src);
+        expect(defaultState(), before);
+      },
+      skip:
+          posix ??
+          'Risk accepted by PM 2026-11-05 (docs/status.md), Debug-only',
+    );
 
     test(
       'KNOWN LIMIT: a hard link to a file OUTSIDE the default folder (a '
@@ -1141,27 +1147,35 @@ void main() {
           reason: 'a profile session wrote into a file outside its folder',
         );
       },
-      skip: posix ?? 'KNOWN LIMIT stated by the developer',
+      skip:
+          posix ??
+          'Risk accepted by PM 2026-11-05 (docs/status.md), Debug-only',
     );
 
-    test('KNOWN LIMIT: a hard link to ANOTHER profile\'s database is not '
-        'refused (profile qa opens and changes qb\'s data)', () async {
-      final keys = FakeKeyStore(stored: hex);
-      final srcB = FakeClipboardSource();
-      final b = await open(const ActiveDataProfile('qb'), keys, source: srcB);
-      srcB.copy('qb private');
-      await b.close();
-      profileDir('qa').createSync(recursive: true);
-      expect(
-        await hardLink(
-          p.join(profileDir('qb').path, 'kusunga.db'),
-          p.join(profileDir('qa').path, 'kusunga.db'),
-        ),
-        isTrue,
-      );
-      final s = await open(const ActiveDataProfile('qa'), keys);
-      expect(s.items, isEmpty, reason: 'qb\'s history was read through qa');
-    }, skip: posix ?? 'KNOWN LIMIT: only the default folder is compared');
+    test(
+      'KNOWN LIMIT: a hard link to ANOTHER profile\'s database is not '
+      'refused (profile qa opens and changes qb\'s data)',
+      () async {
+        final keys = FakeKeyStore(stored: hex);
+        final srcB = FakeClipboardSource();
+        final b = await open(const ActiveDataProfile('qb'), keys, source: srcB);
+        srcB.copy('qb private');
+        await b.close();
+        profileDir('qa').createSync(recursive: true);
+        expect(
+          await hardLink(
+            p.join(profileDir('qb').path, 'kusunga.db'),
+            p.join(profileDir('qa').path, 'kusunga.db'),
+          ),
+          isTrue,
+        );
+        final s = await open(const ActiveDataProfile('qa'), keys);
+        expect(s.items, isEmpty, reason: 'qb\'s history was read through qa');
+      },
+      skip:
+          posix ??
+          'Risk accepted by PM 2026-11-05 (docs/status.md), Debug-only',
+    );
 
     test('cost: 600 default files (many .unreadable-*) against 40 profile '
         'files: the check stays under 2 s', () async {

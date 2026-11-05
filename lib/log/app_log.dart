@@ -66,12 +66,15 @@ abstract interface class ErrorLog {
 /// moving the old file to `<name>.1` (one old file is kept). A logging failure
 /// is swallowed: the log must never crash the app.
 ///
-/// The file is opened once and the handle kept, so a link put in place of
-/// the log later (by anyone, while Kusunga runs) is never written through:
-/// the lines go on to the file that was opened. It is never opened through a
-/// link either (BUG-P2 late link). On Windows, where an open file cannot be
-/// renamed or deleted, it is opened for each line instead, after the same
-/// link check (TODO: keep a handle there too, opened with FILE_SHARE_DELETE).
+/// The file is opened for each line, in append mode, so two writers (two
+/// Kusunga processes) never overwrite each other's lines (BUG-L4), and a log
+/// deleted or moved from outside starts again at its path (BUG-L2). Right
+/// before every open, also after a rotation, the path is checked: a link put
+/// in place of the log is never written through (BUG-P2 late link).
+///
+/// If the rotation cannot rename (`.1` is a folder, or locked), lines keep
+/// going to the live file (BUG-L3); at twice the limit it starts over, so it
+/// never grows past 2 MB.
 class FileErrorLog implements ErrorLog {
   FileErrorLog(this.file, {DateTime Function()? now, this.maxBytes = 1000000})
     : _now = now ?? DateTime.now;
@@ -79,9 +82,6 @@ class FileErrorLog implements ErrorLog {
   final File file;
   final int maxBytes;
   final DateTime Function() _now;
-  RandomAccessFile? _handle;
-
-  static final _keepHandle = !Platform.isWindows;
 
   @override
   void log(LogCode code, [int? detail]) {
@@ -89,45 +89,27 @@ class FileErrorLog implements ErrorLog {
       final line =
           '${_now().toUtc().toIso8601String()} ${code.name}'
           '${detail == null ? '' : ' $detail'}\n';
-      if (!_keepHandle) {
-        if (FileSystemEntity.isLinkSync(file.path)) return;
-        if (file.existsSync() && file.lengthSync() >= maxBytes) {
-          file.renameSync('${file.path}.1');
+      if (FileSystemEntity.isLinkSync(file.path)) return;
+      var mode = FileMode.append;
+      if (file.existsSync()) {
+        final size = file.lengthSync();
+        if (size >= maxBytes) {
+          try {
+            file.renameSync('${file.path}.1');
+          } catch (_) {
+            if (size >= 2 * maxBytes) mode = FileMode.write;
+          }
+          if (FileSystemEntity.isLinkSync(file.path)) return;
         }
-        file.writeAsStringSync(line, mode: FileMode.append);
-        return;
       }
-      var handle = _handle ??= _open();
-      if (handle == null) return;
-      if (handle.lengthSync() >= maxBytes) {
-        handle.closeSync();
-        _handle = null;
-        file.renameSync('${file.path}.1');
-        handle = _handle = _open();
-        if (handle == null) return;
-      }
-      handle
-        ..writeStringSync(line)
-        ..flushSync();
+      file.writeAsStringSync(line, mode: mode);
     } catch (_) {
       // Nothing sensible to do: never throw from the log.
     }
   }
 
-  /// The log file opened for appending, or null if it is a link or cannot be
-  /// opened (tried again on the next line).
-  RandomAccessFile? _open() {
-    if (FileSystemEntity.isLinkSync(file.path)) return null;
-    return file.openSync(mode: FileMode.append);
-  }
-
-  /// Closes the kept handle (the next line opens the file again).
-  void close() {
-    try {
-      _handle?.closeSync();
-    } catch (_) {}
-    _handle = null;
-  }
+  /// Nothing is kept open; kept so callers can say they are done.
+  void close() {}
 }
 
 class NullErrorLog implements ErrorLog {
