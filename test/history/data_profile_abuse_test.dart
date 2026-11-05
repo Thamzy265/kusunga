@@ -756,77 +756,65 @@ void main() {
   group('hard links, odd paths, and the arguments (round 2)', () {
     final posix = Platform.isWindows ? 'needs ln' : null;
 
-    test(
-      'BUG-P3: profiles/qa/kusunga.db is a HARD link to the real database: '
-      'the session must not read or change it',
-      () async {
-        final keys = FakeKeyStore(stored: hex);
-        final before = await seedDefault(keys);
-        profileDir('qa').createSync(recursive: true);
-        expect(
-          await hardLink(
-            p.join(base.path, 'kusunga.db'),
-            p.join(profileDir('qa').path, 'kusunga.db'),
-          ),
-          isTrue,
-        );
-        final src = FakeClipboardSource();
-        final s = await open(const ActiveDataProfile('qa'), keys, source: src);
-        expect(s.items, isEmpty, reason: 'the real history was read');
-        await hammer(s, src);
-        expect(defaultState(), before);
-      },
-      skip: posix ?? 'BUG-P3: a hard link is not a Link, so it is not refused',
-    );
+    test('BUG-P3: profiles/qa/kusunga.db is a HARD link to the real database: '
+        'the session must not read or change it', () async {
+      final keys = FakeKeyStore(stored: hex);
+      final before = await seedDefault(keys);
+      profileDir('qa').createSync(recursive: true);
+      expect(
+        await hardLink(
+          p.join(base.path, 'kusunga.db'),
+          p.join(profileDir('qa').path, 'kusunga.db'),
+        ),
+        isTrue,
+      );
+      final src = FakeClipboardSource();
+      final s = await open(const ActiveDataProfile('qa'), keys, source: src);
+      expect(s.items, isEmpty, reason: 'the real history was read');
+      await hammer(s, src);
+      expect(defaultState(), before);
+    }, skip: posix);
 
-    test(
-      'BUG-P3: a hard link to the real .bak, with an older profile DB, must '
-      'not overwrite the real backup',
-      () async {
-        final keys = FakeKeyStore(stored: hex);
-        final before = await seedDefault(keys);
-        profileDir('qa').createSync(recursive: true);
-        final old = await openHistory(
-          keys: keys,
-          directory: profileDir('qa').path,
-          log: FakeLog(),
-          migrations: kMigrations.sublist(0, 2),
-        );
-        old.store.close();
-        expect(
-          await hardLink(
-            p.join(base.path, 'kusunga.db.bak'),
-            p.join(profileDir('qa').path, 'kusunga.db.bak'),
-          ),
-          isTrue,
-        );
-        final s = await open(const ActiveDataProfile('qa'), keys);
-        await s.close();
-        expect(defaultState(), before);
-      },
-      skip: posix ?? 'BUG-P3: a hard link is not a Link, so it is not refused',
-    );
+    test('BUG-P3: a hard link to the real .bak, with an older profile DB, must '
+        'not overwrite the real backup', () async {
+      final keys = FakeKeyStore(stored: hex);
+      final before = await seedDefault(keys);
+      profileDir('qa').createSync(recursive: true);
+      final old = await openHistory(
+        keys: keys,
+        directory: profileDir('qa').path,
+        log: FakeLog(),
+        migrations: kMigrations.sublist(0, 2),
+      );
+      old.store.close();
+      expect(
+        await hardLink(
+          p.join(base.path, 'kusunga.db.bak'),
+          p.join(profileDir('qa').path, 'kusunga.db.bak'),
+        ),
+        isTrue,
+      );
+      final s = await open(const ActiveDataProfile('qa'), keys);
+      await s.close();
+      expect(defaultState(), before);
+    }, skip: posix);
 
-    test(
-      'BUG-P3: a hard link to the real log is appended to',
-      () async {
-        final keys = FakeKeyStore(stored: hex);
-        File(p.join(base.path, 'kusunga.log')).writeAsStringSync('real\n');
-        final before = defaultState();
-        profileDir('qa').createSync(recursive: true);
-        expect(
-          await hardLink(
-            p.join(base.path, 'kusunga.log'),
-            p.join(profileDir('qa').path, 'kusunga.log'),
-          ),
-          isTrue,
-        );
-        final s = await open(const ActiveDataProfile('qa'), keys);
-        await s.close();
-        expect(defaultState(), before);
-      },
-      skip: posix ?? 'BUG-P3: a hard link is not a Link, so it is not refused',
-    );
+    test('BUG-P3: a hard link to the real log is appended to', () async {
+      final keys = FakeKeyStore(stored: hex);
+      File(p.join(base.path, 'kusunga.log')).writeAsStringSync('real\n');
+      final before = defaultState();
+      profileDir('qa').createSync(recursive: true);
+      expect(
+        await hardLink(
+          p.join(base.path, 'kusunga.log'),
+          p.join(profileDir('qa').path, 'kusunga.log'),
+        ),
+        isTrue,
+      );
+      final s = await open(const ActiveDataProfile('qa'), keys);
+      await s.close();
+      expect(defaultState(), before);
+    }, skip: posix);
 
     test('`profiles` is a regular file: memory only, the file and the default '
         'folder are untouched, no key written', () async {

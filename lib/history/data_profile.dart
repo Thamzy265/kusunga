@@ -99,7 +99,8 @@ const dataProfileLinkDetail = 2;
 
 /// `<base>/profiles/<name>`, or a throw (so the session is memory only and
 /// creates nothing) if `profiles` or `profiles/<name>` is a link, the
-/// folder resolves anywhere else, or anything in it is a link. A link there
+/// folder resolves anywhere else, or anything in it is a link (or a hard
+/// link to a file of the default folder). A link there
 /// could point at the default folder, and Trim or Clear history would then
 /// delete real data (BUG-P1, BUG-P2).
 Directory _profileFolder(Directory base, String name, ErrorLog log) {
@@ -124,6 +125,21 @@ Directory _profileFolder(Directory base, String name, ErrorLog log) {
     // through the link: refuse before anything is opened (BUG-P2).
     final entries = Directory(folder).listSync(followLinks: false);
     if (entries.any((e) => e is Link)) refuse();
+    // A hard link is not a Link: it is a second name for the same file, and
+    // dart:io has no link count. identicalSync compares the device and inode
+    // (Mac) or the volume and file id (Windows), so a profile file that is
+    // the default folder's database, log, backup or moved-aside file under
+    // another name is refused too (BUG-P3).
+    final defaultFiles = base
+        .listSync(followLinks: false)
+        .whereType<File>()
+        .map((f) => f.path)
+        .toList();
+    for (final file in entries.whereType<File>()) {
+      for (final path in defaultFiles) {
+        if (FileSystemEntity.identicalSync(file.path, path)) refuse();
+      }
+    }
   }
   return Directory(folder);
 }
