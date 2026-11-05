@@ -144,7 +144,6 @@ void main() {
           lessThanOrEqualTo(position.maxScrollExtent + 1),
         );
       },
-      skip: true,
     ); // BUG-U1: End/Home jump to an estimated maxScrollExtent
 
     testWidgets('BUG-U2: End then Home with no frame between ends on the '
@@ -157,7 +156,7 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.home);
       await tester.pumpAndSettle();
       expect(focusedName(tester), 'Snippet 0');
-    }, skip: true); // BUG-U2
+    }); // BUG-U2
 
     testWidgets('Cmd+Down in a 1,000 list reaches the last row', (
       tester,
@@ -204,7 +203,7 @@ void main() {
             reason: 'Snippet $i is not on screen',
           );
         }
-      }, skip: true); // BUG-U3
+      }); // BUG-U3
     }
 
     testWidgets('BUG-U3: Up 40 times after End walks back up, each row '
@@ -221,7 +220,7 @@ void main() {
         expect(focusedName(tester), 'Snippet ${99 - i}', reason: 'Up #$i');
         expect(onScreen(tester, 'Snippet ${99 - i}'), isTrue);
       }
-    }, skip: true); // BUG-U3
+    }); // BUG-U3
 
     testWidgets('Home from the middle of a scrolled long list', (tester) async {
       fill(400);
@@ -420,7 +419,7 @@ void main() {
       expect(service.items[40].name, 'Snippet 0');
       expect(focusedName(tester), 'Snippet 0');
       expect(onScreen(tester, 'Snippet 0'), isTrue);
-    }, skip: true); // BUG-U3
+    }); // BUG-U3
 
     testWidgets('moving the first row to the bottom of a 400-row list with '
         'Alt+Down then End keeps the focus on a real row', (tester) async {

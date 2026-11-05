@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../../history/ui/history_row.dart' show RowMove;
@@ -43,6 +43,14 @@ class SnippetsScreenState extends State<SnippetsScreen> {
   );
   final _messenger = GlobalKey<ScaffoldMessengerState>();
   final _scroll = ScrollController();
+  final _listKey = GlobalKey(debugLabel: 'snippet list');
+  final _prototypeFocus = FocusNode(
+    skipTraversal: true,
+    canRequestFocus: false,
+  );
+
+  /// Bumped by every focus request (see [_showAndFocus]).
+  var _focusTicket = 0;
   SnippetRecord? _pendingUndo;
   Timer? _clock;
   Timer? _footerTimer;
@@ -79,6 +87,7 @@ class SnippetsScreenState extends State<SnippetsScreen> {
     _clock?.cancel();
     _footerTimer?.cancel();
     _scroll.dispose();
+    _prototypeFocus.dispose();
     _screenFocus.dispose();
     for (final n in _nodes.values) {
       n.dispose();
@@ -146,26 +155,58 @@ class SnippetsScreenState extends State<SnippetsScreen> {
     );
   }
 
-  void _focusRow(int id, {bool scrollToEnd = false}) {
+  /// Moves the focus to the row [id] after this frame (the list changes
+  /// first: a move, a save, a delete).
+  void _focusRow(int id) {
+    final ticket = ++_focusTicket;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final node = _nodes[id];
-      if (node != null && (node.context?.mounted ?? false)) {
-        node.requestFocus();
-        return;
-      }
-      // Rows are built lazily: scroll the row into being, then focus it.
-      if (_scroll.hasClients) {
-        final index = _service.items.indexWhere((s) => s.id == id);
-        _scroll.jumpTo(
-          index <= 0 && !scrollToEnd ? 0 : _scroll.position.maxScrollExtent,
-        );
-      }
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _nodes[id]?.requestFocus();
-      });
-      setState(() {});
+      if (mounted && ticket == _focusTicket) _showAndFocus(id);
     });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  /// Scrolls the row [id] fully into view and focuses it: at once if it is
+  /// built, else on the next frame, when it is (QA-M14-2, BUG-U3). A newer
+  /// request cancels one still waiting for its frame (BUG-U2).
+  void _showAndFocus(int id) {
+    final ticket = ++_focusTicket;
+    final index = _service.items.indexWhere((s) => s.id == id);
+    if (index < 0) return;
+    _reveal(index);
+    final node = _nodes[id];
+    if (node != null && (node.context?.mounted ?? false)) {
+      node.requestFocus();
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && ticket == _focusTicket) _nodes[id]?.requestFocus();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  /// Scrolls just enough to show the whole row at [index]. Every row has the
+  /// prototype's height, so its place is known before it is built, and the
+  /// list's end is exact (no jump past it: BUG-U1).
+  void _reveal(int index) {
+    if (!_scroll.hasClients) return;
+    final sliver = _listKey.currentContext?.findRenderObject();
+    if (sliver is! RenderSliverFixedExtentBoxAdaptor ||
+        sliver.geometry == null) {
+      return;
+    }
+    final extent = sliver.itemExtent;
+    if (extent == null) return;
+    final pos = _scroll.position;
+    final top = sliver.constraints.precedingScrollExtent + index * extent;
+    final bottom = top + extent;
+    var to = pos.pixels;
+    if (top < to) {
+      to = top;
+    } else if (bottom > to + pos.viewportDimension) {
+      to = bottom - pos.viewportDimension;
+    }
+    to = to.clamp(pos.minScrollExtent, pos.maxScrollExtent);
+    if (to != pos.pixels) pos.jumpTo(to);
   }
 
   Future<void> openNew() async {
@@ -181,7 +222,7 @@ class SnippetsScreenState extends State<SnippetsScreen> {
     );
     if (id == null || !mounted) return;
     _toast('Snippet saved');
-    _focusRow(id, scrollToEnd: true);
+    _focusRow(id);
   }
 
   Future<void> _edit(SnippetItem item) async {
@@ -233,8 +274,9 @@ class SnippetsScreenState extends State<SnippetsScreen> {
   }
 
   /// Up/Down, Home/End and Cmd+Up/Down on a row (as in the History list).
-  /// The focus moves at once: a key press alone draws no frame, so waiting
-  /// for the next one would leave the focus where it was (QA-M14-2).
+  /// The focus moves at once when the row is built: a key press alone draws
+  /// no frame, so waiting for one would leave the focus where it was
+  /// (QA-M14-2).
   void _moveFocus(int id, RowMove move) {
     final items = _service.items;
     final i = items.indexWhere((s) => s.id == id);
@@ -245,20 +287,7 @@ class SnippetsScreenState extends State<SnippetsScreen> {
       RowMove.first => 0,
       RowMove.last => items.length - 1,
     };
-    final targetId = items[target].id;
-    final node = _nodes[targetId];
-    if (node != null && (node.context?.mounted ?? false)) {
-      node.requestFocus();
-      return;
-    }
-    // Rows are built lazily: scroll the row into being, then focus it.
-    if (_scroll.hasClients) {
-      _scroll.jumpTo(target == 0 ? 0 : _scroll.position.maxScrollExtent);
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _nodes[targetId]?.requestFocus();
-    });
-    setState(() {});
+    _showAndFocus(items[target].id);
   }
 
   void _delete(SnippetItem item) {
@@ -395,41 +424,70 @@ class SnippetsScreenState extends State<SnippetsScreen> {
     final now = _nowMs;
     final reduceMotion = MediaQuery.of(context).disableAnimations;
     final move = _lastMove;
+    // The space between rows is part of each row, so all have one height.
+    Widget gapped(Widget row) => Padding(
+      padding: EdgeInsets.only(bottom: KusungaTokens.space1),
+      child: row,
+    );
+    Widget prototype(SnippetItem item) => SnippetRow(
+      item: item,
+      isFirst: false,
+      isLast: false,
+      editable: _service.canEdit,
+      focusNode: _prototypeFocus,
+      nowMs: now,
+      onCopy: () {},
+      onEdit: () {},
+      onMoveUp: () {},
+      onMoveDown: () {},
+      onDelete: () {},
+      onFocusMove: (_) {},
+    );
     return SliverSemantics(
       label: 'Snippets, ${items.length} items',
       explicitChildNodes: true,
       sliver: SliverPadding(
         padding: EdgeInsets.only(bottom: KusungaTokens.space6 * 2),
-        sliver: SliverList.separated(
+        // Every row has the same height (one line of name, one of content),
+        // so the list measures one prototype row: the place of any row is
+        // known before it is built, and the arrow keys can scroll to it.
+        sliver: SliverPrototypeExtentList.builder(
+          key: _listKey,
           itemCount: items.length,
           // Rows keep their element (and focus) when they move.
-          findItemIndexCallback: (key) {
+          findChildIndexCallback: (key) {
             if (key is! ValueKey<int>) return null;
             final i = items.indexWhere((s) => s.id == key.value);
             return i < 0 ? null : i;
           },
-          separatorBuilder: (_, _) => SizedBox(height: KusungaTokens.space1),
+          prototypeItem: ExcludeFocus(
+            child: ExcludeSemantics(child: gapped(prototype(items.first))),
+          ),
           itemBuilder: (context, i) {
             final item = items[i];
             final slide = !reduceMotion && move != null && move.id == item.id
                 ? move
                 : null;
-            return SnippetRow(
+            return KeyedSubtree(
               key: ValueKey(item.id),
-              item: item,
-              isFirst: i == 0,
-              isLast: i == items.length - 1,
-              editable: _service.canEdit,
-              focusNode: _nodeFor(item.id),
-              nowMs: now,
-              slideFrom: slide?.from ?? 0,
-              slideTick: slide?.tick ?? 0,
-              onCopy: () => _copy(item.id),
-              onEdit: () => _edit(item),
-              onMoveUp: () => _move(item, -1),
-              onMoveDown: () => _move(item, 1),
-              onDelete: () => _delete(item),
-              onFocusMove: (move) => _moveFocus(item.id, move),
+              child: gapped(
+                SnippetRow(
+                  item: item,
+                  isFirst: i == 0,
+                  isLast: i == items.length - 1,
+                  editable: _service.canEdit,
+                  focusNode: _nodeFor(item.id),
+                  nowMs: now,
+                  slideFrom: slide?.from ?? 0,
+                  slideTick: slide?.tick ?? 0,
+                  onCopy: () => _copy(item.id),
+                  onEdit: () => _edit(item),
+                  onMoveUp: () => _move(item, -1),
+                  onMoveDown: () => _move(item, 1),
+                  onDelete: () => _delete(item),
+                  onFocusMove: (move) => _moveFocus(item.id, move),
+                ),
+              ),
             );
           },
         ),
