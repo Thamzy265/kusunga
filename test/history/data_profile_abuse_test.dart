@@ -1024,4 +1024,171 @@ void main() {
       });
     });
   });
+
+  // ---- Round 3: the hard link check (identicalSync) ----
+
+  group('hard link check (round 3)', () {
+    final posix = Platform.isWindows ? 'needs ln' : null;
+
+    Future<void> seedWalShm() async {
+      File(p.join(base.path, 'kusunga.db-wal')).writeAsStringSync('wal');
+      File(p.join(base.path, 'kusunga.db-shm')).writeAsStringSync('shm');
+    }
+
+    for (final name in [
+      'kusunga.db.bak',
+      'kusunga.db-wal',
+      'kusunga.db-shm',
+      'kusunga.db.unreadable-2026-11-01',
+      'kusunga.log',
+    ]) {
+      test('a hard link to the default $name is refused: memory only, the '
+          'default is untouched', () async {
+        final keys = FakeKeyStore(stored: hex);
+        final before = await seedDefault(keys);
+        await seedWalShm();
+        File(p.join(base.path, 'kusunga.log')).writeAsStringSync('real log\n');
+        final before2 = defaultState();
+        profileDir('qa').createSync(recursive: true);
+        expect(
+          await hardLink(
+            p.join(base.path, name),
+            p.join(profileDir('qa').path, name),
+          ),
+          isTrue,
+        );
+        final src = FakeClipboardSource();
+        final s = await open(const ActiveDataProfile('qa'), keys, source: src);
+        expect(s.banners, contains(HistoryBanner.memoryOnly));
+        await hammer(s, src);
+        expect(defaultState(), before2);
+        expect(before2.keys, containsAll(before.keys));
+      }, skip: posix);
+    }
+
+    test('a hard link under ANOTHER name (profile kusunga.db = default '
+        'kusunga.db.bak) is refused', () async {
+      final keys = FakeKeyStore(stored: hex);
+      await seedDefault(keys);
+      final before = defaultState();
+      profileDir('qa').createSync(recursive: true);
+      expect(
+        await hardLink(
+          p.join(base.path, 'kusunga.db.bak'),
+          p.join(profileDir('qa').path, 'kusunga.db'),
+        ),
+        isTrue,
+      );
+      final s = await open(const ActiveDataProfile('qa'), keys);
+      expect(s.banners, contains(HistoryBanner.memoryOnly));
+      await s.close();
+      expect(defaultState(), before);
+    }, skip: posix);
+
+    test('BUG-P4: a hard link created AFTER the check, before the open, is '
+        'followed (reachable)', () async {
+      final keys = FakeKeyStore(stored: hex);
+      final before = await seedDefault(keys);
+      final deferred = DeferredErrorLog(mirror: mirror);
+      final setup = dataProfileSetup(
+        const ActiveDataProfile('qa'),
+        supportDirectory: () async => base,
+        keys: keys,
+        log: deferred,
+      );
+      final checked = await setup.supportDirectory(); // the check passes
+      profileDir('qa').createSync(recursive: true);
+      expect(
+        await hardLink(
+          p.join(base.path, 'kusunga.db'),
+          p.join(checked.path, 'kusunga.db'),
+        ),
+        isTrue,
+      );
+      final src = FakeClipboardSource();
+      final service = await openAppHistory(
+        deferred: deferred,
+        supportDirectory: () async => checked,
+        keys: setup.keys,
+        source: src,
+      );
+      services.add(service);
+      expect(service.items, isEmpty, reason: 'the real history was read');
+      await hammer(service, src);
+      expect(defaultState(), before);
+    }, skip: posix ?? 'KNOWN RISK (reachable): checked once, opened later');
+
+    test(
+      'KNOWN LIMIT: a hard link to a file OUTSIDE the default folder (a '
+      'user document) is not refused: the profile log appends to it',
+      () async {
+        final keys = FakeKeyStore(stored: hex);
+        final outside = File(p.join(root.path, 'important.txt'))
+          ..writeAsStringSync('mine\n');
+        profileDir('qa').createSync(recursive: true);
+        expect(
+          await hardLink(
+            outside.path,
+            p.join(profileDir('qa').path, 'kusunga.log'),
+          ),
+          isTrue,
+        );
+        final s = await open(const ActiveDataProfile('qa'), keys);
+        await s.close();
+        expect(
+          outside.readAsStringSync(),
+          'mine\n',
+          reason: 'a profile session wrote into a file outside its folder',
+        );
+      },
+      skip: posix ?? 'KNOWN LIMIT stated by the developer',
+    );
+
+    test('KNOWN LIMIT: a hard link to ANOTHER profile\'s database is not '
+        'refused (profile qa opens and changes qb\'s data)', () async {
+      final keys = FakeKeyStore(stored: hex);
+      final srcB = FakeClipboardSource();
+      final b = await open(const ActiveDataProfile('qb'), keys, source: srcB);
+      srcB.copy('qb private');
+      await b.close();
+      profileDir('qa').createSync(recursive: true);
+      expect(
+        await hardLink(
+          p.join(profileDir('qb').path, 'kusunga.db'),
+          p.join(profileDir('qa').path, 'kusunga.db'),
+        ),
+        isTrue,
+      );
+      final s = await open(const ActiveDataProfile('qa'), keys);
+      expect(s.items, isEmpty, reason: 'qb\'s history was read through qa');
+    }, skip: posix ?? 'KNOWN LIMIT: only the default folder is compared');
+
+    test('cost: 600 default files (many .unreadable-*) against 40 profile '
+        'files: the check stays under 2 s', () async {
+      final keys = FakeKeyStore(stored: hex);
+      await seedDefault(keys);
+      for (var i = 0; i < 600; i++) {
+        File(
+          p.join(base.path, 'kusunga.db.unreadable-2026-01-${i + 1000}'),
+        ).writeAsStringSync('x');
+      }
+      profileDir('qa').createSync(recursive: true);
+      for (var i = 0; i < 40; i++) {
+        File(
+          p.join(profileDir('qa').path, 'kusunga.db.unreadable-$i'),
+        ).writeAsStringSync('y');
+      }
+      final setup = dataProfileSetup(
+        const ActiveDataProfile('qa'),
+        supportDirectory: () async => base,
+        keys: FakeKeyStore(stored: hex),
+        log: FakeLog(),
+      );
+      final sw = Stopwatch()..start();
+      await setup.supportDirectory();
+      // ignore: avoid_print
+      print('IDENTICAL check 600x40: ${sw.elapsedMilliseconds} ms');
+      expect(sw.elapsedMilliseconds, lessThan(2000));
+    });
+  });
 }
