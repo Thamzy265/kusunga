@@ -84,6 +84,7 @@ Everything stays on the device. No account, no server.
   - AC: release notes and a rollback plan exist; the PM approves the release.
   - AC: a short DPIA is written in `docs/design/dpia.md` and the PM signs it off before the beta.
   - AC: the app's licence page includes the SQLite3 Multiple Ciphers MIT notice (reviewer note, 2026-11-03).
+  - AC: profile and release macOS builds succeed on the current macOS (Flutter 3.44.6 fails on macOS 27: the new `lipo` takes one architecture per `-verify_arch`; workaround `ARCHS = arm64` or a Flutter update), and the built architectures are stated (developer note, 2026-11-05).
   - AC: the minimum macOS (12.0, forced by Xcode 27.2 in M1.3) is stated in ADR 0003 or the README and in the release notes (reviewer note C7, 2026-11-04).
   - Before start: decide whether to build sqlite3mc from source instead of the SHA-256-pinned prebuilt download (reviewer note, 2026-11-03).
 
@@ -112,6 +113,7 @@ Needs its own design note and deck. Mobile cannot record clipboard history in th
 
 ## Later
 
+- End in a long History list is slow (about 4.8 s over 5,000 items in a profile build) because rows are 1–2 lines tall and every row on the way is laid out — fix: one fixed row height for History, as Snippets has — trigger: ≥ 3 beta reports of a slow End or Home, or > 10% of beta users set Keep above 1,000 — noted 2026-11-05 by lead (PM chose to defer)
 - Images and files in history — not needed for the core text use case — trigger: > 30% of beta users ask for it in feedback, or > 20 requests — noted 2026-11-03 by lead
 - Linux desktop — small share of users — trigger: > 100 requests or > 5% of website visits from Linux — noted 2026-11-03 by lead
 - Opt-in crash reports — not needed while the beta is small — trigger: > 200 active beta users — noted 2026-11-03 by lead

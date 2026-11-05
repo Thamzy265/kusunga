@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-05 — M1.4 Saved snippets — Round-3 fixes done; End speed deferred — PM decision
+- Changed: developer fixed L4, L2, L3 (4375e75: per-line log open with a link check) and H4, H6, H5 (6961ab2: focus follows the item by id; nearest item on trim; list kept in view only while the arrow keys are used). check.sh 1,505 passed ×2. Profile-build timing: End over 5,000 History rows 4.8 s (4.9 s with copies). Found: Flutter 3.44.6 profile/release macOS builds fail on macOS 27 (`lipo`); added as an M1.9 AC.
+- Gates: developer done · tester round 4 in progress · reviewer · QA · PM merge waiting
+- Open findings: none new beyond tester round 4
+- Decisions: PM said (2026-11-05): "Go with the recommendation" — in answer to "How should we handle the 5-second End in a 5,000-item history?" (recommendation: keep variable row heights and add a Later line). Later line added to docs/PLAN.md.
+- Blockers: PM — GitHub billing or acceptance of local results for M1.4; VoiceOver sign-off
+
 ## 2026-11-05 — M1.4 Saved snippets — Tester round 3; developer stuck; PM approves plan and risk
 - Changed: developer fixed H1–H3, P3, late log link (a44e597, 7dcbca1, 77a2080, 52e9ddd); check.sh 1,476 passed ×2. Tester round 3 (7fbe638) found BUG-L4 (high, regression: two writers on one log overwrite lines), L2, L3 (low), BUG-H6 (high: focused History row trimmed, focus lost), BUG-H4 (End in 5,000 rows 7× slower while copies arrive), BUG-H5 (design: re-show of focused row fights mouse scrolling), BUG-P4 and two known limits (hard links created between check and open, or to files outside the default folder).
 - Escalation: developer on Opus at high effort failed a third tester round; raised to the PM instead of another loop.
