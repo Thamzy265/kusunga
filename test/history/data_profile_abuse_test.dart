@@ -744,4 +744,302 @@ void main() {
       );
     }, skip: Platform.isWindows ? 'creating a symlink needs rights' : null);
   });
+
+  // ---- Round 2: breaking the link checks and the argument parsing ----
+
+  /// A hard link (same inode, not a symlink): `Link` checks cannot see it.
+  Future<bool> hardLink(String target, String linkPath) async {
+    final r = await Process.run('ln', [target, linkPath]);
+    return r.exitCode == 0;
+  }
+
+  group('hard links, odd paths, and the arguments (round 2)', () {
+    final posix = Platform.isWindows ? 'needs ln' : null;
+
+    test(
+      'BUG-P3: profiles/qa/kusunga.db is a HARD link to the real database: '
+      'the session must not read or change it',
+      () async {
+        final keys = FakeKeyStore(stored: hex);
+        final before = await seedDefault(keys);
+        profileDir('qa').createSync(recursive: true);
+        expect(
+          await hardLink(
+            p.join(base.path, 'kusunga.db'),
+            p.join(profileDir('qa').path, 'kusunga.db'),
+          ),
+          isTrue,
+        );
+        final src = FakeClipboardSource();
+        final s = await open(const ActiveDataProfile('qa'), keys, source: src);
+        expect(s.items, isEmpty, reason: 'the real history was read');
+        await hammer(s, src);
+        expect(defaultState(), before);
+      },
+      skip: posix ?? 'BUG-P3: a hard link is not a Link, so it is not refused',
+    );
+
+    test(
+      'BUG-P3: a hard link to the real .bak, with an older profile DB, must '
+      'not overwrite the real backup',
+      () async {
+        final keys = FakeKeyStore(stored: hex);
+        final before = await seedDefault(keys);
+        profileDir('qa').createSync(recursive: true);
+        final old = await openHistory(
+          keys: keys,
+          directory: profileDir('qa').path,
+          log: FakeLog(),
+          migrations: kMigrations.sublist(0, 2),
+        );
+        old.store.close();
+        expect(
+          await hardLink(
+            p.join(base.path, 'kusunga.db.bak'),
+            p.join(profileDir('qa').path, 'kusunga.db.bak'),
+          ),
+          isTrue,
+        );
+        final s = await open(const ActiveDataProfile('qa'), keys);
+        await s.close();
+        expect(defaultState(), before);
+      },
+      skip: posix ?? 'BUG-P3: a hard link is not a Link, so it is not refused',
+    );
+
+    test(
+      'BUG-P3: a hard link to the real log is appended to',
+      () async {
+        final keys = FakeKeyStore(stored: hex);
+        File(p.join(base.path, 'kusunga.log')).writeAsStringSync('real\n');
+        final before = defaultState();
+        profileDir('qa').createSync(recursive: true);
+        expect(
+          await hardLink(
+            p.join(base.path, 'kusunga.log'),
+            p.join(profileDir('qa').path, 'kusunga.log'),
+          ),
+          isTrue,
+        );
+        final s = await open(const ActiveDataProfile('qa'), keys);
+        await s.close();
+        expect(defaultState(), before);
+      },
+      skip: posix ?? 'BUG-P3: a hard link is not a Link, so it is not refused',
+    );
+
+    test('`profiles` is a regular file: memory only, the file and the default '
+        'folder are untouched, no key written', () async {
+      final keys = FakeKeyStore(stored: hex);
+      final before = await seedDefault(keys);
+      final file = File(p.join(base.path, 'profiles'))
+        ..writeAsStringSync('not a folder');
+      final spy = _SpyKeys(keys);
+      final s = await open(const ActiveDataProfile('qa'), spy);
+      expect(s.banners, contains(HistoryBanner.memoryOnly));
+      expect(s.items, isEmpty);
+      await s.close();
+      expect(file.readAsStringSync(), 'not a folder');
+      expect(spy.calls, isNot(contains('write')));
+      // `profiles` itself is part of defaultState here, so it must be equal.
+      expect({...defaultState()}..remove('profiles'), {...before});
+    });
+
+    test(
+      '`profiles/qa` is a regular file: memory only, nothing replaced',
+      () async {
+        final keys = FakeKeyStore(stored: hex);
+        final before = await seedDefault(keys);
+        Directory(p.join(base.path, 'profiles')).createSync();
+        final file = File(profileDir('qa').path)..writeAsStringSync('x');
+        final s = await open(const ActiveDataProfile('qa'), keys);
+        expect(s.banners, contains(HistoryBanner.memoryOnly));
+        await s.close();
+        expect(file.readAsStringSync(), 'x');
+        expect(defaultState(), before);
+      },
+    );
+
+    test(
+      'a support folder reached through ".." or through a symlinked parent '
+      'is fine: the profile still works and the default is untouched',
+      () async {
+        final keys = FakeKeyStore(stored: hex);
+        final before = await seedDefault(keys);
+        final viaDots = Directory(p.join(base.path, '..', 'support'));
+        final alias = Link(p.join(root.path, 'alias'))..createSync(base.path);
+        for (final support in [viaDots, Directory(alias.path)]) {
+          final src = FakeClipboardSource();
+          final s = await open(
+            const ActiveDataProfile('qa'),
+            keys,
+            source: src,
+            support: support,
+          );
+          expect(s.banners, isEmpty, reason: support.path);
+          await hammer(s, src);
+        }
+        expect(defaultState(), before);
+        expect(profileDir('qa').existsSync(), isTrue);
+      },
+      skip: Platform.isWindows ? 'creating a symlink needs rights' : null,
+    );
+
+    test('the rejection for a link is logged as dataProfileRejected with '
+        'detail 2, and never with a path', () async {
+      final keys = FakeKeyStore(stored: hex);
+      Directory(p.join(base.path, 'profiles')).createSync();
+      Link(profileDir('qa').path).createSync(base.path);
+      final s = await open(const ActiveDataProfile('qa'), keys);
+      expect(s.banners, contains(HistoryBanner.memoryOnly));
+      final i = mirror.codes.indexOf(LogCode.dataProfileRejected);
+      expect(i, isNonNegative);
+      expect(mirror.details[i], 2);
+      expect(s.items, isEmpty);
+    }, skip: Platform.isWindows ? 'creating a symlink needs rights' : null);
+
+    test('a link nested one level deeper in the profile folder (a linked '
+        '-wal file, a linked moved-aside file) is refused too', () async {
+      final keys = FakeKeyStore(stored: hex);
+      final before = await seedDefault(keys);
+      profileDir('qa').createSync(recursive: true);
+      Link(
+        p.join(profileDir('qa').path, 'kusunga.db-wal'),
+      ).createSync(p.join(base.path, 'kusunga.db'));
+      final s = await open(const ActiveDataProfile('qa'), keys);
+      expect(s.banners, contains(HistoryBanner.memoryOnly));
+      await s.close();
+      expect(defaultState(), before);
+    }, skip: Platform.isWindows ? 'creating a symlink needs rights' : null);
+
+    test(
+      'KNOWN RISK: a link created AFTER the check, while the session runs, '
+      'is followed by the log (reachable)',
+      () async {
+        final keys = FakeKeyStore(stored: hex);
+        File(p.join(base.path, 'kusunga.log')).writeAsStringSync('real\n');
+        final deferred = DeferredErrorLog(mirror: mirror);
+        final setup = dataProfileSetup(
+          const ActiveDataProfile('qa'),
+          supportDirectory: () async => base,
+          keys: keys,
+          log: deferred,
+        );
+        final service = await openAppHistory(
+          deferred: deferred,
+          supportDirectory: setup.supportDirectory,
+          keys: setup.keys,
+          source: FakeClipboardSource(),
+        );
+        services.add(service);
+        final before = defaultState();
+        final logFile = File(p.join(profileDir('qa').path, 'kusunga.log'));
+        logFile.deleteSync();
+        Link(logFile.path).createSync(p.join(base.path, 'kusunga.log'));
+        deferred.log(LogCode.dataFolderUnavailable);
+        expect(
+          defaultState(),
+          before,
+          reason: 'the real log was appended to through a late link',
+        );
+      },
+      skip: Platform.isWindows
+          ? 'creating a symlink needs rights'
+          : 'KNOWN RISK (reachable): the check happens once, before opening',
+    );
+
+    test(
+      'a pre-existing folder whose case differs (profiles/QA) is refused '
+      'or ignored, never used as "qa" (case-insensitive filesystems)',
+      () async {
+        final keys = FakeKeyStore(stored: hex);
+        Directory(
+          p.join(base.path, 'profiles', 'QA'),
+        ).createSync(recursive: true);
+        File(
+          p.join(base.path, 'profiles', 'QA', 'marker'),
+        ).writeAsStringSync('m');
+        final src = FakeClipboardSource();
+        final s = await open(const ActiveDataProfile('qa'), keys, source: src);
+        src.copy('x');
+        await s.close();
+        final names = Directory(
+          p.join(base.path, 'profiles', 'QA'),
+        ).listSync().map((e) => p.basename(e.path)).toSet();
+        final caseInsensitive =
+            Directory(p.join(base.path, 'profiles', 'qa')).existsSync() &&
+            !Directory(
+              p.join(base.path, 'profiles'),
+            ).listSync().any((e) => p.basename(e.path) == 'qa');
+        if (caseInsensitive) {
+          expect(
+            names,
+            {'marker'},
+            reason: 'case-insensitive FS: "QA" data must not be used by "qa"',
+          );
+        }
+      },
+    );
+
+    group('arguments', () {
+      DataProfile parse(List<String> a) => dataProfileFrom(a, debug: true);
+      test('a valid flag and a mistyped one anywhere: rejected', () {
+        for (final args in [
+          ['-KusungaDataProfile', 'qa', '--KusungaDataProfile=qb'],
+          ['--kusungadataprofile', 'x', '-KusungaDataProfile', 'qa'],
+          ['-KusungaDataProfile', 'qa', '-KusungaDataProfile=qa'],
+          ['-KUSUNGADATAPROFILE', 'qa', '-KusungaDataProfile', 'qa'],
+          ['-KusungaDataProfilex', '-KusungaDataProfile', 'qa'],
+          ['---KusungaDataProfile', '-KusungaDataProfile', 'qa'],
+        ]) {
+          expect(parse(args), isA<RejectedDataProfile>(), reason: '$args');
+        }
+      });
+      test('every mistyped form alone is rejected, never the real folder', () {
+        for (final a in [
+          '-KusungaDataProfile=qa',
+          '--KusungaDataProfile',
+          '-kusungadataprofile',
+          '--KusungaDataProfile=qa',
+          '-KusungaDataProfile:qa',
+          '-KusungaDataProfile\u0000',
+        ]) {
+          expect(parse([a, 'qa']), isA<RejectedDataProfile>(), reason: a);
+          expect(parse([a]), isA<RejectedDataProfile>(), reason: a);
+        }
+      });
+      test('a valid flag with an extra value after the name: the profile, '
+          'the extra value is not a second name', () {
+        final p1 = parse(['-KusungaDataProfile', 'qa', 'extra']);
+        expect(p1, isA<ActiveDataProfile>());
+        expect((p1 as ActiveDataProfile).name, 'qa');
+        final p2 = parse(['-KusungaDataProfile', 'qa', 'qb']);
+        expect((p2 as ActiveDataProfile).name, 'qa');
+      });
+      test('other launch arguments beside the flag (Xcode passes some) do '
+          'not change the result', () {
+        final a = parse([
+          '-NSDocumentRevisionsDebugMode',
+          'YES',
+          '-ApplePersistenceIgnoreState',
+          'YES',
+          '-KusungaDataProfile',
+          'qa',
+        ]);
+        expect(a, isA<ActiveDataProfile>());
+        expect(
+          parse(['-NSDocumentRevisionsDebugMode', 'YES']),
+          isA<NoDataProfile>(),
+        );
+        expect(parse(['--', 'qa']), isA<NoDataProfile>());
+      });
+      test('a name given as the value of another flag is not a profile', () {
+        expect(parse(['-other', 'qa']), isA<NoDataProfile>());
+        expect(
+          parse(['-other', '-KusungaDataProfile']),
+          isA<RejectedDataProfile>(),
+        );
+      });
+    });
+  });
 }
