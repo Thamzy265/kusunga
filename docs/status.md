@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-05 — M1.4 Saved snippets — QA session 3: fail (2 Major accessibility bugs); developer escalated
+- Changed: QA-M14-1 (tabs stacked) fixed in 826938d; tester 26 tests (bf06141), no bugs; reviewer approve with notes on bf06141. QA session 3 on the rebuilt signed Debug app (CDHash 0167a366…, commit bf06141; PM said "Mac is free"): AC1 works functionally, AC2 pass (D1, D2, D3, F8, pasteSource 1), AC3 not run on the real app (setting Keep to 10 would permanently delete about 400 of the PM's history items), privacy pass. Evidence docs/qa/m1.md "M1.4 session 3" (86f6f7c, not pushed); videos in qa-artifacts/m1.4/.
+- Gates: developer reopened · tester pass · reviewer approve with notes · QA fail · PM merge waiting
+- Open findings: QA-M14-2 (Major) Up/Down don't move between snippet rows; QA-M14-4 (Major) keyboard focus barely visible (1.2:1) on New snippet, row actions, editor buttons; QA-M14-3 (Minor) names cut at 600–700 px. Earlier Low notes N1, N2, F5 (Windows), R1 unchanged.
+- Escalation: developer re-dispatched on Opus at high effort (second QA failure on this item).
+- Decisions: none
+- Blockers: PM — how to test AC3 on the real app; GitHub billing or acceptance of local results for M1.4; VoiceOver sign-off
+
 ## 2026-11-05 — M1.4 Saved snippets — QA may launch Kusunga — PM decision
 - Changed: QA resume found Kusunga not running (Mac restarted 09:34 for macOS 27.2; build unchanged, CDHash 6288d6c5…). Notes in docs/qa/m1.md (cc5c2dd, not pushed).
 - Gates: developer done · tester pass · reviewer approve with notes · QA in progress · PM merge waiting
