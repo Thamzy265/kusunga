@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/log/app_log.dart';
@@ -198,4 +199,108 @@ void main() {
     log.close();
     expect(lines(file), hasLength(2));
   });
+
+  // ---- Round 4: per-line open (4375e75) ----
+
+  group('per-line open, real concurrency (two isolates)', () {
+    final shape = RegExp(r'^\S+Z (flushFailed|storeUnreadable) \d+$');
+
+    Future<void> twoWriters(String path, int lines, int maxBytes) =>
+        Future.wait([
+          Isolate.run(() {
+            final l = FileErrorLog(File(path), maxBytes: maxBytes);
+            for (var i = 0; i < lines; i++) {
+              l.log(LogCode.flushFailed, i);
+            }
+          }),
+          Isolate.run(() {
+            final l = FileErrorLog(File(path), maxBytes: maxBytes);
+            for (var i = 0; i < lines; i++) {
+              l.log(LogCode.storeUnreadable, i);
+            }
+          }),
+        ]);
+
+    test('BUG-L5: two real concurrent writers x 1,500 lines, no rotation: '
+        '3,000 whole lines, none lost (Dart\'s append open seeks to the end '
+        'and then writes, so truly simultaneous writers overwrite each '
+        'other: about 0.1-0.3% of the lines)', () async {
+      await twoWriters(file.path, 1500, 100000000);
+      final all = lines(file);
+      expect(all, hasLength(3000));
+      expect(all.every(shape.hasMatch), isTrue, reason: 'a garbled line');
+      for (final code in ['flushFailed', 'storeUnreadable']) {
+        final n = all
+            .where((l) => l.contains(code))
+            .map((l) => int.parse(l.split(' ').last))
+            .toList();
+        expect(n, hasLength(1500), reason: code);
+        expect(n, orderedEquals([for (var i = 0; i < 1500; i++) i]));
+      }
+    }, skip: posix ?? 'BUG-L5 (low, also in the code before 77a2080)');
+
+    test('two writers x 3,000 lines with rotations in the middle: the live '
+        'file stays bounded, one old file is kept, and nearly every kept '
+        'line is whole (BUG-L5 may garble a few)', () async {
+      await twoWriters(file.path, 3000, 20000);
+      final old = File('${file.path}.1');
+      final kept = [...lines(old), ...lines(file)];
+      final whole = kept.where(shape.hasMatch).length;
+      // ignore: avoid_print
+      print(
+        'LOG rotation x2 writers: live ${lines(file).length} lines, '
+        '.1 ${lines(old).length} lines, whole $whole of ${kept.length}',
+      );
+      expect(file.lengthSync(), lessThan(20000 + 200));
+      expect(old.existsSync(), isTrue);
+      expect(kept, isNotEmpty);
+      expect(whole, greaterThanOrEqualTo(kept.length * 0.9));
+    });
+  });
+
+  test('rename keeps failing (".1" is a non-empty folder): the live file '
+      'never passes twice the limit, starts over, and keeps the newest '
+      'lines', () {
+    Directory('${file.path}.1').createSync();
+    File(p.join('${file.path}.1', 'x')).writeAsStringSync('x');
+    const max = 1000;
+    final log = FileErrorLog(file, maxBytes: max);
+    var biggest = 0;
+    var startedOver = false;
+    var last = 0;
+    for (var i = 0; i < 600; i++) {
+      log.log(LogCode.flushFailed, i);
+      final size = file.lengthSync();
+      if (size < last) startedOver = true;
+      last = size;
+      if (size > biggest) biggest = size;
+    }
+    expect(startedOver, isTrue, reason: 'the log never started over');
+    expect(biggest, lessThanOrEqualTo(2 * max + 80));
+    expect(lines(file).last.endsWith('flushFailed 599'), isTrue);
+    // After the start-over the file again holds only whole lines.
+    expect(
+      lines(file).every((l) => RegExp(r'^\S+Z flushFailed \d+$').hasMatch(l)),
+      isTrue,
+    );
+    expect(Directory('${file.path}.1').existsSync(), isTrue);
+  }, skip: posix);
+
+  test('rename keeps failing and the log is a link at that moment: nothing '
+      'is written through it', () {
+    final target = File(p.join(dir.path, 'real.log'))
+      ..writeAsStringSync('real\n');
+    Directory('${file.path}.1').createSync();
+    File(p.join('${file.path}.1', 'x')).writeAsStringSync('x');
+    final log = FileErrorLog(file, maxBytes: 100);
+    for (var i = 0; i < 6; i++) {
+      log.log(LogCode.flushFailed, i);
+    }
+    file.renameSync('${file.path}.hold');
+    Link(file.path).createSync(target.path);
+    for (var i = 6; i < 20; i++) {
+      log.log(LogCode.flushFailed, i);
+    }
+    expect(target.readAsStringSync(), 'real\n');
+  }, skip: posix);
 }
