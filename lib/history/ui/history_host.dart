@@ -21,6 +21,7 @@ class HistoryHost extends StatefulWidget {
     required this.history,
     this.initial,
     this.topSlot,
+    this.dataProfile,
   });
 
   final Future<HistoryService> history;
@@ -30,6 +31,10 @@ class HistoryHost extends StatefulWidget {
 
   /// Extra content for the history screen (the picker settings).
   final Widget? topSlot;
+
+  /// The test data profile in use (Debug builds only), shown as "Test
+  /// profile: `name`" so test data is never taken for real data.
+  final String? dataProfile;
 
   @override
   State<HistoryHost> createState() => _HistoryHostState();
@@ -113,6 +118,24 @@ class _HistoryHostState extends State<HistoryHost> {
     );
   }
 
+  Widget _profileLabel(KusungaTokens t, String name) => Semantics(
+    identifier: 'data-profile-label',
+    child: Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: KusungaTokens.space2,
+        vertical: KusungaTokens.space1,
+      ),
+      decoration: BoxDecoration(
+        color: t.bannerWarnBg,
+        borderRadius: BorderRadius.circular(KusungaTokens.radius2),
+      ),
+      child: Text(
+        'Test profile: $name',
+        style: KusungaTokens.caption.copyWith(color: t.bannerWarnText),
+      ),
+    ),
+  );
+
   Widget _newButton(SnippetService? snippets) {
     final t = KusungaTokens.of(context);
     final enabled = snippets?.canCreate ?? false;
@@ -169,6 +192,7 @@ class _HistoryHostState extends State<HistoryHost> {
             focusNodes: _tabNodes,
             onSelect: (i) => setState(() => _tab = i),
           ),
+          if (widget.dataProfile case final name?) _profileLabel(t, name),
           if (_tab == 1)
             snippets == null
                 ? _newButton(null)

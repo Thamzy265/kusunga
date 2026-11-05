@@ -15,10 +15,18 @@ import 'picker_toast.dart';
 /// are still there when the window comes back. The focus goes back to what had it,
 /// so Cmd/Ctrl+Z still works.
 class WindowRoot extends StatefulWidget {
-  const WindowRoot({super.key, required this.history, required this.picker});
+  const WindowRoot({
+    super.key,
+    required this.history,
+    required this.picker,
+    this.dataProfile,
+  });
 
   final Future<HistoryService> history;
   final PickerController picker;
+
+  /// The test data profile in use, if any (see `HistoryHost.dataProfile`).
+  final String? dataProfile;
 
   @override
   State<WindowRoot> createState() => _WindowRootState();
@@ -75,6 +83,7 @@ class _WindowRootState extends State<WindowRoot> {
           history: widget.history,
           initial: picker.history,
           topSlot: PickerSettingsSection(controller: picker),
+          dataProfile: widget.dataProfile,
         );
         return Visibility(
           visible: shown,

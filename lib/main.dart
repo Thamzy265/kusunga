@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'app.dart';
 import 'clipboard/channel_clipboard_source.dart';
+import 'history/data_profile.dart';
 import 'history/history_handle.dart';
 import 'history/open_app_history.dart';
 import 'history/windows_key_store.dart';
@@ -21,7 +22,9 @@ import 'tray/tray_service.dart';
 import 'window/window_manager_port.dart';
 import 'window/window_service.dart';
 
-Future<void> main() async {
+/// [args]: on a Mac only what the Debug-only native code passes on (the
+/// test data profile); on Windows the command line.
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // The unified log mirror is a macOS thing (the Windows side has none).
@@ -30,10 +33,19 @@ Future<void> main() async {
         ? ChannelUnifiedLog()
         : null,
   );
-  final history = openAppHistory(
-    deferred: deferredLog,
+  // `-KusungaDataProfile <name>`: Debug builds only, a separate data folder
+  // for QA (PM decision 2026-11-05). Release ignores it.
+  final profile = dataProfileFrom(args);
+  final data = dataProfileSetup(
+    profile,
     supportDirectory: getApplicationSupportDirectory,
     keys: keyStoreFor(isWindows: Platform.isWindows),
+    log: deferredLog,
+  );
+  final history = openAppHistory(
+    deferred: deferredLog,
+    supportDirectory: data.supportDirectory,
+    keys: data.keys,
     source: ChannelClipboardSource(),
   );
   final handle = HistoryHandle(history);
@@ -50,7 +62,13 @@ Future<void> main() async {
           isMac: defaultTargetPlatform == TargetPlatform.macOS,
         )
       : null;
-  runApp(KusungaApp(history: history, picker: picker));
+  runApp(
+    KusungaApp(
+      history: history,
+      picker: picker,
+      dataProfile: profile is ActiveDataProfile ? profile.name : null,
+    ),
+  );
   if (!isDesktop) return;
   unawaited(picker!.start());
   history.then<void>(picker.attach, onError: (Object _) {});
