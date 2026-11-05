@@ -113,7 +113,6 @@ class _TabState extends State<_Tab> {
     final box = Container(
       constraints: const BoxConstraints(minHeight: 36, minWidth: 44),
       padding: EdgeInsets.symmetric(horizontal: KusungaTokens.space3),
-      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: _hovered ? t.surfaceHover : Colors.transparent,
         borderRadius: BorderRadius.circular(KusungaTokens.radius2),
@@ -122,21 +121,28 @@ class _TabState extends State<_Tab> {
           width: 2,
         ),
       ),
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: KusungaTokens.space1),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: selected ? t.focus : Colors.transparent,
-              width: 2,
+      // Only as wide and tall as the label (at least 44 x 36), centred in
+      // that box. A Container alignment would stretch the tab to the whole
+      // row and push each tab onto its own line (QA-M14-1).
+      child: Align(
+        widthFactor: 1,
+        heightFactor: 1,
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: KusungaTokens.space1),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: selected ? t.focus : Colors.transparent,
+                width: 2,
+              ),
             ),
           ),
-        ),
-        child: Text(
-          widget.label,
-          style: KusungaTokens.body.copyWith(
-            color: t.text,
-            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+          child: Text(
+            widget.label,
+            style: KusungaTokens.body.copyWith(
+              color: t.text,
+              fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+            ),
           ),
         ),
       ),
