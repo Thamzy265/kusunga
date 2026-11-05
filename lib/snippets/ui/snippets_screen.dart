@@ -673,37 +673,44 @@ class _SnippetRowState extends State<SnippetRow> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      name,
-                      maxLines: 1,
-                      softWrap: false,
-                      overflow: TextOverflow.ellipsis,
-                      style: KusungaTokens.body.copyWith(
-                        color: t.text,
-                        fontWeight: FontWeight.bold,
-                      ),
+              // The name comes first: it takes the room it needs, and the
+              // edited time (wide windows only) gets what is left, at most
+              // 40%. Two Flexibles would cap the name at half (QA-M14-3).
+              LayoutBuilder(
+                builder: (context, line) {
+                  final nameText = Text(
+                    name,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    style: KusungaTokens.body.copyWith(
+                      color: t.text,
+                      fontWeight: FontWeight.bold,
                     ),
-                  ),
-                  // The edited time, on wide windows only.
-                  if (!narrow) ...[
-                    SizedBox(width: KusungaTokens.space2),
-                    Flexible(
-                      child: Text(
-                        'edited '
-                        '${relativeTimeLong(widget.nowMs, item.updatedAt)}',
-                        maxLines: 1,
-                        softWrap: false,
-                        overflow: TextOverflow.ellipsis,
-                        style: KusungaTokens.caption.copyWith(
-                          color: t.textMuted,
+                  );
+                  if (narrow) return Row(children: [Flexible(child: nameText)]);
+                  return Row(
+                    children: [
+                      Flexible(child: nameText),
+                      SizedBox(width: KusungaTokens.space2),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: line.maxWidth * 0.4,
+                        ),
+                        child: Text(
+                          'edited '
+                          '${relativeTimeLong(widget.nowMs, item.updatedAt)}',
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.ellipsis,
+                          style: KusungaTokens.caption.copyWith(
+                            color: t.textMuted,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ],
+                    ],
+                  );
+                },
               ),
               Text(
                 OneLine.of(item.preview),
@@ -731,8 +738,27 @@ class _SnippetRowState extends State<SnippetRow> {
               ),
               SizedBox(width: KusungaTokens.space3),
               Expanded(child: texts),
-              SizedBox(width: KusungaTokens.space2),
-              if (narrow) more() else ...actions,
+              if (narrow) ...[
+                SizedBox(width: KusungaTokens.space2),
+                more(),
+              ] else
+                // Hidden buttons take no room (and no clicks: a zero-width
+                // box is never hit), so the name and content use the whole
+                // row. They stay built for Tab and screen readers, and take
+                // their room again on hover or focus (QA-M14-3).
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  widthFactor: active ? 1 : 0,
+                  child: Padding(
+                    padding: EdgeInsetsDirectional.only(
+                      start: KusungaTokens.space2,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: actions,
+                    ),
+                  ),
+                ),
             ],
           ),
         );

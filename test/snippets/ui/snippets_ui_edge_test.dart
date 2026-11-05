@@ -18,6 +18,7 @@ import 'package:kusunga/snippets/ui/snippet_editor.dart';
 import 'package:kusunga/theme/tokens.dart';
 
 import '../../support/fakes.dart';
+import '../../support/row_hover.dart';
 import '../qa_support.dart';
 import '../snippet_service_test.dart' show FlakySnippetStore;
 
@@ -480,11 +481,11 @@ void main() {
       }
       await show(tester);
       // Buttons.
-      await tester.tap(hook('snippet-down-${idOf('A')}'));
+      await clickRowAction(tester, hook('snippet-down-${idOf('A')}'));
       await tester.pump();
       expect(names(), ['B', 'A', 'C', 'D']);
       expect(announcement(tester), 'A, moved to position 2 of 4');
-      await tester.tap(hook('snippet-up-${idOf('A')}'));
+      await clickRowAction(tester, hook('snippet-up-${idOf('A')}'));
       await tester.pump();
       expect(names(), ['A', 'B', 'C', 'D']);
       expect(announcement(tester), 'A, moved to position 1 of 4');
@@ -540,7 +541,7 @@ void main() {
       await show(tester);
       final before = announcement(tester);
       store.failWrites = true;
-      await tester.tap(hook('snippet-down-${idOf('A')}'));
+      await clickRowAction(tester, hook('snippet-down-${idOf('A')}'));
       await tester.pump();
       expect(names(), ['A', 'B']);
       expect(
@@ -560,16 +561,16 @@ void main() {
         add(n);
       }
       await show(tester);
-      await tester.tap(hook('snippet-delete-${idOf('B')}'));
+      await clickRowAction(tester, hook('snippet-delete-${idOf('B')}'));
       await tester.pump();
       await tester.pump();
       expect(names(), ['A', 'C']);
       expect(rowHasFocus(tester, 'C'), isTrue, reason: 'next row');
-      await tester.tap(hook('snippet-delete-${idOf('C')}'));
+      await clickRowAction(tester, hook('snippet-delete-${idOf('C')}'));
       await tester.pump();
       await tester.pump();
       expect(rowHasFocus(tester, 'A'), isTrue, reason: 'previous: it was last');
-      await tester.tap(hook('snippet-delete-${idOf('A')}'));
+      await clickRowAction(tester, hook('snippet-delete-${idOf('A')}'));
       await tester.pump();
       await tester.pump();
       expect(names(), isEmpty);
@@ -587,11 +588,11 @@ void main() {
         add(n);
       }
       await show(tester);
-      await tester.tap(hook('snippet-delete-${idOf('B')}'));
+      await clickRowAction(tester, hook('snippet-delete-${idOf('B')}'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       // Another change while the Undo toast is up: D goes up one place.
-      await tester.tap(hook('snippet-up-${idOf('D')}'));
+      await clickRowAction(tester, hook('snippet-up-${idOf('D')}'));
       await tester.pump();
       expect(names(), ['A', 'D', 'C']);
       expect(find.text('Undo'), findsOneWidget);
@@ -628,7 +629,7 @@ void main() {
             w.properties.identifier == 'snippet-row-${victim.id}',
       );
       expect(focusable, findsOneWidget);
-      await tester.tap(hook('snippet-delete-${victim.id}'));
+      await clickRowAction(tester, hook('snippet-delete-${victim.id}'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       expect(history.snippets.items.length, SnippetStore.maxCount - 1);
@@ -668,10 +669,10 @@ void main() {
       add('A');
       add('B');
       await show(tester);
-      await tester.tap(hook('snippet-delete-${idOf('A')}'));
+      await clickRowAction(tester, hook('snippet-delete-${idOf('A')}'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
-      await tester.tap(hook('snippet-copy-${idOf('B')}'));
+      await clickRowAction(tester, hook('snippet-copy-${idOf('B')}'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       expect(
@@ -715,7 +716,7 @@ void main() {
             .onPressed,
         isNull,
       );
-      await tester.tap(hook('snippet-copy-${idOf('Loaded')}'));
+      await clickRowAction(tester, hook('snippet-copy-${idOf('Loaded')}'));
       await tester.pump();
       expect(source.ownWrites, ['kept']);
       expect(find.text('Copied'), findsOneWidget);

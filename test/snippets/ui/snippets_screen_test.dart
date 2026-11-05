@@ -10,6 +10,7 @@ import 'package:kusunga/theme/tokens.dart';
 
 import '../snippet_service_test.dart' show FlakySnippetStore;
 import '../../support/fakes.dart';
+import '../../support/row_hover.dart';
 
 void main() {
   late FlakySnippetStore store;
@@ -266,12 +267,12 @@ void main() {
     add('B', 'b');
     add('C', 'c');
     await show(tester);
-    await tester.tap(hook('snippet-delete-${idOf('A')}'));
+    await clickRowAction(tester, hook('snippet-delete-${idOf('A')}'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
-    await tester.tap(hook('snippet-copy-${idOf('C')}'));
+    await clickRowAction(tester, hook('snippet-copy-${idOf('C')}'));
     await tester.pump();
-    await tester.tap(hook('snippet-delete-${idOf('B')}'));
+    await clickRowAction(tester, hook('snippet-delete-${idOf('B')}'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Copied'), findsNothing);
@@ -294,7 +295,7 @@ void main() {
       add('A', 'a');
       add('B', 'b');
       await show(tester);
-      await tester.tap(hook('snippet-down-${idOf('A')}'));
+      await clickRowAction(tester, hook('snippet-down-${idOf('A')}'));
       await tester.pump();
       expect(names(), ['B', 'A']);
     });
@@ -306,7 +307,7 @@ void main() {
       add('B', 'b');
       await show(tester);
       store.failWrites = true;
-      await tester.tap(hook('snippet-down-${idOf('A')}'));
+      await clickRowAction(tester, hook('snippet-down-${idOf('A')}'));
       await tester.pump();
       expect(names(), ['A', 'B']);
       expect(
@@ -320,7 +321,7 @@ void main() {
       add('A', 'a');
       await show(tester);
       store.failWrites = true;
-      await tester.tap(hook('snippet-delete-${idOf('A')}'));
+      await clickRowAction(tester, hook('snippet-delete-${idOf('A')}'));
       await tester.pump();
       expect(names(), ['A']);
       expect(
@@ -334,7 +335,7 @@ void main() {
     ) async {
       add('A', 'aaa');
       await show(tester);
-      await tester.tap(hook('snippet-edit-${idOf('A')}'));
+      await clickRowAction(tester, hook('snippet-edit-${idOf('A')}'));
       await tester.pumpAndSettle();
       expect(find.text('Edit snippet'), findsOneWidget);
       await tester.tap(hook('snippet-editor-save'));
@@ -398,7 +399,7 @@ void main() {
         final button = tester.widget<Semantics>(hook('snippet-$h-$id'));
         expect(button.properties.enabled, isFalse, reason: h);
       }
-      await tester.tap(hook('snippet-copy-$id'));
+      await clickRowAction(tester, hook('snippet-copy-$id'));
       await tester.pump();
       expect(copied, ['kept']);
       // Keys do nothing either.
