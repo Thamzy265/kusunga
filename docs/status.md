@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — Tester round 7 passed; reviewer re-check started
+- Changed: tester round 7 on 8c071df (2750eb5, tests only): 95 tests, none skipped; 21 fail on 52dd598, all pass on 8c071df. Every 1-edit slip and 6,000 random 2-edit slips rejected; 19 dash and minus characters, spaces, quotes, two-way splits rejected; about 45 realistic launch arguments and all 22×22 pairs not rejected; rejected forms reach nothing real. check.sh +1788 ~8 passed.
+- Gates: developer done · tester pass · reviewer re-check of 9023273..2750eb5 in progress · QA session 4 pending · PM merge waiting
+- Open findings: none in scope. Notes: 4+ edit slips escape (about 66% of them), about 1.2% of 3-edit slips escape, 3-way splits not read together (with PM); a single argument over about 4 million characters overflows the stack (unreachable on macOS).
+- Decisions: none
+- Blockers: PM — confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; VoiceOver sign-off
+
 ## 2026-11-06 — M1.4 Saved snippets — BUG-Q1 fixed; tester round 7 started
 - Changed: developer (opus, xhigh) fixed BUG-Q1 in 8c071df: in Debug, slips within 3 edits of the switch (with or without a dash), any dash or minus, leading spaces or quotes, and a switch split across two arguments are rejected (memory only, dataProfileRejected 3). Q1a, Q1c, Q1d, Q1e, Q1f repros unskipped and pass; Q1b, Q1g stay skipped (PM risk acceptance 2026-11-06). check.sh +1693 ~8 passed ×2. No false positive in 66 realistic launch-argument sets.
 - Gates: developer done · tester round 7 in progress · reviewer pending · QA session 4 pending · PM merge waiting
