@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — P1 fixed; G1 accepted — PM decision
+- Changed: developer fixed reviewer P1 in 21c17b4: in Debug, a misspelled test-profile switch (dash variants, en/em dash, `/`, missing letters, mixed case) is rejected with dataProfileRejected detail 3 and runs memory only. check.sh +1574 ~6 passed ×2. Tester round 6 on 21c17b4 in progress.
+- Gates: developer done · tester round 6 in progress · reviewer re-check of 21c17b4 pending · QA session 4 pending · PM merge waiting
+- Open findings: G1 accepted (below); N1, N2, F5 (Windows), R1 unchanged
+- Decisions: Risk accepted by PM (2026-11-06): accepted: Kusunga checks that its log file is not a link and then opens it, so a process running as the same user that swaps in a link between the check and the open makes Kusunga append one log line (a timestamp and a fixed code, no personal data) to the link's target (reviewer G1, lib/log/app_log.dart:92-106) — scope: M1.4, feat/saved-snippets, finding G1 — expiry/review: none — PM said: "Yes, accept it" — in answer to "May we leave the rare log-file link race (G1) unfixed for now?"
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer n/a · Lead none · PM — GitHub billing or acceptance of local results for M1.4; VoiceOver sign-off
+
 ## 2026-11-06 — M1.4 Saved snippets — Reviewer re-review: approve with notes
 - Changed: reviewer re-reviewed bf06141..9023273: approve with notes. check.sh +1556 ~6 passed. Test profile cannot reach real data in Release (kDebugMode gate; Mac arguments only under #if DEBUG); no Apple team or certificate ID in tracked files; no PM history in the 17 new screenshots. Lead redacted a signing-identity person name in an older status entry.
 - Gates: developer P1 fix in progress · tester pass (round 5) · reviewer approve with notes · QA session 4 pending · PM merge waiting
