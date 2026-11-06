@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — Reviewer re-check: approve with notes
+- Changed: reviewer re-checked 9023273..2750eb5: approve with notes; 0 new findings. P1 fixed; BUG-Q1 fixed within the PM's scope. Release untouched; rejected switches reach nothing real; no false positive for normal launches. check.sh +1788 ~8 passed.
+- Gates: developer done · tester pass · reviewer approve with notes · QA session 4 pending (needs the PM's Mac free) · PM merge waiting
+- Open findings: none new. With the PM: slips of 4+ edits, about 1.2% of 3-edit slips, 3-way splits. N1, N2, F5 (Windows), R1 unchanged. QA data in the PM's real database to clean up.
+- Decisions: none
+- Blockers: PM — free the Mac for QA; confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; VoiceOver sign-off
+
 ## 2026-11-06 — M1.4 Saved snippets — Tester round 7 passed; reviewer re-check started
 - Changed: tester round 7 on 8c071df (2750eb5, tests only): 95 tests, none skipped; 21 fail on 52dd598, all pass on 8c071df. Every 1-edit slip and 6,000 random 2-edit slips rejected; 19 dash and minus characters, spaces, quotes, two-way splits rejected; about 45 realistic launch arguments and all 22×22 pairs not rejected; rejected forms reach nothing real. check.sh +1788 ~8 passed.
 - Gates: developer done · tester pass · reviewer re-check of 9023273..2750eb5 in progress · QA session 4 pending · PM merge waiting
