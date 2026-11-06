@@ -609,7 +609,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Clear all history?'),
         content: Text(
-          'This deletes all $count ${count == 1 ? 'item' : 'items'}. '
+          // "all 1 item" reads oddly: one item is "the 1 item" (lead,
+          // 2026-11-06, QA-M14-7).
+          '${count == 1 ? 'This deletes the 1 item.' : 'This deletes all $count items.'} '
           'Snippets are not affected.',
         ),
         actions: [

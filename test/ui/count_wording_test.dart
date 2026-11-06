@@ -107,12 +107,14 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('1 item: "This deletes all 1 item."', (tester) async {
+    testWidgets('1 item: "This deletes the 1 item." (lead, 2026-11-06)', (
+      tester,
+    ) async {
       copies(1);
       await show(tester);
       await openClear(tester);
       expect(
-        find.text('This deletes all 1 item. Snippets are not affected.'),
+        find.text('This deletes the 1 item. Snippets are not affected.'),
         findsOneWidget,
       );
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
