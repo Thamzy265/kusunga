@@ -504,7 +504,9 @@ class SnippetsScreenState extends State<SnippetsScreen> {
     return FocusTraversalGroup(
       policy: ListTraversalPolicy(),
       child: SliverSemantics(
-        label: 'Snippets, ${items.length} items',
+        label:
+            'Snippets, ${items.length} '
+            '${items.length == 1 ? 'item' : 'items'}',
         explicitChildNodes: true,
         sliver: SliverPadding(
           padding: EdgeInsets.only(bottom: KusungaTokens.space6 * 2),

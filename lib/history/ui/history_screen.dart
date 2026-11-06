@@ -609,7 +609,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Clear all history?'),
         content: Text(
-          'This deletes all $count items. Snippets are not affected.',
+          'This deletes all $count ${count == 1 ? 'item' : 'items'}. '
+          'Snippets are not affected.',
         ),
         actions: [
           TextButton(
@@ -642,7 +643,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       builder: (context) => AlertDialog(
         content: Text(
           'Keep only the newest $newLimit items? '
-          '$removed older items will be deleted.',
+          '$removed older ${removed == 1 ? 'item' : 'items'} will be '
+          'deleted.',
         ),
         actions: [
           TextButton(
@@ -656,7 +658,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               foregroundColor: KusungaTokens.of(context).surface,
             ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Delete $removed items'),
+            child: Text('Delete $removed ${removed == 1 ? 'item' : 'items'}'),
           ),
         ],
       ),
@@ -785,7 +787,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return FocusTraversalGroup(
       policy: ListTraversalPolicy(),
       child: SliverSemantics(
-        label: 'Clipboard history, ${items.length} items',
+        label:
+            'Clipboard history, ${items.length} '
+            '${items.length == 1 ? 'item' : 'items'}',
         explicitChildNodes: true,
         sliver: SliverPadding(
           padding: EdgeInsets.only(bottom: KusungaTokens.space6 * 2),
