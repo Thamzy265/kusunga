@@ -602,17 +602,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
         pos.viewportDimension / 2;
   }
 
+  // Both confirm dialogs follow the live count while they are open (a copy
+  // can arrive meanwhile), so they always say what confirming deletes
+  // (BUG-W1).
   Future<void> _confirmClear() async {
-    final count = _service.items.length;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Clear all history?'),
-        content: Text(
-          // "all 1 item" reads oddly: one item is "the 1 item" (lead,
-          // 2026-11-06, QA-M14-7).
-          '${count == 1 ? 'This deletes the 1 item.' : 'This deletes all $count items.'} '
-          'Snippets are not affected.',
+        content: ListenableBuilder(
+          listenable: _service,
+          builder: (context, _) {
+            final count = _service.items.length;
+            return Text(
+              // "all 1 item" reads oddly: one item is "the 1 item" (lead,
+              // 2026-11-06, QA-M14-7).
+              '${count == 1 ? 'This deletes the 1 item.' : 'This deletes all $count items.'} '
+              'Snippets are not affected.',
+            );
+          },
         ),
         actions: [
           TextButton(
@@ -639,14 +647,24 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  /// [removed] is the count when the dialog opens; the text then follows
+  /// the live count. If it drops to 0, the dialog says so and confirming
+  /// only sets the limit.
   Future<bool> _confirmLower(int newLimit, int removed) async {
+    int removedNow() => _service.countRemovedBy(newLimit);
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        content: Text(
-          'Keep only the newest $newLimit items? '
-          '$removed older ${removed == 1 ? 'item' : 'items'} will be '
-          'deleted.',
+        content: ListenableBuilder(
+          listenable: _service,
+          builder: (context, _) {
+            final removed = removedNow();
+            return Text(
+              'Keep only the newest $newLimit items? '
+              '$removed older ${removed == 1 ? 'item' : 'items'} will be '
+              'deleted.',
+            );
+          },
         ),
         actions: [
           TextButton(
@@ -660,7 +678,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
               foregroundColor: KusungaTokens.of(context).surface,
             ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Delete $removed ${removed == 1 ? 'item' : 'items'}'),
+            child: ListenableBuilder(
+              listenable: _service,
+              builder: (context, _) {
+                final removed = removedNow();
+                return Text(
+                  'Delete $removed ${removed == 1 ? 'item' : 'items'}',
+                );
+              },
+            ),
           ),
         ],
       ),

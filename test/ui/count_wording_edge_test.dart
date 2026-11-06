@@ -219,7 +219,7 @@ void main() {
       );
       await tester.tap(find.widgetWithText(FilledButton, 'Clear history'));
       await tester.pumpAndSettle();
-    }, skip: true); // BUG-W1 (low)
+    });
   });
 
   // ---- screen-reader names, footers, and changes while shown ----

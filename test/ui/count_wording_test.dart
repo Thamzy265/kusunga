@@ -179,4 +179,68 @@ void main() {
       });
     }
   });
+
+  group('BUG-W1: the Keep dialog follows the count while it is open', () {
+    testWidgets('a copy arrives: "2 older items will be deleted." and '
+        '"Delete 2 items", and confirming deletes those 2', (tester) async {
+      copies(11);
+      await show(tester);
+      await lowerLimitTo10(tester);
+      expect(find.widgetWithText(FilledButton, 'Delete 1 item'), findsOne);
+
+      source.copy('arrived while the dialog was open');
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'Keep only the newest 10 items? 2 older items will be deleted.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(FilledButton, 'Delete 2 items'), findsOne);
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete 2 items'));
+      await tester.pumpAndSettle();
+      expect(service.items.length, 10);
+      expect(service.limit, 10);
+    });
+
+    testWidgets('the count drops to 0 (an item deleted elsewhere): the '
+        'dialog says 0, and confirming sets the limit and deletes nothing', (
+      tester,
+    ) async {
+      copies(11);
+      await show(tester);
+      await lowerLimitTo10(tester);
+      expect(find.widgetWithText(FilledButton, 'Delete 1 item'), findsOne);
+
+      service.delete(service.items.last.id);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'Keep only the newest 10 items? 0 older items will be deleted.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(FilledButton, 'Delete 0 items'), findsOne);
+      final before = [for (final i in service.items) i.id];
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete 0 items'));
+      await tester.pumpAndSettle();
+      expect(service.limit, 10);
+      expect([for (final i in service.items) i.id], before);
+    });
+
+    testWidgets('Cancel after the count changed keeps the old limit and '
+        'every item', (tester) async {
+      copies(11);
+      await show(tester);
+      await lowerLimitTo10(tester);
+      source.copy('arrived while the dialog was open');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(service.limit, 200);
+      expect(service.items.length, 12);
+    });
+  });
 }
