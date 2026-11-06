@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../clipboard/clipboard_source.dart';
 import '../../snippets/ui/snippet_editor.dart';
 import '../../theme/tokens.dart';
+import '../../ui/focus_order.dart';
 import '../clip_item.dart';
 import '../history_service.dart';
 import 'history_row.dart';
@@ -704,32 +705,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _list(List<ClipItem> items, bool setupCard) {
     final now = _nowMs;
-    return SliverSemantics(
-      label: 'Clipboard history, ${items.length} items',
-      explicitChildNodes: true,
-      sliver: SliverPadding(
-        padding: EdgeInsets.only(bottom: KusungaTokens.space6 * 2),
-        sliver: SliverList.separated(
-          itemCount: items.length,
+    // Tab enters the list at the rows in view, and every row it reaches is
+    // scrolled into view (QA-M14-5).
+    return FocusTraversalGroup(
+      policy: ListTraversalPolicy(),
+      child: SliverSemantics(
+        label: 'Clipboard history, ${items.length} items',
+        explicitChildNodes: true,
+        sliver: SliverPadding(
+          padding: EdgeInsets.only(bottom: KusungaTokens.space6 * 2),
+          sliver: SliverList.separated(
+            itemCount: items.length,
 
-          separatorBuilder: (_, _) => SizedBox(height: KusungaTokens.space1),
-          itemBuilder: (context, i) {
-            final item = items[i];
-            return HistoryRow(
-              key: ValueKey(item.id),
-              item: item,
-              focusNode: _nodeFor(item.id),
-              nowMs: now,
-              animateIn: _newIds.contains(item.id),
-              autofocus: i == 0 && !setupCard,
-              onCopy: () => _copy(item.id),
-              onDelete: () => _delete(item.id),
-              onMove: (m) => _move(item.id, m),
-              onDisposedWithFocus: () => _rowLostFocus(item.id),
-              onSaveAsSnippet: () => _saveAsSnippet(item.id),
-              canSaveAsSnippet: _service.snippets.canCreate,
-            );
-          },
+            separatorBuilder: (_, _) => SizedBox(height: KusungaTokens.space1),
+            itemBuilder: (context, i) {
+              final item = items[i];
+              return HistoryRow(
+                key: ValueKey(item.id),
+                item: item,
+                focusNode: _nodeFor(item.id),
+                nowMs: now,
+                animateIn: _newIds.contains(item.id),
+                autofocus: i == 0 && !setupCard,
+                onCopy: () => _copy(item.id),
+                onDelete: () => _delete(item.id),
+                onMove: (m) => _move(item.id, m),
+                onDisposedWithFocus: () => _rowLostFocus(item.id),
+                onSaveAsSnippet: () => _saveAsSnippet(item.id),
+                canSaveAsSnippet: _service.snippets.canCreate,
+              );
+            },
+          ),
         ),
       ),
     );

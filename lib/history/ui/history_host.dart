@@ -7,6 +7,7 @@ import '../../snippets/snippet_service.dart';
 import '../../snippets/ui/snippet_editor.dart';
 import '../../snippets/ui/snippets_screen.dart';
 import '../../theme/tokens.dart';
+import '../../ui/focus_order.dart';
 import '../../ui/tab_strip.dart';
 import '../history_service.dart';
 import 'history_screen.dart';
@@ -225,16 +226,39 @@ class _HistoryHostState extends State<HistoryHost> {
       );
     }
 
+    // Tab goes through the header (tabs, New snippet) before the panel,
+    // wherever the panel is scrolled: rows built just above the view used to
+    // come first, unseen (QA-M14-5).
     return Scaffold(
       backgroundColor: t.surface,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            header,
-            Expanded(child: body),
-          ],
+        child: FocusTraversalGroup(
+          policy: OrderedTraversalPolicy(
+            secondary: revealingReadingOrder(),
+            requestFocusCallback: revealOnTraversal,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              FocusTraversalOrder(
+                order: const NumericFocusOrder(1),
+                child: FocusTraversalGroup(
+                  policy: revealingReadingOrder(),
+                  child: header,
+                ),
+              ),
+              Expanded(
+                child: FocusTraversalOrder(
+                  order: const NumericFocusOrder(2),
+                  child: FocusTraversalGroup(
+                    policy: revealingReadingOrder(),
+                    child: body,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

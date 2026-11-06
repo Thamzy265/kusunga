@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import '../../history/ui/history_row.dart' show RowMove;
 import '../../history/ui/text_display.dart';
 import '../../theme/tokens.dart';
+import '../../ui/focus_order.dart';
 import '../snippet.dart';
 import '../snippet_service.dart';
 import 'snippet_editor.dart';
@@ -443,53 +444,58 @@ class SnippetsScreenState extends State<SnippetsScreen> {
       onDelete: () {},
       onFocusMove: (_) {},
     );
-    return SliverSemantics(
-      label: 'Snippets, ${items.length} items',
-      explicitChildNodes: true,
-      sliver: SliverPadding(
-        padding: EdgeInsets.only(bottom: KusungaTokens.space6 * 2),
-        // Every row has the same height (one line of name, one of content),
-        // so the list measures one prototype row: the place of any row is
-        // known before it is built, and the arrow keys can scroll to it.
-        sliver: SliverPrototypeExtentList.builder(
-          key: _listKey,
-          itemCount: items.length,
-          // Rows keep their element (and focus) when they move.
-          findChildIndexCallback: (key) {
-            if (key is! ValueKey<int>) return null;
-            final i = items.indexWhere((s) => s.id == key.value);
-            return i < 0 ? null : i;
-          },
-          prototypeItem: ExcludeFocus(
-            child: ExcludeSemantics(child: gapped(prototype(items.first))),
-          ),
-          itemBuilder: (context, i) {
-            final item = items[i];
-            final slide = !reduceMotion && move != null && move.id == item.id
-                ? move
-                : null;
-            return KeyedSubtree(
-              key: ValueKey(item.id),
-              child: gapped(
-                SnippetRow(
-                  item: item,
-                  isFirst: i == 0,
-                  isLast: i == items.length - 1,
-                  editable: _service.canEdit,
-                  focusNode: _nodeFor(item.id),
-                  nowMs: now,
-                  slideFrom: slide?.from ?? 0,
-                  slideTick: slide?.tick ?? 0,
-                  onCopy: () => _copy(item.id),
-                  onEdit: () => _edit(item),
-                  onMoveUp: () => _move(item, -1),
-                  onMoveDown: () => _move(item, 1),
-                  onDelete: () => _delete(item),
-                  onFocusMove: (move) => _moveFocus(item.id, move),
+    // Tab enters the list at the rows in view, and every row it reaches is
+    // scrolled into view (QA-M14-5).
+    return FocusTraversalGroup(
+      policy: ListTraversalPolicy(),
+      child: SliverSemantics(
+        label: 'Snippets, ${items.length} items',
+        explicitChildNodes: true,
+        sliver: SliverPadding(
+          padding: EdgeInsets.only(bottom: KusungaTokens.space6 * 2),
+          // Every row has the same height (one line of name, one of content),
+          // so the list measures one prototype row: the place of any row is
+          // known before it is built, and the arrow keys can scroll to it.
+          sliver: SliverPrototypeExtentList.builder(
+            key: _listKey,
+            itemCount: items.length,
+            // Rows keep their element (and focus) when they move.
+            findChildIndexCallback: (key) {
+              if (key is! ValueKey<int>) return null;
+              final i = items.indexWhere((s) => s.id == key.value);
+              return i < 0 ? null : i;
+            },
+            prototypeItem: ExcludeFocus(
+              child: ExcludeSemantics(child: gapped(prototype(items.first))),
+            ),
+            itemBuilder: (context, i) {
+              final item = items[i];
+              final slide = !reduceMotion && move != null && move.id == item.id
+                  ? move
+                  : null;
+              return KeyedSubtree(
+                key: ValueKey(item.id),
+                child: gapped(
+                  SnippetRow(
+                    item: item,
+                    isFirst: i == 0,
+                    isLast: i == items.length - 1,
+                    editable: _service.canEdit,
+                    focusNode: _nodeFor(item.id),
+                    nowMs: now,
+                    slideFrom: slide?.from ?? 0,
+                    slideTick: slide?.tick ?? 0,
+                    onCopy: () => _copy(item.id),
+                    onEdit: () => _edit(item),
+                    onMoveUp: () => _move(item, -1),
+                    onMoveDown: () => _move(item, 1),
+                    onDelete: () => _delete(item),
+                    onFocusMove: (move) => _moveFocus(item.id, move),
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
