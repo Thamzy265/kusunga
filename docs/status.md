@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — QA session 4: fail (QA-M14-5)
+- Changed: QA session 4 on 2750eb5 (rebuilt Debug, CDHash 3f480ddce08cea236227b43ed0f9e5388c920317, signed Apple Development (redacted)); evidence docs/qa/m1.md "M1.4 session 4", 12 screenshots, commit 707f131. AC1, AC2 pass; AC3 pass in the test profile (Keep 10, snippets kept). QA-M14-2 and QA-M14-4 now pass. H1–H7 pass. Four mistyped switches: memory only, dataProfileRejected 3; real data unchanged (439 items, Keep 500). Label checked before every delete step; one step stopped and redone when a dialog hid the label. New: QA-M14-5 (Major): after a wheel scroll, Tab from the Snippets tab focuses a hidden row and Enter copies it. QA-M14-6 (Minor, Debug copy): rejected switch banner blames the keychain. Developer (opus, xhigh) fixing both.
+- Gates: developer in progress (QA-M14-5, -6) · tester pending · reviewer pending · QA fail, re-run needed · PM merge waiting
+- Open findings: QA-M14-5 (Major), QA-M14-6 (Minor); N1, N2, F5 (Windows), R1 unchanged
+- Decisions: none
+- Blockers: QA — 28 QA test entries (history qa-m14-s4-01..17, snippets "qa-m14-s4 snip 01..11") left in the PM's real data, because the label rule blocks deletes there; PM to decide. PM — confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; VoiceOver sign-off
+
 ## 2026-11-06 — M1.4 Saved snippets — Reviewer re-check: approve with notes
 - Changed: reviewer re-checked 9023273..2750eb5: approve with notes; 0 new findings. P1 fixed; BUG-Q1 fixed within the PM's scope. Release untouched; rejected switches reach nothing real; no false positive for normal launches. check.sh +1788 ~8 passed.
 - Gates: developer done · tester pass · reviewer approve with notes · QA session 4 pending (needs the PM's Mac free) · PM merge waiting
