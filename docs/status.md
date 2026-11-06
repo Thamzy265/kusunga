@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — T1, T2 fixed; History text-size focus fix started
+- Changed: developer fixed BUG-T1 (6edb532: Tab into a list judges in-view by the whole row) and BUG-T2 (d9d691f: Snippets keeps the focused control and row in view after a text-size change). check.sh +1887 ~8 ×2. Developer found the same text-size problem in History (focused row can end out of view, WCAG 2.4.11). Lead's call: fix it here, keeping the PM's H5 rule (a text-size change is not a user scroll; waiting focus after a user scroll is left alone).
+- Gates: developer in progress (History text-size focus) · tester round 9 pending · reviewer pending · QA re-run pending · PM merge waiting
+- Open findings: History text-size focus (Low, being fixed); N1, N2, F5 (Windows), R1 unchanged
+- Decisions: none
+- Blockers: PM — free the Mac for the QA re-run (later); confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; VoiceOver sign-off
+
 ## 2026-11-06 — M1.4 Saved snippets — Tester round 8: T1, T2 found
 - Changed: developer fixed the Snippets banner wording for a rejected switch (3ed1ba8; check.sh +1804 ~8 ×2). Tester round 8 on 707f131..3ed1ba8 (e0cbdfe, tests only): 70 new tests pass, 43 fail on the old code; Tab stays in view after every scroll kind, window size, list change; keys act only on in-view rows; banners right in every profile state. check.sh +1882 ~11 passed. Found BUG-T1 (Low): Snippets Tab enters at a cut-off row's Copy button. BUG-T2 (rare): text-size change while a Snippets control has focus breaks the next Shift+Tab. Developer fixing both.
 - Gates: developer in progress (T1, T2) · tester round 8 done · reviewer pending · QA re-run pending · PM merge waiting
