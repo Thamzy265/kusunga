@@ -648,7 +648,7 @@ void main() {
       contains(id),
       reason: 'entered at row $id, which is cut off',
     );
-  }, skip: true);
+  });
 
   testWidgets('BUG-T1 (History): the same', (tester) async {
     fillHistory(60);
@@ -666,7 +666,7 @@ void main() {
       contains(item!.id),
       reason: 'entered at item ${item.id}, which is cut off',
     );
-  }, skip: true);
+  });
 
   // ---- the arrow-key model with the new Tab order ----
 
