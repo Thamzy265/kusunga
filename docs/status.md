@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — BUG-Q1 scope — PM decision
+- Changed: none in code yet. Developer re-dispatched one effort level higher (opus, xhigh) after the P1 fix failed tester round 6.
+- Gates: developer in progress (BUG-Q1) · tester round 7 pending · reviewer pending · QA session 4 pending · PM merge waiting
+- Open findings: BUG-Q1 (Low) being fixed; N1, N2, F5 (Windows), R1 unchanged
+- Decisions: PM said (2026-11-06): "Common slips + label check" — in answer to "How far should the developer take the mistyped-switch fix?" Scope: the developer also rejects typos within a few letters of the switch, any dash or minus character, leading spaces and quotes, and the switch split across two arguments (Q1a, Q1c, Q1d, Q1e, Q1f); QA must confirm the "Test profile: qa" label with its tools before any step that deletes data, and stop if it is missing.
+- Risk accepted by PM (2026-11-06): accepted: a few rare test-profile switch slips still open the real data folder in Debug builds, such as part of the switch left out (`-Profile` alone, Q1b) or look-alike letters from other alphabets (Q1g); QA's label check covers them during QA — scope: M1.4, feat/saved-snippets, BUG-Q1b and Q1g, Debug builds only — expiry/review: none — PM said: "Common slips + label check" — in answer to "How far should the developer take the mistyped-switch fix?" (the option said the remaining rare cases would be accepted as a risk)
+- Blockers: PM — GitHub billing or acceptance of local results for M1.4; VoiceOver sign-off
+
 ## 2026-11-06 — M1.4 Saved snippets — Tester round 6: P1 fix incomplete (BUG-Q1)
 - Changed: tester round 6 on 21c17b4 (52dd598, tests only): 63 tests pass, 7 skipped repros. 22 misspelled variants are rejected and reach nothing real (real folder byte for byte unchanged, no keychain call, no log). But 76 realistic slips still open the real folder (BUG-Q1): Q1a typo inside a word (-KusungaDataProfle), Q1b part left out (-DataProfile, -Kusunga), Q1c dash forgotten, Q1d other dash or minus characters, Q1e leading space or quote, Q1f switch split across arguments, Q1g look-alike letters (low realism). check.sh +1637 ~13 passed.
 - Gates: developer open (BUG-Q1) · tester round 6 done · reviewer pending · QA session 4 pending · PM merge waiting
