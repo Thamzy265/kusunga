@@ -768,7 +768,7 @@ void main() {
           'Enter on Delete did not delete (it copied: '
           '${source.ownWrites.length} copies)',
     );
-  }, skip: true);
+  });
 
   testWidgets('BUG-K1 (History): Enter on a focused Delete or Save as '
       'snippet button activates that button', (tester) async {
@@ -791,7 +791,7 @@ void main() {
       isFalse,
       reason: 'Enter on Delete did not delete',
     );
-  }, skip: true);
+  });
 
   // ---- the picker ----
 

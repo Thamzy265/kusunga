@@ -142,6 +142,10 @@ class _HistoryRowState extends State<HistoryRow>
       widget.onMove(RowMove.first);
     } else if (key == LogicalKeyboardKey.end) {
       widget.onMove(RowMove.last);
+    } else if (!node.hasPrimaryFocus) {
+      // On a row button (Copy, Save as snippet, Delete), Enter and Space
+      // activate that button: the row's own keys are for the row (BUG-K1).
+      return KeyEventResult.ignored;
     } else if (key == LogicalKeyboardKey.enter ||
         key == LogicalKeyboardKey.numpadEnter) {
       widget.onCopy();

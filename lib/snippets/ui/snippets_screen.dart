@@ -656,6 +656,10 @@ class _SnippetRowState extends State<SnippetRow> {
       widget.onFocusMove(RowMove.first);
     } else if (key == LogicalKeyboardKey.end) {
       widget.onFocusMove(RowMove.last);
+    } else if (!node.hasPrimaryFocus) {
+      // On a row button (Copy, Edit, Move, Delete, More), Enter and Space
+      // activate that button: the row's own keys are for the row (BUG-K1).
+      return KeyEventResult.ignored;
     } else if (key == LogicalKeyboardKey.enter ||
         key == LogicalKeyboardKey.numpadEnter) {
       widget.onCopy();
