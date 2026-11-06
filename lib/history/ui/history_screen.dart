@@ -79,6 +79,51 @@ class _HistoryScreenState extends State<HistoryScreen> {
     });
   }
 
+  TextScaler? _textScaler;
+
+  /// The row kept built while a text-size change re-lays out the list (see
+  /// [_keepFocusThroughTextSize]); null otherwise.
+  int? _holdId;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final scaler = MediaQuery.textScalerOf(context);
+    if (_textScaler != null && scaler != _textScaler) {
+      _keepFocusThroughTextSize();
+    }
+    _textScaler = scaler;
+  }
+
+  /// A text-size change makes every row taller or shorter, so the focused
+  /// row can move out of view, or out of the built range (and its focused
+  /// control with it). It is not a user scroll (H5, PM decision
+  /// 2026-11-05): the focused row is scrolled back fully into view and the
+  /// same control keeps the focus (lead rule after BUG-T2). Called before
+  /// the new layout, so the row is held built through it. Focus waiting on
+  /// the screen after a user scroll is left as it is.
+  void _keepFocusThroughTextSize() {
+    final control = FocusManager.instance.primaryFocus;
+    int? rowId;
+    for (final MapEntry(key: id, value: node) in _nodes.entries) {
+      if (node.hasFocus) rowId = id;
+    }
+    if (control == null || rowId == null) return;
+    final id = rowId;
+    _holdId = id;
+    final ticket = ++_focusTicket;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && ticket == _focusTicket) {
+        _showAndFocus(id, control: control);
+      }
+    });
+  }
+
+  /// Ends a hold once a focus request has brought its row back (or gave up).
+  void _releaseHold() {
+    if (_holdId != null && mounted) setState(() => _holdId = null);
+  }
+
   @override
   void dispose() {
     _service.removeListener(_onChange);
@@ -252,6 +297,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) => node.dispose());
     }
     _newIds.removeWhere((id) => !ids.contains(id));
+    if (_holdId != null && !ids.contains(_holdId)) _holdId = null;
   }
 
   void _toast(String message, {SnackBarAction? action, Duration? duration}) {
@@ -396,16 +442,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
   /// until it is built). [end]: the request is for the first or last row, so
   /// if that row goes meanwhile (a full history trims its oldest copy) the
   /// new first or last row is the target (BUG-H1).
-  void _showAndFocus(int id, {_End? end}) {
+  ///
+  /// [control]: a control in that row to give the focus to instead of the
+  /// row itself, while it is still there (a text-size change).
+  void _showAndFocus(int id, {_End? end, FocusNode? control}) {
     final index = _service.items.indexWhere((e) => e.id == id);
-    _focusStep(id, index, end, ++_focusTicket, 200);
+    _focusStep(id, index, end, ++_focusTicket, 200, control);
   }
 
-  void _focusStep(int id, int index, _End? end, int ticket, int triesLeft) {
+  void _focusStep(
+    int id,
+    int index,
+    _End? end,
+    int ticket,
+    int triesLeft,
+    FocusNode? control,
+  ) {
     if (!mounted || ticket != _focusTicket) return;
     final items = _service.items;
     if (items.isEmpty) {
       _focusPending = false;
+      _releaseHold();
       _screenFocus.requestFocus();
       return;
     }
@@ -424,24 +481,36 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
     final node = _nodes[id];
     final box = _laidOutRow(node);
+    FocusNode target(FocusNode row) =>
+        control != null &&
+            (control.context?.mounted ?? false) &&
+            (control == row || control.ancestors.contains(row))
+        ? control
+        : row;
     if (node != null && box != null) {
       _focusPending = false;
       _lostFocusId = null;
       box.showOnScreen();
-      node.requestFocus();
+      final to = target(node);
+      if (!to.hasPrimaryFocus) to.requestFocus();
+      _releaseHold();
       return;
     }
     // A row that is built but off screen (the focused row is kept alive when
     // new copies push it down) takes the focus now; the scroll follows.
-    if (node != null && (node.context?.mounted ?? false)) node.requestFocus();
+    if (node != null && (node.context?.mounted ?? false)) {
+      final to = target(node);
+      if (!to.hasPrimaryFocus) to.requestFocus();
+    }
     if (triesLeft == 0 || !_scroll.hasClients) {
       _focusPending = false;
+      _releaseHold();
       return;
     }
     _focusPending = true;
     _scrollTowards(at, items);
     WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _focusStep(id, at, end, ticket, triesLeft - 1),
+      (_) => _focusStep(id, at, end, ticket, triesLeft - 1, control),
     );
     WidgetsBinding.instance.ensureVisualUpdate();
   }
@@ -474,7 +543,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       if (box != null) {
         box.showOnScreen();
       } else {
-        _showAndFocus(id);
+        _showAndFocus(id, control: FocusManager.instance.primaryFocus);
       }
       return;
     }
@@ -739,6 +808,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 onDisposedWithFocus: () => _rowLostFocus(item.id),
                 onSaveAsSnippet: () => _saveAsSnippet(item.id),
                 canSaveAsSnippet: _service.snippets.canCreate,
+                keepAlive: item.id == _holdId,
               );
             },
           ),

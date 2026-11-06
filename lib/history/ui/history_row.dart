@@ -22,6 +22,7 @@ class HistoryRow extends StatefulWidget {
     required this.onSaveAsSnippet,
     required this.canSaveAsSnippet,
     this.onDisposedWithFocus,
+    this.keepAlive = false,
   });
 
   final ClipItem item;
@@ -47,6 +48,11 @@ class HistoryRow extends StatefulWidget {
   /// The row goes away (scrolled out of the built range) while it has focus.
   final VoidCallback? onDisposedWithFocus;
 
+  /// Kept built off screen. Only while a text-size change re-lays out the
+  /// list, so the focused control in this row survives until the row is
+  /// back in view; never otherwise (a hidden row must not keep the focus).
+  final bool keepAlive;
+
   /// The accessible name: "Link: https://example.com…, copied 2 minutes ago".
   static String semanticName(ClipItem item, int nowMs) {
     final kind = item.kind == ClipKind.link ? 'Link' : 'Text';
@@ -63,7 +69,11 @@ class HistoryRow extends StatefulWidget {
 
 enum RowMove { previous, next, first, last }
 
-class _HistoryRowState extends State<HistoryRow> {
+class _HistoryRowState extends State<HistoryRow>
+    with AutomaticKeepAliveClientMixin<HistoryRow> {
+  @override
+  bool get wantKeepAlive => widget.keepAlive;
+
   var _hovered = false;
   var _within = false;
   late final bool _animateIn = widget.animateIn;
@@ -81,6 +91,7 @@ class _HistoryRowState extends State<HistoryRow> {
   @override
   void didUpdateWidget(HistoryRow old) {
     super.didUpdateWidget(old);
+    if (old.keepAlive != widget.keepAlive) updateKeepAlive();
     if (old.focusNode != widget.focusNode) {
       old.focusNode.removeListener(_rebuild);
       widget.focusNode.addListener(_rebuild);
@@ -95,8 +106,18 @@ class _HistoryRowState extends State<HistoryRow> {
     // the screen decides where the focus goes, so it never falls to whatever
     // row had it before (BUG-H3).
     if (_hadFocus) widget.onDisposedWithFocus?.call();
+    _copyFocus.dispose();
+    _saveFocus.dispose();
+    _deleteFocus.dispose();
     super.dispose();
   }
+
+  // The buttons' nodes live as long as the row: at a breakpoint (200% text,
+  // for one) the buttons are rebuilt in another layout, and the screen can
+  // then give the focus back to the same button (lead rule after BUG-T2).
+  final _copyFocus = FocusNode(debugLabel: 'history row Copy');
+  final _saveFocus = FocusNode(debugLabel: 'history row Save as snippet');
+  final _deleteFocus = FocusNode(debugLabel: 'history row Delete');
 
   /// Whether the row had the focus at the last focus change. Read in
   /// [dispose]: by then the Focus below has already let go of the node.
@@ -140,6 +161,7 @@ class _HistoryRowState extends State<HistoryRow> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final t = KusungaTokens.of(context);
     final item = widget.item;
     final active = _hovered || _within || widget.focusNode.hasFocus;
@@ -174,6 +196,7 @@ class _HistoryRowState extends State<HistoryRow> {
     final copyButton = hideUnlessActive(
       _RowButton(
         identifier: 'history-copy-${item.id}',
+        focusNode: _copyFocus,
         label: 'Copy',
         description: description,
         onPressed: widget.onCopy,
@@ -182,6 +205,7 @@ class _HistoryRowState extends State<HistoryRow> {
     final saveButton = hideUnlessActive(
       _RowButton(
         identifier: 'history-save-snippet-${item.id}',
+        focusNode: _saveFocus,
         label: 'Save as snippet',
         description: description,
         onPressed: widget.canSaveAsSnippet ? widget.onSaveAsSnippet : null,
@@ -190,6 +214,7 @@ class _HistoryRowState extends State<HistoryRow> {
     final deleteButton = hideUnlessActive(
       _RowButton(
         identifier: 'history-delete-${item.id}',
+        focusNode: _deleteFocus,
         label: 'Delete',
         description: description,
         onPressed: widget.onDelete,
@@ -328,6 +353,7 @@ class _HistoryRowState extends State<HistoryRow> {
 class _RowButton extends StatelessWidget {
   const _RowButton({
     required this.identifier,
+    required this.focusNode,
     required this.label,
     required this.description,
     required this.onPressed,
@@ -335,6 +361,7 @@ class _RowButton extends StatelessWidget {
   });
 
   final String identifier;
+  final FocusNode focusNode;
   final String label;
   final String description;
   final VoidCallback? onPressed;
@@ -352,6 +379,7 @@ class _RowButton extends StatelessWidget {
       excludeSemantics: true,
       onTap: onPressed,
       child: TextButton(
+        focusNode: focusNode,
         onPressed: onPressed,
         style: TextButton.styleFrom(
           foregroundColor: danger ? t.danger : t.text,

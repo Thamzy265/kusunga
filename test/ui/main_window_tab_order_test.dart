@@ -50,8 +50,8 @@ void main() {
     }
   }
 
-  void fillHistory(int n) {
-    for (var i = 1; i <= n; i++) {
+  void fillHistory(int n, [int from = 1]) {
+    for (var i = from; i < from + n; i++) {
       source.copy('history item $i');
     }
   }
@@ -369,6 +369,177 @@ void main() {
         await press(tester);
         expect(focusedHook(), 'snippet-more-$id');
         expectFocusInView(tester, 'Tab on');
+        expect(tester.takeException(), isNull);
+      });
+    }
+  });
+
+  group('a text-size change while a History row has the focus (lead rule '
+      'after BUG-T2)', () {
+    // A text-size change is not a user scroll (H5): the focused row is
+    // scrolled back fully into view and the same control keeps the focus.
+    // Focus waiting on the screen after a user scroll stays where it is.
+    ScrollPosition historyScroll(WidgetTester tester) => tester
+        .state<ScrollableState>(
+          find.descendant(
+            of: find.byType(HistoryScreen),
+            matching: find.byType(Scrollable),
+          ),
+        )
+        .position;
+
+    List<HistoryRow> historyRowsFullyInView(WidgetTester tester) {
+      final viewport = tester.getRect(
+        find.descendant(
+          of: find.byType(HistoryScreen),
+          matching: find.byType(Viewport),
+        ),
+      );
+      final rows = <(double, HistoryRow)>[];
+      for (final e in find.byType(HistoryRow).evaluate()) {
+        final r = tester.getRect(find.byWidget(e.widget));
+        if (r.top >= viewport.top - 0.5 && r.bottom <= viewport.bottom + 0.5) {
+          rows.add((r.top, e.widget as HistoryRow));
+        }
+      }
+      rows.sort((a, b) => a.$1.compareTo(b.$1));
+      return [for (final r in rows) r.$2];
+    }
+
+    /// Tab from the History tab until a row's own node has the focus.
+    Future<void> tabIntoRows(WidgetTester tester) async {
+      await tapTab(tester, 'main-tab-history');
+      var guard = 0;
+      while (focusedWidget<HistoryRow>()?.focusNode !=
+              FocusManager.instance.primaryFocus &&
+          guard++ < 12) {
+        await press(tester);
+      }
+      expect(focusedWidget<HistoryRow>(), isNotNull);
+    }
+
+    Future<void> expectSameFocusInView(
+      WidgetTester tester,
+      FocusNode before,
+      String step,
+    ) async {
+      expect(
+        identical(FocusManager.instance.primaryFocus, before),
+        isTrue,
+        reason:
+            '$step: the focus moved from $before to '
+            '${FocusManager.instance.primaryFocus}',
+      );
+      expectFocusInView(tester, step);
+    }
+
+    for (final size in [const Size(520, 400), const Size(800, 632)]) {
+      final w = '${size.width.toInt()} px';
+
+      testWidgets('$w, arrow keys in use: the same row keeps the focus, in '
+          'view, and Down goes on from it', (tester) async {
+        fillHistory(60);
+        await show(tester, size: size);
+        await wheel(tester, HistoryScreen, 900);
+        await tabIntoRows(tester);
+        for (var i = 0; i < 3; i++) {
+          await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+        }
+        await tester.pumpAndSettle();
+        final before = FocusManager.instance.primaryFocus!;
+        final item = focusedWidget<HistoryRow>()!.item;
+        final next =
+            service.items[service.items.indexWhere((e) => e.id == item.id) + 1];
+
+        textScale.value = 2;
+        await tester.pumpAndSettle();
+
+        await expectSameFocusInView(tester, before, 'after the text size');
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+        await tester.pumpAndSettle();
+        expect(focusedWidget<HistoryRow>()?.item.id, next.id);
+        expectFocusInView(tester, 'Down after the text size');
+      });
+
+      testWidgets('$w, a control in a row (Copy, by Tab): the same control '
+          'keeps the focus, in view', (tester) async {
+        fillHistory(60);
+        await show(tester, size: size);
+        await wheel(tester, HistoryScreen, 900);
+        await tabIntoRows(tester);
+        await press(tester);
+        expect(focusedHook(), startsWith('history-copy-'));
+        final before = FocusManager.instance.primaryFocus!;
+
+        textScale.value = 2;
+        await tester.pumpAndSettle();
+
+        await expectSameFocusInView(tester, before, 'after the text size');
+      });
+
+      testWidgets('$w, a row focused by a click: the same row keeps the '
+          'focus, in view', (tester) async {
+        fillHistory(60);
+        await show(tester, size: size);
+        await wheel(tester, HistoryScreen, 900);
+        final rows = historyRowsFullyInView(tester);
+        final row = rows[rows.length - 1];
+        final rect = tester.getRect(find.byWidget(row));
+        await tester.tapAt(Offset(rect.left + 40, rect.center.dy));
+        await tester.pumpAndSettle();
+        expect(
+          identical(FocusManager.instance.primaryFocus, row.focusNode),
+          isTrue,
+        );
+
+        textScale.value = 2;
+        await tester.pumpAndSettle();
+
+        await expectSameFocusInView(tester, row.focusNode, 'after the size');
+      });
+
+      testWidgets('$w, focus waiting on the screen after a wheel scroll: '
+          'no scroll and no focus change', (tester) async {
+        fillHistory(60);
+        await show(tester, size: size);
+        final rows = historyRowsFullyInView(tester);
+        final rect = tester.getRect(find.byWidget(rows.first));
+        await tester.tapAt(Offset(rect.left + 40, rect.center.dy));
+        await tester.pumpAndSettle();
+        await wheel(tester, HistoryScreen, 6000);
+        expect(focusedWidget<HistoryRow>(), isNull, reason: 'not waiting');
+        final waiting = FocusManager.instance.primaryFocus;
+        final pixels = historyScroll(tester).pixels;
+
+        textScale.value = 2;
+        await tester.pumpAndSettle();
+
+        expect(identical(FocusManager.instance.primaryFocus, waiting), isTrue);
+        expect(focusedWidget<HistoryRow>(), isNull);
+        expect(historyScroll(tester).pixels, pixels, reason: 'it scrolled');
+      });
+
+      testWidgets('$w, arrow keys in use, copies arriving just before and '
+          'after the text-size change: the same row keeps the focus, in '
+          'view', (tester) async {
+        fillHistory(60);
+        await show(tester, size: size);
+        await wheel(tester, HistoryScreen, 900);
+        await tabIntoRows(tester);
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+        await tester.pumpAndSettle();
+        final before = FocusManager.instance.primaryFocus!;
+        final item = focusedWidget<HistoryRow>()!.item;
+
+        fillHistory(3, 1000);
+        textScale.value = 2;
+        await tester.pump();
+        fillHistory(2, 2000);
+        await tester.pumpAndSettle();
+
+        await expectSameFocusInView(tester, before, 'after copies and size');
+        expect(focusedWidget<HistoryRow>()?.item.id, item.id);
         expect(tester.takeException(), isNull);
       });
     }
