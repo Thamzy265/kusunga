@@ -68,6 +68,50 @@ void main() {
     expect(find.text(switchText), findsNothing);
   });
 
+  group('the Snippets tab', () {
+    const snippetsKeychainText =
+        "Snippets can't be opened right now, because Kusunga can't reach "
+        'your keychain.';
+    const snippetsSwitchText =
+        "Snippets can't be opened right now, because the test profile switch "
+        "wasn't recognised.";
+
+    Future<void> openSnippets(WidgetTester tester) async {
+      await tester.tap(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Semantics && w.properties.identifier == 'main-tab-snippets',
+        ),
+      );
+      await tester.pump();
+    }
+
+    testWidgets('a rejected switch: the banner names the switch, not the '
+        'keychain', (tester) async {
+      await show(tester, host(rejected: true));
+      await openSnippets(tester);
+      expect(find.text(snippetsSwitchText), findsOneWidget);
+      expect(find.text(snippetsKeychainText), findsNothing);
+    });
+
+    testWidgets('no rejected switch (and every Release build): the keychain '
+        'text, unchanged', (tester) async {
+      await show(tester, host(rejected: false));
+      await openSnippets(tester);
+      expect(find.text(snippetsKeychainText), findsOneWidget);
+      expect(find.text(snippetsSwitchText), findsNothing);
+    });
+
+    testWidgets('the app passes it to the Snippets tab', (tester) async {
+      await show(
+        tester,
+        KusungaApp(history: Future.value(service), dataProfileRejected: true),
+      );
+      await openSnippets(tester);
+      expect(find.text(snippetsSwitchText), findsOneWidget);
+    });
+  });
+
   testWidgets('the app passes it to the main window', (tester) async {
     await show(
       tester,

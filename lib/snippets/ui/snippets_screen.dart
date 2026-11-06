@@ -21,9 +21,18 @@ export 'snippet_text.dart' show OneLine;
 /// with Copy, Edit, Move up, Move down and Delete (with Undo). Spec:
 /// `docs/ui/saved-snippets.md`.
 class SnippetsScreen extends StatefulWidget {
-  const SnippetsScreen({super.key, required this.service, this.now});
+  const SnippetsScreen({
+    super.key,
+    required this.service,
+    this.now,
+    this.dataProfileRejected = false,
+  });
 
   final SnippetService service;
+
+  /// A test profile switch was given but not recognised (Debug builds
+  /// only): the banner names the switch, not the keychain (QA-M14-6).
+  final bool dataProfileRejected;
 
   /// Unix milliseconds; replaced in tests.
   final int Function()? now;
@@ -381,6 +390,8 @@ class SnippetsScreenState extends State<SnippetsScreen> {
                                 _Banner(
                                   banner: b,
                                   reason: _service.unavailableReason,
+                                  dataProfileRejected:
+                                      widget.dataProfileRejected,
                                   onRetry: _service.reload,
                                 ),
                             ],
@@ -929,11 +940,13 @@ class _Banner extends StatelessWidget {
   const _Banner({
     required this.banner,
     required this.reason,
+    required this.dataProfileRejected,
     required this.onRetry,
   });
 
   final SnippetBanner banner;
   final SnippetsUnavailable reason;
+  final bool dataProfileRejected;
   final VoidCallback onRetry;
 
   @override
@@ -942,6 +955,11 @@ class _Banner extends StatelessWidget {
     final text = switch (banner) {
       // UI spec, Copy, "Banners" (by mode).
       SnippetBanner.unavailable => switch (reason) {
+        // Debug builds only: the keychain is fine, the switch was the cause
+        // (QA-M14-6).
+        SnippetsUnavailable.keychain when dataProfileRejected =>
+          "Snippets can't be opened right now, because the test profile "
+              "switch wasn't recognised.",
         SnippetsUnavailable.keychain =>
           "Snippets can't be opened right now, because Kusunga can't reach "
               'your keychain.',

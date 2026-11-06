@@ -230,7 +230,11 @@ class _HistoryHostState extends State<HistoryHost> {
           _panel(
             1,
             'Snippets',
-            SnippetsScreen(key: _snippetsKey, service: service.snippets),
+            SnippetsScreen(
+              key: _snippetsKey,
+              service: service.snippets,
+              dataProfileRejected: widget.dataProfileRejected,
+            ),
           ),
         ],
       );
