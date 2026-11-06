@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — K1, T3 fixed; tester round 10 started
+- Changed: developer fixed BUG-K1 in 9206ad7 (row shortcuts act only when the row has focus; Enter and Space activate the focused button; Delete on a button no longer deletes the row) and BUG-T3 in a1e3e55 (cause: off-screen kept-alive row painted through its own repaint boundary; Snippets rows no longer get one). check.sh +1974 ~8 ×2. Tester round 10 on a4c06a0..a1e3e55 started.
+- Gates: developer done · tester round 10 in progress · reviewer pending · QA re-run pending · PM merge waiting
+- Open findings: none open; N1, N2, F5 (Windows), R1 unchanged
+- Decisions: none
+- Blockers: PM — free the Mac for the QA re-run (later); confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; VoiceOver sign-off
+
 ## 2026-11-06 — M1.4 Saved snippets — Tester round 9: K1, T3 found
 - Changed: tester round 9 on e0cbdfe..d892b56 (a4c06a0, tests only): 55 tests, 26 fail on the old code; T1, T2 and History text-size fixes hold (sequences, flings, resizes, copies, trims, no leaked hold, H5 kept, disposal clean). check.sh +1949 ~11 passed. Found BUG-K1 (medium, accessibility, existed before): Enter on a focused row button (Delete, Save as snippet) runs the row's copy instead of the button. BUG-T3 (low): one-frame layout overflow in Snippets after a text-size change while scrolled. Note: History header overflows at 300% text (beyond the 200% requirement). Developer fixing K1 and T3.
 - Gates: developer in progress (K1, T3) · tester round 9 done · reviewer pending · QA re-run pending · PM merge waiting
