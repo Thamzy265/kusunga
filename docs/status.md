@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — BUG-Q1 fixed; tester round 7 started
+- Changed: developer (opus, xhigh) fixed BUG-Q1 in 8c071df: in Debug, slips within 3 edits of the switch (with or without a dash), any dash or minus, leading spaces or quotes, and a switch split across two arguments are rejected (memory only, dataProfileRejected 3). Q1a, Q1c, Q1d, Q1e, Q1f repros unskipped and pass; Q1b, Q1g stay skipped (PM risk acceptance 2026-11-06). check.sh +1693 ~8 passed ×2. No false positive in 66 realistic launch-argument sets.
+- Gates: developer done · tester round 7 in progress · reviewer pending · QA session 4 pending · PM merge waiting
+- Open findings: none new. Not caught (to confirm with PM under the 2026-11-06 acceptance): slips of 4 or more edits; a switch split across 3 or more arguments.
+- Decisions: none
+- Blockers: PM — confirm the two extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; VoiceOver sign-off
+
 ## 2026-11-06 — M1.4 Saved snippets — BUG-Q1 scope — PM decision
 - Changed: none in code yet. Developer re-dispatched one effort level higher (opus, xhigh) after the P1 fix failed tester round 6.
 - Gates: developer in progress (BUG-Q1) · tester round 7 pending · reviewer pending · QA session 4 pending · PM merge waiting
