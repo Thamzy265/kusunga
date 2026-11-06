@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — QA session 5: pass; cleanup done
+- Changed: QA session 5 on cc231ff (Debug, app CDHash 3f480ddce08cea236227b43ed0f9e5388c920317, App.framework 27d97311fc0e7e6418217d99bffc432738d5ccc9, signed Apple Development (redacted)); evidence docs/qa/m1.md "M1.4 session 5", 16 screenshots, commit e061fce. AC1, AC2, AC3 pass (smoke, test profile). QA-M14-5, QA-M14-6 now pass; T1, K1 (5/5), H7 pass on the real app; T2 and History text-size are widget tests only (no allowed text-size setting). Label checked before every delete step. Cleanup under the PM's "QA removes them": real history 444 → 427 (qa-m14-s4-01..17), snippets 11 → 0, picker search "qa-m14" finds nothing, Keep 500, Clear history not used. New: QA-M14-7 (Minor, wording from M1.2): "1 older items", "Delete 1 items"; developer fixing. QA mis-clicks with no visible effect: one on the PM's Chrome window, one in the Claude app transcript, one Save as snippet discarded; QA's click helper now refuses clicks outside Kusunga and TextEdit.
+- Gates: developer in progress (QA-M14-7) · tester pass · reviewer approve with notes · QA pass (session 5) · PM merge waiting
+- Open findings: QA-M14-7 (Minor); N1, N2, F5 (Windows), R1 unchanged; VoiceOver: stale "moved to position" text in the AX tree to check
+- Decisions: none
+- Blockers: PM — VoiceOver sign-off; confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4
+
 ## 2026-11-06 — M1.4 Saved snippets — Reviewer re-check: approve with notes
 - Changed: reviewer re-checked 2750eb5..cc231ff: approve with notes, 0 new findings. QA-M14-5, -6, BUG-T1, T2, T3, K1 fixed. Focus order holds no state; the text-size hold is always released; no new banner text in Release; repaint change cost small. check.sh +2103 ~8 passed.
 - Gates: developer done · tester pass · reviewer approve with notes · QA re-run pending (needs the PM's Mac free) · PM merge waiting
