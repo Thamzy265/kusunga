@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — H7 fixed; L5 skipped — PM decision
+- Changed: developer fixed BUG-H7 (arrow keys did nothing after a copy and a mouse-wheel scroll in History) in d966b6f; check.sh 1,537 passed ×2. Developer did not fix BUG-L5: dart:io file locks work per process, so two Kusunga processes writing the log at the same instant can lose or garble about 1–2 lines in 1,000. Fix options were native append (FFI on Mac and Windows) or a lock file that can freeze the app if it crashes while holding the lock. Diagnostic log only; history and snippets are not affected; the risk existed before M1.4.
+- Gates: developer done · tester round 5 in progress · reviewer re-review pending · QA session 4 pending · PM merge waiting
+- Open findings: BUG-L5 skipped by PM decision (its test stays skipped); earlier Low notes N1, N2, F5 (Windows), R1 unchanged
+- Decisions: Risk accepted by PM (2026-11-06): accepted: rare lost or garbled diagnostic log lines when two Kusunga processes write the log at the same instant (BUG-L5) — scope: M1.4, feat/saved-snippets, finding BUG-L5 — expiry/review: Later line in docs/PLAN.md — PM said: "Skip it" — in answer to "May we leave the lost log lines unfixed for now?"
+- Blockers: PM — GitHub billing or acceptance of local results for M1.4; VoiceOver sign-off
+
 ## 2026-11-05 — M1.4 Saved snippets — Round-3 fixes done; End speed deferred — PM decision
 - Changed: developer fixed L4, L2, L3 (4375e75: per-line log open with a link check) and H4, H6, H5 (6961ab2: focus follows the item by id; nearest item on trim; list kept in view only while the arrow keys are used). check.sh 1,505 passed ×2. Profile-build timing: End over 5,000 History rows 4.8 s (4.9 s with copies). Found: Flutter 3.44.6 profile/release macOS builds fail on macOS 27 (`lipo`); added as an M1.9 AC.
 - Gates: developer done · tester round 4 in progress · reviewer · QA · PM merge waiting

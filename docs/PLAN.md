@@ -113,6 +113,7 @@ Needs its own design note and deck. Mobile cannot record clipboard history in th
 
 ## Later
 
+- Lost or garbled log lines when two Kusunga processes write the diagnostic log at the same instant (BUG-L5) — dart:io file locks are per process; a fix needs native append on Mac and Windows — trigger: ≥ 1 support case where a needed log line is missing or garbled, or the next change to the log writer — noted 2026-11-06 by lead (PM chose to skip)
 - End in a long History list is slow (about 4.8 s over 5,000 items in a profile build) because rows are 1–2 lines tall and every row on the way is laid out — fix: one fixed row height for History, as Snippets has — trigger: ≥ 3 beta reports of a slow End or Home, or > 10% of beta users set Keep above 1,000 — noted 2026-11-05 by lead (PM chose to defer)
 - Images and files in history — not needed for the core text use case — trigger: > 30% of beta users ask for it in feedback, or > 20 requests — noted 2026-11-03 by lead
 - Linux desktop — small share of users — trigger: > 100 requests or > 5% of website visits from Linux — noted 2026-11-03 by lead
