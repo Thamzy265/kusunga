@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — Tester round 10 passed; reviewer re-check started
+- Changed: tester round 10 on a4c06a0..a1e3e55 (cc231ff, tests only): 127 tests, 41 fail on the old code; K1 and T3 fixes hold (every key on every row control, More menu, picker unchanged, waiting focus, Undo, moved and deleted rows, paint read from pixels, no error in any frame). No bugs. check.sh +2103 ~8 passed. Reviewer re-check of 2750eb5..cc231ff started.
+- Gates: developer done · tester pass · reviewer re-check in progress · QA re-run pending · PM merge waiting
+- Open findings: none; N1, N2, F5 (Windows), R1 unchanged
+- Decisions: none
+- Blockers: PM — free the Mac for the QA re-run (later); confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; VoiceOver sign-off
+
 ## 2026-11-06 — M1.4 Saved snippets — K1, T3 fixed; tester round 10 started
 - Changed: developer fixed BUG-K1 in 9206ad7 (row shortcuts act only when the row has focus; Enter and Space activate the focused button; Delete on a button no longer deletes the row) and BUG-T3 in a1e3e55 (cause: off-screen kept-alive row painted through its own repaint boundary; Snippets rows no longer get one). check.sh +1974 ~8 ×2. Tester round 10 on a4c06a0..a1e3e55 started.
 - Gates: developer done · tester round 10 in progress · reviewer pending · QA re-run pending · PM merge waiting
