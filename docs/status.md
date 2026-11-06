@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — Tester round 13: BUG-F1 withdrawn; reviewer re-check started
+- Changed: tester round 13 (b1d966d, tests only) agrees with no_change_needed for BUG-F1 and withdraws it as an app bug: reproduced the freeze with the original setUp, confirmed the zone cause with a direct probe, and found no path in the real app that creates the timer outside the root zone (no runZoned, Zone fork, Isolate or compute in lib/; FFI is synchronous; platform-channel callbacks run in the root zone). No hollow tests: every footer assertion read and checked; a temporary zone log over the full suite was removed (git diff empty). New test/ci/zone_assumption_test.dart (3 tests): the trap shown both ways, a lib scan for zones and isolates, and a list of lib files allowed to create a Timer. check.sh +2200 ~8 passed. Reviewer re-check of cc231ff..b1d966d started.
+- Gates: developer done · tester pass (round 13) · reviewer re-check in progress · QA pass (session 5), footer real-app check open · PM merge waiting
+- Open findings: none open (BUG-F1 withdrawn); N1, N2, F5 (Windows), R1 unchanged; VoiceOver: stale "moved to position" text to check
+- Decisions: none
+- Blockers: PM — dialog text at a count of 0; VoiceOver sign-off; confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4
+
 ## 2026-11-06 — M1.4 Saved snippets — BUG-F1 disputed by the developer (test setup, not app)
 - Changed: developer traced BUG-F1: the tester's setUp creates the HistoryService outside the test's fake-time zone, so the footer's 2-second throttle timer is created in the real zone and never fires under tester.pump; the footer stays held. Evidence: trace (hold armed, no timer fired), 2.1 s of real time releases it, and the same steps with the service created inside the test follow every copy ("8 of 200 items"). lib/ has no custom zones. List names and the Snippets footer follow. No app change; 61b699f (tests only): corrected repro un-skipped, new test/history/ui/footer_follows_count_test.dart (14 tests). check.sh +2197 ~8 ×2. Developer option, not built: create the throttle timer in the screen's own zone so such tests behave like the app. Finding status: disputed → no_change_needed, pending the tester's agreement; real-app check by QA open.
 - Gates: developer done · tester confirming the F1 dispute · reviewer re-check pending · QA pass (session 5), footer real-app check open · PM merge waiting
