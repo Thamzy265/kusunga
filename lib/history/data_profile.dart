@@ -30,21 +30,38 @@ class ActiveDataProfile extends DataProfile {
 /// no name). Nothing is read or written anywhere: the session is memory
 /// only. Falling back to the default folder could cost the PM real data.
 class RejectedDataProfile extends DataProfile {
-  const RejectedDataProfile();
+  const RejectedDataProfile([this.detail]);
+
+  /// The `detail` logged with `dataProfileRejected`, or null for a bad name.
+  final int? detail;
 }
+
+/// The `detail` of `dataProfileRejected` for a misspelled switch (reviewer
+/// P1): `-KusungaDataProfil`, an en or em dash, `/KusungaDataProfile`.
+const dataProfileMisspeltDetail = 3;
 
 const _flag = '-KusungaDataProfile';
 final _safeName = RegExp(r'^[a-z0-9-]{1,32}$');
-final _anyForm = RegExp(r'^-+kusungadataprofile', caseSensitive: false);
+
+/// Any argument that looks like an attempt at the switch: it starts like a
+/// switch (`-`, an en or em dash from autocorrect, or `/`) and holds both
+/// "kusunga" and "profil" (so `-KusungaDataProfil` counts too), in any case,
+/// order or spelling around them.
+bool _looksLikeTheSwitch(String arg) {
+  if (arg.isEmpty || !'-\u2013\u2014/'.contains(arg[0])) return false;
+  final lower = arg.toLowerCase();
+  return lower.contains('kusunga') && lower.contains('profil');
+}
 
 /// The profile from the launch arguments. [debug] is only for tests: a
 /// Release or Profile build ignores the switch.
 DataProfile dataProfileFrom(List<String> args, {bool debug = kDebugMode}) {
   if (!debug) return const NoDataProfile();
-  // A mistyped switch (`-KusungaDataProfile=qa`, `--KusungaDataProfile`, any
-  // case) is rejected too: it must never mean the real folder.
-  final mistyped = args.any((a) => a != _flag && _anyForm.hasMatch(a));
-  if (mistyped) return const RejectedDataProfile();
+  // A mistyped or misspelled switch (`-KusungaDataProfile=qa`,
+  // `-KusungaDataProfil`, `–KusungaDataProfile`, any case) is rejected too:
+  // it must never mean the real folder (reviewer P1).
+  final misspelt = args.any((a) => a != _flag && _looksLikeTheSwitch(a));
+  if (misspelt) return const RejectedDataProfile(dataProfileMisspeltDetail);
   final at = args.indexOf(_flag);
   if (at < 0) return const NoDataProfile();
   if (at + 1 >= args.length || args.lastIndexOf(_flag) != at) {
@@ -74,8 +91,8 @@ dataProfileSetup(
   switch (profile) {
     case NoDataProfile():
       return (supportDirectory: supportDirectory, keys: keys);
-    case RejectedDataProfile():
-      log.log(LogCode.dataProfileRejected);
+    case RejectedDataProfile(:final detail):
+      log.log(LogCode.dataProfileRejected, detail);
       return (
         supportDirectory: () async =>
             throw const FileSystemException('data profile rejected'),

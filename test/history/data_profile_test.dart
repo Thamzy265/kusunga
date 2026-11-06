@@ -86,6 +86,70 @@ void main() {
       });
     }
 
+    // Reviewer P1: a misspelled switch, or one whose dash autocorrect turned
+    // into an en or em dash, must never mean the real folder.
+    for (final args in [
+      ['-KusungaDataProfil', 'qa'],
+      ['-KusungaProfile', 'qa'],
+      ['-kusunga-data-profile', 'qa'],
+      ['\u2013KusungaDataProfile', 'qa'],
+      ['\u2014KusungaDataProfile', 'qa'],
+      ['/KusungaDataProfile', 'qa'],
+      ['-KUSUNGADATAPROFILE', 'qa'],
+      ['-kUsUnGaDaTaPrOfIlE', 'qa'],
+      ['-ProfileKusunga', 'qa'],
+      ['--kusunga_profile=qa'],
+      ['-KusungaDataProfile', 'qa', '\u2013KusungaDataProfile', 'qa'],
+    ]) {
+      test('a misspelled switch ${args.join(' ')} is rejected, with detail '
+          '$dataProfileMisspeltDetail, never the default folder', () {
+        final profile = parse(args);
+        expect(profile, isA<RejectedDataProfile>());
+        expect(
+          (profile as RejectedDataProfile).detail,
+          dataProfileMisspeltDetail,
+        );
+        expect(parse(args, debug: false), isA<NoDataProfile>());
+      });
+    }
+
+    for (final args in [
+      ['-NSDocumentRevisionsDebugMode', 'YES'],
+      ['--enable-dart-profiling', '--observatory-port=0'],
+      ['--dart-define=FLUTTER_WEB_USE_SKIA=true', '-AppleLanguages', '(en)'],
+      ['/Users/qa/Kusunga.app'],
+      ['-psn_0_12345'],
+    ]) {
+      test('unrelated arguments ${args.join(' ')} mean no profile', () {
+        expect(parse(args), isA<NoDataProfile>());
+      });
+    }
+
+    test('the exact switch still works next to unrelated arguments', () {
+      final profile = parse([
+        '-NSDocumentRevisionsDebugMode',
+        'YES',
+        '-KusungaDataProfile',
+        'qa',
+      ]);
+      expect(profile, isA<ActiveDataProfile>());
+      expect((profile as ActiveDataProfile).name, 'qa');
+    });
+
+    test('a misspelled switch logs dataProfileRejected with its detail and '
+        'opens nothing', () async {
+      final log = FakeLog();
+      final setup = dataProfileSetup(
+        parse(['\u2013KusungaDataProfile', 'qa']),
+        supportDirectory: () async => Directory.systemTemp,
+        keys: FakeKeyStore(),
+        log: log,
+      );
+      expect(log.codes, [LogCode.dataProfileRejected]);
+      expect(log.details, [dataProfileMisspeltDetail]);
+      await expectLater(setup.supportDirectory(), throwsA(anything));
+    });
+
     test('Release (and Profile) builds ignore it: the default folder', () {
       expect(
         parse(['-KusungaDataProfile', 'qa'], debug: false),

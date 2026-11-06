@@ -50,7 +50,8 @@ enum LogCode {
   // The whole text of a snippet could not be read for Edit (TB-2).
   snippetOpenFailed,
   // Debug builds only: a test data profile is in use (never its name or
-  // path), its name was not allowed (memory only), or there was no key for
+  // path), it was refused (memory only; detail none = a bad name, 2 = a
+  // link in its folder, 3 = a misspelled switch), or there was no key for
   // it to reuse (memory only; a profile never writes a key).
   dataProfileActive,
   dataProfileRejected,
