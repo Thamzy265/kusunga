@@ -360,13 +360,16 @@ class HistoryService extends ChangeNotifier {
     }
   }
 
-  /// How many items lowering the limit to [newLimit] would delete.
-  int countRemovedBy(int newLimit) {
-    if (_closed) return 0;
+  /// How many items lowering the limit to [newLimit] would delete, or null
+  /// when that cannot be read (the store failed, or the history is closed).
+  /// Never 0 for "unknown": the Keep dialog must not show a count it could
+  /// not read (reviewer W2).
+  int? countRemovedBy(int newLimit) {
+    if (_closed) return null;
     try {
       return _store.countRemovedBy(newLimit);
     } catch (_) {
-      return 0;
+      return null;
     }
   }
 

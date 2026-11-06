@@ -100,10 +100,11 @@ void main() {
   Future<void> settle(WidgetTester tester) => tester.pumpAndSettle();
 
   int deleteButtonNumber(WidgetTester tester) {
-    final button = find.byWidgetPredicate(
-      (w) =>
-          w is FilledButton &&
-          w.child is ListenableBuilder, // the Keep dialog's Delete button
+    // The Keep dialog's Delete button (found by place, not by how its
+    // label is built: W2 rebuilds the whole dialog from one count read).
+    final button = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byType(FilledButton),
     );
     final text = tester.widget<Text>(
       find.descendant(of: button, matching: find.byType(Text)),

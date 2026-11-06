@@ -21,7 +21,9 @@ class LimitField extends StatefulWidget {
   final HistoryService service;
 
   /// Asks the user to confirm deleting [removed] older items. True to go on.
-  final Future<bool> Function(int newLimit, int removed) confirmLower;
+  /// [removed] is null when the count could not be read: the dialog then
+  /// says so and only Cancel works.
+  final Future<bool> Function(int newLimit, int? removed) confirmLower;
 
   @override
   State<LimitField> createState() => _LimitFieldState();
@@ -85,8 +87,14 @@ class _LimitFieldState extends State<LimitField> {
     if (n == widget.service.limit) return;
     _committing = true;
     try {
-      final removed = widget.service.countRemovedBy(n);
-      if (removed > 0 && !await widget.confirmLower(n, removed)) {
+      // Raising the limit deletes nothing, so it needs no count. A count
+      // that could not be read still asks first: the limit is never lowered
+      // without the dialog (reviewer W2).
+      final removed = n < widget.service.limit
+          ? widget.service.countRemovedBy(n)
+          : 0;
+      if ((removed == null || removed > 0) &&
+          !await widget.confirmLower(n, removed)) {
         if (mounted) _controller.text = '${widget.service.limit}';
         return;
       }

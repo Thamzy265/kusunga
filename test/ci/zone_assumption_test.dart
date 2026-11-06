@@ -95,8 +95,9 @@ void main() {
     );
   });
 
-  test('Timers in lib/ live only in the known screens and controllers: a new '
-      'file with a Timer must be checked for the zone that calls it', () {
+  test('Timers in lib/ (Timer, Future.delayed, Stream.periodic) live only in '
+      'the known screens and controllers: a new file with one must be checked '
+      'for the zone that calls it', () {
     final allowed = {
       'lib/history/ui/history_host.dart',
       'lib/history/ui/history_screen.dart',
@@ -112,7 +113,10 @@ void main() {
           .readAsLinesSync()
           .where((l) => !l.trimLeft().startsWith('//'))
           .join('\n');
-      if (RegExp(r'\bTimer(\.periodic)?\s*\(').hasMatch(text)) {
+      if (RegExp(
+        r'\bTimer(\.periodic)?\s*\(|\bFuture\.delayed\s*\(|'
+        r'\bStream\.periodic\s*\(',
+      ).hasMatch(text)) {
         seen.add(e.path.replaceAll('\\', '/'));
       }
     }

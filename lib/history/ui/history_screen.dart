@@ -649,46 +649,47 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   /// [removed] is the count when the dialog opens; the text then follows
   /// the live count. If it drops to 0, the dialog says so and confirming
-  /// only sets the limit.
-  Future<bool> _confirmLower(int newLimit, int removed) async {
-    int removedNow() => _service.countRemovedBy(newLimit);
+  /// only sets the limit. While the count cannot be read (null) the dialog
+  /// shows no number and only Cancel works (reviewer W2).
+  Future<bool> _confirmLower(int newLimit, int? removed) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        content: ListenableBuilder(
-          listenable: _service,
-          builder: (context, _) {
-            final removed = removedNow();
-            return Text(
-              'Keep only the newest $newLimit items? '
-              '$removed older ${removed == 1 ? 'item' : 'items'} will be '
-              'deleted.',
-            );
-          },
-        ),
-        actions: [
-          TextButton(
-            autofocus: true,
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: KusungaTokens.of(context).danger,
-              foregroundColor: KusungaTokens.of(context).surface,
+      builder: (context) => ListenableBuilder(
+        listenable: _service,
+        builder: (context, _) {
+          // One read per change, so the text and the button always agree.
+          final removed = _service.countRemovedBy(newLimit);
+          return AlertDialog(
+            content: Text(
+              removed == null
+                  ? "Couldn't count the items. Try again."
+                  : 'Keep only the newest $newLimit items? '
+                        '$removed older ${removed == 1 ? 'item' : 'items'} '
+                        'will be deleted.',
             ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: ListenableBuilder(
-              listenable: _service,
-              builder: (context, _) {
-                final removed = removedNow();
-                return Text(
-                  'Delete $removed ${removed == 1 ? 'item' : 'items'}',
-                );
-              },
-            ),
-          ),
-        ],
+            actions: [
+              TextButton(
+                autofocus: true,
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: KusungaTokens.of(context).danger,
+                  foregroundColor: KusungaTokens.of(context).surface,
+                ),
+                onPressed: removed == null
+                    ? null
+                    : () => Navigator.of(context).pop(true),
+                child: Text(
+                  removed == null
+                      ? 'Delete'
+                      : 'Delete $removed ${removed == 1 ? 'item' : 'items'}',
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
     return ok == true;
@@ -863,7 +864,7 @@ class _Header extends StatelessWidget {
   final int count;
   final VoidCallback onSaveFailed;
   final VoidCallback onClear;
-  final Future<bool> Function(int newLimit, int removed) confirmLower;
+  final Future<bool> Function(int newLimit, int? removed) confirmLower;
 
   @override
   Widget build(BuildContext context) {
