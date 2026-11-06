@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — QA-M14-5 and -6 fixed
+- Changed: developer fixed QA-M14-5 in 7546d52 (cause: rows built beyond the list edges came first in Tab order; now Tab goes header then panel, enters a list at the first row fully in view, and scrolls whatever it focuses into view; History had the same bug and is fixed too) and QA-M14-6 in f2c100f (rejected switch banner names the switch, Debug only). check.sh +1801 ~8 passed ×2; one earlier run had a picker-search timing failure under load (unrelated, passes alone). Follow-up: the Snippets banner gets the same wording fix.
+- Gates: developer in progress (Snippets banner wording) · tester round 8 pending · reviewer pending · QA re-run pending · PM merge waiting
+- Open findings: none open beyond the follow-up; N1, N2, F5 (Windows), R1 unchanged. Note: picker search timing test can fail under full-suite load.
+- Decisions: none
+- Blockers: PM — free the Mac for the QA re-run (later); confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; VoiceOver sign-off
+
 ## 2026-11-06 — M1.4 Saved snippets — QA test-item cleanup — PM decision
 - Changed: none yet.
 - Gates: developer in progress (QA-M14-5, -6) · tester pending · reviewer pending · QA re-run pending · PM merge waiting
