@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — BUG-W1 fixed; tester round 12 started
+- Changed: developer fixed BUG-W1 in 2020e85 (live text: while the Clear history or Keep dialog is open, its text and button label follow the live count; confirm already acts on the live state). Failing run before the fix +57 -3; check.sh +2163 ~8 ×2. If the count drops to 0 while a dialog is open (only when an item is deleted elsewhere), the dialog stays open and says "0 older items will be deleted." / "Delete 0 items" or "This deletes all 0 items."; confirm deletes nothing. Developer notes this reads oddly; closing the dialog instead would be a PM wording or behaviour call. Tester round 12 on 0432721..2020e85 started.
+- Gates: developer done · tester round 12 in progress · reviewer re-check pending · QA pass (session 5) · PM merge waiting
+- Open findings: none open; N1, N2, F5 (Windows), R1 unchanged; VoiceOver: stale "moved to position" text to check
+- Decisions: none
+- Blockers: PM — VoiceOver sign-off; confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; dialog text at a count of 0 (keep or close the dialog)
+
 ## 2026-11-06 — M1.4 Saved snippets — QA-M14-7 fixed; tester round 11: pass with 1 low bug
 - Changed: developer fixed QA-M14-7 in d6cea52 and 9f0e719 (count of 1 takes the singular in History and Snippets strings; Clear history with one item says "This deletes the 1 item. Snippets are not affected."). Tester round 11 on e061fce..9f0e719 (0432721, tests only): 48 tests + 1 skipped repro; 8 fail on e061fce (the count-of-1 cases). Keep dialog, Clear history dialog, list names, footers, picker and time labels right at 0, 1, 2, 10, 11 and 1,000; tray menu has no counts. check.sh +2159 ~9 passed. New: BUG-W1 (low) — the Clear history and Keep dialog text is fixed when the dialog opens; a copy that arrives while it is open makes the count wrong ("the 1 item" when 2 are deleted). Note: no thousands separator ("1000 snippets"); left as is. BUG-W1 sent to the developer.
 - Gates: developer in progress (BUG-W1) · tester pass (round 11) · reviewer re-check pending · QA pass (session 5) · PM merge waiting
