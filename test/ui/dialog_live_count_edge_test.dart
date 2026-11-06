@@ -499,6 +499,15 @@ void main() {
         'apart it freezes after the second update, even with no dialog', (
       tester,
     ) async {
+      // Cause (developer, BUG-F1): setUp starts the service OUTSIDE this
+      // test's fake-async zone, so the fake clipboard's stream calls the
+      // screen's listener in the real zone, and the footer's 2-second
+      // throttle timer armed there runs on real time: tester.pump never
+      // fires it, and the footer waits for ever. In the app everything
+      // runs in one zone and the footer follows. The service is made here,
+      // inside the test, so its timers run on the test's clock.
+      service.dispose();
+      create();
       copies(2);
       await show(tester);
       for (var i = 0; i < 6; i++) {
@@ -510,6 +519,6 @@ void main() {
         findsOneWidget,
         reason: 'the footer is stale with ${service.items.length} items',
       );
-    }, skip: true);
+    });
   });
 }
