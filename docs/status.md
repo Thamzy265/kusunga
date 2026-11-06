@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — Tester round 12: W1 fix holds; BUG-F1 found (pre-existing)
+- Changed: tester round 12 on 0432721..2020e85 (cbacd96, tests only): 20 tests (19 pass, 1 skipped repro); 11 fail on 0432721. Clear history and Keep dialogs follow the live count through copies, bursts of 50, deletes down to 0, toggles 1/2, crossing the limit; the click deletes what the dialog states; Cancel keeps everything; no listener leaks after 15 open/close rounds or screen removal. check.sh +2182 ~9 passed. New: BUG-F1 (medium, pre-existing, also on 707f131 and e0cbdfe) — the History footer ("N of L items", the polite status line screen readers announce) stops following the count after 2 changes and stays stale; cause not found by the tester; skipped repro "BUG-F1 (pre-existing, found here): the History footer keeps following the count". Tester's view on the dialogs at a count of 0: option 2 (close Clear at 0; Keep button says a non-delete label at 0). BUG-F1 sent to the developer; dialog-at-0 question to the PM.
+- Gates: developer in progress (BUG-F1) · tester pass (round 12) · reviewer re-check pending · QA pass (session 5) · PM merge waiting
+- Open findings: BUG-F1 (medium); N1, N2, F5 (Windows), R1 unchanged; VoiceOver: stale "moved to position" text to check
+- Decisions: none
+- Blockers: PM — dialog text at a count of 0; VoiceOver sign-off; confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4
+
 ## 2026-11-06 — M1.4 Saved snippets — BUG-W1 fixed; tester round 12 started
 - Changed: developer fixed BUG-W1 in 2020e85 (live text: while the Clear history or Keep dialog is open, its text and button label follow the live count; confirm already acts on the live state). Failing run before the fix +57 -3; check.sh +2163 ~8 ×2. If the count drops to 0 while a dialog is open (only when an item is deleted elsewhere), the dialog stays open and says "0 older items will be deleted." / "Delete 0 items" or "This deletes all 0 items."; confirm deletes nothing. Developer notes this reads oddly; closing the dialog instead would be a PM wording or behaviour call. Tester round 12 on 0432721..2020e85 started.
 - Gates: developer done · tester round 12 in progress · reviewer re-check pending · QA pass (session 5) · PM merge waiting
