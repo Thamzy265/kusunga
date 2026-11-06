@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — Tester round 14: W2 fix holds; reviewer re-check started
+- Changed: tester round 14 on b1d966d..a0ba96d (0f55781, tests only): 21 tests, 12 fail on b1d966d. Fail/ok cycles, failure at open then recovery, keyboard and screen reader on the disabled Delete, confirm in the frame of a failure, write failing at confirm (nothing half done), closed history, every limit-field commit path, Clear history with failing stores (count from the in-memory list, no 0 fallback), guard on callers of countRemovedBy. The helper change still tests the same thing. No bugs. check.sh +2225 ~8 passed. Notes: "Try again" has no retry button (if the store recovers with no change, the user must Cancel and reopen); while reads keep failing the limit cannot be lowered at all (safe). Reviewer re-check of b1d966d..0f55781 started.
+- Gates: developer done · tester pass (round 14) · reviewer re-check in progress · QA pass (session 5), footer real-app check open · PM merge waiting
+- Open findings: none open; N1, N2, F5 (Windows), R1 unchanged; VoiceOver: stale "moved to position" text to check
+- Decisions: none
+- Blockers: PM — dialog text at a count of 0; VoiceOver sign-off; confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; whether to remove the qa-m13-* items from real history; push of local main
+
 ## 2026-11-06 — M1.4 Saved snippets — W2 fixed; tester round 14 started
 - Changed: developer fixed W2 in a0ba96d: countRemovedBy returns null (unknown) on a failed read or closed history, never 0; while unknown the Keep dialog shows "Couldn't count the items. Try again." with Delete disabled (only Cancel works) and a good read brings the count back; an unknown count when lowering Keep still opens the dialog; raising the limit no longer reads the count. New strings: "Couldn't count the items. Try again." and a disabled "Delete". Zone scan also flags Future.delayed and Stream.periodic. One tester helper changed to find the Delete button inside the AlertDialog. Failing run +1 -3; check.sh +2204 ~8 ×2. Count-of-0 behaviour unchanged. Tester round 14 on b1d966d..a0ba96d started.
 - Gates: developer done · tester round 14 in progress · reviewer re-check pending · QA pass (session 5), footer real-app check open · PM merge waiting
