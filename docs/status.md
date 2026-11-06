@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — Reviewer re-check: approve with notes
+- Changed: reviewer re-checked 2750eb5..cc231ff: approve with notes, 0 new findings. QA-M14-5, -6, BUG-T1, T2, T3, K1 fixed. Focus order holds no state; the text-size hold is always released; no new banner text in Release; repaint change cost small. check.sh +2103 ~8 passed.
+- Gates: developer done · tester pass · reviewer approve with notes · QA re-run pending (needs the PM's Mac free) · PM merge waiting
+- Open findings: none new; N1, N2, F5 (Windows), R1 unchanged
+- Decisions: none
+- Blockers: PM — free the Mac for the QA re-run; confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; VoiceOver sign-off
+
 ## 2026-11-06 — M1.4 Saved snippets — Tester round 10 passed; reviewer re-check started
 - Changed: tester round 10 on a4c06a0..a1e3e55 (cc231ff, tests only): 127 tests, 41 fail on the old code; K1 and T3 fixes hold (every key on every row control, More menu, picker unchanged, waiting focus, Undo, moved and deleted rows, paint read from pixels, no error in any frame). No bugs. check.sh +2103 ~8 passed. Reviewer re-check of 2750eb5..cc231ff started.
 - Gates: developer done · tester pass · reviewer re-check in progress · QA re-run pending · PM merge waiting
