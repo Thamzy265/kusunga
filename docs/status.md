@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — Reviewer re-review: approve with notes
+- Changed: reviewer re-reviewed bf06141..9023273: approve with notes. check.sh +1556 ~6 passed. Test profile cannot reach real data in Release (kDebugMode gate; Mac arguments only under #if DEBUG); no Apple team or certificate ID in tracked files; no PM history in the 17 new screenshots. Lead redacted a signing-identity person name in an older status entry.
+- Gates: developer P1 fix in progress · tester pass (round 5) · reviewer approve with notes · QA session 4 pending · PM merge waiting
+- Open findings: P1 (Low): a misspelled or en/em-dash test-profile switch is ignored, so the app opens real data; fix in progress. G1 (Low): log link check then open is a race; a symlink swapped in between gets one appended log line; needs a PM decision. N1, N2, F5 (Windows), R1 unchanged.
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer n/a · Lead none · PM — G1 decision; GitHub billing or acceptance of local results for M1.4; VoiceOver sign-off
+
 ## 2026-11-06 — M1.4 Saved snippets — Tester round 5 passed; reviewer re-review started
 - Changed: tester round 5 on d966b6f added test/history/ui/history_scroll_round5_test.dart (19 tests, 9023273, test files only): copies then wheel scroll then arrow keys, node swaps, theme and text-size rebuilds, copies while focus waits, clicks after a copy. 16 of 19 fail on the old history_row.dart (bcee93b); all pass with the fix. check.sh: No issues found; +1556 ~6, all passed (skips: 3 accepted hard-link tests, L5, 2 older). No new bugs.
 - Gates: developer done · tester pass · reviewer re-review of bf06141..9023273 in progress · QA session 4 pending · PM merge waiting
@@ -117,7 +124,7 @@
 - Blockers: PM — Xcode sign-in and certificate
 
 ## 2026-11-04 — M1.3 History picker and paste — Paste permission root cause (developer investigation)
-- Changed: none in code. The macOS log (tccd) shows the PM's Settings toggle granted kTCCServiceAccessibility, while CGPreflightPostEventAccess reads kTCCServicePostEvent, which stays denied; on macOS 27 PostEvent "does not allow prompting", so "Allow pasting" only creates a denied row. Also 4 Kusunga copies with the same bundle id are registered (build Debug, build Release, Xcode DerivedData test host, one stale path). Ad-hoc signing ties every grant and the keychain "Always Allow" to one build's hash. The Mac's only signing identity (Apple Development: William Nasoni) is revoked.
+- Changed: none in code. The macOS log (tccd) shows the PM's Settings toggle granted kTCCServiceAccessibility, while CGPreflightPostEventAccess reads kTCCServicePostEvent, which stays denied; on macOS 27 PostEvent "does not allow prompting", so "Allow pasting" only creates a denied row. Also 4 Kusunga copies with the same bundle id are registered (build Debug, build Release, Xcode DerivedData test host, one stale path). Ad-hoc signing ties every grant and the keychain "Always Allow" to one build's hash. The Mac's only signing identity (Apple Development (redacted)) is revoked.
 - Gates: developer investigating · tester pass · reviewer approve · QA part 2 blocked · PM merge waiting
 - Open findings: H1 (wrong TCC service — ADR 0003's "PostEvent only" assumption may not hold on macOS 27) strongest; H2 (stale copies) possible
 - Decisions: waiting for PM — stable local signing (free Personal Team) before the diagnostic build
