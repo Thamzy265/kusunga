@@ -67,6 +67,7 @@ Future<void> main(List<String> args) async {
       history: history,
       picker: picker,
       dataProfile: profile is ActiveDataProfile ? profile.name : null,
+      dataProfileRejected: profile is RejectedDataProfile,
     ),
   );
   if (!isDesktop) return;

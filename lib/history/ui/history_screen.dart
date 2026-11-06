@@ -21,9 +21,13 @@ class HistoryScreen extends StatefulWidget {
     required this.service,
     this.now,
     this.topSlot,
+    this.dataProfileRejected = false,
   });
 
   final HistoryService service;
+
+  /// See `HistoryHost.dataProfileRejected`.
+  final bool dataProfileRejected;
 
   /// Extra content under the header and banners (the picker settings).
   final Widget? topSlot;
@@ -656,6 +660,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     for (final b in _service.banners)
                                       _Banner(
                                         banner: b,
+                                        dataProfileRejected:
+                                            widget.dataProfileRejected,
                                         onDismiss: () => _service.dismiss(b),
                                       ),
                                     if (setupCard)
@@ -814,12 +820,24 @@ class _Header extends StatelessWidget {
 }
 
 class _Banner extends StatelessWidget {
-  const _Banner({required this.banner, required this.onDismiss});
+  const _Banner({
+    required this.banner,
+    required this.dataProfileRejected,
+    required this.onDismiss,
+  });
 
   final HistoryBanner banner;
+  final bool dataProfileRejected;
   final VoidCallback onDismiss;
 
-  static String textFor(HistoryBanner b) => switch (b) {
+  static String textFor(
+    HistoryBanner b, {
+    required bool dataProfileRejected,
+  }) => switch (b) {
+    // Debug builds only: the keychain is fine, the switch was the cause
+    // (QA-M14-6).
+    HistoryBanner.memoryOnly when dataProfileRejected =>
+      "History won't be kept after you quit, because the test profile switch wasn't recognised.",
     HistoryBanner.memoryOnly =>
       "History won't be kept after you quit, because Kusunga can't reach your keychain.",
     HistoryBanner.readError =>
@@ -856,7 +874,7 @@ class _Banner extends StatelessWidget {
                 focusable: true,
                 child: Focus(
                   child: Text(
-                    textFor(banner),
+                    textFor(banner, dataProfileRejected: dataProfileRejected),
                     style: KusungaTokens.body.copyWith(color: t.bannerWarnText),
                   ),
                 ),

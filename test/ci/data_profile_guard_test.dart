@@ -28,6 +28,13 @@ void main() {
   test('main() never overrides the debug check', () {
     final main = stripComments(read('lib/main.dart'));
     expect(main, contains('dataProfileFrom(args)'));
+    // The "switch wasn't recognised" banner (QA-M14-6) follows the parsed
+    // profile, so a Release build (never a RejectedDataProfile) never
+    // shows it.
+    expect(
+      main.replaceAll(RegExp(r'\s'), ''),
+      contains('dataProfileRejected:profileisRejectedDataProfile'),
+    );
     for (final e in Directory('lib').listSync(recursive: true)) {
       if (e is! File || !e.path.endsWith('.dart')) continue;
       final text = stripComments(e.readAsStringSync());

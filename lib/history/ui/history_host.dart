@@ -23,6 +23,7 @@ class HistoryHost extends StatefulWidget {
     this.initial,
     this.topSlot,
     this.dataProfile,
+    this.dataProfileRejected = false,
   });
 
   final Future<HistoryService> history;
@@ -36,6 +37,11 @@ class HistoryHost extends StatefulWidget {
   /// The test data profile in use (Debug builds only), shown as "Test
   /// profile: `name`" so test data is never taken for real data.
   final String? dataProfile;
+
+  /// A test profile switch was given but not recognised (Debug builds
+  /// only): the session is memory only, and the banner names the switch,
+  /// not the keychain (QA-M14-6).
+  final bool dataProfileRejected;
 
   @override
   State<HistoryHost> createState() => _HistoryHostState();
@@ -215,7 +221,11 @@ class _HistoryHostState extends State<HistoryHost> {
           _panel(
             0,
             'History',
-            HistoryScreen(service: service, topSlot: widget.topSlot),
+            HistoryScreen(
+              service: service,
+              topSlot: widget.topSlot,
+              dataProfileRejected: widget.dataProfileRejected,
+            ),
           ),
           _panel(
             1,

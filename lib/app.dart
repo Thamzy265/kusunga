@@ -12,6 +12,7 @@ class KusungaApp extends StatelessWidget {
     required this.history,
     this.picker,
     this.dataProfile,
+    this.dataProfileRejected = false,
   });
 
   /// The history, once it has opened (see `openHistory`).
@@ -23,6 +24,10 @@ class KusungaApp extends StatelessWidget {
   /// The test data profile in use (Debug builds only), shown in the window.
   final String? dataProfile;
 
+  /// A test profile switch was given but not recognised (Debug builds only),
+  /// so this session is memory only: the banner says so (QA-M14-6).
+  final bool dataProfileRejected;
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -31,11 +36,16 @@ class KusungaApp extends StatelessWidget {
       darkTheme: KusungaTokens.themeData(Brightness.dark),
       themeMode: ThemeMode.system,
       home: picker == null
-          ? HistoryHost(history: history, dataProfile: dataProfile)
+          ? HistoryHost(
+              history: history,
+              dataProfile: dataProfile,
+              dataProfileRejected: dataProfileRejected,
+            )
           : WindowRoot(
               history: history,
               picker: picker!,
               dataProfile: dataProfile,
+              dataProfileRejected: dataProfileRejected,
             ),
     );
   }

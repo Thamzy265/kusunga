@@ -20,6 +20,7 @@ class WindowRoot extends StatefulWidget {
     required this.history,
     required this.picker,
     this.dataProfile,
+    this.dataProfileRejected = false,
   });
 
   final Future<HistoryService> history;
@@ -27,6 +28,9 @@ class WindowRoot extends StatefulWidget {
 
   /// The test data profile in use, if any (see `HistoryHost.dataProfile`).
   final String? dataProfile;
+
+  /// See `HistoryHost.dataProfileRejected`.
+  final bool dataProfileRejected;
 
   @override
   State<WindowRoot> createState() => _WindowRootState();
@@ -84,6 +88,7 @@ class _WindowRootState extends State<WindowRoot> {
           initial: picker.history,
           topSlot: PickerSettingsSection(controller: picker),
           dataProfile: widget.dataProfile,
+          dataProfileRejected: widget.dataProfileRejected,
         );
         return Visibility(
           visible: shown,
