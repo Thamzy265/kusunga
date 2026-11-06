@@ -19,6 +19,23 @@ void main() {
     DataProfile parse(List<String> args, {bool debug = true}) =>
         dataProfileFrom(args, debug: debug);
 
+    /// The arguments for a test name: invisible and non-ASCII characters as
+    /// U+XXXX, at most 80 characters.
+    String shown(List<String> args) {
+      final text = args
+          .map(
+            (a) => a.runes
+                .map(
+                  (r) => r > 126 || r < 32
+                      ? 'U+${r.toRadixString(16).toUpperCase()}'
+                      : String.fromCharCode(r),
+                )
+                .join(),
+          )
+          .join(' ');
+      return text.length > 80 ? '${text.substring(0, 80)}...' : text;
+    }
+
     test('no switch: the default folder', () {
       expect(parse([]), isA<NoDataProfile>());
       expect(parse(['--other', 'qa']), isA<NoDataProfile>());
@@ -112,6 +129,132 @@ void main() {
         expect(parse(args, debug: false), isA<NoDataProfile>());
       });
     }
+
+    // BUG-Q1 (PM decision 2026-11-06, "Common slips + label check"): typos
+    // within a few letters, a forgotten dash, any dash or minus character,
+    // spaces and quotes around it, the switch split across two arguments.
+    for (final args in [
+      ['-KusungaDataProfle', 'qa'],
+      ['-KusungaDataPofile', 'qa'],
+      ['-KusungDataProfile', 'qa'],
+      ['-KusunagDataProfile', 'qa'],
+      ['-KusunngaDataProfile', 'qa'],
+      ['-KsungaDtaProfle', 'qa'], // three letters dropped
+      ['-KusungaDataProfiel=qa'],
+      ['KusungaDataProfile', 'qa'],
+      ['KusungaDataProfle', 'qa'], // no dash and a typo
+      ['kusunga-data-profile', 'qa'],
+      ['KusungaDataProfile:qa'],
+      ['KusungaDataProfile qa'], // one argument with a space inside
+      ['KusungaDataProfile=test-profile'],
+      ['\u2212KusungaDataProfile', 'qa'],
+      ['\u2212KusungaDataProfle', 'qa'],
+      ['\uFF0D\uFF0DKusungaDataProfile', 'qa'],
+      ['\u2010KusungaDataProfile', 'qa'],
+      ['\u2015kusungadataprofile', 'qa'],
+      ['/kusungadataprofle', 'qa'],
+      ['-KusungaDataProfile\u00a0', 'qa'],
+      ['KusungaDataProfile ', 'qa'],
+      ['\u201c-KusungaDataProfile\u201d', 'qa'], // curly double quotes
+      ['\u2018-KusungaDataProfile\u2019', 'qa'], // curly single quotes
+      ['\u201c\u2013KusungaDataProfile\u201d', 'qa'],
+      ['"KusungaDataProfile"', 'qa'],
+      [' \t-KusungaDataProfile\r\n', 'qa'],
+      ['- KusungaDataProfile', 'qa'],
+      ['-Kusunga', 'DataProfile', 'qa'],
+      ['-KusungaData', 'Profile', 'qa'],
+      ['-Kusunga', '-DataProfile', 'qa'],
+      ['\u2013Kusunga', 'DataProfle', 'qa'],
+      ['-KusungaDataPro', 'file', 'qa'],
+      ['-other', '-Kusunga', 'DataProfile', 'qa'],
+      ['-KusungaDataProfile', 'qa', 'KusungaDataProfile'],
+    ]) {
+      test('a common slip [${shown(args)}] is rejected with detail '
+          '$dataProfileMisspeltDetail; Release ignores it', () {
+        final profile = parse(args);
+        expect(profile, isA<RejectedDataProfile>());
+        expect(
+          (profile as RejectedDataProfile).detail,
+          dataProfileMisspeltDetail,
+        );
+        expect(parse(args, debug: false), isA<NoDataProfile>());
+      });
+    }
+
+    test(
+      'a common slip logs dataProfileRejected 3 and opens nothing',
+      () async {
+        for (final args in [
+          ['KusungaDataProfile', 'qa'],
+          ['-KusungaDataProfle', 'qa'],
+          ['\u2212KusungaDataProfile', 'qa'],
+          [' -KusungaDataProfile', 'qa'],
+          ['-Kusunga', 'DataProfile', 'qa'],
+        ]) {
+          final log = FakeLog();
+          final setup = dataProfileSetup(
+            parse(args),
+            supportDirectory: () async => Directory.systemTemp,
+            keys: FakeKeyStore(),
+            log: log,
+          );
+          expect(log.codes, [LogCode.dataProfileRejected], reason: '$args');
+          expect(log.details, [dataProfileMisspeltDetail], reason: '$args');
+          await expectLater(setup.supportDirectory(), throwsA(anything));
+        }
+      },
+    );
+
+    // The split-switch check never pairs the exact switch with a neighbour:
+    // "YES" + "-KusungaDataProfile" is only three letters from the switch.
+    for (final args in [
+      ['YES', '-KusungaDataProfile', 'qa'],
+      ['-a', '-KusungaDataProfile', 'qa'],
+      ['k', '-KusungaDataProfile', 'qa'],
+      ['-KusungaForcePost', 'YES', '-KusungaDataProfile', 'qa'],
+      ['-KusungaDataProfile', 'qa', '-KusungaForcePost', 'YES'],
+      ['-KusungaDataProfile', 'qa', 'extra'],
+    ]) {
+      test('the exact switch beside ${args.join(' ')} is still the profile '
+          '"qa"', () {
+        final profile = parse(args);
+        expect(profile, isA<ActiveDataProfile>());
+        expect((profile as ActiveDataProfile).name, 'qa');
+      });
+    }
+
+    for (final args in [
+      ['-KusungaForcePost', 'YES'],
+      ['-KusungaForcePost', 'NO', '-AppleLanguages', '(en)'],
+      ['kusunga', 'profile'],
+      ['-KusungaDataPath', '/tmp/x'],
+      ['--observatory-port=0', '--disable-service-auth-codes'],
+      ['-NSDocumentRevisionsDebugMode', 'YES', '-ApplePersistenceIgnoreState'],
+      ['/Users/qa/Developer/kusunga/build/macos/Build/Products/Debug'],
+      [r'C:\Users\qa\AppData\Roaming\Kusunga\kusunga.exe'],
+      ['-x', 'x' * 100000],
+    ]) {
+      test('unrelated arguments [${shown(args)}] mean no profile', () {
+        expect(parse(args), isA<NoDataProfile>());
+      });
+    }
+
+    test('a very long argument is judged in bounded time', () {
+      final watch = Stopwatch()..start();
+      expect(
+        parse(['-KusungaDataProfile=${'q' * 1000000}']),
+        isA<RejectedDataProfile>(),
+      );
+      expect(
+        parse(['KusungaDataProfle${'q' * 1000000}']),
+        isA<RejectedDataProfile>(),
+      );
+      expect(
+        parse(['--flutter-assets-dir=${'a/' * 500000}', 'q' * 1000000]),
+        isA<NoDataProfile>(),
+      );
+      expect(watch.elapsed, lessThan(const Duration(seconds: 2)));
+    });
 
     for (final args in [
       ['-NSDocumentRevisionsDebugMode', 'YES'],

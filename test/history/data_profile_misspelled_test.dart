@@ -4,8 +4,11 @@
 // "profil" in any case, and is not exactly "-KusungaDataProfile", is
 // rejected (memory only, dataProfileRejected detail 3).
 //
-// The tests marked BUG-Q* are realistic slips that still get the real
-// folder today. They are skipped repros (each fails when unskipped).
+// The tests marked BUG-Q* are realistic slips that got the real folder on
+// 21c17b4. Q1a, Q1c, Q1d, Q1e and Q1f are fixed (PM 2026-11-06, "Common
+// slips + label check") and run; Q1b and Q1g stay skipped: the PM accepted
+// them as a risk on 2026-11-06 (docs/status.md), QA's "Test profile: qa"
+// label check covers them.
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -307,25 +310,21 @@ void main() {
       expect(escapes, isEmpty, reason: 'these get the real folder: $escapes');
     }
 
-    test(
-      'a typo in the word (one letter dropped, doubled or swapped)',
-      () {
-        expectAllRejected([
-          '-KusungaDataProfle',
-          '-KusungaDataProfie',
-          '-KusungaDataPofile',
-          '-KusungaDataProile',
-          '-KusungDataProfile',
-          '-KusugaDataProfile',
-          '-KusunagDataProfile',
-          '-KusungaDataProfiel',
-          '-KusungaDataProflie',
-          '-KusungaDatarofile',
-          '-KusunngaDataProfile',
-        ]);
-      },
-      skip: 'BUG-Q1a: needs both "kusunga" and "profil" intact',
-    );
+    test('a typo in the word (one letter dropped, doubled or swapped)', () {
+      expectAllRejected([
+        '-KusungaDataProfle',
+        '-KusungaDataProfie',
+        '-KusungaDataPofile',
+        '-KusungaDataProile',
+        '-KusungDataProfile',
+        '-KusugaDataProfile',
+        '-KusunagDataProfile',
+        '-KusungaDataProfiel',
+        '-KusungaDataProflie',
+        '-KusungaDatarofile',
+        '-KusunngaDataProfile',
+      ]);
+    });
 
     test(
       'part of the name left out',
@@ -337,36 +336,33 @@ void main() {
           '-KusungaData',
         ]);
       },
-      skip: 'BUG-Q1b: "-DataProfile", "-Kusunga" and the like are ignored',
+      // Out of scope: the PM accepted Q1b as a risk on 2026-11-06
+      // (docs/status.md, "Common slips + label check"); QA's "Test profile:
+      // qa" label check covers it.
+      skip:
+          'BUG-Q1b: "-DataProfile", "-Kusunga" and the like are ignored '
+          '(risk accepted by the PM, 2026-11-06, docs/status.md)',
     );
 
-    test(
-      'the dash forgotten',
-      () {
-        expectAllRejected([
-          'KusungaDataProfile',
-          'KusungaDataProfile=qa',
-          'kusungadataprofile',
-        ]);
-      },
-      skip: 'BUG-Q1c: no leading dash, so it is not looked at',
-    );
+    test('the dash forgotten', () {
+      expectAllRejected([
+        'KusungaDataProfile',
+        'KusungaDataProfile=qa',
+        'kusungadataprofile',
+      ]);
+    });
 
-    test(
-      'a typographic dash or minus instead of "-"',
-      () {
-        expectAllRejected([
-          '\u2212KusungaDataProfile', // minus sign
-          '\u2010KusungaDataProfile', // hyphen
-          '\u2011KusungaDataProfile', // non-breaking hyphen
-          '\u2012KusungaDataProfile', // figure dash
-          '\u2015KusungaDataProfile', // horizontal bar
-          '\uFF0DKusungaDataProfile', // full-width hyphen-minus
-          '\uFE63KusungaDataProfile', // small hyphen-minus
-        ]);
-      },
-      skip: 'BUG-Q1d: only -, en dash, em dash and / are recognised',
-    );
+    test('a typographic dash or minus instead of "-"', () {
+      expectAllRejected([
+        '\u2212KusungaDataProfile', // minus sign
+        '\u2010KusungaDataProfile', // hyphen
+        '\u2011KusungaDataProfile', // non-breaking hyphen
+        '\u2012KusungaDataProfile', // figure dash
+        '\u2015KusungaDataProfile', // horizontal bar
+        '\uFF0DKusungaDataProfile', // full-width hyphen-minus
+        '\uFE63KusungaDataProfile', // small hyphen-minus
+      ]);
+    });
 
     test('a space, tab, newline or quote before the switch (pasted from a '
         'doc or a shell line)', () {
@@ -379,46 +375,54 @@ void main() {
         "'-KusungaDataProfile'",
         '"-KusungaDataProfile',
       ]);
-    }, skip: 'BUG-Q1e: the first character must be a dash or slash');
+    });
 
-    test(
-      'the switch split across arguments (a space typed inside it)',
-      () {
-        for (final args in [
-          ['-Kusunga', 'DataProfile', 'qa'],
-          ['-Kusunga', '-DataProfile', 'qa'],
-          ['-KusungaData', 'Profile', 'qa'],
-        ]) {
-          expect(parse(args), isNot(isA<NoDataProfile>()), reason: '$args');
-        }
-      },
-      skip: 'BUG-Q1f: each half alone is ignored',
-    );
+    test('the switch split across arguments (a space typed inside it)', () {
+      for (final args in [
+        ['-Kusunga', 'DataProfile', 'qa'],
+        ['-Kusunga', '-DataProfile', 'qa'],
+        ['-KusungaData', 'Profile', 'qa'],
+      ]) {
+        expect(parse(args), isNot(isA<NoDataProfile>()), reason: '$args');
+      }
+    });
   });
 
   group('hardening, low realism (pasted text, look-alikes)', () {
-    test('zero-width characters inside "Kusunga" or "Profile", Cyrillic or '
-        'Turkish look-alikes, 1 or 0 for l or o', () {
-      final escapes = [
-        for (final v in [
-          '-Kusu\u200bngaDataProfile',
-          '-KusungaDataProfi\u200ble',
-          '-KusungaDataPr\u043efile', // Cyrillic o
-          '-Kusung\u0430DataProfile', // Cyrillic a
-          '-KusungaDataProf\u0131le', // dotless i
-          '-KusungaDataProf\u0130le', // dotted capital I
-          '-KusungaDataProfi1e',
-          '-KusungaDataPr0file',
-          '-KusungaDataProfiIe',
-        ])
-          if (!rejected([v, 'qa'])) v,
-      ];
-      expect(
-        escapes,
-        isEmpty,
-        reason: '${escapes.length} look-alikes get the real folder',
-      );
-    }, skip: 'Hardening (BUG-Q1g, low realism): look-alike letters');
+    test(
+      'zero-width characters inside "Kusunga" or "Profile", Cyrillic or '
+      'Turkish look-alikes, 1 or 0 for l or o',
+      () {
+        final escapes = [
+          for (final v in [
+            '-Kusu\u200bngaDataProfile',
+            '-KusungaDataProfi\u200ble',
+            '-KusungaDataPr\u043efile', // Cyrillic o
+            '-Kusung\u0430DataProfile', // Cyrillic a
+            '-KusungaDataProf\u0131le', // dotless i
+            '-KusungaDataProf\u0130le', // dotted capital I
+            '-KusungaDataProfi1e',
+            '-KusungaDataPr0file',
+            '-KusungaDataProfiIe',
+          ])
+            if (!rejected([v, 'qa'])) v,
+        ];
+        expect(
+          escapes,
+          isEmpty,
+          reason: '${escapes.length} look-alikes get the real folder',
+        );
+      },
+      // Out of scope: the PM accepted Q1g as a risk on 2026-11-06
+      // (docs/status.md, "Common slips + label check"); QA's "Test profile:
+      // qa" label check covers it. Since the BUG-Q1 fix these one-letter
+      // look-alikes are within its 3 edits, so this passes when run
+      // (`flutter test --run-skipped`), but it is not a promise: four or more
+      // look-alike or mistyped letters together still get the real folder.
+      skip:
+          'Hardening (BUG-Q1g, low realism): look-alike letters (risk '
+          'accepted by the PM, 2026-11-06, docs/status.md)',
+    );
   });
 }
 
