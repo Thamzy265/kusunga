@@ -741,7 +741,7 @@ void main() {
     await wheel(tester, SnippetsScreen, 1300);
     await setScale(tester, 2);
     expect(overflows, 0, reason: 'a RenderFlex overflowed after the change');
-  }, skip: true);
+  });
 
   testWidgets('BUG-T3 (History): the same, History list', (tester) async {
     fillHistory(60);

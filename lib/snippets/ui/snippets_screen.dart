@@ -514,6 +514,14 @@ class SnippetsScreenState extends State<SnippetsScreen> {
           sliver: SliverPrototypeExtentList.builder(
             key: _listKey,
             itemCount: items.length,
+            // No repaint boundary per row. A row kept built off screen (a
+            // focused or hovered row button keeps it) is not laid out by
+            // the list, yet after a text-size change its insides are laid
+            // out again inside its old height. With its own boundary that
+            // hidden row was painted anyway, and the debug overflow check
+            // fired (BUG-T3); without one, only the rows the list lays out
+            // are painted. The list is at most 1,000 short rows.
+            addRepaintBoundaries: false,
             // Rows keep their element (and focus) when they move.
             findChildIndexCallback: (key) {
               if (key is! ValueKey<int>) return null;

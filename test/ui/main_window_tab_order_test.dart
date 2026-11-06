@@ -544,4 +544,78 @@ void main() {
       });
     }
   });
+
+  group('BUG-T3: no layout error when the text size changes', () {
+    // A row the list keeps built off screen (a focused or hovered row
+    // button keeps it) is not laid out by the list, but its insides are
+    // re-laid out at the new text size inside its old height. It must not
+    // be painted (or reported) while it is not shown.
+    Future<void> changeAndCheckEveryFrame(WidgetTester tester) async {
+      textScale.value = 2;
+      for (var i = 0; i < 8; i++) {
+        await tester.pump();
+        final e = tester.takeException();
+        expect(e, isNull, reason: 'frame $i: $e');
+      }
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    }
+
+    testWidgets('a focused Copy button whose row the change pushes out of '
+        'the built range', (tester) async {
+      fillSnippets(50);
+      await show(tester);
+      await tapTab(tester, 'main-tab-snippets');
+      await wheel(tester, SnippetsScreen, 1300);
+      await tapTab(tester, 'main-tab-snippets');
+      await press(tester); // New snippet
+      await press(tester); // the first row fully in view
+      await press(tester); // its Copy button
+      expect(focusedHook(), startsWith('snippet-copy-'));
+      final before = focusedHook();
+
+      await changeAndCheckEveryFrame(tester);
+
+      // The focus is kept (as a row control, or on the row: at 200% text
+      // the row actions are in the More menu).
+      final id = before!.substring('snippet-copy-'.length);
+      expect(focusedHook(), anyOf('snippet-copy-$id', 'snippet-row-$id'));
+      expectFocusInView(tester, 'after the change');
+    });
+
+    testWidgets('the mouse over a row button while the text size changes', (
+      tester,
+    ) async {
+      fillSnippets(50);
+      await show(tester);
+      await tapTab(tester, 'main-tab-snippets');
+      await wheel(tester, SnippetsScreen, 1300);
+      final copy = find.byWidgetPredicate(
+        (w) =>
+            w is Semantics &&
+            (w.properties.identifier ?? '').startsWith('snippet-copy-'),
+      );
+      final mouse = TestPointer(2, PointerDeviceKind.mouse);
+      // Hover a row in the middle of the view, then its Copy button.
+      final rowCenter = tester.getCenter(
+        find.descendant(
+          of: find.byType(SnippetsScreen),
+          matching: find.byType(Viewport),
+        ),
+      );
+      await tester.sendEventToBinding(mouse.hover(rowCenter));
+      await tester.pumpAndSettle();
+      final shown = copy.evaluate().where((e) {
+        final r = tester.getRect(find.byWidget(e.widget));
+        return r.width > 0 && (r.center.dy - rowCenter.dy).abs() < 32;
+      });
+      expect(shown, isNotEmpty);
+      await tester.sendEventToBinding(
+        mouse.hover(tester.getCenter(find.byWidget(shown.first.widget))),
+      );
+      await tester.pumpAndSettle();
+
+      await changeAndCheckEveryFrame(tester);
+    });
+  });
 }
