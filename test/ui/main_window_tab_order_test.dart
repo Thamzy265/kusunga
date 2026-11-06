@@ -25,8 +25,10 @@ import '../support/fakes.dart';
 void main() {
   late FakeClipboardSource source;
   late HistoryService service;
+  final textScale = ValueNotifier<double>(1);
 
   setUp(() {
+    textScale.value = 1;
     source = FakeClipboardSource();
     service = HistoryService(
       store: MemoryHistoryStore(),
@@ -54,16 +56,25 @@ void main() {
     }
   }
 
-  Future<void> show(WidgetTester tester) async {
-    tester.view.physicalSize = const Size(800, 632);
+  Future<void> show(
+    WidgetTester tester, {
+    Size size = const Size(800, 632),
+  }) async {
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       MaterialApp(
         theme: KusungaTokens.themeData(Brightness.light),
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(context).copyWith(disableAnimations: true),
-          child: child!,
+        builder: (context, child) => ValueListenableBuilder<double>(
+          valueListenable: textScale,
+          builder: (context, scale, _) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              disableAnimations: true,
+              textScaler: TextScaler.linear(scale),
+            ),
+            child: child!,
+          ),
         ),
         home: HistoryHost(history: Future.value(service), initial: service),
       ),
@@ -315,5 +326,51 @@ void main() {
         if (row != null) expectFocusInView(tester, 'Tab $i on a row');
       }
     });
+  });
+
+  group('a text-size change while a Snippets row has the focus (BUG-T2)', () {
+    // Every row gets taller, so the focused row lands far below the view:
+    // it was dropped and the focus jumped to another row's hidden control.
+    for (final size in [const Size(520, 400), const Size(800, 632)]) {
+      testWidgets('${size.width.toInt()} px: the same control keeps the '
+          'focus, in view, and Shift+Tab and Tab go to its neighbours', (
+        tester,
+      ) async {
+        fillSnippets(40);
+        await show(tester, size: size);
+        await tapTab(tester, 'main-tab-snippets');
+        await wheel(tester, SnippetsScreen, 900);
+        await tapTab(tester, 'main-tab-snippets');
+        await press(tester); // New snippet
+        await press(tester); // the first row fully in view
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+        await tester.pumpAndSettle();
+        final hookBefore = focusedHook();
+        expect(hookBefore, startsWith('snippet-row-'));
+        final id = int.parse(hookBefore!.substring('snippet-row-'.length));
+        final items = service.snippets.items;
+        final at = items.indexWhere((s) => s.id == id);
+        final previousRow = items[at - 1].id;
+
+        textScale.value = 2;
+        await tester.pumpAndSettle();
+
+        expect(focusedHook(), hookBefore, reason: 'the focus moved away');
+        expectFocusInView(tester, 'after the text-size change');
+        // At 200% text the row actions are in the "More" menu.
+        await press(tester, shift: true);
+        expect(focusedHook(), 'snippet-more-$previousRow');
+        expectFocusInView(tester, 'Shift+Tab after the text-size change');
+        await press(tester);
+        expect(focusedHook(), hookBefore);
+        expectFocusInView(tester, 'Tab back');
+        await press(tester);
+        expect(focusedHook(), 'snippet-more-$id');
+        expectFocusInView(tester, 'Tab on');
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 }

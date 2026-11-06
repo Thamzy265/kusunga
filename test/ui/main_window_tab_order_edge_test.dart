@@ -412,7 +412,7 @@ void main() {
     expectFocusInView(tester, 'Shift+Tab after the text-size change');
     await press(tester);
     expectFocusInView(tester, 'Tab after the text-size change');
-  }, skip: true);
+  });
 
   testWidgets('a text-size change set before the walk: both tabs, Tab and '
       'Shift+Tab are in view', (tester) async {

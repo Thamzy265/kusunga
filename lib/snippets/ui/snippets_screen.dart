@@ -91,6 +91,50 @@ class SnippetsScreenState extends State<SnippetsScreen> {
     });
   }
 
+  TextScaler? _textScaler;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final scaler = MediaQuery.textScalerOf(context);
+    if (_textScaler != null && scaler != _textScaler) {
+      _keepFocusThroughTextSize();
+    }
+    _textScaler = scaler;
+  }
+
+  /// A text-size change makes every row taller or shorter, so the focused
+  /// row can land far out of view: the list drops it and the focus jumps to
+  /// another row's hidden control, or a focused button keeps its row alive
+  /// with no layout, and Tab goes on from nowhere (BUG-T2). Called before
+  /// the new layout: after it, the focused row is scrolled back into view
+  /// and the same control (else the row) gets the focus back.
+  void _keepFocusThroughTextSize() {
+    final control = FocusManager.instance.primaryFocus;
+    int? rowId;
+    for (final MapEntry(key: id, value: node) in _nodes.entries) {
+      if (node.hasFocus) rowId = id;
+    }
+    if (control == null || rowId == null) return;
+    final id = rowId;
+    final ticket = ++_focusTicket;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || ticket != _focusTicket) return;
+      final index = _service.items.indexWhere((s) => s.id == id);
+      if (index < 0) return;
+      _reveal(index);
+      // The row is laid out again on the next frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || ticket != _focusTicket) return;
+        final target = (control.context?.mounted ?? false)
+            ? control
+            : _nodes[id];
+        if (target != null && !target.hasPrimaryFocus) target.requestFocus();
+      });
+      WidgetsBinding.instance.ensureVisualUpdate();
+    });
+  }
+
   @override
   void dispose() {
     _service.removeListener(_onChange);
