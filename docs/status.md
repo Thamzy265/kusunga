@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-06 — M1.4 Saved snippets — W2 fixed; tester round 14 started
+- Changed: developer fixed W2 in a0ba96d: countRemovedBy returns null (unknown) on a failed read or closed history, never 0; while unknown the Keep dialog shows "Couldn't count the items. Try again." with Delete disabled (only Cancel works) and a good read brings the count back; an unknown count when lowering Keep still opens the dialog; raising the limit no longer reads the count. New strings: "Couldn't count the items. Try again." and a disabled "Delete". Zone scan also flags Future.delayed and Stream.periodic. One tester helper changed to find the Delete button inside the AlertDialog. Failing run +1 -3; check.sh +2204 ~8 ×2. Count-of-0 behaviour unchanged. Tester round 14 on b1d966d..a0ba96d started.
+- Gates: developer done · tester round 14 in progress · reviewer re-check pending · QA pass (session 5), footer real-app check open · PM merge waiting
+- Open findings: none open; N1, N2, F5 (Windows), R1 unchanged; VoiceOver: stale "moved to position" text to check
+- Decisions: none
+- Blockers: PM — dialog text at a count of 0; VoiceOver sign-off; confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; whether to remove the qa-m13-* items from real history; push of local main
+
 ## 2026-11-06 — M1.4 Saved snippets — Reviewer re-check: approve with notes; W2 (Low) to the developer
 - Changed: reviewer re-checked cc231ff..b1d966d: approve with notes. QA-M14-7 fixed (d6cea52, 9f0e719); BUG-W1 fixed (2020e85; ListenableBuilder owns the listener, no leak, confirm deletes what the dialog states at frame granularity); BUG-F1 no_change_needed (conclusion sound); zone guard sound as a tripwire (false positives only; optional: add Future.delayed and Stream.periodic to the scan). check.sh +2200 ~8 passed. New: W2 (Low) — history_screen.dart:654 with history_service.dart:364-370: countRemovedBy returns 0 when the store read fails, so a live Keep dialog can switch to "Delete 0 items" while confirm still trims the real number; related pre-existing case limit_field.dart:88-89 skips the dialog when the opening count read fails. Privacy note: history-tab-order-tabs shows older synthetic qa-m13-a5-timing-* items still in the PM's real history (cleanup exception covers qa-m14-* only). W2 sent to the developer.
 - Gates: developer in progress (W2) · tester pass (round 13) · reviewer approve with notes · QA pass (session 5), footer real-app check open · PM merge waiting
