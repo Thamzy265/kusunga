@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.4 Saved snippets — Tester round 18: F-M1 fix holds; reviewer re-check started
+- Changed: tester round 18 on 432131d..df38af8 (b9632e7, tests only): 10 tests in test/ui/dialog_focus_more_target_test.dart; focus lands on the visible, traversable "More options" button after every Clear close path and menu dismissal, also with the setup card shown and at 0 items (button never disabled or absent; empty traversal list is a safe no-op). Mutation check: the guard and the new file fail on the wrap, the parent, or no focus call; the new file also catches a skipTraversal target. Old target behaves the same today, so no fail-then-pass. Round 17 file still green. No bugs. check.sh +2374 ~8 passed. Reviewer re-check of 432131d..b9632e7 started.
+- Gates: developer done · tester pass (round 18) · reviewer re-check in progress · QA re-run pending (needs the Mac) · PM merge waiting
+- Open findings: none open; N1, N2, F5 (Windows), R1 unchanged
+- Decisions: none new
+- Blockers: PM — free the Mac for the QA re-run; VoiceOver sign-off; confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; push of local main
+
 ## 2026-11-08 — M1.4 Saved snippets — F-M1 fixed; tester round 18 started
 - Changed: developer fixed F-M1 in df38af8: _focusMore now focuses the first of _moreWrap.traversalDescendants (the Tab-reachable node of the visible More options button) instead of _moreWrap.children.first; PopupMenuButton kept so nothing visible changes. New guard test fails if the return target is not that node (mutation run failed as expected). check.sh +2364 ~8 ×2. Tester round 18 on 432131d..df38af8 started.
 - Gates: developer done · tester round 18 in progress · reviewer pending · QA re-run pending (needs the Mac) · PM merge waiting
