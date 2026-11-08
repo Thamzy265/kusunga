@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.5 Typed shortcuts — developer fixed L2
+- Changed: Developer fixed L2 in ef74f74: after a failed snippet write the previous text goes back only if the change number moved AND the clipboard is empty now (Mac no types or items; Windows CountClipboardFormats() == 0); otherwise the other app's change wins, the text is forgotten, and an earlier waiting restore doesn't overwrite it. Design note step 2 updated. Failing run first (Swift 4 failures; C++ 3 failed lines). The tester's N9 lock was changed to the new behaviour (a user copy in the gap now wins), as the lead asked. ./tool/check.sh +2589 ~10; test_mac_shortcuts.sh 137; test_windows_policy.sh all pass; macOS debug build ok. Remaining gap: if another app empties the clipboard during the failed write, the text is still written back over the empty clipboard. Windows bridge not compiled.
+- Gates: design approved · developer done (L2) · tester re-check of ef74f74 to be briefed · reviewer approve with notes, re-check after the tester · QA not started · PM merge n/a yet
+- Open findings: none open; the remaining gap goes to the tester and reviewer to judge
+- Decisions: none
+- Blockers: PM — rich copies (keep as designed or restore every format); Input Monitoring grant for QA; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-08 — M1.5 Typed shortcuts — reviewer re-check (L1): approve with notes, L2
 - Changed: Reviewer re-checked 0968851..6a47610. Checks pass (check.sh +2589 ~10; 133 XCTests; Windows policy suites). L1 confirmed fixed (mutation check failed as expected). N8 accepted, no change (copy-only paths match M1.3; non-text copies are never saved under C4). N9 logged as L2.
 - Gates: design approved · developer to fix L2 · tester pass (round 4) · reviewer approve with notes · QA not started · PM merge n/a yet
