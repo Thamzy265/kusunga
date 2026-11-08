@@ -58,7 +58,7 @@ Everything stays on the device. No account, no server.
   - AC: Kusunga posts the paste keystroke only after confirming the app that had focus is in front again (up to 500 ms); otherwise, and for Windows admin windows, it copies the item and says "press ⌘V / Ctrl+V".
   - AC: after pasting, the pasted item stays on the clipboard (PM 2026-11-04).
   - AC: a shortcut taken by another app is reported where the OS reports it (Windows `RegisterHotKey` fails); on Mac the OS lets two apps share a shortcut and does not tell Kusunga, so this is a known limitation; the user can always choose another (PM 2026-11-04).
-- [ ] **M1.4 Saved snippets** — large (new data store, personal data).
+- [x] **M1.4 Saved snippets** — large (new data store, personal data).
   - AC: create, edit, delete and reorder snippets with a name, content and type (phone, email, link, address, other).
   - AC: snippets show in the picker in their own tab, and pinning a history item turns it into a snippet.
   - AC: snippets are never removed by the history limit.
