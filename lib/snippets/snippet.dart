@@ -93,7 +93,18 @@ String normaliseName(String raw) =>
     raw.replaceAll('\u0000', '').replaceAll(_lineBreaks, ' ').trim();
 
 /// What is wrong with a snippet the user wants to save.
-enum SnippetProblem { emptyName, longName, emptyContent, longContent }
+enum SnippetProblem {
+  emptyName,
+  longName,
+  emptyContent,
+  longContent,
+
+  /// The shortcut (M1.5) is under 2 or over 32 characters.
+  shortcutLength,
+
+  /// The shortcut has a space, a line break or another control character.
+  shortcutSpaces,
+}
 
 /// The problems with [name] (already normalised) and [content]. Content is
 /// "empty" when it is only white space, as for history.

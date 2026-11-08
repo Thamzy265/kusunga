@@ -110,6 +110,26 @@ ShortcutClash? findShortcutClash(
   return null;
 }
 
+/// What the editor shows under the Shortcut field: a problem with the text,
+/// or a clash with another snippet.
+class ShortcutIssue {
+  const ShortcutIssue.problem(ShortcutProblem this.problem) : clash = null;
+  const ShortcutIssue.clash(ShortcutClash this.clash) : problem = null;
+
+  final ShortcutProblem? problem;
+  final ShortcutClash? clash;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ShortcutIssue &&
+      other.problem == problem &&
+      other.clash?.kind == clash?.kind &&
+      other.clash?.otherId == clash?.otherId;
+
+  @override
+  int get hashCode => Object.hash(problem, clash?.kind, clash?.otherId);
+}
+
 /// The store refused a shortcut that clashes with another snippet's. Nothing
 /// was changed.
 class ShortcutTaken implements Exception {

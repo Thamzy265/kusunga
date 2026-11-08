@@ -105,6 +105,9 @@ void main() {
       'lib/picker/picker_controller.dart',
       'lib/picker/ui/picker_panel.dart',
       'lib/picker/ui/picker_settings_section.dart',
+      // M1.5: the Shortcut field's 500 ms check. A widget's own Timer,
+      // started from onChanged, so it runs in the zone the widget runs in.
+      'lib/snippets/ui/snippet_editor.dart',
     };
     final seen = <String>{};
     for (final e in Directory('lib').listSync(recursive: true)) {

@@ -645,9 +645,13 @@ class _PickerRowState extends State<_PickerRow> {
     );
     final snippet = widget.snippet;
     // A snippet row shows exactly the text search matched (F8).
+    // Under 400 px the shortcut goes before the name is cut (M1.5 UI spec).
     final display = snippet == null
         ? PickerSearch.display(item.preview)
-        : snippetLine(snippet);
+        : snippetLine(
+            snippet,
+            withShortcut: MediaQuery.sizeOf(context).width >= 400,
+          );
 
     return Semantics(
       identifier: snippet == null

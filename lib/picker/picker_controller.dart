@@ -115,7 +115,10 @@ class PickerController extends ChangeNotifier {
   }
 
   static bool _sameLine(SnippetItem? a, SnippetItem b) =>
-      a != null && a.name == b.name && a.preview == b.preview;
+      a != null &&
+      a.name == b.name &&
+      a.preview == b.preview &&
+      a.shortcut == b.shortcut;
 
   static ClipItem _entryFor(SnippetItem s) => ClipItem(
     id: s.id,

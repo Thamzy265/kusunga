@@ -48,6 +48,15 @@ class KusungaTokens extends ThemeExtension<KusungaTokens> {
   /// type.body, type.caption, type.title (colour comes from the theme).
   static const body = TextStyle(fontSize: 14, height: 1.4);
   static const caption = TextStyle(fontSize: 12, height: 1.3);
+
+  /// type.mono: [caption] in a monospace face, for typed shortcuts such as
+  /// `;email` (M1.5 UI spec, "Tokens used").
+  static const mono = TextStyle(
+    fontSize: 12,
+    height: 1.3,
+    fontFamily: 'Menlo',
+    fontFamilyFallback: ['Consolas', 'Courier New', 'monospace'],
+  );
   static const title = TextStyle(
     fontSize: 20,
     height: 1.3,

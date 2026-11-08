@@ -821,10 +821,33 @@ class _SnippetRowState extends State<SnippetRow> {
                       fontWeight: FontWeight.bold,
                     ),
                   );
-                  if (narrow) return Row(children: [Flexible(child: nameText)]);
+                  // The shortcut follows the name and is never cut (M1.5):
+                  // when the row is too narrow it wraps instead.
+                  final shortcut = item.shortcut == null
+                      ? const <Widget>[]
+                      : [
+                          SizedBox(width: KusungaTokens.space2),
+                          Flexible(
+                            child: Text(
+                              item.shortcut!,
+                              style: KusungaTokens.mono.copyWith(
+                                color: t.textMuted,
+                              ),
+                            ),
+                          ),
+                        ];
+                  if (narrow) {
+                    return Row(
+                      children: [
+                        Flexible(child: nameText),
+                        ...shortcut,
+                      ],
+                    );
+                  }
                   return Row(
                     children: [
                       Flexible(child: nameText),
+                      ...shortcut,
                       SizedBox(width: KusungaTokens.space2),
                       ConstrainedBox(
                         constraints: BoxConstraints(
