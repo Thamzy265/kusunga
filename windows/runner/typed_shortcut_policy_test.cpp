@@ -368,6 +368,352 @@ static void TestReplace() {
   CHECK(!IsOwnKey(0));
 }
 
+// ---- Tester edge cases (M1.5): reset keys, skip-rule order, bounds, idle
+// edges, characters and delete counts, replace races ----
+
+static TypedKeyContext Ctx(bool self = false, bool ignored = false,
+                           bool injected = false, bool elevated = false) {
+  TypedKeyContext c;
+  c.front_is_self = self;
+  c.front_ignored = ignored;
+  c.injected = injected;
+  c.front_elevated = elevated;
+  return c;
+}
+
+static void TestEdgeResetKeys() {
+  // Every key that moves the cursor or is a command breaks ;em + ail.
+  const uint32_t resets[] = {0x0D, 0x09, 0x1B, 0x2E, 0x25, 0x26, 0x27,
+                             0x28, 0x24, 0x23, 0x21, 0x22, 0x2D, 0x14};
+  for (uint32_t vk : resets) {
+    auto m = Make();
+    TypeText(m, U";em");
+    TypedKey k = ClassifyWindowsKey(vk, KeyFlags{}, U"\r");
+    CHECK(k.kind == TypedKey::Kind::kReset);
+    m.Handle(k, TypedKeyContext{}, 1);
+    CHECK(m.BufferCount() == 0);
+    CHECK(IsNone(TypeText(m, U"ail")));
+  }
+  // Modifiers: Ctrl, Alt, Win reset; AltGr and Shift type.
+  KeyFlags ctrl;
+  ctrl.ctrl = true;
+  KeyFlags alt;
+  alt.alt = true;
+  KeyFlags ralt_only;  // right Alt without Ctrl is not AltGr
+  ralt_only.alt = true;
+  ralt_only.right_alt = true;
+  KeyFlags win;
+  win.win = true;
+  KeyFlags altgr;
+  altgr.ctrl = true;
+  altgr.alt = true;
+  altgr.right_alt = true;
+  KeyFlags ctrl_lalt;  // Ctrl + left Alt is not AltGr
+  ctrl_lalt.ctrl = true;
+  ctrl_lalt.alt = true;
+  CHECK(ClassifyWindowsKey(0x41, ctrl, U"a").kind == TypedKey::Kind::kReset);
+  CHECK(ClassifyWindowsKey(0x41, alt, U"a").kind == TypedKey::Kind::kReset);
+  CHECK(ClassifyWindowsKey(0x41, ralt_only, U"a").kind == TypedKey::Kind::kReset);
+  CHECK(ClassifyWindowsKey(0x41, win, U"a").kind == TypedKey::Kind::kReset);
+  CHECK(ClassifyWindowsKey(0x41, ctrl_lalt, U"a").kind == TypedKey::Kind::kReset);
+  CHECK(ClassifyWindowsKey(0x32, altgr, U"@").kind == TypedKey::Kind::kText);
+  CHECK(ClassifyWindowsKey(0x41, KeyFlags{}, U"A").kind == TypedKey::Kind::kText);
+  // Ctrl+Backspace deletes a word: a reset, not a Backspace.
+  CHECK(ClassifyWindowsKey(0x08, ctrl, U"").kind == TypedKey::Kind::kReset);
+  CHECK(ClassifyWindowsKey(0x08, KeyFlags{}, U"").kind == TypedKey::Kind::kBackspace);
+  // Space is text; function keys and Shift type nothing; controls are ignored.
+  CHECK(ClassifyWindowsKey(0x20, KeyFlags{}, U" ").kind == TypedKey::Kind::kText);
+  CHECK(ClassifyWindowsKey(0x70, KeyFlags{}, U"").kind == TypedKey::Kind::kIgnore);
+  CHECK(ClassifyWindowsKey(0x10, KeyFlags{}, U"").kind == TypedKey::Kind::kIgnore);
+  CHECK(ClassifyWindowsKey(0x41, KeyFlags{}, std::u32string(1, 0x01)).kind ==
+        TypedKey::Kind::kIgnore);
+  CHECK(ClassifyWindowsKey(0x41, KeyFlags{}, std::u32string(1, 0x7F)).kind ==
+        TypedKey::Kind::kIgnore);
+  // Delete on an empty buffer stays empty and a new shortcut still fires.
+  auto m = Make();
+  for (int i = 0; i < 5; i++) m.Handle(TypedKey::Backspace(), TypedKeyContext{}, 0);
+  CHECK(m.BufferCount() == 0);
+  CHECK(IsMatch(TypeText(m, U";email"), 7, 6));
+}
+
+static void TestEdgeIdle() {
+  {  // Backspace counts as a key for the idle clock.
+    auto m = Make();
+    TypeText(m, U";emx", TypedKeyContext{}, 0);
+    m.Handle(TypedKey::Backspace(), TypedKeyContext{}, 4000);
+    CHECK(IsMatch(TypeText(m, U"ail", TypedKeyContext{}, 8900), 7, 6));
+  }
+  {  // A key that types nothing does not.
+    auto m = Make();
+    TypeText(m, U";ema", TypedKeyContext{}, 0);
+    m.Handle(TypedKey::Ignore(), TypedKeyContext{}, 4900);
+    CHECK(IsNone(TypeText(m, U"il", TypedKeyContext{}, 5000)));
+  }
+  {  // Each key restarts the clock: 4999 + 4999 is alive, exactly 5000 is not.
+    auto m = Make();
+    TypeText(m, U";ema", TypedKeyContext{}, 0);
+    m.Handle(TypedKey::Text(U"i"), TypedKeyContext{}, 4999);
+    CHECK(IsMatch(m.Handle(TypedKey::Text(U"l"), TypedKeyContext{}, 9998), 7, 6));
+    auto n = Make();
+    TypeText(n, U";emai", TypedKeyContext{}, 0);
+    CHECK(IsNone(n.Handle(TypedKey::Text(U"l"), TypedKeyContext{}, 5000)));
+  }
+  {  // A clock that starts late (first key at a large time) works the same.
+    auto m = Make();
+    TypeText(m, U";ema", TypedKeyContext{}, 1000000);
+    m.Tick(1004999);
+    CHECK(m.BufferCount() == 4);
+    m.Tick(1005000);
+    CHECK(m.BufferCount() == 0);
+  }
+}
+
+static void TestEdgeSkips() {
+  auto outcome = [](TypedKeyContext c) {
+    auto m = Make();
+    return TypeText(m, U";email", c);
+  };
+  // Order: injected, self (silent), ignored, admin.
+  CHECK(IsSkip(outcome(Ctx(true, true, true, true)), "shortcutSkippedInjected"));
+  CHECK(IsNone(outcome(Ctx(true, true, false, true))));
+  CHECK(IsSkip(outcome(Ctx(false, true, false, true)), "shortcutSkippedIgnoredApp"));
+  CHECK(IsSkip(outcome(Ctx(false, false, false, true)), "shortcutSkippedAdmin"));
+  CHECK(IsMatch(outcome(Ctx()), 7, 6));
+  {  // A skip keeps the buffer: correct and retype fires once the skip ends.
+    auto m = Make();
+    CHECK(IsSkip(TypeText(m, U";email", Ctx(false, true)), "shortcutSkippedIgnoredApp"));
+    CHECK(m.BufferCount() == 6);
+    m.Handle(TypedKey::Backspace(), TypedKeyContext{}, 1);
+    CHECK(IsMatch(TypeText(m, U"l", TypedKeyContext{}, 1), 7, 6));
+  }
+  // One software key anywhere inside the shortcut blocks it.
+  for (size_t bad = 0; bad < 6; bad++) {
+    auto m = Make();
+    TypedOutcome out;
+    const std::u32string code = U";email";
+    for (size_t i = 0; i < code.size(); i++) {
+      out = m.Handle(TypedKey::Text(std::u32string(1, code[i])), Ctx(false, false, i == bad), 0);
+    }
+    CHECK(IsSkip(out, "shortcutSkippedInjected"));
+  }
+  {  // Software keys before the shortcut do not block it.
+    auto m = Make();
+    TypeText(m, U"hello ", Ctx(false, false, true));
+    CHECK(IsMatch(TypeText(m, U";email"), 7, 6));
+  }
+  {  // A software key that was Backspaced away no longer blocks.
+    auto m = Make();
+    TypeText(m, U";emai");
+    TypeText(m, U"x", Ctx(false, false, true));
+    m.Handle(TypedKey::Backspace(), TypedKeyContext{}, 0);
+    CHECK(IsMatch(TypeText(m, U"l"), 7, 6));
+  }
+  // Field check: fails closed.
+  CHECK(DecideField(FieldState::kNormal) == nullptr);
+  CHECK(std::string(DecideField(FieldState::kPassword)) == "shortcutSkippedPassword");
+  CHECK(std::string(DecideField(FieldState::kUnknown)) == "shortcutSkippedUnknownField");
+  CHECK(kFieldCheckLimitMs == 100);
+}
+
+static void TestEdgeBounds() {
+  const std::u32string code = U";" + std::u32string(31, U'a');
+  {
+    TypedShortcutMatcher m;
+    m.SetTable({{9, std::string(";") + std::string(31, 'a')}});
+    TypeText(m, std::u32string(100, U'z'));
+    CHECK(m.BufferCount() == 32);
+    CHECK(IsMatch(TypeText(m, code), 9, 32));
+  }
+  {  // 33 characters is refused, not truncated.
+    TypedShortcutMatcher m;
+    m.SetTable({{9, std::string(";") + std::string(32, 'a')}});
+    CHECK(m.TableSize() == 0);
+  }
+  {  // One huge key event never grows the buffer past 32.
+    auto m = Make();
+    m.Handle(TypedKey::Text(std::u32string(500, U'q')), TypedKeyContext{}, 0);
+    CHECK(m.BufferCount() == 32);
+  }
+  {  // A multi-character event ending in the shortcut fires.
+    auto m = Make();
+    CHECK(IsMatch(m.Handle(TypedKey::Text(U"xx;email"), TypedKeyContext{}, 0), 7, 6));
+  }
+  {  // A shortcut inside another one fires first (finding, locked as is).
+    TypedShortcutMatcher m;
+    m.SetTable({{1, "ma"}, {2, ";email"}});
+    const std::u32string typed = U";email";
+    std::vector<TypedOutcome> outs;
+    for (char32_t c : typed) {
+      outs.push_back(m.Handle(TypedKey::Text(std::u32string(1, c)), TypedKeyContext{}, 0));
+    }
+    CHECK(IsMatch(outs[3], 1, 2));
+    for (const auto& o : outs) CHECK(!IsMatch(o, 2, 6));
+  }
+  {  // Longest wins when two shortcuts end the same way.
+    TypedShortcutMatcher m;
+    m.SetTable({{1, "ab"}, {2, "xab"}});
+    CHECK(IsMatch(TypeText(m, U"xab"), 2, 3));
+    CHECK(IsMatch(TypeText(m, U"yab"), 1, 2));
+  }
+}
+
+static void TestEdgeTable() {
+  auto count = [](const std::string& s) {
+    return ShortcutTable({{1, s}}).Size();
+  };
+  CHECK(count(std::string(32, 'a')) == 1);
+  CHECK(count("ab") == 1);
+  CHECK(count("\xF0\x9F\x98\x80\xF0\x9F\x98\x80") == 1);  // two emoji
+  std::string e32;
+  for (int i = 0; i < 32; i++) e32 += "\xF0\x9F\x98\x80";
+  CHECK(count(e32) == 1);  // 32 code points = 128 bytes: counted as 32
+  CHECK(count(e32 + "\xF0\x9F\x98\x80") == 0);
+  CHECK(count("") == 0);
+  CHECK(count("a") == 0);
+  CHECK(count(std::string(33, 'a')) == 0);
+  CHECK(count("a b") == 0);
+  CHECK(count("a\xC2\xA0" "b") == 0);          // U+00A0
+  CHECK(count("a\xC2\x85" "b") == 0);          // U+0085
+  CHECK(count("a\xE2\x80\xA8" "b") == 0);      // U+2028
+  CHECK(count("a\xE3\x80\x80" "b") == 0);      // U+3000
+  CHECK(count("a\xE1\x9A\x80" "b") == 0);      // U+1680
+  CHECK(count("a\xE2\x80\xAF" "b") == 0);      // U+202F
+  CHECK(count(std::string("a\0b", 3)) == 0);   // NUL
+  CHECK(count("a\x7F" "b") == 0);
+  CHECK(count("a\r\nb") == 0);
+  CHECK(count("a\x0B" "b") == 0);
+  // Bad UTF-8 is refused: truncated, overlong, a surrogate, a lone
+  // continuation, above U+10FFFF, a 5-byte form.
+  CHECK(count("a\xE2\x82") == 0);
+  CHECK(count("a\xC0\xAF") == 0);
+  CHECK(count("a\xED\xA0\x80") == 0);
+  CHECK(count("a\x80" "b") == 0);
+  CHECK(count("a\xF4\x90\x80\x80") == 0);
+  CHECK(count("a\xF8\x88\x80\x80\x80") == 0);
+  // The refused set equals the Dart rule (lib/snippets/snippet_shortcut.dart).
+  auto dart_refuses = [](char32_t r) {
+    return r < 0x20 || r == 0x20 || r == 0x7F || (r >= 0x80 && r <= 0xA0) ||
+           r == 0x1680 || (r >= 0x2000 && r <= 0x200A) || r == 0x2028 ||
+           r == 0x2029 || r == 0x202F || r == 0x205F || r == 0x3000;
+  };
+  for (char32_t r = 0; r <= 0x10FFFF; r++) {
+    CHECK(IsSpaceOrControl(r) == dart_refuses(r));
+  }
+  // Same text twice keeps the last id.
+  ShortcutTable dup({{1, ";x1"}, {2, ";x1"}});
+  CHECK(dup.Size() == 1);
+  int id = 0, n = 0, len = 0;
+  CHECK(dup.Match(U";x1", &id, &n, &len) && id == 2);
+  // Case and canonical forms are compared exactly (the Swift copy treats
+  // canonically equal strings as equal; see the hand-off).
+  ShortcutTable cs({{1, ";Email"}, {2, "\xC3\xA9" "x"}});
+  CHECK(!cs.Match(U";email", &id, &n, &len));
+  CHECK(!cs.Match(U"éx", &id, &n, &len));
+  CHECK(cs.Match(U"éx", &id, &n, &len) && id == 2);
+}
+
+static void TestEdgeUtf16() {
+  CHECK(Utf16ToUtf32(u"a\xD83D\xDE00" "b") == U"a\U0001F600" "b");
+  CHECK(Utf16ToUtf32(u"\xD83D" "a") == U"a");       // lone high surrogate dropped
+  CHECK(Utf16ToUtf32(u"a\xDE00") == U"a");           // lone low surrogate dropped
+  CHECK(Utf16ToUtf32(u"\xD83D") == U"");
+  CHECK(Utf16ToUtf32(u"\xD83D\xD83D\xDE00") == U"\U0001F600");
+  CHECK(Utf16ToUtf32(u"") == U"");
+}
+
+static void TestEdgeDeleteCounts() {
+  // Windows counts code points: one Backspace per code point. Locks the
+  // current rule, and the places it differs from what the Mac deletes.
+  struct Case {
+    std::u32string code;
+    int code_points;
+  };
+  const Case cases[] = {
+      {U";\U0001F44D\U0001F3FD", 3},                       // thumbs up + skin tone (Mac: 2)
+      {U";\U0001F1EC\U0001F1E7", 3},                       // flag (Mac: 2)
+      {U";\U0001F468‍\U0001F469‍\U0001F467", 6}, // family (Mac: 2)
+      {U";é", 3},                                    // e + acute (Mac: 2)
+      {U";é", 2},
+      {U";日本", 3},
+      {std::u32string(32, U'\U0001F600'), 32},
+  };
+  for (const auto& c : cases) {
+    std::string utf8;
+    for (char32_t ch : c.code) {  // tiny encoder for the test
+      if (ch < 0x80) utf8 += static_cast<char>(ch);
+      else if (ch < 0x800) {
+        utf8 += static_cast<char>(0xC0 | (ch >> 6));
+        utf8 += static_cast<char>(0x80 | (ch & 0x3F));
+      } else if (ch < 0x10000) {
+        utf8 += static_cast<char>(0xE0 | (ch >> 12));
+        utf8 += static_cast<char>(0x80 | ((ch >> 6) & 0x3F));
+        utf8 += static_cast<char>(0x80 | (ch & 0x3F));
+      } else {
+        utf8 += static_cast<char>(0xF0 | (ch >> 18));
+        utf8 += static_cast<char>(0x80 | ((ch >> 12) & 0x3F));
+        utf8 += static_cast<char>(0x80 | ((ch >> 6) & 0x3F));
+        utf8 += static_cast<char>(0x80 | (ch & 0x3F));
+      }
+    }
+    TypedShortcutMatcher m;
+    m.SetTable({{4, utf8}});
+    CHECK(IsMatch(TypeText(m, c.code), 4, c.code_points));
+    CHECK(c.code_points >= 1 && c.code_points <= 32);
+  }
+}
+
+static void TestEdgeReplace() {
+  {  // A cancelled run leaves a pending restore alone.
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(6, "first", 100) == ReplaceResult::kReplaced);
+    p.foreground = 200;
+    CHECK(flow.Run(4, "second", 100) == ReplaceResult::kCancelled);
+    p.scheduled[0].second();
+    CHECK(p.restores == 1);
+  }
+  {  // Three in a row read the clipboard once and restore once.
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    for (int i = 0; i < 3; i++) {
+      CHECK(flow.Run(3, "s", 100) == ReplaceResult::kReplaced);
+    }
+    int reads = 0;
+    for (const auto& l : p.log) reads += l == "readPrevious";
+    CHECK(reads == 1);
+    for (auto& w : p.scheduled) w.second();
+    CHECK(p.restores == 1);
+  }
+  {  // The user copied between two shortcuts: the new copy is read again.
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    flow.Run(3, "first", 100);
+    p.sequence++;  // Ctrl+C
+    flow.Run(3, "second", 100);
+    int reads = 0;
+    for (const auto& l : p.log) reads += l == "readPrevious";
+    CHECK(reads == 2);
+    for (auto& w : p.scheduled) w.second();
+    CHECK(p.restores == 1);
+  }
+  {  // The key check happens before anything is sent or read.
+    FakeReplace p;
+    p.keys_after = 3;
+    CHECK(ReplaceFlow(&p).Run(3, "x", 100) == ReplaceResult::kCancelled);
+    CHECK(p.log.empty() && p.scheduled.empty());
+  }
+  {  // A failed write sends no paste and schedules no restore.
+    FakeReplace p;
+    p.write_ok = false;
+    CHECK(ReplaceFlow(&p).Run(3, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.scheduled.empty());
+    for (const auto& l : p.log) CHECK(l != "paste");
+  }
+  CHECK(kRestoreDelayMs == 500);
+  CHECK(kOwnKeyMarker == 0x4B534E47);
+  CHECK(!IsOwnKey(0x4B534E48));
+}
+
 int main() {
   TestReplace();
   TestBuffer();
@@ -377,6 +723,14 @@ int main() {
   TestClassify();
   TestUtf();
   TestSpeed();
+  TestEdgeResetKeys();
+  TestEdgeIdle();
+  TestEdgeSkips();
+  TestEdgeBounds();
+  TestEdgeTable();
+  TestEdgeUtf16();
+  TestEdgeDeleteCounts();
+  TestEdgeReplace();
   if (failures == 0) std::printf("typed_shortcut_policy_test: all passed\n");
   return failures == 0 ? 0 : 1;
 }

@@ -380,3 +380,424 @@ final class ReplaceFlowTests: XCTestCase {
     XCTAssertFalse(String(reflecting: saved).contains("secret"))
   }
 }
+
+// MARK: - Tester edge cases (M1.5): every reset key, skip-rule order, the
+// buffer bound, idle edges, characters and delete counts, replace races.
+
+final class TypedShortcutEdgeTests: XCTestCase {
+  private func matcher(_ entries: [(Int, String)] = [(7, ";email")]) -> TypedShortcutMatcher {
+    let m = TypedShortcutMatcher()
+    m.setTable(entries)
+    return m
+  }
+
+  @discardableResult
+  private func type(
+    _ m: TypedShortcutMatcher, _ text: String, context: TypedKeyContext = plain, at: Int = 0
+  ) -> TypedOutcome {
+    var last = TypedOutcome.none
+    for ch in text { last = m.handle(.text(String(ch)), context: context, nowMs: at) }
+    return last
+  }
+
+  // Reset events -------------------------------------------------------
+
+  /// Each key that moves the cursor or is a command must break a half-typed
+  /// shortcut: ";em", the key, "ail" never fires (design note, "The buffer").
+  func testEveryResetKeyCodeBreaksAHalfTypedShortcut() {
+    // Return, Tab, Escape, forward Delete, keypad Enter, 4 arrows, Home, End,
+    // Page Up, Page Down.
+    let codes: [Int64] = [36, 48, 53, 117, 76, 123, 124, 125, 126, 115, 119, 116, 121]
+    XCTAssertEqual(Set(codes), MacKeyClassifier.resetKeys)
+    for code in codes {
+      let m = matcher()
+      type(m, ";em")
+      let key = MacKeyClassifier.classify(keyCode: code, command: false, control: false, chars: "\r")
+      XCTAssertEqual(key, .reset, "key code \(code)")
+      _ = m.handle(key, context: plain, nowMs: 1)
+      XCTAssertEqual(m.bufferCount, 0, "key code \(code)")
+      XCTAssertEqual(type(m, "ail"), .none, "key code \(code)")
+    }
+  }
+
+  func testCommandOrControlResetEvenOnAKeyThatTypesNothing() {
+    for (cmd, ctl) in [(true, false), (false, true), (true, true)] {
+      XCTAssertEqual(
+        MacKeyClassifier.classify(keyCode: 0, command: cmd, control: ctl, chars: nil), .reset)
+      XCTAssertEqual(
+        MacKeyClassifier.classify(keyCode: 51, command: cmd, control: ctl, chars: nil), .reset,
+        "Cmd+Delete deletes a line: not a plain Backspace")
+    }
+  }
+
+  func testOptionAndShiftStillType() {
+    // Option makes characters (Option+2 is the euro sign); it is not a reset.
+    XCTAssertEqual(
+      MacKeyClassifier.classify(keyCode: 19, command: false, control: false, chars: "€"),
+      .text("€"))
+    XCTAssertEqual(
+      MacKeyClassifier.classify(keyCode: 0, command: false, control: false, chars: "A"), .text("A"))
+  }
+
+  func testFunctionAndArrowPrivateUseCharactersNeverEnterTheBuffer() {
+    for v in [0xF700, 0xF704, 0xF72C, 0xF8FF] {
+      let s = String(UnicodeScalar(v)!)
+      XCTAssertEqual(
+        MacKeyClassifier.classify(keyCode: 122, command: false, control: false, chars: s), .ignore)
+    }
+    // Just outside the private-use band is an ordinary character.
+    XCTAssertEqual(
+      MacKeyClassifier.classify(keyCode: 0, command: false, control: false, chars: "\u{F6FF}"),
+      .text("\u{F6FF}"))
+    XCTAssertEqual(
+      MacKeyClassifier.classify(keyCode: 0, command: false, control: false, chars: "\u{F900}"),
+      .text("\u{F900}"))
+  }
+
+  func testDeleteWithAnEmptyBufferStaysEmptyAndANewKeyStillWorks() {
+    let m = matcher()
+    for _ in 0..<5 { _ = m.handle(.backspace, context: plain, nowMs: 0) }
+    XCTAssertEqual(m.bufferCount, 0)
+    XCTAssertEqual(type(m, ";email"), .matched(snippetId: 7, deleteCount: 6))
+  }
+
+  func testResetThenFullShortcutFiresAgain() {
+    let m = matcher()
+    type(m, ";ema")
+    _ = m.handle(.reset, context: plain, nowMs: 1)
+    XCTAssertEqual(type(m, ";email", at: 2), .matched(snippetId: 7, deleteCount: 6))
+  }
+
+  // Idle edges ----------------------------------------------------------
+
+  func testBackspaceCountsAsAKeyForTheIdleClock() {
+    let m = matcher()
+    type(m, ";emx", at: 0)
+    _ = m.handle(.backspace, context: plain, nowMs: 4000)
+    // 4.9 s after the Backspace, 8.9 s after the first key: still alive.
+    XCTAssertEqual(type(m, "ail", at: 8900), .matched(snippetId: 7, deleteCount: 6))
+  }
+
+  func testAKeyThatTypesNothingDoesNotRefreshTheIdleClock() {
+    let m = matcher()
+    type(m, ";ema", at: 0)
+    _ = m.handle(.ignore, context: plain, nowMs: 4900)
+    XCTAssertEqual(type(m, "il", at: 5000), .none)
+  }
+
+  func testEachKeyRestartsTheFiveSecondClock() {
+    let m = matcher()
+    type(m, ";ema", at: 0)
+    _ = m.handle(.text("i"), context: plain, nowMs: 4999)
+    XCTAssertEqual(m.bufferCount, 5)
+    XCTAssertEqual(
+      m.handle(.text("l"), context: plain, nowMs: 4999 + 4999), .matched(snippetId: 7, deleteCount: 6))
+    let n = matcher()
+    type(n, ";emai", at: 0)
+    XCTAssertEqual(n.handle(.text("l"), context: plain, nowMs: 5000), TypedOutcome.none)
+  }
+
+  // Skip rules -----------------------------------------------------------
+
+  func testSkipPrecedenceIsInjectedThenPasswordThenSelfThenIgnored() {
+    func outcome(_ c: TypedKeyContext) -> TypedOutcome {
+      let m = matcher()
+      return type(m, ";email", context: c)
+    }
+    var c = TypedKeyContext(secureInput: true, frontIsSelf: true, frontIgnored: true, injected: true)
+    XCTAssertEqual(outcome(c), .skipped("shortcutSkippedInjected"))
+    c.injected = false
+    XCTAssertEqual(outcome(c), .skipped("shortcutSkippedPassword"))
+    c.secureInput = false
+    XCTAssertEqual(outcome(c), .none, "typing in Kusunga itself is silent, not logged")
+    c.frontIsSelf = false
+    XCTAssertEqual(outcome(c), .skipped("shortcutSkippedIgnoredApp"))
+    c.frontIgnored = false
+    XCTAssertEqual(outcome(c), .matched(snippetId: 7, deleteCount: 6))
+  }
+
+  func testASkipKeepsTheBufferSoCorrectingAndRetypingFiresOnceTheSkipEnds() {
+    let m = matcher()
+    var c = TypedKeyContext()
+    c.frontIgnored = true
+    XCTAssertEqual(type(m, ";email", context: c), .skipped("shortcutSkippedIgnoredApp"))
+    XCTAssertEqual(m.bufferCount, 6)
+    _ = m.handle(.backspace, context: plain, nowMs: 1)
+    XCTAssertEqual(type(m, "l", at: 1), .matched(snippetId: 7, deleteCount: 6))
+  }
+
+  func testOneSoftwareKeyInsideTheShortcutBlocksIt() {
+    for badIndex in 0..<6 {
+      let m = matcher()
+      var out = TypedOutcome.none
+      for (i, ch) in ";email".enumerated() {
+        var c = TypedKeyContext()
+        c.injected = i == badIndex
+        out = m.handle(.text(String(ch)), context: c, nowMs: 0)
+      }
+      XCTAssertEqual(out, .skipped("shortcutSkippedInjected"), "software key at \(badIndex)")
+    }
+  }
+
+  func testSoftwareKeysBeforeTheShortcutDoNotBlockIt() {
+    let m = matcher()
+    var soft = TypedKeyContext()
+    soft.injected = true
+    type(m, "hello ", context: soft)
+    XCTAssertEqual(type(m, ";email"), .matched(snippetId: 7, deleteCount: 6))
+  }
+
+  func testSoftwareKeysAreForgottenWhenBackspaced() {
+    let m = matcher()
+    var soft = TypedKeyContext()
+    soft.injected = true
+    type(m, ";emai", context: plain)
+    type(m, "x", context: soft)
+    _ = m.handle(.backspace, context: plain, nowMs: 0)
+    XCTAssertEqual(type(m, "l"), .matched(snippetId: 7, deleteCount: 6))
+  }
+
+  func testNoCharacterOfTheMatchIsKeptAfterAMatchEvenIfItWasSkippedBefore() {
+    let m = matcher()
+    var c = TypedKeyContext()
+    c.secureInput = true
+    XCTAssertEqual(type(m, ";email", context: c), .skipped("shortcutSkippedPassword"))
+    // Secure input ends; the platform resets on that event.
+    m.reset()
+    XCTAssertEqual(m.bufferCount, 0)
+    XCTAssertEqual(type(m, "l"), .none)
+  }
+
+  // Buffer bound ------------------------------------------------------------
+
+  func testAThirtyTwoCharacterShortcutFiresAfterLongJunk() {
+    let code = ";" + String(repeating: "a", count: 31)
+    let m = matcher([(9, code)])
+    type(m, String(repeating: "z", count: 100))
+    XCTAssertEqual(m.bufferCount, 32)
+    XCTAssertEqual(type(m, code), .matched(snippetId: 9, deleteCount: 32))
+  }
+
+  func testAThirtyThreeCharacterShortcutIsRefusedNotTruncated() {
+    let code = ";" + String(repeating: "a", count: 32)
+    let m = matcher([(9, code)])
+    XCTAssertEqual(m.tableSize, 0)
+    XCTAssertEqual(type(m, code), .none)
+  }
+
+  func testTheBufferNeverExceeds32EvenForOneHugeKeyEvent() {
+    let m = matcher()
+    _ = m.handle(.text(String(repeating: "q", count: 500)), context: plain, nowMs: 0)
+    XCTAssertEqual(m.bufferCount, 32)
+  }
+
+  func testAMultiCharacterKeyEventEndingInTheShortcutFires() {
+    let m = matcher()
+    XCTAssertEqual(
+      m.handle(.text("xx;email"), context: plain, nowMs: 0), .matched(snippetId: 7, deleteCount: 6))
+  }
+
+  // Table rules -------------------------------------------------------------
+
+  func testTheRulesAtTheEdges() {
+    let ok = [
+      String(repeating: "a", count: 32), "ab", "😀😀", ";é", "日本",
+      String(repeating: "😀", count: 32),
+    ]
+    let bad = [
+      "", "a", String(repeating: "a", count: 33), String(repeating: "😀", count: 33),
+      "a b", "a\u{00A0}b", "a\u{0085}b", "a\u{2028}b", "a\u{3000}b", "a\u{1680}b", "a\u{202F}b",
+      "a\u{0000}b", "a\u{007F}b", "a\r\nb", "a\u{000B}b", "a\u{000C}b", "\u{2009}ab",
+    ]
+    for s in ok { XCTAssertEqual(ShortcutTable(entries: [(1, s)]).count, 1, "ok: \(s.debugDescription)") }
+    for s in bad { XCTAssertEqual(ShortcutTable(entries: [(1, s)]).count, 0, "bad: \(s.debugDescription)") }
+  }
+
+  /// The set of refused characters must be the same one the Dart editor
+  /// refuses (lib/snippets/snippet_shortcut.dart) and the C++ copy refuses.
+  func testRefusedCharacterSetMatchesTheDartRule() {
+    func dartRefuses(_ r: UInt32) -> Bool {
+      r < 0x20 || r == 0x20 || r == 0x7F || (r >= 0x80 && r <= 0xA0) || r == 0x1680
+        || (r >= 0x2000 && r <= 0x200A) || r == 0x2028 || r == 0x2029 || r == 0x202F
+        || r == 0x205F || r == 0x3000
+    }
+    for r in UInt32(0)...UInt32(0x10FFFF) {
+      guard let s = UnicodeScalar(r) else { continue }
+      let accepted = ShortcutTable(entries: [(1, "a" + String(s))]).count == 1
+      XCTAssertEqual(accepted, !dartRefuses(r), "U+\(String(r, radix: 16))")
+    }
+  }
+
+  func testTwoShortcutsWithTheSameTextKeepTheLastId() {
+    let table = ShortcutTable(entries: [(1, ";x1"), (2, ";x1")])
+    XCTAssertEqual(table.count, 1)
+    XCTAssertEqual(table.match(Array(";x1".unicodeScalars))?.snippetId, 2)
+  }
+
+  /// A shortcut that sits inside another one (not at its start) fires first.
+  /// Locks today's behaviour; see the finding in the hand-off.
+  func testAShortcutInsideAnotherOneFiresBeforeTheLongerOneIsFinished() {
+    let m = matcher([(1, "ma"), (2, ";email")])
+    let outcomes = ";email".map { m.handle(.text(String($0)), context: plain, nowMs: 0) }
+    XCTAssertEqual(outcomes[3], .matched(snippetId: 1, deleteCount: 2), "fires at the 'a'")
+    XCTAssertFalse(outcomes.contains(.matched(snippetId: 2, deleteCount: 6)))
+  }
+
+  func testLongestWinsWhenTwoShortcutsEndTheSameWay() {
+    let m = matcher([(1, "ab"), (2, "xab")])
+    XCTAssertEqual(type(m, "xab"), .matched(snippetId: 2, deleteCount: 3))
+    XCTAssertEqual(type(m, "yab"), .matched(snippetId: 1, deleteCount: 2))
+  }
+
+  func testCaseAndUnicodeAreExact() {
+    let m = matcher([(1, ";Email"), (2, ";é")])
+    XCTAssertEqual(type(m, ";email"), .none)
+    // Swift compares strings by canonical equivalence, so "e" + combining
+    // acute matches the precomposed shortcut here; the C++ copy compares
+    // code points and does not (see the hand-off, cross-platform note).
+    XCTAssertEqual(type(m, ";e\u{301}"), .matched(snippetId: 2, deleteCount: 2))
+    XCTAssertEqual(type(m, ";é"), .matched(snippetId: 2, deleteCount: 2))
+    XCTAssertEqual(type(m, ";Email"), .matched(snippetId: 1, deleteCount: 6))
+  }
+
+  // Delete counts (Mac: what the user sees; one Backspace removes one) -------
+
+  func testDeleteCountsAreUserVisibleCharacters() {
+    let cases: [(String, Int)] = [
+      (";👍🏽", 2),  // skin tone: 3 scalars, 1 character
+      (";🇬🇧", 2),  // flag: 2 scalars
+      (";👨‍👩‍👧", 2),  // family with joiners: 5 scalars
+      (";e\u{301}", 2),  // e + combining acute
+      (";é", 2),
+      (";日本", 3),
+      (String(repeating: "😀", count: 32), 32),
+    ]
+    for (code, visible) in cases {
+      let table = ShortcutTable(entries: [(1, code)])
+      let m = table.match(Array(code.unicodeScalars))
+      XCTAssertEqual(m?.deleteCount, visible, code)
+      XCTAssertEqual(m?.length, code.unicodeScalars.count, code)
+      XCTAssertGreaterThanOrEqual(m?.deleteCount ?? 0, 1)
+      XCTAssertLessThanOrEqual(m?.deleteCount ?? 99, TypedBuffer.maxLength)
+    }
+  }
+
+  func testBufferKeepsScalarsSoAZwjShortcutStillMatchesAfterTheBufferIsFull() {
+    let code = ";👨‍👩‍👧"
+    let m = matcher([(3, code)])
+    type(m, String(repeating: "z", count: 40))
+    XCTAssertEqual(m.handle(.text(code), context: plain, nowMs: 0), .matched(snippetId: 3, deleteCount: 2))
+  }
+
+  func testNothingTypedIsDescribedByTheMatcherTypes() {
+    let b = TypedBuffer()
+    b.add("hunter2", nowMs: 0)
+    for text in [String(describing: b), String(reflecting: b), "\(Mirror(reflecting: b).children.map { "\($0.value)" })"] {
+      XCTAssertFalse(text.contains("hunter"))
+    }
+    var dumped = ""
+    dump(b, to: &dumped)
+    XCTAssertFalse(dumped.contains("hunter"))
+  }
+
+  func testClearForgetsEveryCharacter() {
+    let b = TypedBuffer()
+    b.add("secret", nowMs: 0, injected: true)
+    b.clear()
+    XCTAssertEqual(b.count, 0)
+    XCTAssertFalse(b.lastHasInjected(32))
+    XCTAssertEqual(b.text, "")
+  }
+}
+
+final class ReplaceFlowEdgeTests: XCTestCase {
+  func testCancelledRunLeavesAPendingRestoreAlone() {
+    let p = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 6, text: "first", matchPid: 100), .replaced)
+    p.front = 200  // the user switched app before the second one
+    XCTAssertEqual(flow.run(deleteCount: 4, text: "second", matchPid: 100), .cancelled)
+    p.scheduled[0].1()
+    XCTAssertEqual(p.restored.count, 1, "the user's text still comes back")
+  }
+
+  func testThreeShortcutsInARowRestoreTheUsersOwnTextOnce() {
+    let p = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: p)
+    for i in 0..<3 {
+      XCTAssertEqual(flow.run(deleteCount: 3, text: "s\(i)", matchPid: 100), .replaced)
+    }
+    XCTAssertEqual(p.log.filter { $0 == "readPrevious" }.count, 1)
+    for work in p.scheduled { work.1() }
+    XCTAssertEqual(p.restored, [SavedClipboard(text: "what I copied", markerTypes: [])])
+  }
+
+  func testTheUserCopiesBetweenTwoShortcutsSoTheNewCopyIsKept() {
+    let p = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: p)
+    _ = flow.run(deleteCount: 3, text: "first", matchPid: 100)
+    p.count += 1  // the user pressed Cmd+C
+    p.previous = SavedClipboard(text: "new copy", markerTypes: [])
+    _ = flow.run(deleteCount: 3, text: "second", matchPid: 100)
+    for work in p.scheduled { work.1() }
+    XCTAssertEqual(p.restored, [SavedClipboard(text: "new copy", markerTypes: [])])
+  }
+
+  func testAnEmptyOrNonTextPreviousClipboardSchedulesNoRestore() {
+    let p = FakeReplacePlatform()
+    p.previous = nil
+    XCTAssertEqual(
+      ReplaceFlow(platform: p).run(deleteCount: 3, text: "x", matchPid: 100), .replaced)
+    XCTAssertTrue(p.scheduled.isEmpty)
+    XCTAssertTrue(p.restored.isEmpty)
+  }
+
+  func testAnEmptyStringPreviousIsStillRestored() {
+    let p = FakeReplacePlatform()
+    p.previous = SavedClipboard(text: "", markerTypes: [])
+    _ = ReplaceFlow(platform: p).run(deleteCount: 3, text: "x", matchPid: 100)
+    p.scheduled[0].1()
+    XCTAssertEqual(p.restored.count, 1)
+  }
+
+  func testNoFrontAppCancels() {
+    let p = FakeReplacePlatform()
+    p.front = nil
+    XCTAssertEqual(
+      ReplaceFlow(platform: p).run(deleteCount: 3, text: "x", matchPid: 100), .cancelled)
+    XCTAssertTrue(p.log.isEmpty)
+  }
+
+  func testCancelledAndCopiedNeverTouchTheClipboardPreviousText() {
+    let p = FakeReplacePlatform()
+    p.canPost = false
+    XCTAssertEqual(
+      ReplaceFlow(platform: p).run(deleteCount: 3, text: "x", matchPid: 100), .copied)
+    XCTAssertEqual(p.log, ["write"], "no Backspace, no paste, no read of the clipboard")
+    XCTAssertTrue(p.scheduled.isEmpty)
+  }
+
+  func testPasteKeyMissingStillDeletedTheCodeAndKeepsTheSnippet() {
+    let p = FakeReplacePlatform()
+    p.pasteKeyFound = false
+    XCTAssertEqual(
+      ReplaceFlow(platform: p).run(deleteCount: 3, text: "x", matchPid: 100), .copied)
+    XCTAssertTrue(p.scheduled.isEmpty, "the snippet stays so the user can paste it")
+  }
+
+  func testFailedWriteAfterAPendingRestoreNeverRestoresStaleText() {
+    let p = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: p)
+    _ = flow.run(deleteCount: 3, text: "first", matchPid: 100)
+    p.writeOk = false
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "second", matchPid: 100), .failed)
+    p.scheduled[0].1()
+    // The first restore may put the user's text back only if the clipboard is
+    // still the first snippet.
+    XCTAssertLessThanOrEqual(p.restored.count, 1)
+  }
+
+  func testRestoreDelayIsExactlyHalfASecond() {
+    XCTAssertEqual(ReplaceFlow.restoreDelayMs, 500)
+  }
+}
