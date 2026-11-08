@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.5 Typed shortcuts — developer fixed L1
+- Changed: Developer fixed L1 in f37243f: before the snippet write the flow notes the clipboard change number (Mac change count, Windows sequence number); if the write fails and the number moved, the saved text is written back once with its privacy marks, then forgotten. Logic in the Swift core and C++ policy header; the shared M1.3 clipboard_bridge.cpp and the Mac bridge write are unchanged; design note step 2 has one added sentence. Failing run first (C++ 4 failed lines; Swift 5 tests, 6 failures). ./tool/check.sh +2589 ~10; test_mac_shortcuts.sh 121; test_windows_policy.sh all pass; macOS debug build ok. Not changed: copy-only paths (Mac without post permission, Windows modifiers held) read no previous text, as M1.3. Windows sequence-number behaviour on EmptyClipboard not checked on a real machine.
+- Gates: design approved · developer done (L1) · tester re-check of f37243f to be briefed · reviewer approve with notes, re-check of f37243f after the tester · QA not started · PM merge n/a yet
+- Open findings: none open
+- Decisions: none
+- Blockers: PM — rich copies (keep as designed or restore every format); Input Monitoring grant for QA; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-08 — M1.5 Typed shortcuts — reviewer re-check: approve with notes
 - Changed: Reviewer re-checked ffecef4..0968851 read-only. Checks pass (check.sh +2589 ~10; 116 XCTests; Windows policy suites). R1, S1, C1-C9 confirmed fixed, several by reverting the fix in a scratch copy and seeing the test fail; C6 confirmed with a standalone build on a private pasteboard. ADR 0004 holds with matchId (a counter, nothing typed; guard pins the key sets). Developer deviations accepted by the reviewer. Later lines ok.
 - Gates: design approved · developer round 3 done · tester pass (round 3) · reviewer approve with notes · QA not started · PM merge n/a yet
