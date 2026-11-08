@@ -240,3 +240,130 @@ final class MacKeyClassifierTests: XCTestCase {
     XCTAssertEqual(MacKeyClassifier.classify(keyCode: 1, command: false, control: false, chars: "\u{1}"), .ignore)
   }
 }
+
+// MARK: - Replacement (design note, "Replacing"; PM decision D2 A)
+
+final class FakeReplacePlatform: ReplacePlatform {
+  var log: [String] = []
+  var front: Int32? = 100
+  var keysAfterMatch = 0
+  var canPost = true
+  var previous: SavedClipboard? = SavedClipboard(text: "what I copied", markerTypes: [])
+  var writeOk = true
+  var pasteKeyFound = true
+  var count = 10
+  var scheduled: [(Int, () -> Void)] = []
+  var restored: [SavedClipboard] = []
+
+  func frontmostPid() -> Int32? { front }
+  func keysSinceMatch() -> Int { keysAfterMatch }
+  func canPostEvents() -> Bool { canPost }
+  func previousText() -> SavedClipboard? {
+    log.append("readPrevious")
+    return previous
+  }
+  func postBackspaces(_ n: Int) { log.append("backspace×\(n)") }
+  func writeSnippet(_ text: String) -> Int? {
+    log.append("write")
+    guard writeOk else { return nil }
+    count += 1
+    return count
+  }
+  func postPaste() -> Bool {
+    log.append("paste")
+    return pasteKeyFound
+  }
+  func schedule(afterMs: Int, _ work: @escaping () -> Void) { scheduled.append((afterMs, work)) }
+  func changeCount() -> Int { count }
+  func restore(_ saved: SavedClipboard) {
+    log.append("restore")
+    restored.append(saved)
+    count += 1
+  }
+}
+
+final class ReplaceFlowTests: XCTestCase {
+  private func run(_ p: FakeReplacePlatform, matchPid: Int32 = 100) -> ReplaceResult {
+    ReplaceFlow(platform: p).run(deleteCount: 6, text: "will@example.com", matchPid: matchPid)
+  }
+
+  func testDeletesTheCodeThenWritesAndPastesInThatOrder() {
+    let p = FakeReplacePlatform()
+    XCTAssertEqual(run(p), .replaced)
+    XCTAssertEqual(p.log, ["readPrevious", "backspace×6", "write", "paste"])
+  }
+
+  func testPutsThePreviousTextBackAfterHalfASecond() {
+    let p = FakeReplacePlatform()
+    _ = run(p)
+    XCTAssertEqual(p.scheduled.count, 1)
+    XCTAssertEqual(p.scheduled[0].0, 500)
+    p.scheduled[0].1()
+    XCTAssertEqual(p.restored, [SavedClipboard(text: "what I copied", markerTypes: [])])
+  }
+
+  func testKeepsThePreviousPrivacyMarkers() {
+    let p = FakeReplacePlatform()
+    p.previous = SavedClipboard(text: "pw", markerTypes: ["org.nspasteboard.ConcealedType"])
+    _ = run(p)
+    p.scheduled[0].1()
+    XCTAssertEqual(p.restored.first?.markerTypes, ["org.nspasteboard.ConcealedType"])
+  }
+
+  func testNothingIsPutBackIfTheUserCopiedSomethingMeanwhile() {
+    let p = FakeReplacePlatform()
+    _ = run(p)
+    p.count += 1  // another copy
+    p.scheduled[0].1()
+    XCTAssertTrue(p.restored.isEmpty)
+  }
+
+  func testAPreviousClipboardThatWasNotTextLeavesTheSnippet() {
+    let p = FakeReplacePlatform()
+    p.previous = nil
+    XCTAssertEqual(run(p), .replaced)
+    XCTAssertTrue(p.scheduled.isEmpty)
+  }
+
+  func testAnotherAppInFrontCancelsAndSendsNothing() {
+    let p = FakeReplacePlatform()
+    p.front = 200
+    XCTAssertEqual(run(p), .cancelled)
+    XCTAssertEqual(p.log, [])
+  }
+
+  func testKeysTypedAfterTheMatchCancel() {
+    let p = FakeReplacePlatform()
+    p.keysAfterMatch = 1
+    XCTAssertEqual(run(p), .cancelled)
+    XCTAssertEqual(p.log, [])
+  }
+
+  func testWithoutPostPermissionOnlyCopies() {
+    let p = FakeReplacePlatform()
+    p.canPost = false
+    XCTAssertEqual(run(p), .copied)
+    XCTAssertEqual(p.log, ["write"])
+    XCTAssertTrue(p.scheduled.isEmpty, "the snippet stays for the user to paste")
+  }
+
+  func testNoKeyForVLeavesTheSnippetOnTheClipboard() {
+    let p = FakeReplacePlatform()
+    p.pasteKeyFound = false
+    XCTAssertEqual(run(p), .copied)
+    XCTAssertTrue(p.scheduled.isEmpty)
+  }
+
+  func testAFailedWriteIsReported() {
+    let p = FakeReplacePlatform()
+    p.writeOk = false
+    XCTAssertEqual(run(p), .failed)
+    XCTAssertFalse(p.log.contains("paste"))
+  }
+
+  func testSavedClipboardNeverDescribesItsText() {
+    let saved = SavedClipboard(text: "secret", markerTypes: [])
+    XCTAssertFalse(String(describing: saved).contains("secret"))
+    XCTAssertFalse(String(reflecting: saved).contains("secret"))
+  }
+}

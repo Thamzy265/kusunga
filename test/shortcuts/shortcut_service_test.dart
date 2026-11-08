@@ -170,24 +170,6 @@ void main() {
       expect(s.status, TypedShortcutStatus.needsPermission);
     });
 
-    test('back in Kusunga: the permission is checked again', () async {
-      port.onStatus = TypedShortcutStatus.needsPermission;
-      final s = make();
-      await s.start();
-      await s.setEnabled(true);
-      port.onStatus = TypedShortcutStatus.on;
-      await s.recheck();
-      expect(s.status, TypedShortcutStatus.on);
-    });
-
-    test('recheck does nothing while off', () async {
-      final s = make();
-      await s.start();
-      port.calls.clear();
-      await s.recheck();
-      expect(port.calls, isEmpty);
-    });
-
     test('Open System Settings', () async {
       final s = make();
       await s.start();

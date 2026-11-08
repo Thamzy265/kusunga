@@ -150,14 +150,6 @@ class ShortcutService extends ChangeNotifier {
     return _status == TypedShortcutStatus.on;
   }
 
-  /// Kusunga's window became active: the user may have allowed Input
-  /// Monitoring in System Settings.
-  Future<void> recheck() async {
-    if (!available || !_enabled) return;
-    if (_status != TypedShortcutStatus.needsPermission) return;
-    await _apply(true);
-  }
-
   Future<void> openSettings() => port.openInputMonitoringSettings();
 
   void _setStatus(TypedShortcutStatus status) {

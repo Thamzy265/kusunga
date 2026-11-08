@@ -20,6 +20,8 @@ class MainFlutterWindow: NSWindow {
     PickerBridge.shared.register(
       messenger: flutterViewController.engine.binaryMessenger, window: self,
       viewController: flutterViewController)
+    TypedShortcutBridge.shared.register(
+      messenger: flutterViewController.engine.binaryMessenger)
 
     super.awakeFromNib()
   }

@@ -219,3 +219,87 @@ enum MacKeyClassifier {
     return .text(chars)
   }
 }
+
+// MARK: - Replacing (design note, "Replacing"; PM decision D2 A)
+
+/// The clipboard text from before a replacement, kept in memory for 0.5 s
+/// so it can be put back. [markerTypes] are the nspasteboard.org privacy
+/// markers it had (a password manager's copy stays concealed). Never
+/// described or logged.
+struct SavedClipboard: Equatable, CustomStringConvertible, CustomDebugStringConvertible,
+  CustomReflectable
+{
+  let text: String
+  let markerTypes: [String]
+
+  var description: String { "SavedClipboard" }
+  var debugDescription: String { description }
+  var customMirror: Mirror { Mirror(self, children: [:]) }
+}
+
+/// What a replacement needs from the Mac, so the order and the safety
+/// checks are tested without one.
+protocol ReplacePlatform: AnyObject {
+  func frontmostPid() -> Int32?
+  /// Keys the user typed since the match (any of them cancels).
+  func keysSinceMatch() -> Int
+  /// `CGPreflightPostEventAccess()`: never prompts.
+  func canPostEvents() -> Bool
+  /// The clipboard text now, or nil if the clipboard holds no text.
+  func previousText() -> SavedClipboard?
+  /// Posts [n] Delete keys carrying Kusunga's marker.
+  func postBackspaces(_ n: Int)
+  /// Writes the snippet marked transient and concealed, and records the
+  /// change as Kusunga's own (not added to history). Answers the change
+  /// count, or nil if it could not be written.
+  func writeSnippet(_ text: String) -> Int?
+  /// Posts Cmd+V carrying Kusunga's marker. False if no key types "v".
+  func postPaste() -> Bool
+  func schedule(afterMs: Int, _ work: @escaping () -> Void)
+  func changeCount() -> Int
+  /// Writes [saved] back, as Kusunga's own change.
+  func restore(_ saved: SavedClipboard)
+}
+
+/// The answers to Dart (lib/shortcuts/channel_typed_shortcuts_port.dart).
+enum ReplaceResult: String {
+  case replaced
+  case cancelled
+  case copied
+  case failed
+}
+
+/// Check that nothing moved since the match, delete the code, paste the
+/// snippet, then put the previous clipboard text back after 0.5 s if nobody
+/// copied anything else meanwhile.
+final class ReplaceFlow {
+  static let restoreDelayMs = 500
+
+  private let platform: ReplacePlatform
+
+  init(platform: ReplacePlatform) { self.platform = platform }
+
+  func run(deleteCount: Int, text: String, matchPid: Int32) -> ReplaceResult {
+    // Another app in front, or more keys typed: deleting now could remove
+    // text that is not the shortcut.
+    guard platform.frontmostPid() == matchPid, platform.keysSinceMatch() == 0 else {
+      return .cancelled
+    }
+    guard platform.canPostEvents() else {
+      // No keys can be sent: the code stays, and the user pastes (M1.3).
+      return platform.writeSnippet(text) == nil ? .failed : .copied
+    }
+    let previous = platform.previousText()
+    platform.postBackspaces(deleteCount)
+    guard let mine = platform.writeSnippet(text) else { return .failed }
+    guard platform.postPaste() else { return .copied }
+    if let previous = previous {
+      platform.schedule(afterMs: ReplaceFlow.restoreDelayMs) { [platform] in
+        // The user copied something else in the meantime: keep that.
+        guard platform.changeCount() == mine else { return }
+        platform.restore(previous)
+      }
+    }
+    return .replaced
+  }
+}
