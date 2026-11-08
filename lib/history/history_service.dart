@@ -8,6 +8,7 @@ import '../clipboard/clipboard_source.dart';
 import '../log/app_log.dart';
 import 'clip_classifier.dart';
 import 'clip_item.dart';
+import '../shortcuts/ignored_apps.dart';
 import '../snippets/memory_snippet_store.dart';
 import '../snippets/snippet_service.dart';
 import '../snippets/snippet_store.dart';
@@ -36,7 +37,9 @@ class HistoryService extends ChangeNotifier {
     Future<void> Function(String text)? writeClipboard,
     SnippetStore? snippetStore,
     SnippetsUnavailable? snippetsUnavailable,
-  }) : _clock = clock ?? (() => DateTime.now().millisecondsSinceEpoch),
+    IgnoredAppStore? ignoredAppStore,
+  }) : ignoredApps = ignoredAppStore ?? MemoryIgnoredAppStore(),
+       _clock = clock ?? (() => DateTime.now().millisecondsSinceEpoch),
        _writeClipboard =
            writeClipboard ??
            ((text) => Clipboard.setData(ClipboardData(text: text))),
@@ -72,6 +75,9 @@ class HistoryService extends ChangeNotifier {
   /// The saved snippets, on the same database (M1.4). Editing is off when
   /// this session is memory only.
   late final SnippetService snippets;
+
+  /// The typed-shortcut ignore list, on the same database (M1.5).
+  final IgnoredAppStore ignoredApps;
 
   /// Copies that could not be saved are kept in memory, up to this many.
   static const maxWaiting = 20;

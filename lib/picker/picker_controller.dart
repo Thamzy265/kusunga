@@ -391,6 +391,18 @@ class PickerController extends ChangeNotifier {
     _toastTimer = Timer(toastDuration, _hideToast);
   }
 
+  /// A typed shortcut could only copy (M1.5): the M1.3 "Copied" toast near
+  /// the pointer. Not while the picker is open.
+  void showCopiedToast() {
+    if (_disposed || _mode == WindowMode.picker) return;
+    _toast = ToastKind.copied;
+    _mode = WindowMode.toast;
+    _notify();
+    unawaited(port.showToast());
+    _toastTimer?.cancel();
+    _toastTimer = Timer(toastDuration, _hideToast);
+  }
+
   Future<void> _hideToast() async {
     _toastTimer = null;
     if (_disposed || _mode != WindowMode.toast) return;

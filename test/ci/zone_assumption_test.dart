@@ -108,6 +108,9 @@ void main() {
       // M1.5: the Shortcut field's 500 ms check. A widget's own Timer,
       // started from onChanged, so it runs in the zone the widget runs in.
       'lib/snippets/ui/snippet_editor.dart',
+      // M1.5: "Starting…" after 300 ms and "Finding apps…" after 300 ms.
+      // Widget Timers, started from the widget's own callbacks.
+      'lib/shortcuts/ui/typed_shortcuts_section.dart',
     };
     final seen = <String>{};
     for (final e in Directory('lib').listSync(recursive: true)) {

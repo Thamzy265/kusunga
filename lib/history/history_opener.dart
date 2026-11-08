@@ -9,6 +9,7 @@ import '../log/app_log.dart';
 import 'history_store.dart';
 import 'key_store.dart';
 import 'memory_history_store.dart';
+import '../shortcuts/ignored_apps.dart';
 import '../snippets/memory_snippet_store.dart';
 import '../snippets/snippet_service.dart' show SnippetsUnavailable;
 import '../snippets/snippet_store.dart';
@@ -44,13 +45,20 @@ class OpenedHistory {
            snippets ??
            (store is SqliteHistoryStore
                ? store.snippetStore()
-               : MemorySnippetStore());
+               : MemorySnippetStore()),
+       ignoredApps = store is SqliteHistoryStore
+           ? store.ignoredAppStore()
+           : MemoryIgnoredAppStore();
   final HistoryStore store;
   final Set<HistoryNotice> notices;
 
   /// The snippets: in the same encrypted file, or in memory when the history
   /// is (memory-only or incompatible).
   final SnippetStore snippets;
+
+  /// The typed-shortcut ignore list (M1.5): in the same encrypted file, or
+  /// in memory with the history.
+  final IgnoredAppStore ignoredApps;
 
   /// Set when the cause is not clear from [notices] (a failed migration is
   /// "incompatible" for history but has its own snippets banner).

@@ -26,9 +26,14 @@ class SnippetsScreen extends StatefulWidget {
     required this.service,
     this.now,
     this.dataProfileRejected = false,
+    this.topSlot,
   });
 
   final SnippetService service;
+
+  /// Shown under the banners, above the list: the "Typed shortcuts" section
+  /// (M1.5).
+  final Widget? topSlot;
 
   /// A test profile switch was given but not recognised (Debug builds
   /// only): the banner names the switch, not the keychain (QA-M14-6).
@@ -438,6 +443,7 @@ class SnippetsScreenState extends State<SnippetsScreen> {
                                       widget.dataProfileRejected,
                                   onRetry: _service.reload,
                                 ),
+                              if (widget.topSlot != null) widget.topSlot!,
                             ],
                           ),
                         ),
