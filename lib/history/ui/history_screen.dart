@@ -50,6 +50,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
     debugLabel: 'history screen',
     skipTraversal: true,
   );
+
+  /// Above the "More options" button, which keeps its own node to itself:
+  /// the menu and the Clear history dialog give the focus back to the button
+  /// through it (see [_focusMore]).
+  final _moreWrap = FocusNode(
+    debugLabel: 'More options',
+    canRequestFocus: false,
+    skipTraversal: true,
+  );
   final _seen = <int>{};
   final _newIds = <int>{};
   final _messenger = GlobalKey<ScaffoldMessengerState>();
@@ -132,6 +141,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _footerTimer?.cancel();
     _scroll.dispose();
     _screenFocus.dispose();
+    _moreWrap.dispose();
     for (final n in _nodes.values) {
       n.dispose();
     }
@@ -228,6 +238,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // A focus request since then (an arrow key, End finishing) decides.
       if (!mounted || _focusPending || ticket != _focusTicket) return;
+      // A dialog or a menu on top keeps the focus; it gives it back to its
+      // opener when it closes.
+      if (!canTakeFocus(context)) return;
       final node = _nodes[id];
       if (node != null && (node.context?.mounted ?? false)) {
         if (!node.hasFocus) node.requestFocus();
@@ -459,6 +472,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
     FocusNode? control,
   ) {
     if (!mounted || ticket != _focusTicket) return;
+    // A dialog or a menu went on top meanwhile (End still stepping when the
+    // menu opened): the request is dropped, never resumed, so no row takes
+    // the focus from the modal, and the modal gives it back to its opener
+    // when it closes (BUG-D3).
+    if (!canTakeFocus(context)) {
+      _focusPending = false;
+      _releaseHold();
+      return;
+    }
     final items = _service.items;
     if (items.isEmpty) {
       _focusPending = false;
@@ -656,6 +678,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
       _pendingUndo = null;
       _messenger.currentState?.hideCurrentSnackBar();
     }
+    _focusMore();
+  }
+
+  /// The focus goes back to the "More options" button, the control that
+  /// opened the menu and the Clear history dialog (spec: "Esc closes menus
+  /// and dialogs and returns focus to the control that opened them"), with
+  /// or without a copy meanwhile (BUG-D2). Not while another route is on top.
+  void _focusMore() {
+    if (!mounted || !canTakeFocus(context)) return;
+    final button = _moreWrap.children;
+    if (button.isNotEmpty) button.first.requestFocus();
   }
 
   /// [removed] is the count when the dialog opens; the text then follows
@@ -716,13 +749,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final items = _service.items;
     _prune(items);
     final setupCard = _service.pasteAccess == PasteAccess.needsSetup;
-    // The first row asks for the focus whenever a row becomes the first one,
-    // and Flutter grants it whenever this route's scope has no focused child
-    // (none after Enter in the limit field: the field unfocuses itself),
-    // whichever route holds the focus. So while a dialog or a menu is on top
-    // the rows never ask: a copy or a delete must not pull the focus out of
-    // it (BUG-D1). Reading the route status here rebuilds on push and pop.
-    final routeIsCurrent = ModalRoute.isCurrentOf(context) ?? true;
+    // While a dialog or a menu is on top the rows never ask for the focus: a
+    // copy or a delete must not pull it out of the modal (BUG-D1; see
+    // canTakeFocus). Reading the route status here rebuilds on push and pop.
+    final routeIsCurrent = canTakeFocus(context);
 
     return ScaffoldMessenger(
       key: _messenger,
@@ -772,7 +802,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     _Header(
                                       service: _service,
                                       count: items.length,
+                                      moreWrap: _moreWrap,
                                       onClear: _confirmClear,
+                                      onMenuCancelled: _focusMore,
                                       confirmLower: _confirmLower,
                                       onSaveFailed: () => _toast(
                                         "Couldn't save that number. Try again.",
@@ -923,7 +955,9 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.service,
     required this.count,
+    required this.moreWrap,
     required this.onClear,
+    required this.onMenuCancelled,
     required this.confirmLower,
     required this.onSaveFailed,
   });
@@ -932,6 +966,12 @@ class _Header extends StatelessWidget {
   final int count;
   final VoidCallback onSaveFailed;
   final VoidCallback onClear;
+
+  /// The menu closed without a choice.
+  final VoidCallback onMenuCancelled;
+
+  /// A node placed above the "More options" button (see `_focusMore`).
+  final FocusNode moreWrap;
   final Future<bool> Function(int newLimit, int? removed) confirmLower;
 
   @override
@@ -954,17 +994,24 @@ class _Header extends StatelessWidget {
           confirmLower: confirmLower,
           onSaveFailed: onSaveFailed,
         ),
-        PopupMenuButton<Object?>(
-          tooltip: 'More options',
-          icon: Icon(Icons.more_horiz, color: t.text),
-          onSelected: (_) => onClear(),
-          itemBuilder: (context) => [
-            PopupMenuItem<Object?>(
-              value: 'clear',
-              enabled: count > 0,
-              child: const Text('Clear history'),
-            ),
-          ],
+        Focus(
+          focusNode: moreWrap,
+          canRequestFocus: false,
+          skipTraversal: true,
+          includeSemantics: false,
+          child: PopupMenuButton<Object?>(
+            tooltip: 'More options',
+            icon: Icon(Icons.more_horiz, color: t.text),
+            onSelected: (_) => onClear(),
+            onCanceled: onMenuCancelled,
+            itemBuilder: (context) => [
+              PopupMenuItem<Object?>(
+                value: 'clear',
+                enabled: count > 0,
+                child: const Text('Clear history'),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -1082,8 +1129,10 @@ class _SetupCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // The heading takes the focus when the card appears, but never
+            // from a dialog on top (BUG-D4; see canTakeFocus).
             Focus(
-              autofocus: true,
+              autofocus: canTakeFocus(context),
               child: Semantics(
                 header: true,
                 child: Text(

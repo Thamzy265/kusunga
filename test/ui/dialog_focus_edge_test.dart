@@ -334,7 +334,7 @@ void main() {
         final withCopy = await closeVia(tester, how, true);
         expect(withCopy, plain, reason: 'a copy changed where the focus goes');
         expect(plain, isNot('nothing'));
-      }, skip: true);
+      });
     }
 
     testWidgets('Clear, auto-close at 0: the focus lands where a Cancel '
@@ -425,8 +425,7 @@ void main() {
         await settle(tester);
         expect(service.items, hasLength(400));
       },
-      skip: true,
-    ); // BUG-D3
+    );
 
     testWidgets('a deleted-first-row survivor request (arrow keys in use) '
         'cannot pull the focus out of the Keep dialog', (tester) async {
@@ -472,8 +471,7 @@ void main() {
           expect(find.byType(AlertDialog), findsNothing);
           expect(service.items, hasLength(6));
         },
-        skip: true,
-      ); // BUG-D4
+      );
 
       testWidgets('BUG-D4: the same with the Keep dialog', (tester) async {
         copies(14);
@@ -489,7 +487,7 @@ void main() {
         expectInDialog('the setup card appeared');
         await tester.sendKeyEvent(LogicalKeyboardKey.escape);
         await settle(tester);
-      }, skip: true); // BUG-D4
+      });
 
       testWidgets('with no dialog open and a row focused, the setup card '
           'appears and the row keeps the focus (the original behaviour); with '

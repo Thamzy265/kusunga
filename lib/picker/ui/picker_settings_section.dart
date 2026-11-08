@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../theme/tokens.dart';
+import '../../ui/focus_order.dart';
 import '../picker_controller.dart';
 import '../shortcut.dart';
 
@@ -314,8 +315,10 @@ class _PermissionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // The heading takes the focus when the card appears, but never
+            // from a dialog on top (BUG-D4; see canTakeFocus).
             Focus(
-              autofocus: true,
+              autofocus: canTakeFocus(context),
               child: Semantics(
                 header: true,
                 child: Text(

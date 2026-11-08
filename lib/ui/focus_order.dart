@@ -21,6 +21,17 @@ void revealOnTraversal(
 FocusTraversalPolicy revealingReadingOrder() =>
     ReadingOrderTraversalPolicy(requestFocusCallback: revealOnTraversal);
 
+/// Whether widgets under [context] may take the focus now: false while a
+/// dialog or a menu is on top of their route. Flutter grants an autofocus
+/// whenever the widget's own route scope has no focused child (none after
+/// Enter in a text field, which unfocuses itself), whichever route holds the
+/// focus, and a plain request always. So a row, a card or a scroll-and-focus
+/// step behind a modal pulled the focus out of it: Escape and Enter then did
+/// nothing there, and Tab walked the page behind it (BUG-D1, BUG-D3,
+/// BUG-D4). True where there is no route.
+bool canTakeFocus(BuildContext context) =>
+    ModalRoute.isCurrentOf(context) ?? true;
+
 /// The Tab order of a scrolled list's rows (QA-M14-5). A list also builds a
 /// few rows beyond each edge of its view, and reading order put those first.
 /// From outside the list, Tab enters at the first row fully in view and

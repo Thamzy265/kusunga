@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kusunga/clipboard/clipboard_source.dart';
 import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/memory_history_store.dart';
 import 'package:kusunga/history/ui/history_host.dart';
@@ -21,6 +22,12 @@ import '../support/fakes.dart';
 /// a copy, or a delete of the first item, pulled the focus out of the open
 /// dialog: Escape and Enter then did nothing, and Tab walked the rows behind
 /// it. The Clear history dialog has the same hole after an Enter in the field.
+///
+/// The same rule (nothing behind a route on top may take the focus) covers
+/// the Mac setup card heading (BUG-D4) and a scroll-and-focus request still
+/// on its way (BUG-D3). And when a dialog closes the focus goes back to the
+/// control that opened it (BUG-D2, spec line 72): the Keep field, or the
+/// More options button.
 void main() {
   late FakeClipboardSource source;
   late HistoryService service;
@@ -101,7 +108,24 @@ void main() {
     if (ctx == null) return 'nothing';
     if (ctx.findAncestorWidgetOfExactType<AlertDialog>() == null) {
       final row = ctx.findAncestorWidgetOfExactType<HistoryRow>();
-      return row != null ? 'row ${row.item.id}' : 'outside the dialog';
+      if (row != null) return 'row ${row.item.id}';
+      if (ctx.findAncestorWidgetOfExactType<TextField>() != null) {
+        return 'field';
+      }
+      if (ctx.findAncestorWidgetOfExactType<PopupMenuButton<Object?>>() !=
+          null) {
+        return 'more-button';
+      }
+      if (find
+          .descendant(
+            of: find.byWidget(ctx.widget),
+            matching: find.text('Allow Kusunga to read what you copy'),
+          )
+          .evaluate()
+          .isNotEmpty) {
+        return 'setup-card';
+      }
+      return 'outside the dialog (${ctx.widget.runtimeType})';
     }
     final text = ctx.findAncestorWidgetOfExactType<TextButton>();
     final filled = ctx.findAncestorWidgetOfExactType<FilledButton>();
@@ -243,20 +267,212 @@ void main() {
       expect(service.limit, 10);
       expect(service.items, hasLength(10));
     });
+  });
 
-    testWidgets('after Cancel with a copy arrived meanwhile: the newest row '
-        'takes the focus, as a copy does with no dialog open while nothing on '
-        'the screen has it', (tester) async {
+  String fieldText(WidgetTester tester) =>
+      tester.widget<TextField>(field()).controller!.text;
+
+  group('after the Keep dialog closes the focus is back in the Keep field '
+      '(BUG-D2, spec line 72)', () {
+    for (final how in ['Cancel by mouse', 'Escape', 'confirm by mouse']) {
+      for (final copyBetween in [false, true]) {
+        testWidgets('$how${copyBetween ? ', a copy meanwhile' : ''}: the '
+            'field has the focus and shows the limit; the newest row does not '
+            'take it, nor does a later copy', (tester) async {
+          copies(12);
+          await show(tester);
+          await enterLimit(tester, 10);
+          expect(focused(), 'Cancel');
+          if (copyBetween) {
+            source.copy('between');
+            await tester.pumpAndSettle();
+          }
+          switch (how) {
+            case 'Cancel by mouse':
+              await tester.tap(find.text('Cancel'));
+            case 'Escape':
+              await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+            default:
+              await tester.tap(deleteFinder());
+          }
+          await tester.pumpAndSettle();
+          expect(find.byType(AlertDialog), findsNothing);
+          expect(focused(), 'field', reason: how);
+          final confirmed = how == 'confirm by mouse';
+          expect(service.limit, confirmed ? 10 : 200);
+          expect(fieldText(tester), confirmed ? '10' : '200');
+          source.copy('later');
+          await tester.pumpAndSettle();
+          expect(focused(), 'field', reason: 'a later copy moved it');
+        });
+      }
+    }
+
+    testWidgets('keyboard only: Enter on Cancel, then again with Tab and '
+        'Enter on the Delete button: the field has the focus both times', (
+      tester,
+    ) async {
       copies(12);
       await show(tester);
       await enterLimit(tester, 10);
-      source.copy('arrives while open');
+      await key(tester, LogicalKeyboardKey.enter);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(focused(), 'field');
+      expect(service.limit, 200);
+      await enterLimit(tester, 10);
+      await key(tester, LogicalKeyboardKey.tab);
+      await key(tester, LogicalKeyboardKey.enter);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(focused(), 'field');
+      expect(service.limit, 10);
+      expect(fieldText(tester), '10');
+    });
+
+    testWidgets('opened by Tab out of the field (the commit on losing the '
+        'focus): after Escape the field has the focus again', (tester) async {
+      copies(12);
+      await show(tester);
+      await tester.enterText(field(), '10');
+      await key(tester, LogicalKeyboardKey.tab);
+      expect(find.byType(AlertDialog), findsOneWidget);
+      await key(tester, LogicalKeyboardKey.escape);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(focused(), 'field');
+      expect(service.limit, 200);
+    });
+
+    testWidgets('the Mac setup card appears while the dialog is open: the '
+        'dialog keeps the focus, and after Escape the field has it, not the '
+        'card heading (BUG-D4)', (tester) async {
+      copies(12);
+      await show(tester);
+      await enterLimit(tester, 10);
+      source.access = PasteAccess.needsSetup;
+      await tester.runAsync(() => service.recheckPasteAccess());
+      await tester.pumpAndSettle();
+      expect(find.text('Allow Kusunga to read what you copy'), findsOneWidget);
+      expect(focused(), 'Cancel');
+      await key(tester, LogicalKeyboardKey.escape);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(focused(), 'field');
+    });
+  });
+
+  group('after the Clear history dialog closes the focus is on the More '
+      'options button (BUG-D2, spec line 72)', () {
+    for (final how in [
+      'Cancel by mouse',
+      'Escape',
+      'confirm by mouse',
+      'auto-close at 0',
+    ]) {
+      for (final copyBetween in [false, true]) {
+        testWidgets('opened by mouse after an Enter in the field, '
+            '$how${copyBetween ? ', a copy meanwhile' : ''}', (tester) async {
+          copies(4);
+          await show(tester);
+          await enterLimit(tester, 200);
+          await openClear(tester);
+          expect(focused(), 'Cancel');
+          if (copyBetween) {
+            source.copy('between');
+            await tester.pumpAndSettle();
+          }
+          switch (how) {
+            case 'Cancel by mouse':
+              await tester.tap(find.text('Cancel'));
+            case 'Escape':
+              await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+            case 'confirm by mouse':
+              await tester.tap(deleteFinder());
+            default:
+              service.clear();
+          }
+          await tester.pumpAndSettle();
+          expect(find.byType(AlertDialog), findsNothing);
+          expect(focused(), 'more-button', reason: how);
+          source.copy('later');
+          await tester.pumpAndSettle();
+          expect(focused(), 'more-button', reason: 'a later copy moved it');
+        });
+      }
+    }
+
+    testWidgets('opened by keyboard (Shift+Tab to More options, Enter, Down, '
+        'Enter), a copy, Escape: the More options button has the focus', (
+      tester,
+    ) async {
+      copies(4);
+      await show(tester);
+      for (var i = 0; i < 40 && focused() != 'more-button'; i++) {
+        await shiftTab(tester);
+      }
+      expect(focused(), 'more-button');
+      await key(tester, LogicalKeyboardKey.enter);
+      await key(tester, LogicalKeyboardKey.arrowDown);
+      await key(tester, LogicalKeyboardKey.enter);
+      expect(find.text('Clear all history?'), findsOneWidget);
+      source.copy('between');
+      await tester.pumpAndSettle();
+      await key(tester, LogicalKeyboardKey.escape);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(focused(), 'more-button');
+      expect(service.items, hasLength(5));
+    });
+
+    testWidgets('the menu itself, opened by mouse and dismissed with Escape '
+        'or a click outside: the More options button has the focus', (
+      tester,
+    ) async {
+      copies(4);
+      await show(tester);
+      await enterLimit(tester, 200);
+      await tester.tap(find.byTooltip('More options'));
+      await tester.pumpAndSettle();
+      await key(tester, LogicalKeyboardKey.escape);
+      expect(find.text('Clear history'), findsNothing);
+      expect(focused(), 'more-button', reason: 'Escape');
+      await tester.tap(find.byTooltip('More options'));
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(5, 600));
+      await tester.pumpAndSettle();
+      expect(find.text('Clear history'), findsNothing);
+      expect(focused(), 'more-button', reason: 'a click outside');
+    });
+  });
+
+  group('a scroll-and-focus request still on its way when a route goes on '
+      'top is dropped (BUG-D3)', () {
+    testWidgets('End in a 400-row list, the More menu opened in the same '
+        'frame: no row takes the focus from the menu, nor later from the '
+        'Clear dialog; after Escape the More button has it and the request '
+        'is not resumed', (tester) async {
+      service.dispose();
+      create(limit: 5000);
+      copies(400);
+      await show(tester);
+      await tester.tap(find.byType(HistoryRow).first, warnIfMissed: false);
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.end);
+      (tester.state(find.byType(PopupMenuButton<Object?>))
+              as PopupMenuButtonState<Object?>)
+          .showButtonMenu();
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(focused(), isNot(startsWith('row')), reason: 'frame $i');
+      }
+      expect(find.text('Clear history'), findsOneWidget);
+      await tester.tap(find.text('Clear history'));
       await tester.pumpAndSettle();
       expect(focused(), 'Cancel');
       await key(tester, LogicalKeyboardKey.escape);
       expect(find.byType(AlertDialog), findsNothing);
-      expect(focused(), 'row ${service.items.first.id}');
-      expect(service.limit, 200);
+      expect(focused(), 'more-button');
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(focused(), 'more-button', reason: 'the End request resumed');
+      expect(service.items, hasLength(400));
     });
   });
 
