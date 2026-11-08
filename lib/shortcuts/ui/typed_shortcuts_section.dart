@@ -244,11 +244,18 @@ class _TypedShortcutsSectionState extends State<TypedShortcutsSection> {
                 label: _title,
                 toggled: on,
                 enabled: _s.available,
-                child: Switch(
-                  key: const ValueKey('typed-shortcuts-switch'),
-                  focusNode: _switchNode,
-                  value: on,
-                  onChanged: _s.available ? _toggle : null,
+                // With reduce motion on, a new switch is built for each value,
+                // so it starts at its end position and never slides.
+                child: KeyedSubtree(
+                  key: ValueKey(
+                    MediaQuery.disableAnimationsOf(context) ? on : null,
+                  ),
+                  child: Switch(
+                    key: const ValueKey('typed-shortcuts-switch'),
+                    focusNode: _switchNode,
+                    value: on,
+                    onChanged: _s.available ? _toggle : null,
+                  ),
                 ),
               ),
             ],

@@ -159,6 +159,36 @@ void main() {
       expect(find.text('Restore preset list'), findsNothing);
     });
 
+    testWidgets('reduce motion: the switch jumps, it does not slide', (
+      tester,
+    ) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await show(tester);
+      final before = tester.element(
+        find.byKey(const ValueKey('typed-shortcuts-switch')),
+      );
+      await tester.tap(hook('typed-shortcuts-switch'));
+      await tester.pump();
+      // A new switch built at its end position: nothing to animate.
+      final after = tester.element(
+        find.byKey(const ValueKey('typed-shortcuts-switch')),
+      );
+      expect(identical(before, after), isFalse);
+      expect(tester.hasRunningAnimations, isFalse);
+    });
+
+    testWidgets('without reduce motion the switch slides', (tester) async {
+      await show(tester);
+      await tester.tap(hook('typed-shortcuts-switch'));
+      await tester.pump();
+      expect(tester.hasRunningAnimations, isTrue);
+      await tester.pumpAndSettle();
+    });
+
     testWidgets('Space toggles the focused switch', (tester) async {
       await show(tester);
       switchNode(tester).requestFocus();
