@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.4 Saved snippets — PM decision: dialogs at a count of 0
+- Changed: PM chose the dialog behaviour when nothing is left to delete. Options put to the PM: "Close or relabel" (the Clear history dialog closes by itself at 0; the Keep dialog's button at 0 changes from "Delete 0 items" to a non-delete label such as "Set limit") or "Keep as is". Developer briefed: Clear history dialog closes itself when the live count reaches 0; Keep dialog at a known count of 0 says "Keep only the newest N items? No items will be deleted." with the button "Set limit"; unknown count (W2) unchanged.
+- Gates: developer in progress (count-of-0 change) · tester pending · reviewer pending · QA re-run pending (needs the Mac) · PM merge waiting
+- Open findings: none open; N1, N2, F5 (Windows), R1 unchanged; VoiceOver: stale "moved to position" text to check
+- Decisions: PM decision (2026-11-08): dialogs at a count of 0 — PM said: "Close or relabel"
+- Blockers: PM — free the Mac for the QA re-run; whether QA removes the qa-m13-* items; VoiceOver sign-off; confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; push of local main
+
 ## 2026-11-06 — M1.4 Saved snippets — Reviewer re-check: approve with notes (W2 fixed)
 - Changed: reviewer re-checked b1d966d..0f55781: approve with notes, 0 new findings. W2 fixed (a0ba96d) and the limit_field opening-count case fixed in the same commit; every caller handles a null count; setLimit has one caller, only after the dialog or when nothing is removed; clear() only after the Clear dialog. Tester notes judged acceptable: no Retry button (polish, PM may ask); limit cannot be lowered while reads fail (safe direction). check.sh +2225 ~8 passed (reviewer ran it).
 - Gates: developer done · tester pass (round 14) · reviewer approve with notes · QA re-run needed for changes since cc231ff (wording, live dialog count, unknown count, footer count on the real app) · PM merge waiting
