@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.5 Typed shortcuts — reviewer re-check (L1): approve with notes, L2
+- Changed: Reviewer re-checked 0968851..6a47610. Checks pass (check.sh +2589 ~10; 133 XCTests; Windows policy suites). L1 confirmed fixed (mutation check failed as expected). N8 accepted, no change (copy-only paths match M1.3; non-text copies are never saved under C4). N9 logged as L2.
+- Gates: design approved · developer to fix L2 · tester pass (round 4) · reviewer approve with notes · QA not started · PM merge n/a yet
+- Open findings: L2 Low (correctness and privacy) — the "change number moved" check can't tell Kusunga's own clear from another app's write; on Windows a failed OpenClipboard while another app (e.g. a password manager's auto-clear) changes the clipboard makes Kusunga write the old text, possibly a password, back over it. Fix: write back only if the clipboard is empty now. Lead: fix now (developer), no skip
+- Decisions: none
+- Blockers: Developer — L2 · PM — rich copies (keep as designed or restore every format); Input Monitoring grant for QA; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-08 — M1.5 Typed shortcuts — tester round 4 (L1): pass
 - Changed: Tester re-checked f37243f and added 6a47610 (11 Swift tests, 1 C++ function with about 40 assertions). 8 mutation runs, each caught. Covered: sequence wrap 0xFFFFFFFF to 0; moves larger than 1; an earlier pending restore valid, stale or failing; privacy markers kept on the write-back; non-text previous clipboard; the copy-only paths unchanged. ./tool/check.sh 2589 passed, 10 skipped; test_mac_shortcuts.sh 133; test_windows_policy.sh all pass. No production code changed.
 - Gates: design approved · developer done (L1) · tester pass (round 4) · reviewer re-check of f37243f to be briefed · QA not started · PM merge n/a yet
