@@ -260,9 +260,13 @@ final class TypedShortcutBridge {
       matcher.reset()
     }
     guard enabled, let pid = matchPid else { return .cancelled }
-    let platform = MacReplacePlatform(keysSinceMatch: { [weak self] in self?.keysSinceMatch ?? 1 })
-    return ReplaceFlow(platform: platform).run(deleteCount: deleteCount, text: text, matchPid: pid)
+    return replaceFlow.run(deleteCount: deleteCount, text: text, matchPid: pid)
   }
+
+  /// One flow for the app, so a second shortcut within 0.5 s still puts
+  /// back the user's own text.
+  private lazy var replaceFlow = ReplaceFlow(
+    platform: MacReplacePlatform(keysSinceMatch: { [weak self] in self?.keysSinceMatch ?? 1 }))
 
   // MARK: Helpers
 

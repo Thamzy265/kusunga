@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -347,6 +348,96 @@ inline const char* DecideField(FieldState s) {
   }
   return "shortcutSkippedUnknownField";
 }
+
+// ---- Replacing (design note, "Replacing"; PM decision D2 A) ----
+
+// In dwExtraInfo of every key Kusunga sends (SendInput), so the hook never
+// feeds Kusunga's own Backspaces and Ctrl+V back into the buffer.
+constexpr uintptr_t kOwnKeyMarker = 0x4B534E47;  // "KSNG"
+
+inline bool IsOwnKey(uintptr_t extra_info) { return extra_info == kOwnKeyMarker; }
+
+// What a replacement needs from Windows. Window handles are plain numbers.
+class ReplacePlatform {
+ public:
+  virtual ~ReplacePlatform() = default;
+  virtual uintptr_t Foreground() = 0;
+  // Keys the user typed since the match (any of them cancels).
+  virtual int KeysSinceMatch() = 0;
+  // Keeps the clipboard text now, in memory, to put back. False if the
+  // clipboard holds no text.
+  virtual bool SavePrevious() = 0;
+  virtual void SendBackspaces(int n) = 0;
+  // Writes the snippet (UTF-8) excluded from clipboard monitoring and
+  // history, as Kusunga's own change, and gives its sequence number.
+  virtual bool WriteSnippet(const std::string& text, uint32_t* sequence) = 0;
+  virtual void SendPaste() = 0;
+  virtual void Schedule(int ms, std::function<void()> work) = 0;
+  virtual uint32_t Sequence() = 0;
+  // Writes the saved text back as Kusunga's own change, then forgets it.
+  virtual void RestorePrevious() = 0;
+};
+
+enum class ReplaceResult { kReplaced, kCancelled, kCopied, kFailed };
+
+// The names Dart expects (lib/shortcuts/channel_typed_shortcuts_port.dart).
+inline const char* ReplaceResultName(ReplaceResult r) {
+  switch (r) {
+    case ReplaceResult::kReplaced:
+      return "replaced";
+    case ReplaceResult::kCancelled:
+      return "cancelled";
+    case ReplaceResult::kCopied:
+      return "copied";
+    case ReplaceResult::kFailed:
+      break;
+  }
+  return "failed";
+}
+
+constexpr int kRestoreDelayMs = 500;
+
+// Check nothing moved since the match, delete the code, paste the snippet,
+// then put the previous text back after 0.5 s unless something else was
+// copied meanwhile. One flow for the app: a second shortcut within 0.5 s
+// keeps the user's own text, not the first snippet. [p] outlives the flow.
+class ReplaceFlow {
+ public:
+  explicit ReplaceFlow(ReplacePlatform* p) : p_(p) {}
+
+  ReplaceResult Run(int delete_count, const std::string& text,
+                    uintptr_t match_window) {
+    if (p_->Foreground() != match_window || p_->KeysSinceMatch() != 0) {
+      return ReplaceResult::kCancelled;
+    }
+    bool has_text;
+    if (pending_ && p_->Sequence() == pending_mine_) {
+      has_text = true;  // the platform still holds the user's own text
+    } else {
+      has_text = p_->SavePrevious();
+    }
+    pending_ = false;
+    p_->SendBackspaces(delete_count);
+    uint32_t mine = 0;
+    if (!p_->WriteSnippet(text, &mine)) return ReplaceResult::kFailed;
+    p_->SendPaste();
+    if (has_text) {
+      pending_ = true;
+      pending_mine_ = mine;
+      ReplacePlatform* p = p_;
+      p_->Schedule(kRestoreDelayMs, [this, p, mine] {
+        if (pending_ && pending_mine_ == mine) pending_ = false;
+        if (p->Sequence() == mine) p->RestorePrevious();
+      });
+    }
+    return ReplaceResult::kReplaced;
+  }
+
+ private:
+  ReplacePlatform* p_;
+  bool pending_ = false;
+  uint32_t pending_mine_ = 0;
+};
 
 }  // namespace kusunga
 

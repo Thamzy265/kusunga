@@ -276,6 +276,10 @@ final class ReplaceFlow {
   static let restoreDelayMs = 500
 
   private let platform: ReplacePlatform
+  /// A restore still waiting: what it will put back, and the change count of
+  /// the snippet it follows. A second shortcut within 0.5 s keeps the
+  /// user's own text, not the first snippet.
+  private var pending: (saved: SavedClipboard, mine: Int)?
 
   init(platform: ReplacePlatform) { self.platform = platform }
 
@@ -289,12 +293,20 @@ final class ReplaceFlow {
       // No keys can be sent: the code stays, and the user pastes (M1.3).
       return platform.writeSnippet(text) == nil ? .failed : .copied
     }
-    let previous = platform.previousText()
+    let previous: SavedClipboard?
+    if let p = pending, platform.changeCount() == p.mine {
+      previous = p.saved
+    } else {
+      previous = platform.previousText()
+    }
+    pending = nil
     platform.postBackspaces(deleteCount)
     guard let mine = platform.writeSnippet(text) else { return .failed }
     guard platform.postPaste() else { return .copied }
     if let previous = previous {
-      platform.schedule(afterMs: ReplaceFlow.restoreDelayMs) { [platform] in
+      pending = (previous, mine)
+      platform.schedule(afterMs: ReplaceFlow.restoreDelayMs) { [weak self, platform] in
+        if let self = self, self.pending?.mine == mine { self.pending = nil }
         // The user copied something else in the meantime: keep that.
         guard platform.changeCount() == mine else { return }
         platform.restore(previous)

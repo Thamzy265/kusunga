@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -261,7 +262,114 @@ static void TestSpeed() {
   CHECK(ms < 500);  // 1 ms per key budget (p99), with room to spare
 }
 
+// ---- Replacement (design note, "Replacing"; PM decision D2 A) ----
+
+class FakeReplace : public ReplacePlatform {
+ public:
+  std::vector<std::string> log;
+  uintptr_t foreground = 100;
+  int keys_after = 0;
+  bool has_previous = true;
+  bool write_ok = true;
+  uint32_t sequence = 10;
+  std::vector<std::pair<int, std::function<void()>>> scheduled;
+  int restores = 0;
+
+  uintptr_t Foreground() override { return foreground; }
+  int KeysSinceMatch() override { return keys_after; }
+  bool SavePrevious() override {
+    log.push_back("readPrevious");
+    return has_previous;
+  }
+  void SendBackspaces(int n) override {
+    log.push_back("backspace" + std::to_string(n));
+  }
+  bool WriteSnippet(const std::string&, uint32_t* seq) override {
+    log.push_back("write");
+    if (!write_ok) return false;
+    *seq = ++sequence;
+    return true;
+  }
+  void SendPaste() override { log.push_back("paste"); }
+  void Schedule(int ms, std::function<void()> work) override {
+    scheduled.push_back({ms, std::move(work)});
+  }
+  uint32_t Sequence() override { return sequence; }
+  void RestorePrevious() override {
+    restores++;
+    sequence++;
+  }
+};
+
+static void TestReplace() {
+  {
+    FakeReplace p;
+    CHECK(ReplaceFlow(&p).Run(6, "will@example.com", 100) == ReplaceResult::kReplaced);
+    CHECK((p.log == std::vector<std::string>{"readPrevious", "backspace6",
+                                              "write", "paste"}));
+    CHECK(p.scheduled.size() == 1 && p.scheduled[0].first == 500);
+    p.scheduled[0].second();
+    CHECK(p.restores == 1);
+  }
+  {
+    // The user copied something else meanwhile: keep it.
+    FakeReplace p;
+    ReplaceFlow(&p).Run(6, "x", 100);
+    p.sequence++;
+    p.scheduled[0].second();
+    CHECK(p.restores == 0);
+  }
+  {
+    // Not text before: the snippet stays.
+    FakeReplace p;
+    p.has_previous = false;
+    CHECK(ReplaceFlow(&p).Run(6, "x", 100) == ReplaceResult::kReplaced);
+    CHECK(p.scheduled.empty());
+  }
+  {
+    FakeReplace p;
+    p.foreground = 200;
+    CHECK(ReplaceFlow(&p).Run(6, "x", 100) == ReplaceResult::kCancelled);
+    CHECK(p.log.empty());
+  }
+  {
+    FakeReplace p;
+    p.keys_after = 1;
+    CHECK(ReplaceFlow(&p).Run(6, "x", 100) == ReplaceResult::kCancelled);
+    CHECK(p.log.empty());
+  }
+  {
+    FakeReplace p;
+    p.write_ok = false;
+    CHECK(ReplaceFlow(&p).Run(6, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.log.back() == "write");
+  }
+  {
+    // Two shortcuts within 0.5 s: the user's own text comes back.
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(6, "first", 100) == ReplaceResult::kReplaced);
+    CHECK(flow.Run(4, "second", 100) == ReplaceResult::kReplaced);
+    int reads = 0;
+    for (const auto& l : p.log) reads += l == "readPrevious";
+    CHECK(reads == 1);
+    p.scheduled[0].second();
+    CHECK(p.restores == 0);
+    p.scheduled[1].second();
+    CHECK(p.restores == 1);
+  }
+  CHECK(std::string(ReplaceResultName(ReplaceResult::kReplaced)) == "replaced");
+  CHECK(std::string(ReplaceResultName(ReplaceResult::kCancelled)) ==
+        "cancelled");
+  CHECK(std::string(ReplaceResultName(ReplaceResult::kCopied)) == "copied");
+  CHECK(std::string(ReplaceResultName(ReplaceResult::kFailed)) == "failed");
+  // The marker on every key Kusunga sends (dwExtraInfo).
+  CHECK(IsOwnKey(kOwnKeyMarker));
+  CHECK(!IsOwnKey(0));
+}
+
 int main() {
+  TestReplace();
   TestBuffer();
   TestTable();
   TestMatcher();

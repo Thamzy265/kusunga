@@ -29,6 +29,8 @@ bool FlutterWindow::OnCreate() {
       flutter_controller_->engine()->messenger(), GetHandle(), &own_changes_);
   picker_bridge_ = std::make_unique<PickerBridge>(
       flutter_controller_->engine()->messenger(), GetHandle(), &own_changes_);
+  typed_shortcut_bridge_ = std::make_unique<TypedShortcutBridge>(
+      flutter_controller_->engine()->messenger(), GetHandle(), &own_changes_);
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -44,6 +46,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  typed_shortcut_bridge_ = nullptr;
   picker_bridge_ = nullptr;
   clipboard_bridge_ = nullptr;
   if (flutter_controller_) {
@@ -60,6 +63,14 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   if (picker_bridge_) {
     std::optional<LRESULT> result =
         picker_bridge_->HandleMessage(message, wparam, lparam);
+    if (result) {
+      return *result;
+    }
+  }
+
+  if (typed_shortcut_bridge_) {
+    std::optional<LRESULT> result =
+        typed_shortcut_bridge_->HandleMessage(message, wparam, lparam);
     if (result) {
       return *result;
     }

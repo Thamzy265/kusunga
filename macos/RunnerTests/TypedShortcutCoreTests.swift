@@ -361,6 +361,19 @@ final class ReplaceFlowTests: XCTestCase {
     XCTAssertFalse(p.log.contains("paste"))
   }
 
+  func testTwoShortcutsWithinHalfASecondPutBackTheFirstClipboardNotASnippet() {
+    let p = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 6, text: "first", matchPid: 100), .replaced)
+    // The clipboard now holds the first snippet; a second shortcut follows.
+    p.previous = SavedClipboard(text: "first", markerTypes: ["org.nspasteboard.ConcealedType"])
+    XCTAssertEqual(flow.run(deleteCount: 4, text: "second", matchPid: 100), .replaced)
+    p.scheduled[0].1()  // the first restore: the clipboard moved on, nothing
+    XCTAssertTrue(p.restored.isEmpty)
+    p.scheduled[1].1()
+    XCTAssertEqual(p.restored, [SavedClipboard(text: "what I copied", markerTypes: [])])
+  }
+
   func testSavedClipboardNeverDescribesItsText() {
     let saved = SavedClipboard(text: "secret", markerTypes: [])
     XCTAssertFalse(String(describing: saved).contains("secret"))

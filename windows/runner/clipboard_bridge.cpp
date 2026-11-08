@@ -72,7 +72,8 @@ bool ReadDword(UINT format, uint32_t* value) {
 }  // namespace
 
 bool WriteClipboardText(HWND window, UINT format_own, const std::string& text,
-                        kusunga::OwnClipboardChanges* own) {
+                        kusunga::OwnClipboardChanges* own,
+                        bool exclude_from_monitors) {
   const std::wstring wide = ToWide(text);
   if (wide.empty() && !text.empty()) return false;
   if (own) own->BeginWrite();
@@ -114,6 +115,21 @@ bool WriteClipboardText(HWND window, UINT format_own, const std::string& text,
         if (!::SetClipboardData(format_own, marker)) ::GlobalFree(marker);
       } else {
         ::GlobalFree(marker);
+      }
+    }
+  }
+  if (ok && exclude_from_monitors) {
+    const UINT exclude = ::RegisterClipboardFormatW(
+        L"ExcludeClipboardContentFromMonitorProcessing");
+    HGLOBAL flag = exclude ? ::GlobalAlloc(GMEM_MOVEABLE, sizeof(DWORD)) : nullptr;
+    if (flag) {
+      void* data = ::GlobalLock(flag);
+      if (data) {
+        *static_cast<DWORD*>(data) = 0;
+        ::GlobalUnlock(flag);
+        if (!::SetClipboardData(exclude, flag)) ::GlobalFree(flag);
+      } else {
+        ::GlobalFree(flag);
       }
     }
   }

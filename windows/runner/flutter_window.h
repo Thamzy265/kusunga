@@ -8,6 +8,7 @@
 
 #include "clipboard_bridge.h"
 #include "picker_bridge.h"
+#include "typed_shortcut_bridge.h"
 #include "win32_window.h"
 
 // A window that does nothing but host a Flutter view.
@@ -38,6 +39,10 @@ class FlutterWindow : public Win32Window {
 
   // The global shortcut, the picker window and paste (see picker_bridge.h).
   std::unique_ptr<PickerBridge> picker_bridge_;
+
+  // Typed shortcuts: the keyboard hook and replacement (see
+  // typed_shortcut_bridge.h).
+  std::unique_ptr<TypedShortcutBridge> typed_shortcut_bridge_;
 
   // The Flutter instance hosted by this window.
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
