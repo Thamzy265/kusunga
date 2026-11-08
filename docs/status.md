@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.5 Typed shortcuts — developer questions
+- Changed: Developer (opus) is building step 1 and asked 5 spec questions. Lead answered Q1, Q2, Q3 and Q5 as clarifications within the approved design: channel calls runningApps, requestListenAccess, openInputMonitoringSettings and the event statusChanged added (no typed text; design note updated); app names allowed only in runningApps and the encrypted ignored_apps table, never in logs or match events; preset rows seeded for both platforms, current platform shown; Swift core tested as a standalone xctest bundle, never `xcodebuild test` (it launches Kusunga on the real data). Q4 (Windows "Add app" icons) goes to the PM because it changes the approved UI spec.
+- Gates: design approved · developer in progress · tester, reviewer, QA not started
+- Open findings: none
+- Decisions: none yet on Q4
+- Blockers: PM — Q4 Windows icons; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-08 — M1.5 Typed shortcuts — design approved by PM
 - Changed: PM approved the M1.5 deck (docs/slides/typed-shortcuts.html) with every recommendation. ADR 0004 accepted. Design note and UI spec marked approved on feat/typed-shortcuts.
 - Gates: design approved · developer to be briefed (opus, xhigh — data model change, personal data, several modules) · tester, reviewer, QA not started · PM merge n/a yet
