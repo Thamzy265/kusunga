@@ -227,6 +227,30 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Starting…'), findsNothing);
     });
+
+    testWidgets('C7: "Starting…" goes away when native answers the same '
+        'status as before', (tester) async {
+      port.onStatus = TypedShortcutStatus.needsPermission;
+      await show(tester);
+      await tester.runAsync(() => service.setEnabled(true));
+      await tester.pump();
+      expect(service.status, TypedShortcutStatus.needsPermission);
+      // Continue on the card: still not allowed, and native is slow.
+      port.listenAnswer = true;
+      port.holdEnable = Completer<void>();
+      unawaited(service.requestPermission());
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.text('Starting…'), findsOneWidget);
+      port.holdEnable!.complete();
+      await tester.pumpAndSettle();
+      expect(service.busy, isFalse);
+      expect(find.text('Starting…'), findsNothing);
+      expect(
+        find.textContaining('Needs Input Monitoring.'),
+        findsOneWidget,
+        reason: 'the unchanged status is shown again',
+      );
+    });
   });
 
   group('status line', () {

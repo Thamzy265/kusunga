@@ -136,8 +136,9 @@ class ShortcutService extends ChangeNotifier {
     _busy = false;
     if (_disposed) return;
     // The switch moved again while native code was busy: that call wins.
-    if (on != _enabled) return;
-    _setStatus(status);
+    if (on == _enabled) _setStatus(status);
+    // Always, so "Starting…" goes away even when the status is unchanged.
+    _notify();
   }
 
   /// The explanation card's Continue: asks macOS (its own prompt), then
