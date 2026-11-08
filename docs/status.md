@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.5 Typed shortcuts — PM: Windows Add app list shows names only
+- Changed: PM decided Q4. UI spec updated on feat/typed-shortcuts (Mac: name and icon; Windows: name only). Later line added: app icons in the Windows Add app list, trigger ≥ 5 beta requests. The code already sends names only on Windows (nullable icon, stub RunningAppIcon()). No code change.
+- Gates: design approved (spec updated) · developer round 3 in progress (R1, S1, C1-C9) · reviewer block · QA not started · PM merge n/a yet
+- Open findings: R1 High; S1, C1, C2 Medium; C3-C9 Low (all with the developer)
+- Decisions: PM (2026-11-08) on Q4, Windows "Add app…" icons: "Names only for now"
+- Blockers: Reviewer — R1 · PM — Input Monitoring grant for QA; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-08 — M1.5 Typed shortcuts — PM accepts the 3 spec changes
 - Changed: PM decision recorded. docs/ui/typed-shortcuts.md updated on feat/typed-shortcuts to match. No code change.
 - Gates: design approved (spec updated) · developer round 3 in progress (R1, S1, C1-C9) · reviewer block · QA not started · PM merge n/a yet
