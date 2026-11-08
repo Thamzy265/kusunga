@@ -1029,7 +1029,41 @@ static void TestMouseDownCancels() {
   CHECK(IsNone(TypeText(half, U"ail")));
 }
 
+// C9: the buffer is cleared exactly 5 s after the last key, by a timer the
+// hook thread sets from this deadline.
+static void TestIdleDeadline() {
+  TypedShortcutMatcher m = Make();
+  int64_t ms = -1;
+  CHECK(!m.MsUntilIdleClear(0, &ms));  // nothing typed: no timer
+  m.Handle(TypedKey::Text(U";"), TypedKeyContext{}, 1000);
+  CHECK(m.MsUntilIdleClear(1000, &ms) && ms == 5000);
+  CHECK(m.MsUntilIdleClear(3000, &ms) && ms == 3000);
+  m.Handle(TypedKey::Text(U"e"), TypedKeyContext{}, 3000);
+  CHECK(m.MsUntilIdleClear(3000, &ms) && ms == 5000);  // each key moves it
+  m.Tick(7999);
+  CHECK(m.BufferCount() == 2);
+  CHECK(m.MsUntilIdleClear(7999, &ms) && ms == 1);  // fired early: set again
+  m.Tick(8000);
+  CHECK(m.BufferCount() == 0);
+  CHECK(!m.MsUntilIdleClear(8000, &ms));  // cleared: no timer
+  // Never negative; gone after a reset, a backspace to empty or a match.
+  m.Handle(TypedKey::Text(U";"), TypedKeyContext{}, 0);
+  CHECK(m.MsUntilIdleClear(9000, &ms) && ms == 0);
+  m.Handle(TypedKey::Reset(), TypedKeyContext{}, 100);
+  CHECK(!m.MsUntilIdleClear(100, &ms));
+  m.Handle(TypedKey::Text(U";"), TypedKeyContext{}, 200);
+  m.Handle(TypedKey::Backspace(), TypedKeyContext{}, 300);
+  CHECK(!m.MsUntilIdleClear(300, &ms));
+  TypeText(m, U";email", TypedKeyContext{}, 400);
+  CHECK(!m.MsUntilIdleClear(400, &ms));
+  // A key that types nothing does not move it.
+  m.Handle(TypedKey::Text(U";"), TypedKeyContext{}, 0);
+  m.Handle(TypedKey::Ignore(), TypedKeyContext{}, 4000);
+  CHECK(m.MsUntilIdleClear(4000, &ms) && ms == 1000);
+}
+
 int main() {
+  TestIdleDeadline();
   TestMouseDownCancels();
   TestHookHealth();
   TestHookInbox();

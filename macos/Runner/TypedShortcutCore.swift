@@ -103,6 +103,13 @@ final class TypedBuffer: CustomStringConvertible, CustomDebugStringConvertible,
     return true
   }
 
+  /// How long until the idle clear is due: 5 s after the last key, never
+  /// negative. Nil when there is nothing to clear (C9).
+  func msUntilIdleClear(nowMs: Int) -> Int? {
+    guard !scalars.isEmpty, let last = lastKeyMs else { return nil }
+    return max(0, last + TypedBuffer.idleMs - nowMs)
+  }
+
   var description: String { "TypedBuffer(\(scalars.count))" }
   var debugDescription: String { description }
   var customMirror: Mirror { Mirror(self, children: ["count": scalars.count]) }
@@ -169,6 +176,10 @@ final class TypedShortcutMatcher {
 
   /// Called on a timer: the buffer never outlives 5 s without a key.
   func tick(nowMs: Int) { buffer.expireIfIdle(nowMs: nowMs) }
+
+  /// When the platform's one-shot timer should call `tick` next: exactly
+  /// 5 s after the last key, or nil for no timer (C9).
+  func msUntilIdleClear(nowMs: Int) -> Int? { buffer.msUntilIdleClear(nowMs: nowMs) }
 
   func handle(_ key: TypedKey, context: TypedKeyContext, nowMs: Int) -> TypedOutcome {
     buffer.expireIfIdle(nowMs: nowMs)

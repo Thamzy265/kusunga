@@ -144,6 +144,14 @@ class TypedBuffer {
     return true;
   }
 
+  // How long until the idle clear is due: 5 s after the last key, never
+  // negative. False when there is nothing to clear (C9).
+  bool MsUntilIdleClear(int64_t now_ms, int64_t* ms) const {
+    if (chars_.empty() || !has_key_) return false;
+    *ms = std::max<int64_t>(0, last_key_ms_ + kIdleMs - now_ms);
+    return true;
+  }
+
   // True if any of the last [length] characters came from other software.
   bool LastHasInjected(size_t length) const {
     const size_t from = from_software_.size() - std::min(length, from_software_.size());
@@ -295,6 +303,11 @@ class TypedShortcutMatcher {
 
   void Reset() { buffer_.Clear(); }
   void Tick(int64_t now_ms) { buffer_.ExpireIfIdle(now_ms); }
+  // When the hook thread's one-shot timer should call Tick next: exactly
+  // 5 s after the last key; false for no timer (C9).
+  bool MsUntilIdleClear(int64_t now_ms, int64_t* ms) const {
+    return buffer_.MsUntilIdleClear(now_ms, ms);
+  }
   size_t BufferCount() const { return buffer_.Count(); }
   size_t TableSize() const { return table_.Size(); }
 

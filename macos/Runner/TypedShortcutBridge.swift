@@ -37,6 +37,9 @@ final class TypedShortcutBridge {
   private var tap: CFMachPort?
   private var source: CFRunLoopSource?
   private var timer: Timer?
+  /// Fires exactly 5 s after the last key, in the common run-loop modes so
+  /// an open menu or a drag does not hold it back (C9).
+  private var idleTimer: Timer?
   private var frontPid: pid_t?
   private var frontBundle: String?
   /// The match Dart may answer, and the one being replaced now.
@@ -168,6 +171,8 @@ final class TypedShortcutBridge {
   private func stop(status next: String) {
     timer?.invalidate()
     timer = nil
+    idleTimer?.invalidate()
+    idleTimer = nil
     if let tap = tap { CGEvent.tapEnable(tap: tap, enable: false) }
     if let source = source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
     tap = nil
@@ -181,7 +186,30 @@ final class TypedShortcutBridge {
     IsSecureEventInputEnabled() ? "paused" : "on"
   }
 
-  /// Every second: the 5 s idle clear, and secure input turning on or off.
+  /// Sets the one-shot idle timer to the matcher's deadline, or removes it
+  /// when there is nothing to clear (C9).
+  private func armIdleTimer() {
+    guard let ms = matcher.msUntilIdleClear(nowMs: TypedShortcutBridge.nowMs()) else {
+      idleTimer?.invalidate()
+      idleTimer = nil
+      return
+    }
+    let fire = Date(timeIntervalSinceNow: Double(ms) / 1000)
+    if let t = idleTimer, t.isValid {
+      t.fireDate = fire
+      return
+    }
+    let t = Timer(fire: fire, interval: 0, repeats: false) { [weak self] _ in
+      guard let self = self else { return }
+      self.matcher.tick(nowMs: TypedShortcutBridge.nowMs())
+      self.armIdleTimer()  // fired a little early: set again
+    }
+    RunLoop.main.add(t, forMode: .common)
+    idleTimer = t
+  }
+
+  /// Every second: secure input turning on or off (and the idle clear, as
+  /// a second line behind the exact timer).
   private func tick() {
     matcher.tick(nowMs: TypedShortcutBridge.nowMs())
     let next = currentWatchingStatus()
@@ -224,6 +252,7 @@ final class TypedShortcutBridge {
       return
     }
     pending.noteInput()
+    defer { armIdleTimer() }
     let flags = event.flags
     var length = 0
     var units = [UniChar](repeating: 0, count: 8)

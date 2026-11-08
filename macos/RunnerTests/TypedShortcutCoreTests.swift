@@ -1017,3 +1017,50 @@ final class MouseDownTests: XCTestCase {
     XCTAssertEqual(matcher.bufferCount, 0)
   }
 }
+
+// MARK: - C9: the buffer is cleared exactly 5 s after the last key, by a
+// timer the platform sets from this deadline.
+
+final class IdleDeadlineTests: XCTestCase {
+  private func matcher() -> TypedShortcutMatcher {
+    let m = TypedShortcutMatcher()
+    m.setTable([(7, ";email")])
+    return m
+  }
+
+  func testTheTimerIsDueFiveSecondsAfterTheLastKey() {
+    let m = matcher()
+    XCTAssertNil(m.msUntilIdleClear(nowMs: 0), "nothing typed: no timer")
+    _ = m.handle(.text(";"), context: plain, nowMs: 1000)
+    XCTAssertEqual(m.msUntilIdleClear(nowMs: 1000), 5000)
+    XCTAssertEqual(m.msUntilIdleClear(nowMs: 3000), 3000)
+    _ = m.handle(.text("e"), context: plain, nowMs: 3000)
+    XCTAssertEqual(m.msUntilIdleClear(nowMs: 3000), 5000, "each key moves it")
+    m.tick(nowMs: 7999)
+    XCTAssertEqual(m.bufferCount, 2)
+    XCTAssertEqual(m.msUntilIdleClear(nowMs: 7999), 1, "fired early: set again")
+    m.tick(nowMs: 8000)
+    XCTAssertEqual(m.bufferCount, 0)
+    XCTAssertNil(m.msUntilIdleClear(nowMs: 8000), "cleared: no timer")
+  }
+
+  func testNeverNegativeAndGoneAfterAnyClear() {
+    let m = matcher()
+    _ = m.handle(.text(";"), context: plain, nowMs: 0)
+    XCTAssertEqual(m.msUntilIdleClear(nowMs: 9000), 0)
+    _ = m.handle(.reset, context: plain, nowMs: 100)
+    XCTAssertNil(m.msUntilIdleClear(nowMs: 100))
+    _ = m.handle(.text(";"), context: plain, nowMs: 200)
+    _ = m.handle(.backspace, context: plain, nowMs: 300)
+    XCTAssertNil(m.msUntilIdleClear(nowMs: 300), "empty again: nothing to clear")
+    for ch in ";email" { _ = m.handle(.text(String(ch)), context: plain, nowMs: 400) }
+    XCTAssertNil(m.msUntilIdleClear(nowMs: 400), "a match empties it")
+  }
+
+  func testAKeyThatTypesNothingDoesNotMoveTheDeadline() {
+    let m = matcher()
+    _ = m.handle(.text(";"), context: plain, nowMs: 0)
+    _ = m.handle(.ignore, context: plain, nowMs: 4000)
+    XCTAssertEqual(m.msUntilIdleClear(nowMs: 4000), 1000)
+  }
+}

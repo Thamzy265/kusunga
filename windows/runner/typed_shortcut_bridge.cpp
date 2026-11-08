@@ -37,7 +37,7 @@ constexpr UINT_PTR kRestoreTimerId = 0x4B55;   // the 0.5 s restore (D2)
 constexpr UINT kMsgInbox = WM_APP + 0x60;      // settings in the inbox
 constexpr UINT kMsgReinstall = WM_APP + 0x61;  // put the hooks back
 constexpr UINT kMsgQuit = WM_APP + 0x62;       // end the thread
-constexpr UINT_PTR kIdleTimerId = 0x4B54;      // the idle clear
+constexpr UINT_PTR kIdleTimerId = 0x4B54;      // 5 s after the last key
 constexpr UINT_PTR kHealthTimerId = 0x4B56;    // the 2 s hook check
 constexpr wchar_t kHookWindowClass[] = L"KusungaTypedShortcutHook";
 
@@ -475,7 +475,6 @@ class HookThread {
     if (ok) {
       hook_window_ = window;
       ApplyInbox();
-      ::SetTimer(window, kIdleTimerId, 1000, nullptr);
       ::SetTimer(window, kHealthTimerId, kusunga::kHookCheckMs, nullptr);
     }
     // After this the promise belongs to Start again; don't touch it.
@@ -537,6 +536,7 @@ class HookThread {
         case WM_TIMER:
           if (wparam == kIdleTimerId) {
             self->matcher_.Tick(NowMs());
+            self->ArmIdleTimer();  // fired a little early: set again
           } else if (wparam == kHealthTimerId) {
             self->CheckHealth();
           }
@@ -580,6 +580,19 @@ class HookThread {
       }
     }
     return ::CallNextHookEx(nullptr, code, wparam, lparam);
+  }
+
+  // A one-shot timer exactly 5 s after the last key, on this thread (C9);
+  // none when there is nothing to clear. SetTimer with the same id moves it.
+  void ArmIdleTimer() {
+    int64_t ms = 0;
+    if (!hook_window_) return;
+    if (!matcher_.MsUntilIdleClear(NowMs(), &ms)) {
+      ::KillTimer(hook_window_, kIdleTimerId);
+      return;
+    }
+    ::SetTimer(hook_window_, kIdleTimerId,
+               static_cast<UINT>(std::max<int64_t>(ms, 10)), nullptr);
   }
 
   // Settings from the UI thread, applied here only.
@@ -664,6 +677,7 @@ class HookThread {
     context.front_elevated = foreground_elevated_;
     const kusunga::TypedOutcome outcome =
         matcher_.Handle(typed_key, context, NowMs());
+    ArmIdleTimer();
     if (outcome.kind == kusunga::TypedOutcome::Kind::kMatched) {
       // The field check and the channel call happen on other threads; this
       // returns at once.
