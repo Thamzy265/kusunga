@@ -90,6 +90,11 @@ void main() {
     '$removed older ${noun(removed)} will be deleted.',
   );
 
+  /// The Keep dialog at a known count of 0 (PM decision 2026-11-08,
+  /// "Close or relabel").
+  Finder keepZero(int n) =>
+      find.text('Keep only the newest $n items? No items will be deleted.');
+
   Finder clearText(int n) => find.text(
     n == 1
         ? 'This deletes the 1 item. Snippets are not affected.'
@@ -141,8 +146,8 @@ void main() {
       expect(find.byType(AlertDialog), findsNothing);
     });
 
-    testWidgets('2 -> 1 -> 0 by deletes elsewhere: the text follows, the '
-        'dialog stays open at 0, and Clear deletes nothing (no throw)', (
+    testWidgets('2 -> 1 -> 0 by deletes elsewhere: the text follows, and at '
+        '0 the dialog closes by itself, like Cancel (PM 2026-11-08)', (
       tester,
     ) async {
       copies(3);
@@ -157,10 +162,8 @@ void main() {
       expect(clearText(1), findsOneWidget);
       service.delete(service.items.first.id);
       await settle(tester);
-      expect(clearText(0), findsOneWidget);
-      expect(find.byType(AlertDialog), findsOneWidget, reason: 'stays open');
-      await tester.tap(find.widgetWithText(FilledButton, 'Clear history'));
-      await settle(tester);
+      expect(clearText(0), findsNothing);
+      expect(find.byType(AlertDialog), findsNothing, reason: 'still open');
       expect(service.items, isEmpty);
       expect(service.snippets.items, hasLength(2), reason: 'snippets kept');
       expect(tester.takeException(), isNull);
@@ -180,11 +183,12 @@ void main() {
     });
 
     testWidgets('the singular and the plural follow the count back and '
-        'forth: 1, 2, 1, 2, 0, 1', (tester) async {
+        'forth: 1, 2, 1, 2; at 0 the dialog closes by itself and a later '
+        'copy does not bring it back (PM 2026-11-08)', (tester) async {
       copies(1);
       await show(tester);
       await openClear(tester);
-      for (final step in [2, 1, 2, 0, 1]) {
+      for (final step in [2, 1, 2]) {
         while (service.items.length < step) {
           source.copy('x${service.items.length}');
         }
@@ -196,8 +200,15 @@ void main() {
         expect(find.textContaining('all 1 item'), findsNothing);
         expect(find.textContaining('the 2 item'), findsNothing);
       }
-      await tester.tap(find.text('Cancel'));
+      while (service.items.isNotEmpty) {
+        service.delete(service.items.first.id);
+      }
       await settle(tester);
+      expect(find.byType(AlertDialog), findsNothing, reason: 'open at 0');
+      source.copy('after the close');
+      await settle(tester);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(service.items, hasLength(1));
     });
 
     testWidgets('Clear with a copy arriving in the very frame of the click: '
@@ -313,8 +324,10 @@ void main() {
     });
 
     testWidgets('the count drops to exactly the limit, then below it: the '
-        'dialog stays open saying 0; confirming deletes nothing and still '
-        'sets the limit', (tester) async {
+        'dialog says no items will be deleted, the button is "Set limit"; '
+        'confirming deletes nothing and sets the limit (PM 2026-11-08)', (
+      tester,
+    ) async {
       copies(13);
       await show(tester);
       await lowerLimitTo(tester, 10);
@@ -323,19 +336,16 @@ void main() {
         service.delete(service.items.first.id);
       }
       await settle(tester);
-      expect(keepText(10, 0), findsOneWidget);
-      expect(
-        find.widgetWithText(FilledButton, 'Delete 0 items'),
-        findsOneWidget,
-      );
+      expect(keepZero(10), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Set limit'), findsOneWidget);
       for (var i = 0; i < 2; i++) {
         service.delete(service.items.first.id);
       }
       await settle(tester);
       expect(service.items, hasLength(8));
-      expect(keepText(10, 0), findsOneWidget, reason: 'below the new limit');
+      expect(keepZero(10), findsOneWidget, reason: 'below the new limit');
       expect(find.byType(AlertDialog), findsOneWidget);
-      await tester.tap(find.widgetWithText(FilledButton, 'Delete 0 items'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Set limit'));
       await settle(tester);
       expect(service.items, hasLength(8), reason: 'nothing was deleted');
       expect(service.limit, 10, reason: 'the limit is still set');
@@ -352,7 +362,7 @@ void main() {
         service.delete(service.items.first.id);
       }
       await settle(tester);
-      expect(keepText(10, 0), findsOneWidget);
+      expect(keepZero(10), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await settle(tester);
       expect(service.limit, oldLimit);
@@ -369,7 +379,7 @@ void main() {
         service.delete(service.items.first.id);
       }
       await settle(tester);
-      expect(keepText(10, 0), findsOneWidget);
+      expect(keepZero(10), findsOneWidget);
       copies(7, 200);
       await settle(tester);
       expect(keepText(10, 5), findsOneWidget);

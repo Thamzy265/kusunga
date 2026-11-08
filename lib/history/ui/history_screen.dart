@@ -606,37 +606,48 @@ class _HistoryScreenState extends State<HistoryScreen> {
   // can arrive meanwhile), so they always say what confirming deletes
   // (BUG-W1).
   Future<void> _confirmClear() async {
+    var shown = _service.items.length;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear all history?'),
-        content: ListenableBuilder(
-          listenable: _service,
-          builder: (context, _) {
-            final count = _service.items.length;
-            return Text(
-              // "all 1 item" reads oddly: one item is "the 1 item" (lead,
-              // 2026-11-06, QA-M14-7).
-              '${count == 1 ? 'This deletes the 1 item.' : 'This deletes all $count items.'} '
-              'Snippets are not affected.',
-            );
-          },
-        ),
-        actions: [
-          TextButton(
-            autofocus: true,
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+      // At a count of 0 (items deleted elsewhere) the dialog closes by
+      // itself, as Cancel would (PM decision 2026-11-08, "Close or
+      // relabel"). The count is the list in memory, never a store read, so
+      // a failed read or save cannot close it.
+      builder: (context) => _CloseWhenEmpty(
+        service: _service,
+        child: AlertDialog(
+          title: const Text('Clear all history?'),
+          content: ListenableBuilder(
+            listenable: _service,
+            builder: (context, _) {
+              // While it closes at 0 it keeps the last count it showed.
+              final count = _service.items.isEmpty
+                  ? shown
+                  : shown = _service.items.length;
+              return Text(
+                // "all 1 item" reads oddly: one item is "the 1 item" (lead,
+                // 2026-11-06, QA-M14-7).
+                '${count == 1 ? 'This deletes the 1 item.' : 'This deletes all $count items.'} '
+                'Snippets are not affected.',
+              );
+            },
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: KusungaTokens.of(context).danger,
-              foregroundColor: KusungaTokens.of(context).surface,
+          actions: [
+            TextButton(
+              autofocus: true,
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
             ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Clear history'),
-          ),
-        ],
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: KusungaTokens.of(context).danger,
+                foregroundColor: KusungaTokens.of(context).surface,
+              ),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Clear history'),
+            ),
+          ],
+        ),
       ),
     );
     if (confirmed == true) {
@@ -648,9 +659,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   /// [removed] is the count when the dialog opens; the text then follows
-  /// the live count. If it drops to 0, the dialog says so and confirming
-  /// only sets the limit. While the count cannot be read (null) the dialog
-  /// shows no number and only Cancel works (reviewer W2).
+  /// the live count. At a known 0 it says no items will be deleted and the
+  /// button is "Set limit", which only sets the limit (PM decision
+  /// 2026-11-08). While the count cannot be read (null) the dialog shows no
+  /// number and only Cancel works (reviewer W2).
   Future<bool> _confirmLower(int newLimit, int? removed) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -660,13 +672,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
           // One read per change, so the text and the button always agree.
           final removed = _service.countRemovedBy(newLimit);
           return AlertDialog(
-            content: Text(
-              removed == null
-                  ? "Couldn't count the items. Try again."
-                  : 'Keep only the newest $newLimit items? '
-                        '$removed older ${removed == 1 ? 'item' : 'items'} '
-                        'will be deleted.',
-            ),
+            content: Text(switch (removed) {
+              null => "Couldn't count the items. Try again.",
+              0 =>
+                'Keep only the newest $newLimit items? No items will be '
+                    'deleted.',
+              _ =>
+                'Keep only the newest $newLimit items? '
+                    '$removed older ${removed == 1 ? 'item' : 'items'} '
+                    'will be deleted.',
+            }),
             actions: [
               TextButton(
                 autofocus: true,
@@ -681,11 +696,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 onPressed: removed == null
                     ? null
                     : () => Navigator.of(context).pop(true),
-                child: Text(
-                  removed == null
-                      ? 'Delete'
-                      : 'Delete $removed ${removed == 1 ? 'item' : 'items'}',
-                ),
+                child: Text(switch (removed) {
+                  null => 'Delete',
+                  0 => 'Set limit',
+                  _ => 'Delete $removed ${removed == 1 ? 'item' : 'items'}',
+                }),
               ),
             ],
           );
@@ -849,6 +864,52 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
     );
   }
+}
+
+/// Closes the dialog it is in, with the same result as Cancel, when the
+/// history becomes empty while it is open (PM decision 2026-11-08). It
+/// listens only while the dialog is there, so nothing is left listening if
+/// the dialog goes another way.
+class _CloseWhenEmpty extends StatefulWidget {
+  const _CloseWhenEmpty({required this.service, required this.child});
+
+  final HistoryService service;
+  final Widget child;
+
+  @override
+  State<_CloseWhenEmpty> createState() => _CloseWhenEmptyState();
+}
+
+class _CloseWhenEmptyState extends State<_CloseWhenEmpty> {
+  var _closing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.service.addListener(_check);
+  }
+
+  @override
+  void dispose() {
+    widget.service.removeListener(_check);
+    super.dispose();
+  }
+
+  void _check() {
+    if (_closing || !mounted || widget.service.items.isNotEmpty) return;
+    final route = ModalRoute.of(context);
+    if (route == null) return;
+    _closing = true;
+    final navigator = Navigator.of(context);
+    if (route.isCurrent) {
+      navigator.pop(false);
+    } else {
+      navigator.removeRoute(route, false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _Header extends StatelessWidget {

@@ -204,10 +204,12 @@ void main() {
       expect(service.limit, 10);
     });
 
-    testWidgets('the count drops to 0 (an item deleted elsewhere): the '
-        'dialog says 0, and confirming sets the limit and deletes nothing', (
+    testWidgets('the count drops to 0 (an item deleted elsewhere): "No items '
+        'will be deleted." and "Set limit" (also to a screen reader); '
+        'confirming sets the limit and deletes nothing (PM 2026-11-08)', (
       tester,
     ) async {
+      final handle = tester.ensureSemantics();
       copies(11);
       await show(tester);
       await lowerLimitTo10(tester);
@@ -217,17 +219,43 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text(
-          'Keep only the newest 10 items? 0 older items will be deleted.',
-        ),
+        find.text('Keep only the newest 10 items? No items will be deleted.'),
         findsOneWidget,
       );
-      expect(find.widgetWithText(FilledButton, 'Delete 0 items'), findsOne);
+      expect(find.textContaining('0 older items'), findsNothing);
+      expect(find.text('Delete 0 items'), findsNothing);
+      expect(find.widgetWithText(FilledButton, 'Set limit'), findsOne);
+      expect(find.bySemanticsLabel('Set limit'), findsOneWidget);
       final before = [for (final i in service.items) i.id];
-      await tester.tap(find.widgetWithText(FilledButton, 'Delete 0 items'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Set limit'));
       await tester.pumpAndSettle();
       expect(service.limit, 10);
       expect([for (final i in service.items) i.id], before);
+      handle.dispose();
+    });
+
+    testWidgets('from 0 the count rises again: back to the normal text and '
+        '"Delete 1 item"', (tester) async {
+      copies(11);
+      await show(tester);
+      await lowerLimitTo10(tester);
+      service.delete(service.items.last.id);
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(FilledButton, 'Set limit'), findsOne);
+
+      source.copy('one more');
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'Keep only the newest 10 items? 1 older item will be deleted.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(FilledButton, 'Delete 1 item'), findsOne);
+      expect(find.text('Set limit'), findsNothing);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
     });
 
     testWidgets('Cancel after the count changed keeps the old limit and '
@@ -243,4 +271,90 @@ void main() {
       expect(service.items.length, 12);
     });
   });
+
+  group(
+    'Clear history at a count of 0 (PM 2026-11-08, "Close or relabel")',
+    () {
+      Future<void> openClear(WidgetTester tester) async {
+        await tester.tap(find.byTooltip('More options'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Clear history'));
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('the count reaches 0 while it is open: it closes by itself, '
+          'never says "all 0 items", deletes nothing more, and the focus goes '
+          'where Cancel puts it', (tester) async {
+        copies(2);
+        await show(tester);
+        // The focus starts on More options, which the deletes below leave in
+        // place (a row would go with its item), so Cancel and the close can
+        // be compared.
+        Future<void> focusMore() async {
+          Focus.of(
+            tester.element(find.byTooltip('More options')),
+          ).requestFocus();
+          await tester.pumpAndSettle();
+        }
+
+        await focusMore();
+        await openClear(tester);
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+        final afterCancel = FocusManager.instance.primaryFocus;
+        expect(afterCancel?.context?.mounted, isTrue);
+
+        await focusMore();
+        await openClear(tester);
+        expect(find.byType(AlertDialog), findsOneWidget);
+        service.delete(service.items.first.id);
+        await tester.pump();
+        service.delete(service.items.first.id);
+        await tester.pump();
+        expect(
+          find.text('This deletes all 0 items. Snippets are not affected.'),
+          findsNothing,
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AlertDialog), findsNothing, reason: 'still open');
+        expect(service.items, isEmpty);
+        expect(
+          identical(FocusManager.instance.primaryFocus, afterCancel),
+          isTrue,
+          reason:
+              'Cancel put the focus on $afterCancel, the close on '
+              '${FocusManager.instance.primaryFocus}',
+        );
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('a failed save while it is open does not close it (its count '
+          'comes from the list)', (tester) async {
+        final flaky = FlakyStore(MemoryHistoryStore());
+        source = FakeClipboardSource();
+        service = HistoryService(
+          store: flaky,
+          source: source,
+          log: FakeLog(),
+          snippetStore: MemorySnippetStore(),
+          writeClipboard: (_) async {},
+        )..start();
+        addTearDown(service.dispose);
+        copies(2);
+        await show(tester);
+        await openClear(tester);
+        flaky.failWrites = true;
+        source.copy('cannot be saved');
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(
+          find.text('This deletes all 3 items. Snippets are not affected.'),
+          findsOneWidget,
+        );
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+      });
+    },
+  );
 }
