@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.4 Saved snippets — Count-of-0 change built; tester round 15 started
+- Changed: developer built the PM's "Close or relabel" decision in be09a77 (lib/history/ui/history_screen.dart): Clear history dialog closes itself with Cancel's result when the in-memory count reaches 0 (never on a failed read or save; keeps the last count while closing; focus returns where Cancel puts it; close logic lives in a widget inside the dialog so no listener is left behind). Keep dialog at a known 0: "Keep only the newest N items? No items will be deleted." with "Set limit" (enabled, sets the limit, deletes nothing; screen-reader label matches); back to "Delete R item(s)" when the count rises; W2 unknown-count path unchanged. 6 existing tests updated to the new behaviour, 3 new; failing run +26 -8; check.sh +2228 ~8 ×2. Risk noted by developer: if another route is on top of the Clear dialog at 0, the dialog is removed with Cancel's result rather than popped (not reached by tests). Tester round 15 on 0f55781..be09a77 started.
+- Gates: developer done · tester round 15 in progress · reviewer pending · QA re-run pending (needs the Mac) · PM merge waiting
+- Open findings: none open; N1, N2, F5 (Windows), R1 unchanged; VoiceOver: stale "moved to position" text to check
+- Decisions: none new
+- Blockers: PM — free the Mac for the QA re-run; whether QA removes the qa-m13-* items; VoiceOver sign-off; confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; push of local main
+
 ## 2026-11-08 — M1.4 Saved snippets — PM decision: dialogs at a count of 0
 - Changed: PM chose the dialog behaviour when nothing is left to delete. Options put to the PM: "Close or relabel" (the Clear history dialog closes by itself at 0; the Keep dialog's button at 0 changes from "Delete 0 items" to a non-delete label such as "Set limit") or "Keep as is". Developer briefed: Clear history dialog closes itself when the live count reaches 0; Keep dialog at a known count of 0 says "Keep only the newest N items? No items will be deleted." with the button "Set limit"; unknown count (W2) unchanged.
 - Gates: developer in progress (count-of-0 change) · tester pending · reviewer pending · QA re-run pending (needs the Mac) · PM merge waiting
