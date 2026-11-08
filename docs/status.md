@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.4 Saved snippets — F-M1 fixed; tester round 18 started
+- Changed: developer fixed F-M1 in df38af8: _focusMore now focuses the first of _moreWrap.traversalDescendants (the Tab-reachable node of the visible More options button) instead of _moreWrap.children.first; PopupMenuButton kept so nothing visible changes. New guard test fails if the return target is not that node (mutation run failed as expected). check.sh +2364 ~8 ×2. Tester round 18 on 432131d..df38af8 started.
+- Gates: developer done · tester round 18 in progress · reviewer pending · QA re-run pending (needs the Mac) · PM merge waiting
+- Open findings: none open; N1, N2, F5 (Windows), R1 unchanged
+- Decisions: none new
+- Blockers: PM — free the Mac for the QA re-run; VoiceOver sign-off; confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; push of local main
+
 ## 2026-11-08 — M1.4 Saved snippets — Reviewer re-check: approve with notes; F-M1 (Low) to the developer
 - Changed: reviewer re-checked 0f55781..432131d: approve with notes. No path takes focus from behind a dialog or menu; BUG-D1 to D4 fixed (61c8cf3, 578ee22); PM's "Close or relabel" built as recorded (be09a77); auto-close sound (listens only while mounted, closes once, in-memory count, removeRoute when another route is on top); dropped D3 requests leave no state; focus return matches docs/ui/clipboard-history.md; Tab-out trade-off accepted (WCAG 2.4.3). D5 no_change_needed. check.sh +2363 ~8 passed (reviewer ran it). New: F-M1 (Low) — _focusMore relies on PopupMenuButton's private focus node being the first child of _moreWrap; a Flutter change could make the focus return silently do nothing (fails safe). F-M1 sent to the developer.
 - Gates: developer in progress (F-M1) · tester pass (round 17) · reviewer approve with notes · QA re-run pending (needs the Mac) · PM merge waiting
