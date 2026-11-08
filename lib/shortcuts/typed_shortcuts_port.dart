@@ -17,6 +17,7 @@ enum TypedShortcutStatus {
   paused,
 
   /// Mac: macOS turned the tap off and turning it on again failed.
+  /// Windows: Windows removed the hook and putting it back failed.
   stopped,
 
   /// The tap or the Windows hook could not be started.

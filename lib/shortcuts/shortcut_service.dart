@@ -160,7 +160,8 @@ class ShortcutService extends ChangeNotifier {
       case TypedShortcutStatus.needsPermission:
         _log.log(LogCode.shortcutPermissionMissing);
       case TypedShortcutStatus.stopped:
-        _log.log(LogCode.shortcutTapFailed);
+      // Mac: the tap was turned off and could not be turned on again.
+      // Windows: Windows removed the hook and it could not be put back (R1).
       case TypedShortcutStatus.failed:
         _log.log(
           isWindows ? LogCode.shortcutHookFailed : LogCode.shortcutTapFailed,

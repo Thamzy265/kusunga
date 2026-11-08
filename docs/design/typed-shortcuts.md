@@ -124,7 +124,8 @@ PM decisions D1 to D6: all option A (PM, 2026-11-08). See "Decisions for the PM"
   - Characters come from the event's Unicode string, so the keyboard layout is respected.
   - The tap is created only while the switch is on and Input Monitoring is granted.
 - **Windows:**
-  - `WH_KEYBOARD_LL` and `WH_MOUSE_LL` hooks on the runner's UI thread. They need no permission.
+  - `WH_KEYBOARD_LL` and `WH_MOUSE_LL` hooks on their own thread with its own message loop, never on the runner's UI thread, which also runs Dart and the picker's paste (reviewer R1, 2026-11-08). They need no permission. The matcher, the front-window state and the ignore set live on that thread; the UI thread sends it the table, the ignore list and resets through a locked inbox. The UI Automation `IsPassword` check runs on a separate persistent thread, so the hook never waits for it.
+  - Windows removes a slow low-level hook without telling the app. Every 2 s the hook thread compares the system's last input time with its hooks' last call; input more than 1 s newer means the hooks were removed, and they are put back. If that fails, the status says "stopped" (`shortcutHookFailed`). The hooks are also put back each time Kusunga's window is activated.
   - Characters come from `ToUnicodeEx` with the foreground thread's layout. Calling it must not change the dead-key state, which the developer checks.
 
 **The buffer**

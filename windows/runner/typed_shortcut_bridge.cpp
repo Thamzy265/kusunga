@@ -4,12 +4,12 @@
 #include <uiautomation.h>
 
 #include <algorithm>
-#include <chrono>
 #include <cstring>
 #include <functional>
 #include <future>
 #include <iterator>
 #include <memory>
+#include <set>
 #include <string>
 #include <thread>
 #include <utility>
@@ -25,11 +25,21 @@ using flutter::EncodableMap;
 using flutter::EncodableValue;
 
 constexpr char kShortcutsChannel[] = "com.wnasoni.kusunga/shortcuts";
-constexpr UINT kMsgMatched = WM_APP + 0x51;
-constexpr UINT_PTR kIdleTimerId = 0x4B54;     // the 1 s idle clear
-constexpr UINT_PTR kRestoreTimerId = 0x4B55;  // the 0.5 s restore (D2)
 
-TypedShortcutBridge* g_bridge = nullptr;
+// Posted to Kusunga's window (the UI thread).
+constexpr UINT kMsgMatched = WM_APP + 0x51;    // the field check passed
+constexpr UINT kMsgHookLost = WM_APP + 0x52;   // removed, and not put back
+constexpr UINT kMsgHookState = WM_APP + 0x53;  // put back after Kusunga was
+                                               // activated (wparam 1) or not
+constexpr UINT_PTR kRestoreTimerId = 0x4B55;   // the 0.5 s restore (D2)
+
+// Posted to the hook thread's message-only window.
+constexpr UINT kMsgInbox = WM_APP + 0x60;      // settings in the inbox
+constexpr UINT kMsgReinstall = WM_APP + 0x61;  // put the hooks back
+constexpr UINT kMsgQuit = WM_APP + 0x62;       // end the thread
+constexpr UINT_PTR kIdleTimerId = 0x4B54;      // the idle clear
+constexpr UINT_PTR kHealthTimerId = 0x4B56;    // the 2 s hook check
+constexpr wchar_t kHookWindowClass[] = L"KusungaTypedShortcutHook";
 
 const EncodableValue* Find(const EncodableMap* map, const char* key) {
   if (!map) return nullptr;
@@ -106,41 +116,14 @@ uint32_t IntegrityOfPid(DWORD pid) {
   return level;
 }
 
-// Rule 6: is the focused element a password field? UI Automation is asked
-// on its own thread and given 100 ms; no answer in time is "can't tell",
-// which means don't fire. Called only after a match, never on every key.
-kusunga::FieldState FocusedFieldState() {
-  auto promise = std::make_shared<std::promise<kusunga::FieldState>>();
-  auto answer = promise->get_future();
-  std::thread([promise] {
-    kusunga::FieldState state = kusunga::FieldState::kUnknown;
-    if (SUCCEEDED(::CoInitializeEx(nullptr, COINIT_MULTITHREADED))) {
-      IUIAutomation* automation = nullptr;
-      if (SUCCEEDED(::CoCreateInstance(__uuidof(CUIAutomation), nullptr,
-                                       CLSCTX_INPROC_SERVER,
-                                       __uuidof(IUIAutomation),
-                                       reinterpret_cast<void**>(&automation))) &&
-          automation) {
-        IUIAutomationElement* element = nullptr;
-        if (SUCCEEDED(automation->GetFocusedElement(&element)) && element) {
-          BOOL is_password = FALSE;
-          if (SUCCEEDED(element->get_CurrentIsPassword(&is_password))) {
-            state = is_password ? kusunga::FieldState::kPassword
-                                : kusunga::FieldState::kNormal;
-          }
-          element->Release();
-        }
-        automation->Release();
-      }
-      ::CoUninitialize();
-    }
-    promise->set_value(state);
-  }).detach();
-  if (answer.wait_for(std::chrono::milliseconds(kusunga::kFieldCheckLimitMs)) !=
-      std::future_status::ready) {
-    return kusunga::FieldState::kUnknown;
-  }
-  return answer.get();
+// The window belongs to an administrator app, or its level can't be read
+// (rule 5). Our hooks are not called for keys typed there either.
+bool IsElevatedWindow(HWND window) {
+  DWORD pid = 0;
+  ::GetWindowThreadProcessId(window, &pid);
+  return kusunga::DecideSend(IntegrityOfProcess(::GetCurrentProcess()),
+                             pid ? IntegrityOfPid(pid) : 0) !=
+         kusunga::SendDecision::kSend;
 }
 
 // The name people know an app by: its file description, or the executable
@@ -222,7 +205,13 @@ class WinReplacePlatform : public kusunga::ReplacePlatform {
     return reinterpret_cast<uintptr_t>(::GetForegroundWindow());
   }
 
-  int KeysSinceMatch() override { return bridge_->keys_since_match_; }
+  // From the pending match the hook thread counts into; none counts as
+  // "something happened", so the replacement is cancelled.
+  int KeysSinceMatch() override {
+    uintptr_t window = 0;
+    int inputs = 0;
+    return bridge_->pending_.Get(&window, &inputs) ? inputs : 1;
+  }
 
   bool SavePrevious() override {
     Forget();
@@ -339,11 +328,374 @@ class WinReplacePlatform : public kusunga::ReplacePlatform {
   std::function<void()> work_;
 };
 
+// Rule 6 on its own persistent thread (R1): UI Automation in the
+// multithreaded apartment, created once and kept. The hook thread only
+// pushes a request; nobody waits for the answer. An answer later than
+// 100 ms counts as "can't tell" (fail closed), so a busy or hung app can
+// delay this thread but never the hooks or Kusunga's window. Only a
+// passed check reaches the UI thread (kMsgMatched).
+class FieldCheckWorker {
+ public:
+  explicit FieldCheckWorker(HWND ui_window)
+      : ui_window_(ui_window), thread_([this] { Run(); }) {}
+
+  ~FieldCheckWorker() {
+    queue_.Stop();
+    thread_.join();
+  }
+
+  FieldCheckWorker(const FieldCheckWorker&) = delete;
+  FieldCheckWorker& operator=(const FieldCheckWorker&) = delete;
+
+  // From the hook thread: returns at once.
+  void Ask(int snippet_id, int delete_count) {
+    queue_.Push({snippet_id, delete_count, NowMs()});
+  }
+
+ private:
+  void Run() {
+    const bool com =
+        SUCCEEDED(::CoInitializeEx(nullptr, COINIT_MULTITHREADED));
+    IUIAutomation* automation = nullptr;
+    if (com &&
+        SUCCEEDED(::CoCreateInstance(__uuidof(CUIAutomation), nullptr,
+                                     CLSCTX_INPROC_SERVER,
+                                     __uuidof(IUIAutomation),
+                                     reinterpret_cast<void**>(&automation))) &&
+        automation) {
+      // A hung app must not keep this thread for UI Automation's default
+      // 20 s: give up after 1 s (the answer is late and refused anyway).
+      IUIAutomation2* timeouts = nullptr;
+      if (SUCCEEDED(automation->QueryInterface(
+              __uuidof(IUIAutomation2), reinterpret_cast<void**>(&timeouts))) &&
+          timeouts) {
+        timeouts->put_ConnectionTimeout(1000);
+        timeouts->put_TransactionTimeout(1000);
+        timeouts->Release();
+      }
+    }
+    kusunga::FieldCheckRequest request{0, 0, 0};
+    while (queue_.Pop(&request)) {
+      const kusunga::FieldState state = kusunga::FieldStateInTime(
+          automation ? FocusedFieldState(automation)
+                     : kusunga::FieldState::kUnknown,
+          request.asked_ms, NowMs());
+      // A password field, or one that can't be read in time, never gets a
+      // snippet.
+      if (kusunga::DecideField(state) == nullptr) {
+        ::PostMessageW(ui_window_, kMsgMatched,
+                       static_cast<WPARAM>(request.snippet_id),
+                       static_cast<LPARAM>(request.delete_count));
+      }
+    }
+    if (automation) automation->Release();
+    if (com) ::CoUninitialize();
+  }
+
+  static kusunga::FieldState FocusedFieldState(IUIAutomation* automation) {
+    kusunga::FieldState state = kusunga::FieldState::kUnknown;
+    IUIAutomationElement* element = nullptr;
+    if (SUCCEEDED(automation->GetFocusedElement(&element)) && element) {
+      BOOL is_password = FALSE;
+      if (SUCCEEDED(element->get_CurrentIsPassword(&is_password))) {
+        state = is_password ? kusunga::FieldState::kPassword
+                            : kusunga::FieldState::kNormal;
+      }
+      element->Release();
+    }
+    return state;
+  }
+
+  HWND ui_window_;
+  kusunga::FieldCheckQueue queue_;
+  std::thread thread_;  // last, so the queue exists before it runs
+};
+
+// The hook thread (R1): WH_KEYBOARD_LL and WH_MOUSE_LL installed from here,
+// so Windows calls them here, and this thread does nothing else. It owns
+// the matcher, the front-window state and the ignore set; the UI thread
+// reaches them only through the inbox (settings) and the pending match.
+class HookThread;
+HookThread* g_hook_thread = nullptr;  // set and read on the hook thread only
+
+class HookThread {
+ public:
+  HookThread(HWND ui_window, kusunga::HookInbox* inbox,
+             kusunga::PendingMatch* pending, FieldCheckWorker* field)
+      : ui_window_(ui_window), inbox_(inbox), pending_(pending), field_(field) {}
+
+  ~HookThread() { Stop(); }
+
+  HookThread(const HookThread&) = delete;
+  HookThread& operator=(const HookThread&) = delete;
+
+  // Starts the thread and waits for its hooks. False if they could not be
+  // installed (the thread has ended then).
+  bool Start() {
+    std::promise<bool> installed;
+    std::future<bool> result = installed.get_future();
+    thread_ = std::thread([this, &installed] { Run(&installed); });
+    if (result.get()) return true;
+    thread_.join();
+    return false;
+  }
+
+  void Stop() {
+    if (!thread_.joinable()) return;
+    if (!hook_window_ || !::PostMessageW(hook_window_, kMsgQuit, 0, 0)) {
+      ::PostThreadMessageW(thread_id_, WM_QUIT, 0, 0);
+    }
+    thread_.join();
+    hook_window_ = nullptr;
+  }
+
+  // New settings are in the inbox.
+  void Wake() {
+    if (hook_window_) ::PostMessageW(hook_window_, kMsgInbox, 0, 0);
+  }
+
+  // Kusunga's window was activated: put the hooks back in any case.
+  void Reinstall() {
+    if (hook_window_) ::PostMessageW(hook_window_, kMsgReinstall, 0, 0);
+  }
+
+ private:
+  void Run(std::promise<bool>* installed) {
+    g_hook_thread = this;
+    thread_id_ = ::GetCurrentThreadId();
+    HINSTANCE instance = ::GetModuleHandleW(nullptr);
+    WNDCLASSEXW window_class = {};
+    window_class.cbSize = sizeof(window_class);
+    window_class.lpfnWndProc = WindowProc;
+    window_class.hInstance = instance;
+    window_class.lpszClassName = kHookWindowClass;
+    ::RegisterClassExW(&window_class);  // fails harmlessly the second time
+    HWND window = ::CreateWindowExW(0, kHookWindowClass, L"", 0, 0, 0, 0, 0,
+                                    HWND_MESSAGE, nullptr, instance, nullptr);
+    const bool ok = window != nullptr && Install();
+    if (ok) {
+      hook_window_ = window;
+      ApplyInbox();
+      ::SetTimer(window, kIdleTimerId, 1000, nullptr);
+      ::SetTimer(window, kHealthTimerId, kusunga::kHookCheckMs, nullptr);
+    }
+    // After this the promise belongs to Start again; don't touch it.
+    installed->set_value(ok);
+    if (ok) {
+      MSG message;
+      while (::GetMessageW(&message, nullptr, 0, 0) > 0) {
+        ::DispatchMessageW(&message);
+      }
+    } else if (window) {
+      ::DestroyWindow(window);
+    }
+    Uninstall();
+    matcher_.Reset();
+    g_hook_thread = nullptr;
+  }
+
+  bool Install() {
+    HINSTANCE instance = ::GetModuleHandleW(nullptr);
+    keyboard_hook_ =
+        ::SetWindowsHookExW(WH_KEYBOARD_LL, KeyboardProc, instance, 0);
+    mouse_hook_ = ::SetWindowsHookExW(WH_MOUSE_LL, MouseProc, instance, 0);
+    last_hook_tick_ = ::GetTickCount();
+    if (keyboard_hook_ && mouse_hook_) return true;
+    Uninstall();
+    return false;
+  }
+
+  void Uninstall() {
+    if (keyboard_hook_) ::UnhookWindowsHookEx(keyboard_hook_);
+    if (mouse_hook_) ::UnhookWindowsHookEx(mouse_hook_);
+    keyboard_hook_ = nullptr;
+    mouse_hook_ = nullptr;
+  }
+
+  bool Reinstalled() {
+    Uninstall();
+    matcher_.Reset();
+    foreground_ = nullptr;
+    return Install();
+  }
+
+  static LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam,
+                                     LPARAM lparam) {
+    HookThread* self = g_hook_thread;
+    if (self) {
+      switch (message) {
+        case kMsgInbox:
+          self->ApplyInbox();
+          return 0;
+        case kMsgReinstall: {
+          const bool ok = self->Reinstalled();
+          ::PostMessageW(self->ui_window_, kMsgHookState, ok ? 1 : 0, 0);
+          return 0;
+        }
+        case kMsgQuit:
+          ::DestroyWindow(window);
+          return 0;
+        case WM_TIMER:
+          if (wparam == kIdleTimerId) {
+            self->matcher_.Tick(NowMs());
+          } else if (wparam == kHealthTimerId) {
+            self->CheckHealth();
+          }
+          return 0;
+        case WM_DESTROY:
+          ::PostQuitMessage(0);
+          return 0;
+        default:
+          break;
+      }
+    }
+    return ::DefWindowProcW(window, message, wparam, lparam);
+  }
+
+  static LRESULT CALLBACK KeyboardProc(int code, WPARAM wparam,
+                                       LPARAM lparam) {
+    HookThread* self = g_hook_thread;
+    if (code == HC_ACTION && self) {
+      self->last_hook_tick_ = ::GetTickCount();
+      if (wparam == WM_KEYDOWN || wparam == WM_SYSKEYDOWN) {
+        self->OnKey(*reinterpret_cast<KBDLLHOOKSTRUCT*>(lparam));
+      }
+    }
+    return ::CallNextHookEx(nullptr, code, wparam, lparam);
+  }
+
+  static LRESULT CALLBACK MouseProc(int code, WPARAM wparam, LPARAM lparam) {
+    HookThread* self = g_hook_thread;
+    if (code == HC_ACTION && self) {
+      self->last_hook_tick_ = ::GetTickCount();
+      switch (wparam) {
+        case WM_LBUTTONDOWN:
+        case WM_RBUTTONDOWN:
+        case WM_MBUTTONDOWN:
+        case WM_XBUTTONDOWN:
+          self->matcher_.Reset();
+          break;
+        default:
+          break;
+      }
+    }
+    return ::CallNextHookEx(nullptr, code, wparam, lparam);
+  }
+
+  // Settings from the UI thread, applied here only.
+  void ApplyInbox() {
+    kusunga::HookInbox::Batch batch = inbox_->Take();
+    if (batch.has_table) matcher_.SetTable(batch.table);
+    if (batch.has_ignored) {
+      ignored_ = std::move(batch.ignored);
+      foreground_ = nullptr;  // looked up again on the next key
+      matcher_.Reset();
+    }
+    if (batch.reset) matcher_.Reset();
+  }
+
+  // Windows removed the hooks (they were too slow, or the system was under
+  // load): put them back once; if that fails, the UI says "stopped".
+  void CheckHealth() {
+    LASTINPUTINFO info = {};
+    info.cbSize = sizeof(info);
+    if (!::GetLastInputInfo(&info)) return;
+    HWND front = ::GetForegroundWindow();
+    const bool hidden = front == nullptr || IsElevatedWindow(front);
+    if (!kusunga::HookLooksRemoved(info.dwTime, last_hook_tick_, hidden)) {
+      return;
+    }
+    if (!Reinstalled()) ::PostMessageW(ui_window_, kMsgHookLost, 0, 0);
+  }
+
+  void UpdateForeground(HWND foreground) {
+    if (foreground == foreground_) return;
+    // A new front window: the cursor is somewhere else.
+    foreground_ = foreground;
+    matcher_.Reset();
+    DWORD pid = 0;
+    ::GetWindowThreadProcessId(foreground, &pid);
+    foreground_self_ = pid == ::GetCurrentProcessId();
+    const std::wstring path = pid ? ImagePathOf(pid) : std::wstring();
+    foreground_ignored_ = !path.empty() && ignored_.count(AppIdOf(path)) > 0;
+    foreground_elevated_ = IsElevatedWindow(foreground);
+  }
+
+  void OnKey(const KBDLLHOOKSTRUCT& key) {
+    // Kusunga's own Backspaces and Ctrl+V.
+    if (kusunga::IsOwnKey(key.dwExtraInfo)) return;
+    pending_->NoteInput();
+    HWND foreground = ::GetForegroundWindow();
+    UpdateForeground(foreground);
+
+    kusunga::KeyFlags flags;
+    flags.ctrl = (::GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+    flags.alt = (key.flags & LLKHF_ALTDOWN) != 0 ||
+                (::GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+    flags.right_alt = (::GetAsyncKeyState(VK_RMENU) & 0x8000) != 0;
+    flags.win = ((::GetAsyncKeyState(VK_LWIN) | ::GetAsyncKeyState(VK_RWIN)) &
+                 0x8000) != 0;
+
+    // The characters this key types in the front window's layout. Flag 0x4
+    // keeps ToUnicodeEx from changing the keyboard state (dead keys).
+    BYTE state[256] = {0};
+    for (int vk : {VK_SHIFT, VK_CONTROL, VK_MENU, VK_RMENU, VK_LCONTROL,
+                   VK_RCONTROL, VK_LSHIFT, VK_RSHIFT, VK_LMENU}) {
+      if (::GetAsyncKeyState(vk) & 0x8000) state[vk] = 0x80;
+    }
+    if (::GetKeyState(VK_CAPITAL) & 0x1) state[VK_CAPITAL] = 0x1;
+    const HKL layout =
+        ::GetKeyboardLayout(::GetWindowThreadProcessId(foreground, nullptr));
+    wchar_t units[8] = {0};
+    const int n = ::ToUnicodeEx(key.vkCode, key.scanCode, state, units, 8, 0x4,
+                                layout);
+    std::u16string typed;
+    for (int i = 0; i < n; i++) typed.push_back(static_cast<char16_t>(units[i]));
+    std::fill(std::begin(units), std::end(units), L'\0');
+    const kusunga::TypedKey typed_key = kusunga::ClassifyWindowsKey(
+        key.vkCode, flags,
+        n > 0 ? kusunga::Utf16ToUtf32(typed) : std::u32string());
+    std::fill(typed.begin(), typed.end(), u' ');
+
+    kusunga::TypedKeyContext context;
+    context.front_is_self = foreground_self_;
+    context.front_ignored = foreground_ignored_;
+    context.injected = (key.flags & LLKHF_INJECTED) != 0;
+    context.front_elevated = foreground_elevated_;
+    const kusunga::TypedOutcome outcome =
+        matcher_.Handle(typed_key, context, NowMs());
+    if (outcome.kind == kusunga::TypedOutcome::Kind::kMatched) {
+      // The field check and the channel call happen on other threads; this
+      // returns at once.
+      pending_->Begin(reinterpret_cast<uintptr_t>(foreground));
+      field_->Ask(outcome.snippet_id, outcome.delete_count);
+    }
+  }
+
+  HWND ui_window_;
+  kusunga::HookInbox* inbox_;
+  kusunga::PendingMatch* pending_;
+  FieldCheckWorker* field_;
+  std::thread thread_;
+  DWORD thread_id_ = 0;
+  HWND hook_window_ = nullptr;  // set before Start returns
+
+  // The hook thread's own state.
+  kusunga::TypedShortcutMatcher matcher_;
+  std::set<std::string> ignored_;
+  HHOOK keyboard_hook_ = nullptr;
+  HHOOK mouse_hook_ = nullptr;
+  DWORD last_hook_tick_ = 0;
+  HWND foreground_ = nullptr;
+  bool foreground_ignored_ = false;
+  bool foreground_self_ = false;
+  bool foreground_elevated_ = false;
+};
+
 TypedShortcutBridge::TypedShortcutBridge(flutter::BinaryMessenger* messenger,
                                          HWND window,
                                          kusunga::OwnClipboardChanges* own)
     : window_(window), own_(own) {
-  g_bridge = this;
   format_own_ = ::RegisterClipboardFormatW(L"com.wnasoni.kusunga.self");
   replace_platform_ = std::make_unique<WinReplacePlatform>(this);
   replace_flow_ = std::make_unique<kusunga::ReplaceFlow>(replace_platform_.get());
@@ -359,9 +711,9 @@ TypedShortcutBridge::TypedShortcutBridge(flutter::BinaryMessenger* messenger,
 
 TypedShortcutBridge::~TypedShortcutBridge() {
   Stop("off");
+  field_worker_ = nullptr;  // after the hook thread, which asks it
   ::KillTimer(window_, kRestoreTimerId);
   if (channel_) channel_->SetMethodCallHandler(nullptr);
-  if (g_bridge == this) g_bridge = nullptr;
 }
 
 void TypedShortcutBridge::HandleCall(
@@ -391,18 +743,20 @@ void TypedShortcutBridge::HandleCall(
         entries.push_back({value, std::get<std::string>(*shortcut)});
       }
     }
-    matcher_.SetTable(entries);
+    // Applied on the hook thread (now, or when it starts).
+    inbox_.PutTable(std::move(entries));
+    if (hook_thread_) hook_thread_->Wake();
     result->Success();
   } else if (method == "setIgnored") {
-    ignored_.clear();
+    std::set<std::string> ignored;
     const auto* list = Find(args, "appIds");
     if (list && std::holds_alternative<EncodableList>(*list)) {
       for (const auto& id : std::get<EncodableList>(*list)) {
-        if (const auto* s = std::get_if<std::string>(&id)) ignored_.insert(*s);
+        if (const auto* s = std::get_if<std::string>(&id)) ignored.insert(*s);
       }
     }
-    foreground_ = nullptr;  // looked up again on the next key
-    matcher_.Reset();
+    inbox_.PutIgnored(std::move(ignored));
+    if (hook_thread_) hook_thread_->Wake();
     result->Success();
   } else if (method == "setEnabled") {
     const auto* on = Find(args, "on");
@@ -462,139 +816,34 @@ void TypedShortcutBridge::SetStatus(const char* status) {
 }
 
 void TypedShortcutBridge::Start() {
-  if (keyboard_hook_) {
+  if (hook_thread_) {
     SetStatus("on");
     return;
   }
-  HINSTANCE instance = ::GetModuleHandleW(nullptr);
-  keyboard_hook_ =
-      ::SetWindowsHookExW(WH_KEYBOARD_LL, KeyboardProc, instance, 0);
-  mouse_hook_ = ::SetWindowsHookExW(WH_MOUSE_LL, MouseProc, instance, 0);
-  if (!keyboard_hook_ || !mouse_hook_) {
+  if (!field_worker_) field_worker_ = std::make_unique<FieldCheckWorker>(window_);
+  auto thread = std::make_unique<HookThread>(window_, &inbox_, &pending_,
+                                             field_worker_.get());
+  if (!thread->Start()) {
     Stop("failed");
     return;
   }
-  foreground_ = nullptr;
-  ::SetTimer(window_, kIdleTimerId, 1000, nullptr);
+  hook_thread_ = std::move(thread);
   SetStatus("on");
 }
 
 void TypedShortcutBridge::Stop(const char* status) {
-  if (keyboard_hook_) ::UnhookWindowsHookEx(keyboard_hook_);
-  if (mouse_hook_) ::UnhookWindowsHookEx(mouse_hook_);
-  keyboard_hook_ = nullptr;
-  mouse_hook_ = nullptr;
-  ::KillTimer(window_, kIdleTimerId);
-  matcher_.Reset();
-  has_match_ = false;
+  if (hook_thread_) {
+    hook_thread_->Stop();
+    hook_thread_ = nullptr;
+  }
+  pending_.Clear();
   SetStatus(status);
 }
 
-LRESULT CALLBACK TypedShortcutBridge::KeyboardProc(int code, WPARAM wparam,
-                                                   LPARAM lparam) {
-  if (code == HC_ACTION && g_bridge &&
-      (wparam == WM_KEYDOWN || wparam == WM_SYSKEYDOWN)) {
-    g_bridge->OnKey(*reinterpret_cast<KBDLLHOOKSTRUCT*>(lparam));
-  }
-  return ::CallNextHookEx(nullptr, code, wparam, lparam);
-}
-
-LRESULT CALLBACK TypedShortcutBridge::MouseProc(int code, WPARAM wparam,
-                                                LPARAM lparam) {
-  if (code == HC_ACTION && g_bridge) {
-    switch (wparam) {
-      case WM_LBUTTONDOWN:
-      case WM_RBUTTONDOWN:
-      case WM_MBUTTONDOWN:
-      case WM_XBUTTONDOWN:
-        g_bridge->matcher_.Reset();
-        break;
-      default:
-        break;
-    }
-  }
-  return ::CallNextHookEx(nullptr, code, wparam, lparam);
-}
-
-void TypedShortcutBridge::UpdateForeground(HWND foreground) {
-  if (foreground == foreground_) return;
-  // A new front window: the cursor is somewhere else.
-  foreground_ = foreground;
-  matcher_.Reset();
-  DWORD pid = 0;
-  ::GetWindowThreadProcessId(foreground, &pid);
-  foreground_self_ = pid == ::GetCurrentProcessId();
-  const std::wstring path = pid ? ImagePathOf(pid) : std::wstring();
-  foreground_ignored_ = !path.empty() && ignored_.count(AppIdOf(path)) > 0;
-  // An administrator window, or one whose level can't be read (rule 5).
-  foreground_elevated_ =
-      kusunga::DecideSend(IntegrityOfProcess(::GetCurrentProcess()),
-                          pid ? IntegrityOfPid(pid) : 0) !=
-      kusunga::SendDecision::kSend;
-}
-
-void TypedShortcutBridge::OnKey(const KBDLLHOOKSTRUCT& key) {
-  // Kusunga's own Backspaces and Ctrl+V.
-  if (kusunga::IsOwnKey(key.dwExtraInfo)) return;
-  if (has_match_) keys_since_match_++;
-  HWND foreground = ::GetForegroundWindow();
-  UpdateForeground(foreground);
-
-  kusunga::KeyFlags flags;
-  flags.ctrl = (::GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
-  flags.alt = (key.flags & LLKHF_ALTDOWN) != 0 ||
-              (::GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
-  flags.right_alt = (::GetAsyncKeyState(VK_RMENU) & 0x8000) != 0;
-  flags.win = ((::GetAsyncKeyState(VK_LWIN) | ::GetAsyncKeyState(VK_RWIN)) &
-               0x8000) != 0;
-
-  // The characters this key types in the front window's layout. Flag 0x4
-  // keeps ToUnicodeEx from changing the keyboard state (dead keys).
-  BYTE state[256] = {0};
-  for (int vk : {VK_SHIFT, VK_CONTROL, VK_MENU, VK_RMENU, VK_LCONTROL,
-                 VK_RCONTROL, VK_LSHIFT, VK_RSHIFT, VK_LMENU}) {
-    if (::GetAsyncKeyState(vk) & 0x8000) state[vk] = 0x80;
-  }
-  if (::GetKeyState(VK_CAPITAL) & 0x1) state[VK_CAPITAL] = 0x1;
-  const HKL layout =
-      ::GetKeyboardLayout(::GetWindowThreadProcessId(foreground, nullptr));
-  wchar_t units[8] = {0};
-  const int n = ::ToUnicodeEx(key.vkCode, key.scanCode, state, units, 8, 0x4,
-                              layout);
-  std::u16string typed;
-  for (int i = 0; i < n; i++) typed.push_back(static_cast<char16_t>(units[i]));
-  std::fill(std::begin(units), std::end(units), L'\0');
-  const kusunga::TypedKey typed_key = kusunga::ClassifyWindowsKey(
-      key.vkCode, flags, n > 0 ? kusunga::Utf16ToUtf32(typed) : std::u32string());
-  std::fill(typed.begin(), typed.end(), u' ');
-
-  kusunga::TypedKeyContext context;
-  context.front_is_self = foreground_self_;
-  context.front_ignored = foreground_ignored_;
-  context.injected = (key.flags & LLKHF_INJECTED) != 0;
-  context.front_elevated = foreground_elevated_;
-  const kusunga::TypedOutcome outcome =
-      matcher_.Handle(typed_key, context, NowMs());
-  if (outcome.kind == kusunga::TypedOutcome::Kind::kMatched) {
-    // The field check and the channel call happen off the hook, which must
-    // answer fast or Windows removes it.
-    match_window_ = foreground;
-    has_match_ = true;
-    keys_since_match_ = 0;
-    ::PostMessageW(window_, kMsgMatched,
-                   static_cast<WPARAM>(outcome.snippet_id),
-                   static_cast<LPARAM>(outcome.delete_count));
-  }
-}
-
 void TypedShortcutBridge::OnMatched(int snippet_id, int delete_count) {
-  if (!enabled_ || !has_match_) return;
-  // Rule 6: a password field, or one that can't be read, never gets a
-  // snippet.
-  if (kusunga::DecideField(FocusedFieldState()) != nullptr) {
-    has_match_ = false;
-    return;
-  }
+  uintptr_t window = 0;
+  int inputs = 0;
+  if (!enabled_ || !pending_.Get(&window, &inputs)) return;
   EncodableMap args;
   args[EncodableValue("snippetId")] = EncodableValue(snippet_id);
   args[EncodableValue("deleteCount")] = EncodableValue(delete_count);
@@ -603,33 +852,59 @@ void TypedShortcutBridge::OnMatched(int snippet_id, int delete_count) {
 
 std::string TypedShortcutBridge::Replace(int delete_count,
                                          const std::string& text) {
-  const bool had_match = has_match_;
-  const HWND window = match_window_;
+  uintptr_t window = 0;
+  int inputs = 0;
   std::string answer = "cancelled";
-  if (enabled_ && had_match) {
-    answer = kusunga::ReplaceResultName(replace_flow_->Run(
-        delete_count, text, reinterpret_cast<uintptr_t>(window)));
+  if (enabled_ && pending_.Get(&window, &inputs)) {
+    answer = kusunga::ReplaceResultName(
+        replace_flow_->Run(delete_count, text, window));
   }
-  has_match_ = false;
-  keys_since_match_ = 0;
-  matcher_.Reset();
+  pending_.Clear();
+  // A replacement is a reset event; the hook thread empties its buffer.
+  inbox_.PutReset();
+  if (hook_thread_) hook_thread_->Wake();
   return answer;
 }
 
 std::optional<LRESULT> TypedShortcutBridge::HandleMessage(UINT message,
                                                           WPARAM wparam,
                                                           LPARAM lparam) {
-  if (message == kMsgMatched) {
-    OnMatched(static_cast<int>(wparam), static_cast<int>(lparam));
-    return 0;
+  switch (message) {
+    case kMsgMatched:
+      OnMatched(static_cast<int>(wparam), static_cast<int>(lparam));
+      return 0;
+    case kMsgHookLost:
+      // Windows removed the hooks and they could not be put back.
+      if (enabled_ && hook_thread_) Stop("stopped");
+      return 0;
+    case kMsgHookState:
+      if (enabled_ && hook_thread_) {
+        if (wparam) {
+          SetStatus("on");
+        } else {
+          Stop("stopped");
+        }
+      }
+      return 0;
+    case WM_ACTIVATE:
+      // Back in Kusunga: put the hooks back (Windows may have removed them
+      // silently), or try to start again after "stopped" or "failed". Not
+      // handled here, so the window still gets it.
+      if (LOWORD(wparam) != WA_INACTIVE && enabled_) {
+        if (hook_thread_) {
+          hook_thread_->Reinstall();
+        } else {
+          Start();
+        }
+      }
+      return std::nullopt;
+    case WM_TIMER:
+      if (wparam == kRestoreTimerId) {
+        replace_platform_->RunScheduled();
+        return 0;
+      }
+      return std::nullopt;
+    default:
+      return std::nullopt;
   }
-  if (message == WM_TIMER && wparam == kIdleTimerId) {
-    matcher_.Tick(NowMs());
-    return 0;
-  }
-  if (message == WM_TIMER && wparam == kRestoreTimerId) {
-    replace_platform_->RunScheduled();
-    return 0;
-  }
-  return std::nullopt;
 }

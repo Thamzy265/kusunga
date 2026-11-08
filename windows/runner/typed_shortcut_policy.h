@@ -13,9 +13,12 @@
 // Nothing here logs or prints; only a snippet id and a delete count leave.
 
 #include <algorithm>
+#include <condition_variable>
 #include <cstdint>
 #include <functional>
 #include <iterator>
+#include <mutex>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -350,6 +353,159 @@ inline const char* DecideField(FieldState s) {
       break;
   }
   return "shortcutSkippedUnknownField";
+}
+
+// ---- Threads (R1) ----
+//
+// Both low-level hooks run on their own thread with its own message loop, so
+// nothing else Kusunga does (Dart, the picker's paste, UI Automation) can
+// make them answer late; Windows silently removes a hook that does. The
+// matcher, the front-window state and the ignore set live on that thread
+// only. These are the pieces other threads share with it.
+
+// Settings the UI thread hands to the hook thread: put here under a short
+// lock, then the hook thread is woken and takes them. Only the latest table
+// and ignore set count.
+class HookInbox {
+ public:
+  struct Batch {
+    bool has_table = false;
+    std::vector<std::pair<int, std::string>> table;
+    bool has_ignored = false;
+    std::set<std::string> ignored;
+    bool reset = false;  // empty the buffer (a replacement happened)
+  };
+
+  void PutTable(std::vector<std::pair<int, std::string>> table) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    next_.has_table = true;
+    next_.table = std::move(table);
+  }
+  void PutIgnored(std::set<std::string> ignored) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    next_.has_ignored = true;
+    next_.ignored = std::move(ignored);
+  }
+  void PutReset() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    next_.reset = true;
+  }
+  // The hook thread takes everything put since the last call.
+  Batch Take() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    Batch out = std::move(next_);
+    next_ = Batch();
+    return out;
+  }
+
+ private:
+  std::mutex mutex_;
+  Batch next_;
+};
+
+// The match Dart may still answer with "replace": the window it happened in
+// and how much the user did since (any of it cancels). The hook thread
+// begins it and counts; the UI thread reads and clears it.
+class PendingMatch {
+ public:
+  void Begin(uintptr_t window) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    active_ = true;
+    window_ = window;
+    inputs_ = 0;
+  }
+  // A key or a mouse press by the user after the match.
+  void NoteInput() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (active_) inputs_++;
+  }
+  bool Get(uintptr_t* window, int* inputs) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!active_) return false;
+    *window = window_;
+    *inputs = inputs_;
+    return true;
+  }
+  void Clear() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    active_ = false;
+    window_ = 0;
+    inputs_ = 0;
+  }
+
+ private:
+  mutable std::mutex mutex_;
+  bool active_ = false;
+  uintptr_t window_ = 0;
+  int inputs_ = 0;
+};
+
+// Rule 6 runs on its own persistent thread (UI Automation can take long, or
+// hang in a busy app). The hook thread only pushes a request; a newer one
+// replaces an older one not yet taken.
+struct FieldCheckRequest {
+  int snippet_id;
+  int delete_count;
+  int64_t asked_ms;
+};
+
+class FieldCheckQueue {
+ public:
+  void Push(const FieldCheckRequest& r) {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      latest_ = r;
+      has_ = true;
+    }
+    wake_.notify_one();
+  }
+  // Waits for a request. False once stopped.
+  bool Pop(FieldCheckRequest* out) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    wake_.wait(lock, [this] { return has_ || stopped_; });
+    if (stopped_) return false;
+    *out = latest_;
+    has_ = false;
+    return true;
+  }
+  void Stop() {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      stopped_ = true;
+    }
+    wake_.notify_all();
+  }
+
+ private:
+  std::mutex mutex_;
+  std::condition_variable wake_;
+  FieldCheckRequest latest_{0, 0, 0};
+  bool has_ = false;
+  bool stopped_ = false;
+};
+
+// An answer later than 100 ms after the match counts as "can't tell", which
+// means don't fire, whatever it said.
+inline FieldState FieldStateInTime(FieldState s, int64_t asked_ms,
+                                   int64_t answered_ms) {
+  return answered_ms - asked_ms > kFieldCheckLimitMs ? FieldState::kUnknown : s;
+}
+
+// Hook health. Every 2 s the hook thread compares the last input the system
+// saw (GetLastInputInfo) with the last time its own hooks ran (both
+// GetTickCount). Input more than 1 s newer than any hook call means Windows
+// removed the hooks: they are put back, and if that fails the status says
+// "stopped". An administrator window or the secure desktop in front gets
+// input our hooks never see, so then silence proves nothing.
+constexpr int kHookCheckMs = 2000;
+constexpr uint32_t kHookSilenceMs = 1000;
+
+inline bool HookLooksRemoved(uint32_t last_input_tick, uint32_t last_hook_tick,
+                             bool front_hidden_from_hooks) {
+  if (front_hidden_from_hooks) return false;
+  // Signed difference, so the 49.7-day wrap of GetTickCount is harmless.
+  const int32_t newer = static_cast<int32_t>(last_input_tick - last_hook_tick);
+  return newer > static_cast<int32_t>(kHookSilenceMs);
 }
 
 // ---- Replacing (design note, "Replacing"; PM decision D2 A) ----

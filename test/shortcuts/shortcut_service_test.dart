@@ -199,6 +199,17 @@ void main() {
       },
     );
 
+    test('R1 Windows: a hook Windows removed and that could not be put '
+        'back ("stopped") logs shortcutHookFailed', () async {
+      final s = make(isWindows: true);
+      await s.start();
+      await s.setEnabled(true);
+      port.statusChanged(TypedShortcutStatus.stopped);
+      expect(s.status, TypedShortcutStatus.stopped);
+      expect(log.codes, contains(LogCode.shortcutHookFailed));
+      expect(log.codes, isNot(contains(LogCode.shortcutTapFailed)));
+    });
+
     test('a status change while off is ignored', () async {
       final s = make();
       await s.start();

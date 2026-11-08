@@ -15,12 +15,22 @@
 #include "typed_shortcut_policy.h"
 
 class WinReplacePlatform;
+class HookThread;
+class FieldCheckWorker;
 
 // M1.5 typed shortcuts on Windows: WH_KEYBOARD_LL and WH_MOUSE_LL hooks on
-// the runner's UI thread (no permission needed), the matcher in
-// typed_shortcut_policy.h, and the replacement. The rules are tested
-// without Windows (typed_shortcut_policy_test.cpp); this file only supplies
-// the Windows calls.
+// their own thread with its own message loop (reviewer R1: never on the
+// runner's platform thread, which also runs Dart and the picker's paste),
+// UI Automation's password check on a persistent worker thread, the
+// matcher in typed_shortcut_policy.h, and the replacement. No permission
+// is needed. The rules are tested without Windows
+// (typed_shortcut_policy_test.cpp); this file only supplies the Windows
+// calls.
+//
+// Threads: the hook thread owns the matcher, the front-window state and
+// the ignore set. The UI thread hands it settings through `inbox_` and
+// shares only `pending_` (the match Dart may answer) with it. A match goes
+// hook thread -> field check worker -> UI thread (kMsgMatched) -> Dart.
 //
 // Method channel "com.wnasoni.kusunga/shortcuts" (see
 // lib/shortcuts/channel_typed_shortcuts_port.dart):
@@ -30,7 +40,8 @@ class WinReplacePlatform;
 //    RunningAppIcon), "requestListenAccess" (true: Windows asks for no
 //    permission) and "openInputMonitoringSettings" (nothing on Windows);
 //  - native calls "matched" {snippetId, deleteCount} and "statusChanged"
-//    {status}.
+//    {status} ("stopped" when Windows removed the hooks and they could not
+//    be put back).
 // Typed keys never leave the matcher's buffer (ADR 0004). The front window
 // is known by handle and executable name, in memory only, never logged.
 class TypedShortcutBridge {
@@ -43,16 +54,14 @@ class TypedShortcutBridge {
   TypedShortcutBridge(const TypedShortcutBridge&) = delete;
   TypedShortcutBridge& operator=(const TypedShortcutBridge&) = delete;
 
-  // Handles the bridge's own WM_APP message (a match, checked off the hook)
-  // and WM_TIMER (the 1 s idle clear and the 0.5 s restore).
+  // Handles the bridge's own WM_APP messages (a checked match, the hooks
+  // lost or put back), WM_TIMER for the 0.5 s restore, and looks at
+  // WM_ACTIVATE (put the hooks back) without handling it.
   std::optional<LRESULT> HandleMessage(UINT message, WPARAM wparam,
                                        LPARAM lparam);
 
  private:
   friend class WinReplacePlatform;
-
-  static LRESULT CALLBACK KeyboardProc(int code, WPARAM wparam, LPARAM lparam);
-  static LRESULT CALLBACK MouseProc(int code, WPARAM wparam, LPARAM lparam);
 
   void HandleCall(
       const flutter::MethodCall<flutter::EncodableValue>& call,
@@ -61,8 +70,6 @@ class TypedShortcutBridge {
   void Start();
   void Stop(const char* status);
   void SetStatus(const char* status);
-  void OnKey(const KBDLLHOOKSTRUCT& key);
-  void UpdateForeground(HWND foreground);
   void OnMatched(int snippet_id, int delete_count);
   std::string Replace(int delete_count, const std::string& text);
 
@@ -70,21 +77,15 @@ class TypedShortcutBridge {
   kusunga::OwnClipboardChanges* own_;
   UINT format_own_ = 0;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel_;
-  kusunga::TypedShortcutMatcher matcher_;
-  std::set<std::string> ignored_;
   bool enabled_ = false;
   std::string status_ = "off";
-  HHOOK keyboard_hook_ = nullptr;
-  HHOOK mouse_hook_ = nullptr;
 
-  HWND foreground_ = nullptr;
-  bool foreground_ignored_ = false;
-  bool foreground_self_ = false;
-  bool foreground_elevated_ = false;
+  // Shared with the hook thread (each has its own lock).
+  kusunga::HookInbox inbox_;
+  kusunga::PendingMatch pending_;
 
-  HWND match_window_ = nullptr;
-  bool has_match_ = false;
-  int keys_since_match_ = 0;
+  std::unique_ptr<FieldCheckWorker> field_worker_;
+  std::unique_ptr<HookThread> hook_thread_;
 
   std::unique_ptr<WinReplacePlatform> replace_platform_;
   std::unique_ptr<kusunga::ReplaceFlow> replace_flow_;

@@ -6,7 +6,9 @@
 #include <cstdint>
 #include <cstdio>
 #include <functional>
+#include <set>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "typed_shortcut_policy.h"
@@ -831,7 +833,127 @@ static void TestWriteFirstAndForget() {
   }
 }
 
+// ---- R1: the hook thread, the field check worker, hook health ----
+
+static void TestHookHealth() {
+  // Input the hooks saw: alive.
+  CHECK(!HookLooksRemoved(10000, 10000, false));
+  CHECK(!HookLooksRemoved(10500, 10000, false));
+  CHECK(!HookLooksRemoved(11000, 10000, false));
+  // The system saw input more than 1 s after the hooks last ran: removed.
+  CHECK(HookLooksRemoved(11001, 10000, false));
+  // The hooks ran after the last input (a hook call is newer): alive.
+  CHECK(!HookLooksRemoved(9000, 10000, false));
+  // An administrator window or the secure desktop in front: our hooks are
+  // not called for that input, so silence proves nothing.
+  CHECK(!HookLooksRemoved(20000, 10000, true));
+  // GetTickCount wraps after 49.7 days.
+  CHECK(HookLooksRemoved(2000u, 0xFFFFFF00u, false));
+  CHECK(!HookLooksRemoved(100u, 0xFFFFFF00u, false));
+  CHECK(kHookCheckMs == 2000);
+}
+
+static void TestHookInbox() {
+  HookInbox inbox;
+  HookInbox::Batch b = inbox.Take();
+  CHECK(!b.has_table && !b.has_ignored && !b.reset);
+  inbox.PutTable({{1, ";a"}});
+  inbox.PutTable({{2, ";bb"}});  // the latest table wins
+  inbox.PutIgnored({"1password.exe"});
+  inbox.PutReset();
+  b = inbox.Take();
+  CHECK(b.has_table && b.table.size() == 1 && b.table[0].first == 2);
+  CHECK(b.has_ignored && b.ignored.count("1password.exe") == 1);
+  CHECK(b.reset);
+  b = inbox.Take();  // taken once
+  CHECK(!b.has_table && !b.has_ignored && !b.reset);
+  // Applying a batch on the hook thread's matcher.
+  TypedShortcutMatcher m;
+  inbox.PutTable({{7, ";email"}});
+  b = inbox.Take();
+  m.SetTable(b.table);
+  CHECK(m.TableSize() == 1);
+  // Two threads: the UI thread puts while the hook thread takes.
+  HookInbox shared;
+  std::thread ui([&] {
+    for (int i = 0; i < 2000; i++) shared.PutTable({{i, ";x" + std::to_string(i)}});
+  });
+  int last = -1;
+  for (int i = 0; i < 2000; i++) {
+    HookInbox::Batch t = shared.Take();
+    if (t.has_table) {
+      CHECK(t.table.size() == 1 && t.table[0].first > last);
+      last = t.table[0].first;
+    }
+  }
+  ui.join();
+  HookInbox::Batch t = shared.Take();
+  if (t.has_table) last = t.table[0].first;
+  CHECK(last == 1999);
+}
+
+static void TestFieldCheckQueue() {
+  CHECK(FieldStateInTime(FieldState::kNormal, 1000, 1100) == FieldState::kNormal);
+  CHECK(FieldStateInTime(FieldState::kNormal, 1000, 1101) == FieldState::kUnknown);
+  CHECK(FieldStateInTime(FieldState::kPassword, 1000, 1001) == FieldState::kPassword);
+  CHECK(FieldStateInTime(FieldState::kPassword, 1000, 5000) == FieldState::kUnknown);
+  {  // The newest request wins; the worker takes it once.
+    FieldCheckQueue q;
+    q.Push({1, 6, 100});
+    q.Push({2, 4, 200});
+    FieldCheckRequest r{};
+    CHECK(q.Pop(&r) && r.snippet_id == 2 && r.delete_count == 4 && r.asked_ms == 200);
+    q.Stop();
+    CHECK(!q.Pop(&r));
+  }
+  {  // A worker waiting on the queue gets a request pushed from another
+     // thread, and Stop wakes it.
+    FieldCheckQueue q;
+    std::vector<int> got;
+    std::thread worker([&] {
+      FieldCheckRequest r{};
+      while (q.Pop(&r)) got.push_back(r.snippet_id);
+    });
+    q.Push({5, 3, 0});
+    for (int i = 0; i < 200 && got.empty(); i++) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    q.Stop();
+    worker.join();
+    CHECK(got.size() == 1 && got[0] == 5);
+  }
+}
+
+static void TestPendingMatch() {
+  PendingMatch p;
+  uintptr_t window = 0;
+  int inputs = -1;
+  CHECK(!p.Get(&window, &inputs));
+  p.NoteInput();  // no match yet: nothing counted
+  p.Begin(100);
+  CHECK(p.Get(&window, &inputs) && window == 100 && inputs == 0);
+  p.NoteInput();
+  CHECK(p.Get(&window, &inputs) && inputs == 1);
+  p.Begin(200);  // a new match starts again from 0
+  CHECK(p.Get(&window, &inputs) && window == 200 && inputs == 0);
+  p.Clear();
+  CHECK(!p.Get(&window, &inputs));
+  // The hook thread counts while the UI thread reads.
+  PendingMatch shared;
+  shared.Begin(1);
+  std::thread hook([&] {
+    for (int i = 0; i < 1000; i++) shared.NoteInput();
+  });
+  for (int i = 0; i < 1000; i++) shared.Get(&window, &inputs);
+  hook.join();
+  CHECK(shared.Get(&window, &inputs) && inputs == 1000);
+}
+
 int main() {
+  TestHookHealth();
+  TestHookInbox();
+  TestFieldCheckQueue();
+  TestPendingMatch();
   TestWriteFirstAndForget();
   TestRestorableFormats();
   TestRestoreMarks();
