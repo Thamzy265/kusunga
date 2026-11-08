@@ -327,9 +327,9 @@ final class MacReplacePlatform: ReplacePlatform {
 
   func previousText() -> SavedClipboard? {
     let types = pasteboard.types?.map { $0.rawValue } ?? []
-    guard let text = pasteboard.string(forType: .string) else { return nil }
-    return SavedClipboard(
-      text: text, markerTypes: types.filter { ClipboardPolicy.secretTypes.contains($0) })
+    // The types first: a copy that is not all text is never read (C4).
+    guard RestorableClipboard.canRestore(types: types) else { return nil }
+    return RestorableClipboard.saved(text: pasteboard.string(forType: .string), types: types)
   }
 
   private func post(keyCode: CGKeyCode, flags: CGEventFlags) {

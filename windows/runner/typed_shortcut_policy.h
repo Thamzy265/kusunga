@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <functional>
+#include <iterator>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -367,7 +368,8 @@ class ReplacePlatform {
   // Keys the user typed since the match (any of them cancels).
   virtual int KeysSinceMatch() = 0;
   // Keeps the clipboard text now, in memory, to put back. False if the
-  // clipboard holds no text.
+  // clipboard holds no text, or anything besides text and markers
+  // (CanRestoreClipboard).
   virtual bool SavePrevious() = 0;
   virtual void SendBackspaces(int n) = 0;
   // Writes the snippet (UTF-8) excluded from clipboard monitoring and
@@ -387,6 +389,40 @@ class ReplacePlatform {
 // so marking it always is the only way never to make it weaker (S1).
 inline ClipboardMarks SnippetMarks() { return {true, false, false}; }
 inline ClipboardMarks RestoreMarks() { return {true, true, true}; }
+
+// One clipboard format, as EnumClipboardFormats lists it: its number and,
+// for a registered format (0xC000 and up), its name.
+struct ClipboardFormatInfo {
+  uint32_t id;
+  std::string name;
+};
+
+// Whether the previous copy may be put back after a shortcut (design note,
+// "Replacing" step 4; C4): only when every format was text or a "don't
+// keep" marker, and Unicode text is there. Anything else (rich text, HTML,
+// an image, files) leaves the snippet on the clipboard, because Kusunga
+// only puts back text. Decided before any text is read.
+inline bool CanRestoreClipboard(const std::vector<ClipboardFormatInfo>& formats) {
+  constexpr uint32_t kText = 1, kOemText = 7, kUnicodeText = 13, kLocale = 16;
+  static const char* const kMarkers[] = {
+      "ExcludeClipboardContentFromMonitorProcessing",
+      "CanIncludeInClipboardHistory", "CanUploadToCloudClipboard",
+      "Clipboard Viewer Ignore", "com.wnasoni.kusunga.self"};
+  bool unicode = false;
+  for (const auto& f : formats) {
+    if (f.id == kUnicodeText) {
+      unicode = true;
+      continue;
+    }
+    if (f.id == kText || f.id == kOemText || f.id == kLocale) continue;
+    const bool marker =
+        f.id >= 0xC000 &&
+        std::any_of(std::begin(kMarkers), std::end(kMarkers),
+                    [&](const char* m) { return f.name == m; });
+    if (!marker) return false;
+  }
+  return unicode;
+}
 
 enum class ReplaceResult { kReplaced, kCancelled, kCopied, kFailed };
 

@@ -227,6 +227,11 @@ class WinReplacePlatform : public kusunga::ReplacePlatform {
   bool SavePrevious() override {
     Forget();
     if (!::OpenClipboard(bridge_->window_)) return false;
+    // The formats first: a copy that is not all text is never read (C4).
+    if (!kusunga::CanRestoreClipboard(ListFormats())) {
+      ::CloseClipboard();
+      return false;
+    }
     bool found = false;
     HANDLE handle = ::GetClipboardData(CF_UNICODETEXT);
     if (handle) {
@@ -302,6 +307,22 @@ class WinReplacePlatform : public kusunga::ReplacePlatform {
   }
 
  private:
+  // Every format on the open clipboard, with the names of registered ones.
+  static std::vector<kusunga::ClipboardFormatInfo> ListFormats() {
+    std::vector<kusunga::ClipboardFormatInfo> formats;
+    UINT format = 0;
+    while ((format = ::EnumClipboardFormats(format)) != 0) {
+      std::string name;
+      if (format >= 0xC000) {
+        wchar_t buffer[128] = {0};
+        const int n = ::GetClipboardFormatNameW(format, buffer, 128);
+        if (n > 0) name = Utf8Of(std::wstring(buffer, static_cast<size_t>(n)));
+      }
+      formats.push_back({static_cast<uint32_t>(format), name});
+    }
+    return formats;
+  }
+
   // Overwrites the kept text before letting go of it.
   void Forget() {
     std::fill(saved_.begin(), saved_.end(), L' ');

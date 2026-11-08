@@ -739,7 +739,35 @@ static void TestRestoreMarks() {
   CHECK(!none.exclude_from_monitor && !none.no_history && !none.no_cloud);
 }
 
+// C4: the previous copy is put back only when every format was text or a
+// "don't keep" marker; anything else (rich text, HTML, an image, files)
+// leaves the snippet on the clipboard.
+static void TestRestorableFormats() {
+  const ClipboardFormatInfo unicode{13, ""}, ansi{1, ""}, oem{7, ""},
+      locale{16, ""};
+  CHECK(CanRestoreClipboard({unicode, ansi, oem, locale}));
+  CHECK(CanRestoreClipboard(
+      {unicode, {0xC001, "ExcludeClipboardContentFromMonitorProcessing"},
+       {0xC002, "CanIncludeInClipboardHistory"},
+       {0xC003, "CanUploadToCloudClipboard"},
+       {0xC004, "Clipboard Viewer Ignore"},
+       {0xC005, "com.wnasoni.kusunga.self"}}));
+  CHECK(!CanRestoreClipboard({unicode, {0xC010, "Rich Text Format"}}));
+  CHECK(!CanRestoreClipboard({unicode, {0xC011, "HTML Format"}}));
+  CHECK(!CanRestoreClipboard({unicode, {2, ""}}));   // CF_BITMAP
+  CHECK(!CanRestoreClipboard({unicode, {15, ""}}));  // CF_HDROP (files)
+  CHECK(!CanRestoreClipboard({unicode, {8, ""}}));   // CF_DIB
+  CHECK(!CanRestoreClipboard({}));
+  CHECK(!CanRestoreClipboard({ansi}));  // no Unicode text to read
+  CHECK(!CanRestoreClipboard(
+      {{0xC001, "ExcludeClipboardContentFromMonitorProcessing"}}));
+  // A registered name is matched exactly, not by prefix.
+  CHECK(!CanRestoreClipboard({unicode, {0xC020, "CanIncludeInClipboardHistoryX"}}));
+  CHECK(!CanRestoreClipboard({unicode, {0xC021, ""}}));  // unnamed custom
+}
+
 int main() {
+  TestRestorableFormats();
   TestRestoreMarks();
   TestReplace();
   TestBuffer();
