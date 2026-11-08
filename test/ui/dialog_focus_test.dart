@@ -420,6 +420,32 @@ void main() {
       expect(service.items, hasLength(5));
     });
 
+    testWidgets('the focus returns to the very node Tab reaches for the '
+        'visible More options button, not a node above or beside it: after '
+        'the dialog and after the menu (reviewer F-M1)', (tester) async {
+      copies(4);
+      await show(tester);
+      for (var i = 0; i < 40 && focused() != 'more-button'; i++) {
+        await shiftTab(tester);
+      }
+      final byTab = FocusManager.instance.primaryFocus!;
+      final button = byTab.context!.findAncestorWidgetOfExactType<IconButton>();
+      expect(button?.tooltip, 'More options', reason: 'Tab is on the button');
+      // Nothing focused on the screen, then the dialog by mouse.
+      await enterLimit(tester, 200);
+      expect(FocusManager.instance.primaryFocus, isNot(same(byTab)));
+      await openClear(tester);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(FocusManager.instance.primaryFocus, same(byTab), reason: 'dialog');
+      expect(byTab.hasPrimaryFocus, isTrue);
+      await enterLimit(tester, 200);
+      await tester.tap(find.byTooltip('More options'));
+      await tester.pumpAndSettle();
+      await key(tester, LogicalKeyboardKey.escape);
+      expect(FocusManager.instance.primaryFocus, same(byTab), reason: 'menu');
+    });
+
     testWidgets('the menu itself, opened by mouse and dismissed with Escape '
         'or a click outside: the More options button has the focus', (
       tester,

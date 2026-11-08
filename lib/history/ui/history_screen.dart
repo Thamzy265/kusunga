@@ -687,8 +687,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
   /// or without a copy meanwhile (BUG-D2). Not while another route is on top.
   void _focusMore() {
     if (!mounted || !canTakeFocus(context)) return;
-    final button = _moreWrap.children;
-    if (button.isNotEmpty) button.first.requestFocus();
+    // The button is the node Tab reaches below the wrap: focusable and
+    // traversable. Descendants are listed innermost first, so a wrapper that
+    // Flutter may one day put around the button is never picked instead of
+    // it (reviewer F-M1).
+    final nodes = _moreWrap.traversalDescendants;
+    if (nodes.isNotEmpty) nodes.first.requestFocus();
   }
 
   /// [removed] is the count when the dialog opens; the text then follows
