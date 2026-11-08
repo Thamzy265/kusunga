@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.4 Saved snippets — QA session 6 started
+- Changed: PM freed the Mac. QA session 6 on b9632e7 started: count wording, live dialog counts, "Close or relabel" at 0, keyboard focus (D1-D4, F-M1), footer count, D5 picker-over-dialog manual check, AC1-AC3 smoke, and the qa-m13-* cleanup in the real data under the 2026-11-08 decision. Standing QA rules repeated in the brief.
+- Gates: developer done · tester pass (round 18) · reviewer approve with notes · QA session 6 in progress · PM merge waiting
+- Open findings: none open; N1, N2, F5 (Windows), R1 unchanged
+- Decisions: PM (2026-11-08): "Mac is free"
+- Blockers: PM — VoiceOver sign-off; confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; push of local main
+
 ## 2026-11-08 — M1.4 Saved snippets — Reviewer re-check: approve with notes (F-M1 closed); waiting for the Mac
 - Changed: reviewer re-checked 432131d..b9632e7: approve with notes, 0 new findings. F-M1 fixed (df38af8): _focusMore uses the public traversalDescendants API, so the fix no longer depends on PopupMenuButton's private structure; nothing else in lib/ changed. check.sh +2374 ~8 passed (reviewer ran it). Developer, tester and reviewer gates are done for every change since QA session 5. Next: QA session 6 on b9632e7 (wording, live dialog counts, unknown count, count-of-0 close/relabel, focus return and no reach-through behind dialogs, footer count, D5 picker-over-dialog manual check, qa-m13-* cleanup).
 - Gates: developer done · tester pass (round 18) · reviewer approve with notes · QA session 6 pending (needs the Mac) · PM merge waiting
