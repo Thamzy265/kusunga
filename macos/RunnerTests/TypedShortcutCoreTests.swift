@@ -1064,3 +1064,320 @@ final class IdleDeadlineTests: XCTestCase {
     XCTAssertEqual(m.msUntilIdleClear(nowMs: 4000), 1000)
   }
 }
+
+// MARK: - Tester round 3: PendingMatch, restorable types, the idle deadline
+// and every exit of a replacement (C2, C3, C4, C5, C9).
+
+final class Round3EdgeTests: XCTestCase {
+  // C2 ---------------------------------------------------------------------
+
+  func testIdsWrapFromMaxToOneAndNeverZero() {
+    let p = PendingMatch(lastId: PendingMatch.maxId - 2)
+    XCTAssertEqual(p.begin(target: 1), PendingMatch.maxId - 1)
+    XCTAssertEqual(p.begin(target: 1), PendingMatch.maxId)
+    XCTAssertNil(p.peek(PendingMatch.maxId - 1))
+    XCTAssertEqual(p.begin(target: 1), 1)
+    XCTAssertNil(p.peek(PendingMatch.maxId), "the id from before the wrap is dead")
+    XCTAssertNotNil(p.peek(1))
+    XCTAssertEqual(PendingMatch(lastId: Int.max).begin(target: 1), 1)
+    XCTAssertEqual(PendingMatch(lastId: PendingMatch.maxId + 1).begin(target: 1), 1)
+    XCTAssertEqual(PendingMatch.maxId, 0x7F_FFFF)
+  }
+
+  func testIdsThatWereNeverGivenOutAreRefused() {
+    let p = PendingMatch()
+    let id = p.begin(target: 5)
+    for bad in [0, -1, id + 1, id | 0x80_0000, Int.max, Int.min] {
+      XCTAssertNil(p.peek(bad), "\(bad)")
+    }
+  }
+
+  func testAReplaceForAnAlreadyAnsweredMatchSendsNothing() {
+    let fake = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: fake)
+    let pending = PendingMatch()
+    let id = pending.begin(target: 100)
+    XCTAssertEqual(
+      flow.run(matchId: id, deleteCount: 6, text: "x", pending: pending), .replaced)
+    let log = fake.log
+    XCTAssertEqual(
+      flow.run(matchId: id, deleteCount: 6, text: "x", pending: pending), .cancelled)
+    XCTAssertEqual(fake.log, log, "a duplicate replace touches nothing")
+  }
+
+  func testAStaleIdAfterANewMatchIsCancelledAndTheNewOneStillWorks() {
+    let fake = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: fake)
+    let pending = PendingMatch()
+    let old = pending.begin(target: 100)
+    let new = pending.begin(target: 100)
+    XCTAssertEqual(
+      flow.run(matchId: old, deleteCount: 6, text: "old", pending: pending), .cancelled)
+    XCTAssertTrue(fake.log.isEmpty)
+    XCTAssertNotNil(pending.peek(new), "answering the old one must not end the new one")
+    XCTAssertEqual(
+      flow.run(matchId: new, deleteCount: 4, text: "new", pending: pending), .replaced)
+  }
+
+  func testANewMatchStartsItsInputCountAtZeroAndInputBeforeAnyMatchCountsNothing() {
+    let p = PendingMatch()
+    p.noteInput()
+    let a = p.begin(target: 1)
+    XCTAssertEqual(p.peek(a)?.inputs, 0)
+    p.noteInput()
+    p.noteInput()
+    XCTAssertEqual(p.peek(a)?.inputs, 2)
+    let b = p.begin(target: 2)
+    XCTAssertEqual(p.peek(b)?.inputs, 0)
+    XCTAssertEqual(p.peek(b)?.target, 2)
+    p.end(a)
+    XCTAssertNotNil(p.peek(b))
+    p.end(b)
+    p.noteInput()
+    XCTAssertNil(p.peek(b))
+  }
+
+  func testTheMatchEndsEvenWhenTheReplaceIsCancelled() {
+    let fake = FakeReplacePlatform()
+    fake.front = 200
+    let flow = ReplaceFlow(platform: fake)
+    let pending = PendingMatch()
+    let id = pending.begin(target: 100)
+    XCTAssertEqual(
+      flow.run(matchId: id, deleteCount: 6, text: "x", pending: pending), .cancelled)
+    XCTAssertNil(pending.peek(id))
+  }
+
+  // C5 ---------------------------------------------------------------------
+
+  func testAClickBeforeAnyMatchIsHarmlessAndAClickAfterTheAnswerChangesNothing() {
+    let m = TypedShortcutMatcher()
+    m.setTable([(7, ";email")])
+    let pending = PendingMatch()
+    TypedShortcutInput.mouseDown(matcher: m, pending: pending)  // no match yet
+    let id = pending.begin(target: 100)
+    let fake = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: fake)
+    XCTAssertEqual(
+      flow.run(matchId: id, deleteCount: 6, text: "x", pending: pending), .replaced)
+    TypedShortcutInput.mouseDown(matcher: m, pending: pending)
+    XCTAssertNil(pending.peek(id))
+  }
+
+  func testEveryClickBeforeTheReplaceCountsAndAnyOneCancels() {
+    for clicks in 1...3 {
+      let m = TypedShortcutMatcher()
+      let pending = PendingMatch()
+      let id = pending.begin(target: 100)
+      for _ in 0..<clicks { TypedShortcutInput.mouseDown(matcher: m, pending: pending) }
+      XCTAssertEqual(pending.peek(id)?.inputs, clicks)
+    }
+  }
+
+  // C9 ---------------------------------------------------------------------
+
+  func testIdleDeadlineAtTheEdges() {
+    let m = TypedShortcutMatcher()
+    m.setTable([(7, ";email")])
+    _ = m.handle(.text(";"), context: plain, nowMs: 10_000)
+    XCTAssertEqual(m.msUntilIdleClear(nowMs: 10_000), 5000)
+    XCTAssertEqual(m.msUntilIdleClear(nowMs: 14_999), 1)
+    XCTAssertEqual(m.msUntilIdleClear(nowMs: 15_000), 0)
+    XCTAssertEqual(m.msUntilIdleClear(nowMs: 99_999), 0)
+    m.tick(nowMs: 14_999)
+    XCTAssertEqual(m.bufferCount, 1)
+    m.tick(nowMs: 15_000)
+    XCTAssertEqual(m.bufferCount, 0)
+    XCTAssertNil(m.msUntilIdleClear(nowMs: 15_000))
+  }
+
+  func testTheDeadlineFollowsBackspaceAndSkippedMatchesAndDropsWhenEmpty() {
+    let b = TypedShortcutMatcher()
+    b.setTable([(7, ";email")])
+    type(b, ";e", at: 0)
+    _ = b.handle(.backspace, context: plain, nowMs: 3000)
+    XCTAssertEqual(b.msUntilIdleClear(nowMs: 3000), 5000)
+    _ = b.handle(.backspace, context: plain, nowMs: 3500)
+    XCTAssertNil(b.msUntilIdleClear(nowMs: 3500), "empty buffer, no timer")
+
+    let k = TypedShortcutMatcher()
+    k.setTable([(7, ";email")])
+    var ignored = TypedKeyContext()
+    ignored.frontIgnored = true
+    type(k, ";email", context: ignored, at: 2000)
+    XCTAssertEqual(k.bufferCount, 6)
+    XCTAssertEqual(k.msUntilIdleClear(nowMs: 2000), 5000)
+
+    let j = TypedShortcutMatcher()
+    j.setTable([(7, ";email")])
+    var soft = TypedKeyContext()
+    soft.injected = true
+    _ = j.handle(.text(";"), context: soft, nowMs: 100)
+    XCTAssertEqual(j.msUntilIdleClear(nowMs: 100), 5000)
+    j.reset()
+    XCTAssertNil(j.msUntilIdleClear(nowMs: 100))
+  }
+
+  @discardableResult
+  private func type(
+    _ m: TypedShortcutMatcher, _ text: String, context: TypedKeyContext = plain, at: Int = 0
+  ) -> TypedOutcome {
+    var last = TypedOutcome.none
+    for ch in text { last = m.handle(.text(String(ch)), context: context, nowMs: at) }
+    return last
+  }
+
+  // C4 ---------------------------------------------------------------------
+
+  func testRestorableTypesAtTheEdges() {
+    let utf8 = "public.utf8-plain-text"
+    XCTAssertTrue(RestorableClipboard.canRestore(types: [utf8]))
+    XCTAssertTrue(RestorableClipboard.canRestore(types: [utf8, utf8]))
+    XCTAssertTrue(RestorableClipboard.canRestore(types: ["NSStringPboardType"]))
+    XCTAssertTrue(RestorableClipboard.canRestore(
+      types: ["org.nspasteboard.ConcealedType", utf8, "org.nspasteboard.source"]))
+    XCTAssertTrue(RestorableClipboard.canRestore(types: [utf8, "com.wnasoni.kusunga.self"]))
+    // Markers alone, or nothing, is nothing to put back.
+    XCTAssertFalse(RestorableClipboard.canRestore(types: []))
+    XCTAssertFalse(RestorableClipboard.canRestore(types: ["org.nspasteboard.ConcealedType"]))
+    // Anything else blocks, even beside text and a marker.
+    for other in ["public.html", "public.rtf", "public.png", "public.file-url",
+      "com.apple.pasteboard.promised-file-url", "dyn.ah62d4rv4gu8y6y4grf0gn5xbrzw1gydcr7u1e3cq",
+      "public.url", "public.utf8-plain-textX", "Public.UTF8-Plain-Text",
+      "org.nspasteboard.concealedtype", " org.nspasteboard.ConcealedType"]
+    {
+      XCTAssertFalse(RestorableClipboard.canRestore(types: [utf8, other]), other)
+      XCTAssertFalse(
+        RestorableClipboard.canRestore(types: [utf8, "org.nspasteboard.ConcealedType", other]), other)
+    }
+  }
+
+  func testOnlyThePrivacyMarkersAreKeptOnTheRestoredText() {
+    let types = [
+      "public.utf8-plain-text", "org.nspasteboard.ConcealedType", "org.nspasteboard.source",
+      "com.wnasoni.kusunga.self", "org.nspasteboard.AutoGeneratedType",
+    ]
+    let saved = RestorableClipboard.saved(text: "secret", types: types)
+    XCTAssertEqual(
+      Set(saved?.markerTypes ?? []),
+      ["org.nspasteboard.ConcealedType", "org.nspasteboard.AutoGeneratedType"])
+    XCTAssertNil(RestorableClipboard.saved(text: nil, types: types), "no text read")
+    XCTAssertNil(RestorableClipboard.saved(text: "x", types: ["public.png"]))
+    XCTAssertEqual(
+      RestorableClipboard.saved(text: "", types: ["public.utf8-plain-text"])?.text, "")
+    XCTAssertEqual(
+      Set(RestorableClipboard.privacyMarkers),
+      ["org.nspasteboard.ConcealedType", "org.nspasteboard.TransientType",
+        "org.nspasteboard.AutoGeneratedType"])
+  }
+
+  func testTheSnippetAndTheRestoreAreEachOneContentWithOnlyTheirOwnMarkers() {
+    XCTAssertEqual(
+      Set(ClipboardContent.snippet("a").markerTypes),
+      ["org.nspasteboard.TransientType", "org.nspasteboard.ConcealedType"])
+    let kept = SavedClipboard(text: "b", markerTypes: ["org.nspasteboard.ConcealedType"])
+    XCTAssertEqual(ClipboardContent.restore(kept).markerTypes, ["org.nspasteboard.ConcealedType"])
+    XCTAssertEqual(
+      ClipboardContent.restore(SavedClipboard(text: "c", markerTypes: [])).markerTypes, [])
+    for c in [ClipboardContent.snippet("hunter2"), ClipboardContent.restore(
+      SavedClipboard(text: "hunter2", markerTypes: []))]
+    {
+      XCTAssertFalse(String(describing: c).contains("hunter"))
+      XCTAssertFalse(String(reflecting: c).contains("hunter"))
+      var dumped = ""
+      dump(c, to: &dumped)
+      XCTAssertFalse(dumped.contains("hunter"))
+    }
+  }
+
+  // C3 ---------------------------------------------------------------------
+
+  func testNoPendingRestoreRemainsAfterAnyExitThatPutsNothingBack() {
+    // Write fails with a fresh read.
+    var p = FakeReplacePlatform()
+    p.writeOk = false
+    var flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
+    XCTAssertFalse(flow.hasPendingRestore)
+    XCTAssertFalse(p.log.contains { $0.hasPrefix("backspace") }, "the code stays")
+    XCTAssertTrue(p.scheduled.isEmpty)
+    // No paste key.
+    p = FakeReplacePlatform()
+    p.pasteKeyFound = false
+    flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .copied)
+    XCTAssertFalse(flow.hasPendingRestore)
+    // Cannot post keys.
+    p = FakeReplacePlatform()
+    p.canPost = false
+    flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .copied)
+    XCTAssertFalse(flow.hasPendingRestore)
+    // Cancelled.
+    p = FakeReplacePlatform()
+    p.front = 5
+    flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .cancelled)
+    XCTAssertFalse(flow.hasPendingRestore)
+    XCTAssertTrue(p.log.isEmpty)
+    // Non-text before.
+    p = FakeReplacePlatform()
+    p.previous = nil
+    flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .replaced)
+    XCTAssertFalse(flow.hasPendingRestore)
+  }
+
+  func testThePendingRestoreEndsWhenItFiresOrIsOvertaken() {
+    let p = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: p)
+    _ = flow.run(deleteCount: 3, text: "a", matchPid: 100)
+    XCTAssertTrue(flow.hasPendingRestore)
+    p.scheduled[0].1()
+    XCTAssertFalse(flow.hasPendingRestore)
+    XCTAssertEqual(p.restored.count, 1)
+    p.scheduled[0].1()  // a duplicate timer
+    XCTAssertEqual(p.restored.count, 1)
+
+    let q = FakeReplacePlatform()
+    let f2 = ReplaceFlow(platform: q)
+    _ = f2.run(deleteCount: 3, text: "a", matchPid: 100)
+    q.count += 1  // the user copies something else
+    q.scheduled[0].1()
+    XCTAssertFalse(f2.hasPendingRestore)
+    XCTAssertTrue(q.restored.isEmpty)
+  }
+
+  func testAWriteFailureKeepsOnlyAnEarlierRestoreThatIsStillValid() {
+    // Still valid: the clipboard is still the first snippet.
+    var p = FakeReplacePlatform()
+    var flow = ReplaceFlow(platform: p)
+    _ = flow.run(deleteCount: 3, text: "a", matchPid: 100)
+    p.writeOk = false
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "b", matchPid: 100), .failed)
+    XCTAssertTrue(flow.hasPendingRestore)
+    p.scheduled[0].1()
+    XCTAssertEqual(p.restored.count, 1)
+    // Not valid: the user copied in between, so the old text must not return.
+    p = FakeReplacePlatform()
+    flow = ReplaceFlow(platform: p)
+    _ = flow.run(deleteCount: 3, text: "a", matchPid: 100)
+    p.count += 1
+    p.writeOk = false
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "b", matchPid: 100), .failed)
+    XCTAssertFalse(flow.hasPendingRestore)
+    p.scheduled[0].1()
+    XCTAssertTrue(p.restored.isEmpty)
+  }
+
+  func testAPasteFailureAfterAPendingRestoreDropsIt() {
+    let p = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: p)
+    _ = flow.run(deleteCount: 3, text: "a", matchPid: 100)
+    p.pasteKeyFound = false
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "b", matchPid: 100), .copied)
+    XCTAssertFalse(flow.hasPendingRestore)
+    p.scheduled[0].1()
+    XCTAssertTrue(p.restored.isEmpty, "the snippet stays; the old text must not overwrite it")
+  }
+}

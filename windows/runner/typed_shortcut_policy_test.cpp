@@ -1225,6 +1225,441 @@ static void TestModifierWait() {
   CHECK(kModifierTimeoutMs == 300 && kPollMs == 10);
 }
 
+// ---- Tester round 3: edges and interleavings of the R1/C1-C9/S1 logic ----
+
+static void TestRound3Ids() {
+  uintptr_t w = 0;
+  int n = 0;
+  {  // Wrap: ... max-1, max, 1; never 0; a huge start also lands on 1.
+    PendingMatch p(kMaxMatchId - 2);
+    CHECK(p.Begin(1) == kMaxMatchId - 1);
+    CHECK(p.Begin(1) == kMaxMatchId);
+    const uint32_t wrapped = p.Begin(1);
+    CHECK(wrapped == 1);
+    CHECK(!p.Get(kMaxMatchId, &w, &n));  // the old id is dead after the wrap
+    CHECK(p.Get(1, &w, &n));
+    PendingMatch huge(0xFFFFFFFFu);
+    CHECK(huge.Begin(1) == 1);
+    PendingMatch beyond(kMaxMatchId + 1);
+    CHECK(beyond.Begin(1) == 1);
+  }
+  {  // Ids that were never given out are refused.
+    PendingMatch p;
+    const uint32_t id = p.Begin(5);
+    CHECK(!p.Get(0, &w, &n));
+    CHECK(!p.Get(id + 1, &w, &n));
+    CHECK(!p.Get(id | 0x800000u, &w, &n));  // bit 24 set: not the same id
+    CHECK(!p.Get(0xFFFFFFFFu, &w, &n));
+    CHECK(p.InputsSince(0) > 1000);
+  }
+  {  // After the wrap an id from long ago can never be taken for the new one
+     // unless it really is the same number, and the count starts again.
+    PendingMatch p(kMaxMatchId);
+    const uint32_t first = p.Begin(1);  // 1
+    p.NoteInput();
+    p.NoteInput();
+    p.End(first);
+    CHECK(!p.Get(first, &w, &n));
+    CHECK(p.Begin(2) == 2);
+    CHECK(p.Get(2, &w, &n) && n == 0 && w == 2);
+  }
+  {  // Ending twice, or ending something never begun, changes nothing.
+    PendingMatch p;
+    const uint32_t a = p.Begin(1);
+    p.End(a);
+    p.End(a);
+    p.End(0);
+    const uint32_t b = p.Begin(2);
+    p.End(a);  // a is old: b stays
+    CHECK(p.Get(b, &w, &n));
+    p.NoteInput();
+    p.Begin(3);
+    CHECK(p.InputsSince(p.Begin(3)) == 0);  // a new match counts from zero
+  }
+  {  // Packing: every delete count, ids at the edges, always positive int32.
+    for (const uint32_t id : {1u, 0x7FFFFEu, kMaxMatchId, 0x400000u, 0x123456u}) {
+      for (int count = 1; count <= 32; count++) {
+        int c = 0;
+        uint32_t i = 0;
+        const int64_t packed = PackMatch(count, id);
+        CHECK(packed > 0 && packed <= 0x7FFFFFFFLL);
+        UnpackMatch(packed, &c, &i);
+        CHECK(c == count && i == id);
+      }
+    }
+    // An id over 23 bits can never turn negative or touch the count.
+    int c = 0;
+    uint32_t i = 0;
+    UnpackMatch(PackMatch(32, 0xFFFFFFFFu), &c, &i);
+    CHECK(c == 32 && i == kMaxMatchId);
+  }
+}
+
+static void TestRound3HookHealth() {
+  const uint32_t t = 100000;
+  CHECK(!HookLooksRemoved(t + 1000, t, false));  // exactly 1 s: alive
+  CHECK(HookLooksRemoved(t + 1001, t, false));   // just over: removed
+  CHECK(!HookLooksRemoved(t, t, false));
+  CHECK(!HookLooksRemoved(0, 0, false));
+  CHECK(!HookLooksRemoved(t, t + 5000, false));  // a hook call after the input
+  CHECK(!HookLooksRemoved(t + 999999, t, true));  // hidden front: never
+  // Wrap of the 32-bit tick: 1000 ms and 1001 ms across zero.
+  CHECK(!HookLooksRemoved(984u, 0xFFFFFFF0u, false));  // 16 + 984 = 1000
+  CHECK(HookLooksRemoved(985u, 0xFFFFFFF0u, false));   // 1001
+  CHECK(!HookLooksRemoved(0xFFFFFFF0u, 984u, false));  // hook newer across wrap
+  // Half the range ahead is read as "the hook is newer" (signed difference).
+  CHECK(!HookLooksRemoved(0x80000000u, 0, false));
+  CHECK(HookLooksRemoved(0x7FFFFFFFu, 0, false));
+  CHECK(kHookSilenceMs == 1000 && kHookCheckMs == 2000);
+}
+
+static void TestRound3Inbox() {
+  {  // Interleavings: Put, Take, Put, Take.
+    HookInbox in;
+    in.PutIgnored({"a.exe"});
+    HookInbox::Batch b = in.Take();
+    CHECK(b.has_ignored && !b.has_table && !b.reset);
+    in.PutTable({{1, ";a"}});
+    in.PutIgnored({"b.exe"});
+    in.PutIgnored({});  // an empty list is a real update, not "nothing"
+    b = in.Take();
+    CHECK(b.has_table && b.has_ignored && b.ignored.empty());
+    CHECK(!in.Take().has_ignored);
+  }
+  {  // An empty table is a real update too (all shortcuts removed).
+    HookInbox in;
+    in.PutTable({});
+    HookInbox::Batch b = in.Take();
+    CHECK(b.has_table && b.table.empty());
+  }
+  {  // The reset flag stays until taken, and is not lost by other puts.
+    HookInbox in;
+    in.PutReset();
+    in.PutTable({{1, ";a"}});
+    in.PutReset();
+    HookInbox::Batch b = in.Take();
+    CHECK(b.reset && b.has_table);
+    CHECK(!in.Take().reset);
+  }
+  {  // Many writers: nothing is torn, the table is always one whole put.
+    HookInbox in;
+    std::thread a([&] {
+      for (int i = 0; i < 500; i++) in.PutTable({{1, ";aa"}, {2, ";ab"}});
+    });
+    std::thread b([&] {
+      for (int i = 0; i < 500; i++) in.PutTable({{3, ";ba"}, {4, ";bb"}, {5, ";bc"}});
+    });
+    for (int i = 0; i < 500; i++) {
+      HookInbox::Batch t = in.Take();
+      if (t.has_table) {
+        CHECK((t.table.size() == 2 && t.table[0].first == 1) ||
+              (t.table.size() == 3 && t.table[0].first == 3));
+      }
+    }
+    a.join();
+    b.join();
+  }
+  // The field check's late answer rule at the edges.
+  CHECK(FieldStateInTime(FieldState::kNormal, 0, 100) == FieldState::kNormal);
+  CHECK(FieldStateInTime(FieldState::kNormal, 0, 101) == FieldState::kUnknown);
+  CHECK(FieldStateInTime(FieldState::kPassword, 0, 100) == FieldState::kPassword);
+  CHECK(FieldStateInTime(FieldState::kUnknown, 0, 0) == FieldState::kUnknown);
+  CHECK(FieldStateInTime(FieldState::kNormal, 500, 400) == FieldState::kNormal);
+  CHECK(DecideField(FieldStateInTime(FieldState::kNormal, 0, 101)) != nullptr);
+}
+
+static void TestRound3Formats() {
+  const ClipboardFormatInfo uni{13, ""};
+  CHECK(CanRestoreClipboard({uni}));
+  CHECK(CanRestoreClipboard({uni, uni}));
+  CHECK(CanRestoreClipboard({{16, ""}, uni}));  // order does not matter
+  CHECK(CanRestoreClipboard({{0xC001, "CanUploadToCloudClipboard"}, uni}));
+  // Only markers, or only synthesized ANSI/OEM text: nothing to read.
+  CHECK(!CanRestoreClipboard({{1, ""}, {7, ""}, {16, ""}}));
+  CHECK(!CanRestoreClipboard({{0xC001, "CanIncludeInClipboardHistory"}}));
+  // A marker name only counts for a registered format (0xC000 and up).
+  CHECK(!CanRestoreClipboard({uni, {0xBFFF, "CanIncludeInClipboardHistory"}}));
+  CHECK(!CanRestoreClipboard({uni, {2, "CanIncludeInClipboardHistory"}}));
+  // Names are exact: case, spaces, prefixes.
+  CHECK(!CanRestoreClipboard({uni, {0xC001, "canincludeinclipboardhistory"}}));
+  CHECK(!CanRestoreClipboard({uni, {0xC001, " CanIncludeInClipboardHistory"}}));
+  CHECK(!CanRestoreClipboard({uni, {0xC001, "Clipboard Viewer Ignore "}}));
+  // Every non-text standard format blocks, one at a time.
+  for (uint32_t id : {2u, 3u, 4u, 5u, 6u, 8u, 9u, 10u, 11u, 12u, 14u, 15u, 17u,
+                      0x80u, 0x200u, 0x2FFu}) {
+    CHECK(!CanRestoreClipboard({uni, {id, ""}}));
+  }
+  // Mixed: text and rich text and a marker still refuses.
+  CHECK(!CanRestoreClipboard({uni, {0xC001, "CanUploadToCloudClipboard"},
+                              {0xC002, "Rich Text Format"}}));
+}
+
+static void TestRound3Marks() {
+  // Every way IsSecret can be true is covered by what a restore writes:
+  // the restored copy sets exclude_from_monitor, which IsSecret reads.
+  const ClipboardMarks m = RestoreMarks();
+  ClipboardFlags written{};
+  written.exclude_from_monitor = m.exclude_from_monitor;
+  CHECK(IsSecret(written));
+  ClipboardFlags history{};
+  history.has_can_include = true;
+  history.can_include_value = m.no_history ? 0 : 1;
+  CHECK(IsSecret(history));
+  CHECK(m.no_cloud);
+  // Whatever the original copy used, nothing is weaker after the restore.
+  for (int bits = 0; bits < 16; bits++) {
+    ClipboardFlags f{};
+    f.exclude_from_monitor = bits & 1;
+    f.has_can_include = bits & 2;
+    f.can_include_value = (bits & 2) ? 0 : 1;
+    f.viewer_ignore = bits & 4;
+    f.can_include_unreadable = (bits & 8) && f.has_can_include;
+    if (IsSecret(f)) CHECK(m.exclude_from_monitor && m.no_history && m.no_cloud);
+  }
+  // The snippet itself is not marked no-history or no-cloud, only excluded
+  // from monitors (it is pasted at once).
+  CHECK(SnippetMarks().exclude_from_monitor);
+}
+
+// C3: the saved text is gone on every exit.
+static void TestRound3Forget() {
+  {  // Cancelled before anything is read: nothing was saved.
+    FakeReplace p;
+    p.foreground = 5;
+    ReplaceFlow f(&p);
+    CHECK(f.Run(3, "x", 100) == ReplaceResult::kCancelled);
+    CHECK(!p.saved && p.log.empty());
+  }
+  {  // A failed write with a fresh read: forgotten, code stays, no restore.
+    FakeReplace p;
+    p.write_ok = false;
+    ReplaceFlow f(&p);
+    CHECK(f.Run(3, "x", 100) == ReplaceResult::kFailed);
+    CHECK(!p.saved && p.forgets >= 1 && p.scheduled.empty());
+    for (const auto& l : p.log) CHECK(l.rfind("backspace", 0) != 0 && l != "paste");
+  }
+  {  // The restore fires: restored once, then forgotten.
+    FakeReplace p;
+    ReplaceFlow f(&p);
+    CHECK(f.Run(3, "x", 100) == ReplaceResult::kReplaced);
+    CHECK(p.saved);
+    p.scheduled[0].second();
+    CHECK(p.restores == 1 && !p.saved);
+    p.scheduled[0].second();  // a duplicate timer does nothing
+    CHECK(p.restores == 1);
+  }
+  {  // The user copied meanwhile: no restore, but the saved text is forgotten.
+    FakeReplace p;
+    ReplaceFlow f(&p);
+    f.Run(3, "x", 100);
+    p.sequence++;
+    p.scheduled[0].second();
+    CHECK(p.restores == 0 && !p.saved);
+  }
+  {  // A second shortcut takes the restore over; the first timer does
+     // nothing and does not forget the text the second one still holds.
+    FakeReplace p;
+    ReplaceFlow f(&p);
+    f.Run(3, "a", 100);
+    f.Run(3, "b", 100);
+    CHECK(p.saved);
+    p.scheduled[0].second();
+    CHECK(p.restores == 0 && p.saved);
+    p.scheduled[1].second();
+    CHECK(p.restores == 1 && !p.saved);
+  }
+  {  // The second write fails while the first restore waits: the user's
+     // text is still kept for it.
+    FakeReplace p;
+    ReplaceFlow f(&p);
+    f.Run(3, "a", 100);
+    p.write_ok = false;
+    CHECK(f.Run(3, "b", 100) == ReplaceResult::kFailed);
+    CHECK(p.saved);
+    p.scheduled[0].second();
+    CHECK(p.restores == 1 && !p.saved);
+  }
+  {  // The second write fails after the user copied something else: the
+     // old restore must not put back stale text.
+    FakeReplace p;
+    ReplaceFlow f(&p);
+    f.Run(3, "a", 100);
+    p.sequence++;  // the user's copy
+    p.write_ok = false;
+    CHECK(f.Run(3, "b", 100) == ReplaceResult::kFailed);
+    p.scheduled[0].second();
+    CHECK(p.restores == 0);
+    CHECK(!p.saved);
+  }
+  {  // No text before (an image): nothing saved, nothing restored.
+    FakeReplace p;
+    p.has_previous = false;
+    ReplaceFlow f(&p);
+    CHECK(f.Run(3, "x", 100) == ReplaceResult::kReplaced);
+    CHECK(!p.saved && p.scheduled.empty());
+  }
+}
+
+static void TestRound3ModifierWait() {
+  // IsModifierKey: exactly the modifiers.
+  for (uint32_t vk : {0x10u, 0x11u, 0x12u, 0xA0u, 0xA1u, 0xA2u, 0xA3u, 0xA4u,
+                      0xA5u, 0x5Bu, 0x5Cu}) {
+    CHECK(IsModifierKey(vk));
+  }
+  for (uint32_t vk : {0x41u, 0x14u, 0x90u, 0x91u, 0x5Du, 0x20u, 0x0Du, 0x08u,
+                      0x00u, 0xFFu}) {
+    CHECK(!IsModifierKey(vk));
+  }
+  auto start = [](FakeReplace&, ReplaceFlow& f, ReplaceResult* got, int* answers) {
+    f.Start(6, "x", 100, [got, answers](ReplaceResult r) {
+      *got = r;
+      (*answers)++;
+    });
+  };
+  {  // Released one poll before the timeout: replaces. At the timeout: copy.
+    FakeReplace p;
+    p.mods_down = true;
+    ReplaceFlow f(&p);
+    ReplaceResult got = ReplaceResult::kFailed;
+    int answers = 0;
+    start(p, f, &got, &answers);
+    while (p.now < kModifierTimeoutMs - kPollMs) RunScheduledPoll(p);
+    CHECK(answers == 0 && p.now == kModifierTimeoutMs - kPollMs);
+    p.mods_down = false;
+    RunScheduledPoll(p);
+    CHECK(answers == 1 && got == ReplaceResult::kReplaced);
+  }
+  {  // Held to exactly the timeout: copy only.
+    FakeReplace p;
+    p.mods_down = true;
+    ReplaceFlow f(&p);
+    ReplaceResult got = ReplaceResult::kFailed;
+    int answers = 0;
+    start(p, f, &got, &answers);
+    while (answers == 0) RunScheduledPoll(p);
+    CHECK(got == ReplaceResult::kCopied && p.now == kModifierTimeoutMs);
+    CHECK(!p.saved);
+  }
+  {  // A mouse press during the wait (an input) cancels, even if released.
+    FakeReplace p;
+    PendingMatch pending;
+    p.pending = &pending;
+    p.watch_id = pending.Begin(100);
+    p.mods_down = true;
+    ReplaceFlow f(&p);
+    ReplaceResult got = ReplaceResult::kReplaced;
+    int answers = 0;
+    start(p, f, &got, &answers);
+    RunScheduledPoll(p);
+    TypedShortcutMatcher m = Make();
+    OnMouseDown(m, pending);
+    p.mods_down = false;
+    RunScheduledPoll(p);
+    CHECK(answers == 1 && got == ReplaceResult::kCancelled);
+    CHECK(p.log.empty() && !p.saved);
+  }
+  {  // The same press while the modifiers stay down to the timeout: cancel,
+     // not a copy (nothing is written).
+    FakeReplace p;
+    PendingMatch pending;
+    p.pending = &pending;
+    p.watch_id = pending.Begin(100);
+    p.mods_down = true;
+    ReplaceFlow f(&p);
+    ReplaceResult got = ReplaceResult::kReplaced;
+    int answers = 0;
+    start(p, f, &got, &answers);
+    pending.NoteInput();
+    while (answers == 0) RunScheduledPoll(p);
+    CHECK(got == ReplaceResult::kCancelled && p.log.empty());
+  }
+  {  // A held modifier's repeated key-downs are not input: still replaces.
+    FakeReplace p;
+    PendingMatch pending;
+    p.pending = &pending;
+    p.watch_id = pending.Begin(100);
+    p.mods_down = true;
+    ReplaceFlow f(&p);
+    ReplaceResult got = ReplaceResult::kFailed;
+    int answers = 0;
+    start(p, f, &got, &answers);
+    for (int i = 0; i < 5; i++) {
+      if (!IsModifierKey(0xA0)) pending.NoteInput();  // what OnKey does
+      RunScheduledPoll(p);
+    }
+    p.mods_down = false;
+    RunScheduledPoll(p);
+    CHECK(got == ReplaceResult::kReplaced);
+  }
+  {  // A second match during the wait: its replace is cancelled, and the
+     // first (now stale by id) is cancelled when it wakes. Locks today's
+     // behaviour: the newest match is lost too (note in the hand-off).
+    FakeReplace p;
+    PendingMatch pending;
+    p.pending = &pending;
+    const uint32_t first = pending.Begin(100);
+    p.watch_id = first;
+    p.mods_down = true;
+    ReplaceFlow f(&p);
+    ReplaceResult r1 = ReplaceResult::kFailed, r2 = ReplaceResult::kFailed;
+    int a1 = 0, a2 = 0;
+    StartReplaceMatch(f, pending, first, 6, "one", [&](ReplaceResult r) { r1 = r; a1++; });
+    const uint32_t second = pending.Begin(100);
+    StartReplaceMatch(f, pending, second, 4, "two", [&](ReplaceResult r) { r2 = r; a2++; });
+    CHECK(a2 == 1 && r2 == ReplaceResult::kCancelled);
+    p.mods_down = false;
+    RunScheduledPoll(p);
+    CHECK(a1 == 1 && r1 == ReplaceResult::kCancelled);
+    CHECK(p.log.empty());
+  }
+  {  // A replace for an id that was already answered never starts a wait.
+    FakeReplace p;
+    PendingMatch pending;
+    ReplaceFlow f(&p);
+    const uint32_t id = pending.Begin(100);
+    int answers = 0;
+    ReplaceResult got = ReplaceResult::kFailed;
+    StartReplaceMatch(f, pending, id, 6, "x", [&](ReplaceResult r) { got = r; answers++; });
+    CHECK(answers == 1 && got == ReplaceResult::kReplaced);
+    StartReplaceMatch(f, pending, id, 6, "x", [&](ReplaceResult r) { got = r; answers++; });
+    CHECK(answers == 2 && got == ReplaceResult::kCancelled);
+    int backspaces = 0;
+    for (const auto& l : p.log) backspaces += l.rfind("backspace", 0) == 0;
+    CHECK(backspaces == 1);
+  }
+}
+
+static void TestRound3Idle() {
+  int64_t ms = 0;
+  TypedShortcutMatcher m = Make();
+  m.Handle(TypedKey::Text(U";"), TypedKeyContext{}, 10000);
+  CHECK(m.MsUntilIdleClear(10000, &ms) && ms == 5000);
+  CHECK(m.MsUntilIdleClear(14999, &ms) && ms == 1);
+  CHECK(m.MsUntilIdleClear(15000, &ms) && ms == 0);
+  CHECK(m.MsUntilIdleClear(99999, &ms) && ms == 0);
+  m.Tick(14999);
+  CHECK(m.BufferCount() == 1);
+  m.Tick(15000);
+  CHECK(m.BufferCount() == 0 && !m.MsUntilIdleClear(15000, &ms));
+  // A skipped match (ignored app) keeps the buffer and the deadline.
+  TypedShortcutMatcher k = Make();
+  TypeText(k, U";email", Ctx(false, true), 2000);
+  CHECK(k.BufferCount() == 6);
+  CHECK(k.MsUntilIdleClear(2000, &ms) && ms == 5000);
+  // A software key also moves the deadline (it is in the buffer).
+  TypedShortcutMatcher j = Make();
+  j.Handle(TypedKey::Text(U";"), Ctx(false, false, true), 100);
+  CHECK(j.MsUntilIdleClear(100, &ms) && ms == 5000);
+  // Backspacing to empty drops the timer; a Backspace on a non-empty one
+  // moves it.
+  TypedShortcutMatcher b = Make();
+  TypeText(b, U";e", TypedKeyContext{}, 0);
+  b.Handle(TypedKey::Backspace(), TypedKeyContext{}, 3000);
+  CHECK(b.MsUntilIdleClear(3000, &ms) && ms == 5000);
+  b.Handle(TypedKey::Backspace(), TypedKeyContext{}, 3500);
+  CHECK(!b.MsUntilIdleClear(3500, &ms));
+}
+
 int main() {
   TestModifierWait();
   TestIdleDeadline();
@@ -1254,6 +1689,14 @@ int main() {
   TestEdgeUtf16();
   TestEdgeDeleteCounts();
   TestEdgeReplace();
+  TestRound3Ids();
+  TestRound3HookHealth();
+  TestRound3Inbox();
+  TestRound3Formats();
+  TestRound3Marks();
+  TestRound3Forget();
+  TestRound3ModifierWait();
+  TestRound3Idle();
   if (failures == 0) std::printf("typed_shortcut_policy_test: all passed\n");
   return failures == 0 ? 0 : 1;
 }
