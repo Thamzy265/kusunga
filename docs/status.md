@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.5 Typed shortcuts — design ready for PM
+- Changed: PM said "Yes, start M1.5". Size: large — keyboard monitoring in every app, a new trust boundary, personal data, schema v4 and new native code on Mac and Windows. Branch feat/typed-shortcuts from main 8abfcf0. Design note docs/design/typed-shortcuts.md, ADR 0004 (proposed: matching in native code, typed keys never leave it), UI spec docs/ui/typed-shortcuts.md, deck docs/slides/typed-shortcuts.html. Recommended option A (native matcher).
+- Gates: design waiting for PM approval · developer not briefed · tester, reviewer, QA not started · PM merge n/a yet
+- Open findings: none
+- Decisions: PM (2026-11-08): "Yes, start M1.5". Open for PM: D1 when a shortcut fires, D2 clipboard afterwards, D3 default on/off, D4 ignore list now, D5 keys from other software, D6 DPIA timing; lawful basis (likely n/a)
+- Blockers: PM — deck approval and D1-D6; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item) · Lead — the my-tech-team role agents are not available in this session right now; dispatch needs them back or a PM decision on how to run the roles
+
 ## 2026-11-08 — M1.4 Saved snippets — main pushed
 - Changed: local main pushed to origin/main (from ee54f37), including the M1.4 merge 0d57b37. The feat/saved-snippets branch is not pushed and not deleted.
 - Gates: developer done · tester pass · reviewer approve with notes · QA pass · PM merge approved
