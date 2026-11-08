@@ -365,10 +365,17 @@ class _AppChipState extends State<_AppChip> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ExcludeSemantics(
-              child: Text(
-                _shortName(name),
-                style: KusungaTokens.body.copyWith(color: t.text),
+            // The chip is never wider than the row: a long name ends with an
+            // ellipsis, and Remove stays on screen (U1).
+            Flexible(
+              child: ExcludeSemantics(
+                child: Text(
+                  _shortName(name),
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                  style: KusungaTokens.body.copyWith(color: t.text),
+                ),
               ),
             ),
             Semantics(

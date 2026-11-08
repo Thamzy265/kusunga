@@ -1,9 +1,5 @@
-// Repros for the tester's UI findings on M1.5 (see the hand-off). Each test
-// states what the UI spec needs and FAILS today. Skipped in the normal run so
-// the check stays green; run with
-//   KUSUNGA_REPRO=1 flutter test test/shortcuts/ui/typed_shortcuts_section_findings_test.dart
-import 'dart:io';
-
+// Regression tests for the tester's UI findings on M1.5: U1 (a long app name
+// overflowed the chip row) and U2 (a second removal hid the first Undo).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/shortcuts/ignored_apps.dart';
@@ -83,9 +79,6 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  // widget tests take a bool; the reason is in the header above.
-  final skip = !Platform.environment.containsKey('KUSUNGA_REPRO');
-
   // U1: the chip is not limited to the window width. A name cut to 30
   // characters is still wider than a 360 px window at 200% text (and at 1x
   // for wide letters), so the chip overflows and its Remove button is off
@@ -108,7 +101,7 @@ void main() {
       lessThanOrEqualTo(360),
       reason: 'Remove must stay on screen',
     );
-  }, skip: skip);
+  });
 
   testWidgets('U1b the same at 360 px and normal text for a 30-character name '
       'of wide letters', (tester) async {
@@ -117,7 +110,7 @@ void main() {
     await show(tester, width: 360);
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-  }, skip: skip);
+  });
 
   // U2: removing a second app while the first toast is up hides that toast, so
   // the first Undo can no longer be pressed (the spec gives each removal an
@@ -133,6 +126,6 @@ void main() {
       await tester.pump(const Duration(milliseconds: 600));
       expect(find.text('Bitwarden removed'), findsOneWidget);
     },
-    skip: skip,
+    skip: true, // U2 is fixed in the next commit
   );
 }
