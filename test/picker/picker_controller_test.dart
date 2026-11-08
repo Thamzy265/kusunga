@@ -125,7 +125,7 @@ void main() {
       log.codes.clear();
       await c.pasteItem(id);
       expect(port.calls, isNot(contains('snapshot')));
-      expect(log.codes, isEmpty);
+      expect(log.codes, [LogCode.pasteSource]);
     });
 
     ctest('no answer from native logs nothing', (tester) async {
@@ -142,7 +142,7 @@ void main() {
       port.press();
       port.pasteAnswer = PasteOutcome.pastedForced;
       await c.pasteItem(id);
-      expect(log.codes, [LogCode.pasteForcedPost]);
+      expect(log.codes, [LogCode.pasteSource, LogCode.pasteForcedPost]);
       expect(c.toast, isNull);
       expect(c.mode, WindowMode.manage);
     });
@@ -230,7 +230,7 @@ void main() {
       expect(port.pastes.single.post, isTrue);
       expect(c.mode, WindowMode.manage);
       expect(c.toast, isNull);
-      expect(log.codes, isEmpty);
+      expect(log.codes, [LogCode.pasteSource]);
     });
 
     ctest('copy-only mode never asks for the keystroke', (tester) async {
@@ -243,8 +243,8 @@ void main() {
       expect(port.pastes.single.post, isFalse);
       expect(c.toast, ToastKind.copied);
       // Copy-only mode has its own code, not the permission one (G2r).
-      expect(log.codes, [LogCode.pasteCopyOnly]);
-      expect(log.details, [null]);
+      expect(log.codes, [LogCode.pasteSource, LogCode.pasteCopyOnly]);
+      expect(log.details, [0, null]);
     });
 
     ctest('Mac without permission: toast, card, log code', (tester) async {
@@ -259,7 +259,7 @@ void main() {
         'Copied — press ⌘V to paste. Allow pasting in Kusunga to do this for you.',
       );
       expect(c.permissionCardVisible, isTrue);
-      expect(log.codes, [LogCode.pastePermissionMissing]);
+      expect(log.codes, [LogCode.pasteSource, LogCode.pastePermissionMissing]);
       expect(port.calls.last, 'showToast');
     });
 
@@ -272,7 +272,7 @@ void main() {
       await c.pasteItem(id);
       expect(c.toastText, 'Copied — press ⌘V to paste.');
       expect(c.permissionCardVisible, isFalse);
-      expect(log.codes, [LogCode.pasteFocusTimeout]);
+      expect(log.codes, [LogCode.pasteSource, LogCode.pasteFocusTimeout]);
     });
 
     ctest('the app that had focus is gone: same toast, own log code', (
@@ -283,7 +283,7 @@ void main() {
       port.pasteAnswer = PasteOutcome.targetGone;
       await c.pasteItem(id);
       expect(c.toastText, 'Copied — press ⌘V to paste.');
-      expect(log.codes, [LogCode.pasteTargetGone]);
+      expect(log.codes, [LogCode.pasteSource, LogCode.pasteTargetGone]);
     });
 
     ctest('Windows administrator window: its own toast text', (tester) async {
@@ -298,7 +298,7 @@ void main() {
         "Copied — press Ctrl+V to paste. Kusunga can't paste into apps run as administrator.",
       );
       expect(c.permissionCardVisible, isFalse);
-      expect(log.codes, [LogCode.pasteTargetElevated]);
+      expect(log.codes, [LogCode.pasteSource, LogCode.pasteTargetElevated]);
     });
 
     ctest('Windows other copy-only outcomes say Ctrl+V', (tester) async {
@@ -411,7 +411,7 @@ void main() {
       port.pasteAnswer = PasteOutcome.targetGone;
       await c.pasteItem(id);
       expect(log.codes.map((e) => e.name).join(), isNot(contains('secret')));
-      expect(log.details, [null]);
+      expect(log.details, [0, null]);
     });
   });
 

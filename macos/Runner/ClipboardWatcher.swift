@@ -38,6 +38,27 @@ enum ClipboardPolicy {
   }
 }
 
+/// Kusunga's own clipboard changes that must not become history: a pasted or
+/// copied snippet (PM decision D1, M1.4). A change is matched by the change
+/// count Kusunga itself got back right after writing, which no other app can
+/// fake; never by the marker type, which any app can add.
+final class OwnClipboardChanges {
+  static let shared = OwnClipboardChanges()
+
+  private var recorded: Int?
+
+  /// Called right after Kusunga wrote, before the run loop can turn.
+  func record(_ changeCount: Int) { recorded = changeCount }
+
+  /// True once, for exactly the recorded change. Any check uses the record
+  /// up: a change count that moved on means someone else wrote after us.
+  func consume(_ changeCount: Int) -> Bool {
+    guard let mine = recorded else { return false }
+    recorded = nil
+    return mine == changeCount
+  }
+}
+
 /// Looks at the pasteboard when its change count moves. Reading the change
 /// count does not read any content. On a change it checks the types first and
 /// reads the text only if the copy is not marked secret.
@@ -45,6 +66,7 @@ final class ClipboardPoller {
   private let pasteboard: PasteboardReading
   private let emit: ([String: Any]) -> Void
   private var lastCount: Int
+  private let ownChanges: OwnClipboardChanges?
 
   /// False when the user has not chosen "Allow" for pasteboard access (ask or
   /// deny): every read can raise a system alert, so a copy is read once only.
@@ -52,10 +74,12 @@ final class ClipboardPoller {
 
   init(
     pasteboard: PasteboardReading, mayRetry: @escaping () -> Bool = { true },
+    ownChanges: OwnClipboardChanges? = nil,
     emit: @escaping ([String: Any]) -> Void
   ) {
     self.pasteboard = pasteboard
     self.mayRetry = mayRetry
+    self.ownChanges = ownChanges
     self.emit = emit
     self.lastCount = pasteboard.changeCount
   }
@@ -83,6 +107,12 @@ final class ClipboardPoller {
     let count = pasteboard.changeCount
     if count != lastCount {
       lastCount = count
+      // Kusunga's own change (a snippet): not read, not reported.
+      if ownChanges?.consume(count) == true {
+        waiting = false
+        held = nil
+        return
+      }
       waiting = true
       ticksLeft = ClipboardPoller.maxTicksToWait
       isRetry = false

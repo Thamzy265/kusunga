@@ -34,6 +34,28 @@ enum LogCode {
   pasteForcedPost,
   pasteTargetElevated,
   pasteTargetGone,
+  // M1.4 snippets (design note, "Observability"): codes only, never a name,
+  // content or type.
+  snippetSaveFailed,
+  snippetDeleteFailed,
+  snippetMoveFailed,
+  snippetCapReached,
+  // Memory-only or incompatible database: snippets can't be saved.
+  snippetsUnavailable,
+  // Every paste from the picker: detail 0 history, 1 snippet.
+  pasteSource,
+  // The copy kept before a migration could not be written: the file is left
+  // as it is and this session is memory only (TB-1).
+  migrationBackupFailed,
+  // The whole text of a snippet could not be read for Edit (TB-2).
+  snippetOpenFailed,
+  // Debug builds only: a test data profile is in use (never its name or
+  // path), it was refused (memory only; detail none = a bad name, 2 = a
+  // link in its folder, 3 = a misspelled switch), or there was no key for
+  // it to reuse (memory only; a profile never writes a key).
+  dataProfileActive,
+  dataProfileRejected,
+  dataProfileNoKey,
 }
 
 abstract interface class ErrorLog {
@@ -44,6 +66,16 @@ abstract interface class ErrorLog {
 /// Appends `time code detail` lines to a file and keeps it under 1 MB by
 /// moving the old file to `<name>.1` (one old file is kept). A logging failure
 /// is swallowed: the log must never crash the app.
+///
+/// The file is opened for each line, in append mode, so two writers (two
+/// Kusunga processes) never overwrite each other's lines (BUG-L4), and a log
+/// deleted or moved from outside starts again at its path (BUG-L2). Right
+/// before every open, also after a rotation, the path is checked: a link put
+/// in place of the log is never written through (BUG-P2 late link).
+///
+/// If the rotation cannot rename (`.1` is a folder, or locked), lines keep
+/// going to the live file (BUG-L3); at twice the limit it starts over, so it
+/// never grows past 2 MB.
 class FileErrorLog implements ErrorLog {
   FileErrorLog(this.file, {DateTime Function()? now, this.maxBytes = 1000000})
     : _now = now ?? DateTime.now;
@@ -55,17 +87,30 @@ class FileErrorLog implements ErrorLog {
   @override
   void log(LogCode code, [int? detail]) {
     try {
-      if (file.existsSync() && file.lengthSync() >= maxBytes) {
-        file.renameSync('${file.path}.1');
-      }
       final line =
           '${_now().toUtc().toIso8601String()} ${code.name}'
           '${detail == null ? '' : ' $detail'}\n';
-      file.writeAsStringSync(line, mode: FileMode.append);
+      if (FileSystemEntity.isLinkSync(file.path)) return;
+      var mode = FileMode.append;
+      if (file.existsSync()) {
+        final size = file.lengthSync();
+        if (size >= maxBytes) {
+          try {
+            file.renameSync('${file.path}.1');
+          } catch (_) {
+            if (size >= 2 * maxBytes) mode = FileMode.write;
+          }
+          if (FileSystemEntity.isLinkSync(file.path)) return;
+        }
+      }
+      file.writeAsStringSync(line, mode: mode);
     } catch (_) {
       // Nothing sensible to do: never throw from the log.
     }
   }
+
+  /// Nothing is kept open; kept so callers can say they are done.
+  void close() {}
 }
 
 class NullErrorLog implements ErrorLog {

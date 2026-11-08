@@ -46,7 +46,7 @@ void main() {
     tester,
   ) async {
     await pumpApp(tester);
-    expect(find.text('History'), findsOneWidget);
+    expect(find.text('History'), findsNWidgets(2)); // tab and heading
     expect(find.text('Picker shortcut: ⇧⌘V'), findsOneWidget);
     expect(find.text('Search history…'), findsNothing);
     controller.dispose();
@@ -62,13 +62,15 @@ void main() {
     await tester.pump();
     expect(find.text('Search history…'), findsOneWidget);
     expect(find.text('hello there'), findsOneWidget);
-    expect(find.text('History'), findsNothing);
+    // The history screen (its footer) is hidden; the picker has its own
+    // "History" tab now (M1.4).
+    expect(find.text('1 of 200 items'), findsNothing);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
     await tester.pump();
     expect(find.text('Search history…'), findsNothing);
-    expect(find.text('History'), findsOneWidget);
+    expect(find.text('1 of 200 items'), findsOneWidget);
     controller.dispose();
   });
 
@@ -79,7 +81,7 @@ void main() {
     port.dismiss();
     await tester.pump();
     await tester.pump();
-    expect(find.text('History'), findsOneWidget);
+    expect(find.text('History'), findsNWidgets(2)); // tab and heading
     controller.dispose();
   });
 
@@ -100,7 +102,7 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
     await tester.pump();
     expect(find.text('Copied — press ⌘V to paste.'), findsNothing);
-    expect(find.text('History'), findsOneWidget);
+    expect(find.text('History'), findsNWidgets(2)); // tab and heading
     controller.dispose();
   });
 
@@ -116,7 +118,7 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(port.pastes.single.text, 'hello there');
-    expect(find.text('History'), findsOneWidget);
+    expect(find.text('History'), findsNWidgets(2)); // tab and heading
     controller.dispose();
   });
 
@@ -193,7 +195,7 @@ void main() {
     await tester.pumpWidget(KusungaApp(history: Future.value(history)));
     await tester.pump();
     await tester.pump();
-    expect(find.text('History'), findsOneWidget);
+    expect(find.text('History'), findsNWidgets(2)); // tab and heading
     expect(find.textContaining('Picker shortcut'), findsNothing);
   });
 }

@@ -9,7 +9,8 @@ import FlutterMacOS
 /// lib/picker/channel_picker_port.dart):
 ///  - Dart calls `registerShortcut {key, modifiers}` (answers "ok", "taken" or
 ///    "invalid"), `unregisterShortcut`, `openPicker`, `closePicker`,
-///    `paste {text, post}` (answers a PasteResult name), `showToast`,
+///    `paste {text, post, skipHistory}` (answers a PasteResult name; with
+///    skipHistory, a snippet, the change is not added to history), `showToast`,
 ///    `hideToast`, `canPost`, `permissionSnapshot` (a number for the log) and
 ///    `requestPostAccess`;
 ///  - native calls `shortcutPressed` (and shows the picker once Dart has
@@ -99,7 +100,11 @@ final class PickerBridge {
       result(nil)
     case "paste":
       guard let text = args?["text"] as? String else { return result(PasteResult.failed.rawValue) }
-      result(runPaste(text: text, post: (args?["post"] as? Bool) ?? true).rawValue)
+      result(
+        runPaste(
+          text: text, post: (args?["post"] as? Bool) ?? true,
+          skipHistory: (args?["skipHistory"] as? Bool) ?? false
+        ).rawValue)
     case "showToast":
       windows?.showToast()
       result(nil)
@@ -183,7 +188,7 @@ final class PickerBridge {
     channel?.invokeMethod("dismissed", arguments: nil)
   }
 
-  private func runPaste(text: String, post: Bool) -> PasteResult {
+  private func runPaste(text: String, post: Bool, skipHistory: Bool) -> PasteResult {
     pasting = true
     defer {
       pasting = false
@@ -193,7 +198,8 @@ final class PickerBridge {
       hide: { [weak self] in self?.windows?.leavePicker(showManage: false, activate: false) },
       diag: DiagLog.log)
     let flow = PasteFlow(
-      platform: platform, writer: NSPasteboardWriter(),
+      platform: platform,
+      writer: NSPasteboardWriter(ownChanges: skipHistory ? OwnClipboardChanges.shared : nil),
       ownPid: ProcessInfo.processInfo.processIdentifier, diag: DiagLog.log)
     return flow.run(text: text, target: target, post: post)
   }

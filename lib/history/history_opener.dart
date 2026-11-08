@@ -9,6 +9,9 @@ import '../log/app_log.dart';
 import 'history_store.dart';
 import 'key_store.dart';
 import 'memory_history_store.dart';
+import '../snippets/memory_snippet_store.dart';
+import '../snippets/snippet_service.dart' show SnippetsUnavailable;
+import '../snippets/snippet_store.dart';
 import 'migrations.dart';
 import 'sqlite_history_store.dart';
 
@@ -25,12 +28,33 @@ enum HistoryNotice {
   /// migration failed. It is left exactly as it is; this session is memory
   /// only.
   incompatible,
+
+  /// The safety copy before a migration could not be written. The file is
+  /// left exactly as it is; this session is memory only.
+  backupFailed,
 }
 
 class OpenedHistory {
-  const OpenedHistory(this.store, this.notices);
+  OpenedHistory(
+    this.store,
+    this.notices, [
+    SnippetStore? snippets,
+    this.snippetsUnavailable,
+  ]) : snippets =
+           snippets ??
+           (store is SqliteHistoryStore
+               ? store.snippetStore()
+               : MemorySnippetStore());
   final HistoryStore store;
   final Set<HistoryNotice> notices;
+
+  /// The snippets: in the same encrypted file, or in memory when the history
+  /// is (memory-only or incompatible).
+  final SnippetStore snippets;
+
+  /// Set when the cause is not clear from [notices] (a failed migration is
+  /// "incompatible" for history but has its own snippets banner).
+  final SnippetsUnavailable? snippetsUnavailable;
 }
 
 String generateKeyHex(Random random) => [
@@ -100,9 +124,20 @@ Future<OpenedHistory> openHistory({
   } on UnsupportedSchemaVersion {
     log.log(LogCode.storeIncompatible);
     return OpenedHistory(MemoryHistoryStore(), {HistoryNotice.incompatible});
+  } on MigrationBackupFailed {
+    // The file is fine; only the copy could not be made. It is left exactly
+    // as it is (never moved aside as unreadable) and this session is memory
+    // only, as for a failed migration.
+    log.log(LogCode.migrationBackupFailed);
+    return OpenedHistory(MemoryHistoryStore(), {HistoryNotice.backupFailed});
   } on MigrationFailed {
     log.log(LogCode.storeIncompatible);
-    return OpenedHistory(MemoryHistoryStore(), {HistoryNotice.incompatible});
+    return OpenedHistory(
+      MemoryHistoryStore(),
+      {HistoryNotice.incompatible},
+      null,
+      SnippetsUnavailable.updateFailed,
+    );
   } on Object catch (error) {
     log.log(
       LogCode.storeUnreadable,

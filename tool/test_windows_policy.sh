@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds and runs the pure C++ policy tests (clipboard and picker). No Windows
+# Builds and runs the pure C++ policy tests (clipboard, own changes and picker). No Windows
 # needed.
 # If the Mac's Command Line Tools SDK does not match, use Xcode's compiler:
 #   X=/Applications/Xcode.app/Contents/Developer
@@ -7,7 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 dir="$(mktemp -d)"
-for name in clipboard_policy_test picker_policy_test picker_policy_edge_test; do
+for name in clipboard_policy_test clipboard_own_change_edge_test picker_policy_test picker_policy_edge_test; do
   # shellcheck disable=SC2086
   ${CXX:-clang++} -std=c++17 -Wall -Wextra -Werror "windows/runner/$name.cpp" -o "$dir/$name"
   "$dir/$name"

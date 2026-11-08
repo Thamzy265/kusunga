@@ -68,6 +68,42 @@ inline bool IsNewCopy(uint32_t last_sequence, uint32_t sequence) {
   return sequence != last_sequence;
 }
 
+// Kusunga's own clipboard changes that must not become history: a pasted or
+// copied snippet (PM decision D1, M1.4). A change is matched by the sequence
+// number GetClipboardSequenceNumber returns right after Kusunga's own write,
+// which no other app can fake; never by the marker format, which any app can
+// add.
+class OwnClipboardChanges {
+ public:
+  // Before OpenClipboard. While Kusunga holds the clipboard open nobody else
+  // can change it, so an update that arrives then is ours.
+  void BeginWrite() { writing_ = true; }
+
+  // After CloseClipboard, with GetClipboardSequenceNumber().
+  void EndWrite(uint32_t sequence) {
+    writing_ = false;
+    has_recorded_ = true;
+    recorded_ = sequence;
+  }
+
+  // The clipboard could not be opened: nothing changed.
+  void CancelWrite() { writing_ = false; }
+
+  // True once, for exactly our change. Any check uses the record up: a
+  // newer number means another app wrote after us.
+  bool Consume(uint32_t sequence) {
+    if (writing_) return true;
+    if (!has_recorded_) return false;
+    has_recorded_ = false;
+    return recorded_ == sequence;
+  }
+
+ private:
+  bool writing_ = false;
+  bool has_recorded_ = false;
+  uint32_t recorded_ = 0;
+};
+
 constexpr int kOpenAttempts = 3;
 constexpr int kOpenRetryDelayMs = 50;
 

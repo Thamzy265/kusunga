@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kusunga/log/app_log.dart';
 import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/memory_history_store.dart';
 import 'package:kusunga/history/sqlite_history_store.dart';
@@ -242,7 +243,13 @@ void main() {
         c.dispose();
         port = FakePickerPort()..pasteAnswer = outcome;
       }
-      expect(log.details.every((d) => d == null), isTrue);
+      // The only number is pasteSource's 0 (history): never anything else.
+      for (var i = 0; i < log.codes.length; i++) {
+        expect(
+          log.details[i],
+          log.codes[i] == LogCode.pasteSource ? 0 : isNull,
+        );
+      }
       expect(log.codes.map((e) => e.name).join(), isNot(contains('hunter2')));
     });
   });

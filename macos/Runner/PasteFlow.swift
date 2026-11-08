@@ -229,18 +229,39 @@ final class PasteFlow {
 /// tests).
 final class NSPasteboardWriter: PasteboardWriting {
   private let pasteboard: NSPasteboard
+  private let ownChanges: OwnClipboardChanges?
 
-  init(pasteboard: NSPasteboard = .general) {
+  /// With [ownChanges] (a snippet), the change count this write made is
+  /// recorded, so the watcher skips it and it is not added to history.
+  init(pasteboard: NSPasteboard = .general, ownChanges: OwnClipboardChanges? = nil) {
     self.pasteboard = pasteboard
+    self.ownChanges = ownChanges
   }
 
+  /// How many times the change count moves after `clearContents()` while
+  /// the text and the marker are written: none (setString on the item the
+  /// clear created does not change ownership; XCTest pins this).
+  static let changesAfterClear = 0
+
+  /// The change number recorded by the last write (tests).
+  private(set) var lastRecorded: Int?
+
   func writeText(_ text: String) -> Bool {
-    pasteboard.clearContents()
+    // The number this write makes is the one clearContents() returns. It is
+    // taken from there, not read after the writes, so another app's change in
+    // between can never be recorded as ours (F5).
+    let cleared = pasteboard.clearContents()
     guard pasteboard.setString(text, forType: .string) else { return false }
     // Our own marker: the watcher then only moves the item to the top, and
     // only if it is already saved (a copy with the marker is never trusted).
     _ = pasteboard.setString(
       "1", forType: NSPasteboard.PasteboardType(ClipboardPolicy.ownMarkerType))
+    // Recorded at once, on the main thread, before the watcher's next tick.
+    if let ownChanges = ownChanges {
+      let mine = cleared + NSPasteboardWriter.changesAfterClear
+      ownChanges.record(mine)
+      lastRecorded = mine
+    }
     return true
   }
 }

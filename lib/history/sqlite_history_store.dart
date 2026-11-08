@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'dart:convert';
 
+import '../snippets/sqlite_snippet_store.dart';
 import 'clip_item.dart';
 import 'history_store.dart';
 import 'migrations.dart';
@@ -22,6 +23,14 @@ class UnsupportedSchemaVersion implements Exception {
   final int found;
   @override
   String toString() => 'UnsupportedSchemaVersion($found)';
+}
+
+/// The copy kept before a migration could not be written (disk full, no
+/// rights, something else at that path). Nothing in the database was
+/// changed.
+class MigrationBackupFailed implements Exception {
+  @override
+  String toString() => 'MigrationBackupFailed';
 }
 
 /// A migration failed. It was rolled back; the backup copy is kept.
@@ -113,7 +122,25 @@ class SqliteHistoryStore implements HistoryStore {
     if (from == target) return;
 
     final backup = from > 0 ? File('$path.bak') : null;
-    backup?.writeAsBytesSync(File(path).readAsBytesSync(), flush: true);
+    if (backup != null) {
+      // Only a copy this attempt created may be removed after a failure: a
+      // file that was already there (an earlier copy) is never deleted (F7).
+      final existed =
+          FileSystemEntity.typeSync(backup.path) !=
+          FileSystemEntityType.notFound;
+      try {
+        backup.writeAsBytesSync(File(path).readAsBytesSync(), flush: true);
+      } catch (_) {
+        // A half-written copy of our own is no backup: remove it. The
+        // database itself has not been touched.
+        if (!existed) {
+          try {
+            if (FileSystemEntity.isFileSync(backup.path)) backup.deleteSync();
+          } catch (_) {}
+        }
+        throw MigrationBackupFailed();
+      }
+    }
 
     for (final m in all.where((m) => m.version > from)) {
       m.onRun?.call();
@@ -125,12 +152,21 @@ class SqliteHistoryStore implements HistoryStore {
         db.execute('PRAGMA user_version = ${m.version}');
         db.execute('COMMIT');
       } catch (e) {
-        db.execute('ROLLBACK');
+        if (!db.autocommit) {
+          try {
+            db.execute('ROLLBACK');
+          } catch (_) {}
+        }
         throw MigrationFailed(m.version, e);
       }
     }
     if (backup != null && backup.existsSync()) backup.deleteSync();
   }
+
+  /// The snippets on this same encrypted connection (schema version 3).
+  /// Closing the history closes it.
+  SqliteSnippetStore snippetStore() => _snippets ??= SqliteSnippetStore(_db);
+  SqliteSnippetStore? _snippets;
 
   @override
   int get limit => _limit;
@@ -187,7 +223,14 @@ class SqliteHistoryStore implements HistoryStore {
       _db.execute('COMMIT');
       return result;
     } catch (_) {
-      _db.execute('ROLLBACK');
+      // SQLite may already have rolled back (a full disk, RAISE(ROLLBACK)):
+      // roll back only if a transaction is still open, and never let a
+      // failing ROLLBACK hide the first error (F6).
+      if (!_db.autocommit) {
+        try {
+          _db.execute('ROLLBACK');
+        } catch (_) {}
+      }
       rethrow;
     }
   }

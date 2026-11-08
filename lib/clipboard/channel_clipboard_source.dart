@@ -9,7 +9,9 @@ import 'clipboard_source.dart';
 /// marker, `com.wnasoni.kusunga.self`), `{type: concealed}`, `{type: tooLarge}`,
 /// `{type: error, code}`. Listening starts the watcher; cancelling stops it.
 /// Method channel `com.wnasoni.kusunga/clipboard`:
-/// `accessBehavior` returns `allow`, `ask`, `deny` or `unsupported`.
+/// `accessBehavior` returns `allow`, `ask`, `deny` or `unsupported`;
+/// `writeOwn {text}` writes the text, remembers the change number it made so
+/// the watcher skips that one change, and returns a bool.
 class ChannelClipboardSource implements ClipboardSource {
   ChannelClipboardSource({EventChannel? events, MethodChannel? methods})
     : _events =
@@ -44,6 +46,18 @@ class ChannelClipboardSource implements ClipboardSource {
         return ClipboardReadError(code is String ? code : 'unknown');
     }
     return null;
+  }
+
+  @override
+  Future<bool> writeOwn(String text) async {
+    try {
+      return await _methods.invokeMethod<Object?>('writeOwn', {'text': text}) ==
+          true;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
   }
 
   @override

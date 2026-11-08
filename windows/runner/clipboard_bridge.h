@@ -11,6 +11,9 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
+
+#include "clipboard_policy.h"
 
 // Connects the Windows clipboard watcher and the quit flow to Dart.
 //
@@ -22,13 +25,23 @@
 //    Listening starts the watcher (AddClipboardFormatListener); cancelling
 //    stops it.
 //  - method "com.wnasoni.kusunga/clipboard": "accessBehavior"
-//    always answers "unsupported" (a Mac-only setting).
+//    always answers "unsupported" (a Mac-only setting); "writeOwn" {text}
+//    writes a copied snippet with its sequence number recorded, so the
+//    watcher skips it (PM decision D1), and answers a bool.
 //  - method "com.wnasoni.kusunga/lifecycle": Dart calls "quit";
 //    native calls "flush" and waits for the answer when Windows ends the
 //    session (WM_ENDSESSION).
+// Puts [text] (UTF-8) on the clipboard with Kusunga's marker format. With
+// [own] (a snippet), the change is recorded so the watcher skips it. Used by
+// the paste flow and by "writeOwn".
+bool WriteClipboardText(HWND window, UINT format_own, const std::string& text,
+                        kusunga::OwnClipboardChanges* own);
+
 class ClipboardBridge {
  public:
-  ClipboardBridge(flutter::BinaryMessenger* messenger, HWND window);
+  // [own] is shared with the picker's paste flow and outlives both bridges.
+  ClipboardBridge(flutter::BinaryMessenger* messenger, HWND window,
+                  kusunga::OwnClipboardChanges* own);
   ~ClipboardBridge();
 
   ClipboardBridge(const ClipboardBridge&) = delete;
@@ -47,6 +60,7 @@ class ClipboardBridge {
   void FlushDartBlocking();
 
   HWND window_;
+  kusunga::OwnClipboardChanges* own_;
   bool listening_ = false;
   uint32_t last_sequence_ = 0;
   std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink_;

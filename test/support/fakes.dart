@@ -74,6 +74,16 @@ class FakeClipboardSource implements ClipboardSource {
   }
 
   void copy(String text) => controller.add(ClipboardText(text));
+
+  /// Texts written with [writeOwn] (the watcher skips these changes).
+  final ownWrites = <String>[];
+  bool writeOwnAnswer = true;
+
+  @override
+  Future<bool> writeOwn(String text) async {
+    ownWrites.add(text);
+    return writeOwnAnswer;
+  }
 }
 
 /// A store whose writes can be made to fail, like a full disk.

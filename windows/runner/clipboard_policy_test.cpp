@@ -179,6 +179,44 @@ int main() {
   CHECK(!ExceedsLimit(kMaxBytes));
   CHECK(ExceedsLimit(kMaxBytes + 1));
 
+  // PM decision D1 (M1.4): a pasted or copied snippet is not added to
+  // history. The watcher skips the one change Kusunga made, matched by the
+  // sequence number read right after the write; never by the marker format.
+  {
+    OwnClipboardChanges own;
+    CHECK(!own.Consume(7));  // nothing recorded: an ordinary copy
+    own.BeginWrite();
+    own.EndWrite(8);
+    CHECK(own.Consume(8));   // our own change: skipped
+    CHECK(!own.Consume(8));  // used once
+  }
+  {
+    // Another app wrote after us before the watcher looked: its copy has a
+    // newer number and is read as usual, and the old record is gone.
+    OwnClipboardChanges own;
+    own.BeginWrite();
+    own.EndWrite(10);
+    CHECK(!own.Consume(11));
+    CHECK(!own.Consume(10));
+  }
+  {
+    // An update delivered while we still hold the clipboard (nobody else
+    // can write then) is ours.
+    OwnClipboardChanges own;
+    own.BeginWrite();
+    CHECK(own.Consume(20));
+    own.EndWrite(20);
+    CHECK(!own.Consume(21));
+  }
+  {
+    // A write that could not open the clipboard changed nothing: the next
+    // copy is not skipped.
+    OwnClipboardChanges own;
+    own.BeginWrite();
+    own.CancelWrite();
+    CHECK(!own.Consume(30));
+  }
+
   if (failures == 0) std::printf("all clipboard policy checks passed\n");
   return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

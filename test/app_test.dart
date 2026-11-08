@@ -45,7 +45,8 @@ void main() {
 
   testWidgets('the home view is the history list', (tester) async {
     await _pump(tester);
-    expect(find.text('History'), findsOneWidget);
+    // The History tab (M1.4) and the history screen's heading.
+    expect(find.text('History'), findsNWidgets(2));
     expect(find.text('Nothing here yet'), findsOneWidget);
   });
 
@@ -54,7 +55,7 @@ void main() {
       tester,
     ) async {
       await _pump(tester, brightness: b);
-      final context = tester.element(find.byType(Scaffold));
+      final context = tester.element(find.byType(Scaffold).first);
       expect(Theme.of(context).brightness, b);
       expect(
         Theme.of(context).extension<KusungaTokens>(),

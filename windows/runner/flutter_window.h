@@ -28,6 +28,11 @@ class FlutterWindow : public Win32Window {
   // The project to run.
   flutter::DartProject project_;
 
+  // Kusunga's own clipboard changes (a snippet), shared by the paste flow and
+  // the watcher so a snippet is not added to history. Declared before the
+  // bridges, so it outlives them.
+  kusunga::OwnClipboardChanges own_changes_;
+
   // Clipboard watcher and quit flow (see clipboard_bridge.h).
   std::unique_ptr<ClipboardBridge> clipboard_bridge_;
 

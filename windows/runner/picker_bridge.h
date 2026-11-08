@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "clipboard_policy.h"
 #include "picker_policy.h"
 
 // Connects the picker to Dart: the global shortcut (RegisterHotKey), the
@@ -21,7 +22,8 @@
 // lib/picker/channel_picker_port.dart):
 //  - Dart calls "registerShortcut" {key, modifiers} (answers "ok", "taken" or
 //    "invalid"), "unregisterShortcut", "openPicker", "closePicker",
-//    "paste" {text, post} (answers a PasteResult name), "showToast",
+//    "paste" {text, post, skipHistory} (answers a PasteResult name; with
+//    skipHistory, a snippet, the change is not added to history), "showToast",
 //    "hideToast", "canPost" and "requestPostAccess" (both always true here),
 //    "permissionSnapshot" (no answer: a Mac-only diagnostic);
 //  - native calls "shortcutPressed" (and shows the picker once Dart has
@@ -31,7 +33,9 @@
 // or logged.
 class PickerBridge {
  public:
-  PickerBridge(flutter::BinaryMessenger* messenger, HWND window);
+  // [own] is shared with the clipboard watcher and outlives both bridges.
+  PickerBridge(flutter::BinaryMessenger* messenger, HWND window,
+               kusunga::OwnClipboardChanges* own);
   ~PickerBridge();
 
   PickerBridge(const PickerBridge&) = delete;
@@ -71,9 +75,11 @@ class PickerBridge {
   void ApplySmallShape(kusunga::Rect frame, bool no_activate);
   kusunga::Rect WorkAreaAtPointer(double* scale) const;
 
-  std::string RunPasteFlow(const std::string& text, bool post);
+  std::string RunPasteFlow(const std::string& text, bool post,
+                           bool skip_history);
 
   HWND window_;
+  kusunga::OwnClipboardChanges* own_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel_;
 
   Mode mode_ = Mode::kNormal;

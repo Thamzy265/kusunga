@@ -135,4 +135,55 @@ void main() {
       },
     );
   });
+
+  group('snippets skip history by own change number (D1)', () {
+    final swiftPicker = read('macos/Runner/PickerBridge.swift');
+    final swiftClip = read('macos/Runner/ClipboardBridge.swift');
+    final swiftWatch = read('macos/Runner/ClipboardWatcher.swift');
+    final cppPicker = read('windows/runner/picker_bridge.cpp');
+    final cppClip = read('windows/runner/clipboard_bridge.cpp');
+    final dartPort = read('lib/picker/channel_picker_port.dart');
+    final dartClip = read('lib/clipboard/channel_clipboard_source.dart');
+
+    test('paste sends skipHistory and both sides read it', () {
+      expect(dartPort, contains("'skipHistory'"));
+      expect(swiftPicker, contains('args?["skipHistory"]'));
+      expect(cppPicker, contains('"skipHistory"'));
+    });
+
+    test('writeOwn is sent by Dart and handled on both sides', () {
+      expect(dartClip, contains("'writeOwn'"));
+      expect(swiftClip, contains('"writeOwn"'));
+      expect(cppClip, contains('"writeOwn"'));
+    });
+
+    test('the watchers skip by the recorded number, not by the marker', () {
+      expect(swiftWatch, contains('ownChanges?.consume(count)'));
+      expect(cppClip, contains('own_->Consume(sequence)'));
+      // The marker only sets the "own" flag; it never returns early.
+      final send = swiftWatch.substring(
+        swiftWatch.indexOf('private func send'),
+      );
+      expect(send, isNot(contains('return')));
+      expect(
+        swiftClip,
+        contains('ownChanges: OwnClipboardChanges.shared'),
+        reason: 'the real watcher uses the shared record',
+      );
+    });
+
+    test('Windows records the number right after CloseClipboard', () {
+      final write = cppClip.substring(
+        cppClip.indexOf('bool WriteClipboardText('),
+        cppClip.indexOf('ClipboardBridge::ClipboardBridge('),
+      );
+      final close = write.indexOf('::CloseClipboard();');
+      final record = write.indexOf(
+        'own->EndWrite(::GetClipboardSequenceNumber())',
+      );
+      expect(close, greaterThan(0));
+      expect(record, greaterThan(close));
+      expect(write.indexOf('own->BeginWrite()'), lessThan(close));
+    });
+  });
 }

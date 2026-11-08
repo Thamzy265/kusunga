@@ -98,10 +98,46 @@ class KusungaTokens extends ThemeExtension<KusungaTokens> {
           error: tokens.danger,
           outline: tokens.border,
         );
+    // Keyboard focus on a button: the 2 px `focus` ring of the rows and tabs,
+    // drawn outside the button so it sits on the background (3:1 there), not
+    // on the button's own fill. Material's default is only a faint tint
+    // (QA-M14-4). A null side keeps each button's own outline otherwise.
+    final ring = ButtonStyle(
+      side: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.focused)
+            ? BorderSide(
+                color: tokens.focus,
+                width: 2,
+                strokeAlign: BorderSide.strokeAlignOutside,
+              )
+            : null,
+      ),
+    );
+    bool focused(Set<WidgetState> s) => s.contains(WidgetState.focused);
     return ThemeData(
       colorScheme: scheme,
       scaffoldBackgroundColor: tokens.surface,
       useMaterial3: true,
+      textButtonTheme: TextButtonThemeData(style: ring),
+      filledButtonTheme: FilledButtonThemeData(style: ring),
+      outlinedButtonTheme: OutlinedButtonThemeData(style: ring),
+      elevatedButtonTheme: ElevatedButtonThemeData(style: ring),
+      iconButtonTheme: IconButtonThemeData(style: ring),
+      // Menu items (the row "More" menu, the Type menu) show focus as a
+      // `selection` fill, as the picker's selected row: 3:1 on the menu,
+      // text 4.5:1 on it.
+      focusColor: tokens.selection,
+      popupMenuTheme: PopupMenuThemeData(color: tokens.surface),
+      // The toast's Undo sits on the dark toast, where the ring colour would
+      // be lost: when focused it is filled with the toast's text colour.
+      snackBarTheme: SnackBarThemeData(
+        actionTextColor: WidgetStateColor.resolveWith(
+          (s) => focused(s) ? scheme.inverseSurface : scheme.inversePrimary,
+        ),
+        actionBackgroundColor: WidgetStateColor.resolveWith(
+          (s) => focused(s) ? scheme.onInverseSurface : Colors.transparent,
+        ),
+      ),
       extensions: [tokens],
     );
   }

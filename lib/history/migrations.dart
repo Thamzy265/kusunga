@@ -17,7 +17,8 @@ class Migration {
 /// Schema version 1: the first version of the store. Version 2 (M1.3) adds no
 /// structure: the picker settings are rows of the `settings` table. The step
 /// is recorded so that later migrations stay in order, and a version 1 build
-/// leaves a version 2 file untouched.
+/// leaves a version 2 file untouched. Version 3 (M1.4) adds the snippets
+/// table and nothing else (expand only; `docs/design/saved-snippets.md`).
 const kMigrations = <Migration>[
   Migration(
     version: 1,
@@ -43,4 +44,20 @@ CREATE TABLE settings (
     ],
   ),
   Migration(version: 2, statements: []),
+  Migration(
+    version: 3,
+    statements: [
+      '''
+CREATE TABLE snippets (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL CHECK (length(name) BETWEEN 1 AND 100),
+  content TEXT NOT NULL CHECK (length(CAST(content AS BLOB)) BETWEEN 1 AND 1048576),
+  type TEXT NOT NULL CHECK (type IN ('phone', 'email', 'link', 'address', 'other')),
+  position INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+)''',
+      'CREATE INDEX idx_snippets_position ON snippets (position)',
+    ],
+  ),
 ];

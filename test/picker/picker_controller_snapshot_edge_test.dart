@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kusunga/log/app_log.dart';
 import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/memory_history_store.dart';
 import 'package:kusunga/picker/picker_controller.dart';
@@ -98,7 +99,7 @@ void main() {
     await c.pasteItem(id);
     expect(port.calls.first, 'paste');
     expect(port.calls, isNot(contains('snapshot')));
-    expect(log.codes, isEmpty);
+    expect(log.codes, [LogCode.pasteSource]);
   });
 
   // REPRO (low severity): the real port swallows PlatformException and
@@ -147,7 +148,7 @@ void main() {
     await c.pasteItem(id);
     expect(c.toast, isNull);
     expect(c.mode, WindowMode.manage);
-    expect(log.codes.map((x) => x.name), ['pasteForcedPost']);
+    expect(log.codes.map((x) => x.name), ['pasteSource', 'pasteForcedPost']);
     expect(port.calls.where((x) => x == 'showToast'), isEmpty);
   });
 
@@ -157,6 +158,6 @@ void main() {
     port.pasteAnswer = PasteOutcome.pasted;
     log.codes.clear();
     await c.pasteItem(id);
-    expect(log.codes, isEmpty);
+    expect(log.codes, [LogCode.pasteSource]);
   });
 }

@@ -79,8 +79,14 @@ abstract interface class PickerPort {
 
   /// Puts [text] on the clipboard (with Kusunga's own marker), hides the
   /// picker, gives focus back and, if [post] is true and it is safe, sends
-  /// Cmd+V / Ctrl+V. Never throws.
-  Future<PasteOutcome> paste(String text, {required bool post});
+  /// Cmd+V / Ctrl+V. Never throws. With [skipHistory] (a snippet, PM decision
+  /// D1) native code remembers the change number it made, and the watcher
+  /// skips that one change.
+  Future<PasteOutcome> paste(
+    String text, {
+    required bool post,
+    bool skipHistory = false,
+  });
 
   /// Shows the small "Copied" toast near the pointer without taking focus.
   Future<void> showToast();
