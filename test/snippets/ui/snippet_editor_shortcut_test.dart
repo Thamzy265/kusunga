@@ -191,6 +191,31 @@ void main() {
     expect(service.items.length, 1);
   });
 
+  testWidgets('C8: Save with an empty name keeps the live clash message', (
+    tester,
+  ) async {
+    addOther('Work email', ';email');
+    await open(tester, const SnippetEditorStart.create());
+    await fill(tester, name: 'Other', content: 'y', shortcut: ';email');
+    await tester.pump(const Duration(milliseconds: 600));
+    const clash = '“Work email” already uses ;email. Choose another shortcut.';
+    expect(errorOf(tester), clash);
+    await tester.enterText(field('snippet-editor-name'), '');
+    await save(tester);
+    expect(result, isNull);
+    expect(errorOf(tester), clash);
+  });
+
+  testWidgets('C8: Save at once after typing a clash shows it with the name '
+      'error', (tester) async {
+    addOther('Work email', ';email');
+    await open(tester, const SnippetEditorStart.create());
+    // Saved before the 500 ms check ran.
+    await fill(tester, name: '', content: 'y', shortcut: ';emailx');
+    await save(tester);
+    expect(errorOf(tester), startsWith('“Work email” uses ;email, so ;emailx'));
+  });
+
   testWidgets('a bad name and a bad shortcut: focus goes to the name first', (
     tester,
   ) async {

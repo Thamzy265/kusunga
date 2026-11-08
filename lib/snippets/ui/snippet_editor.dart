@@ -179,11 +179,7 @@ class _SnippetEditorState extends State<_SnippetEditor> {
     _shortcutCheck?.cancel();
     _shortcutCheck = Timer(const Duration(milliseconds: 500), () {
       if (!mounted) return;
-      final text = _shortcut.text;
-      final issue = widget.service.shortcutIssue(text, selfId: _editing?.id);
-      setState(() {
-        _shortcutError = issue == null ? null : _issueText(issue, text);
-      });
+      setState(() => _shortcutError = _liveShortcutIssue());
     });
   }
 
@@ -229,10 +225,15 @@ class _SnippetEditorState extends State<_SnippetEditor> {
         setState(() {
           _problems = r.problems;
           _banner = null;
-          _shortcutError = _errorFor(const {
-            SnippetProblem.shortcutLength,
-            SnippetProblem.shortcutSpaces,
-          });
+          // A save that failed for another field keeps the live clash
+          // message (it is checked here too, in case Save came before the
+          // 500 ms check).
+          _shortcutError =
+              _errorFor(const {
+                SnippetProblem.shortcutLength,
+                SnippetProblem.shortcutSpaces,
+              }) ??
+              _liveShortcutIssue();
         });
         // The first bad field in the Tab order gets the focus.
         final nameBad =
@@ -314,6 +315,12 @@ class _SnippetEditorState extends State<_SnippetEditor> {
       text: value.text.replaceRange(sel.start, sel.end, text),
       selection: TextSelection.collapsed(offset: sel.start + text.length),
     );
+  }
+
+  String? _liveShortcutIssue() {
+    final text = _shortcut.text;
+    final issue = widget.service.shortcutIssue(text, selfId: _editing?.id);
+    return issue == null ? null : _issueText(issue, text);
   }
 
   String? _errorFor(Set<SnippetProblem> which) {
