@@ -243,6 +243,17 @@ final class PendingMatch {
   }
 }
 
+/// What the platform's input events mean beyond the buffer.
+enum TypedShortcutInput {
+  /// Any mouse button press (C5): the cursor may have moved, so the buffer
+  /// empties, and a match still waiting for its replacement counts it as
+  /// input, which cancels the replacement.
+  static func mouseDown(matcher: TypedShortcutMatcher, pending: PendingMatch) {
+    matcher.reset()
+    pending.noteInput()
+  }
+}
+
 /// Mac key codes (kVK_*) and what they mean for the buffer.
 enum MacKeyClassifier {
   static let deleteKey: Int64 = 51

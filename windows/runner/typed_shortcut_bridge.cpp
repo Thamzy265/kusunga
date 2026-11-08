@@ -572,7 +572,8 @@ class HookThread {
         case WM_RBUTTONDOWN:
         case WM_MBUTTONDOWN:
         case WM_XBUTTONDOWN:
-          self->matcher_.Reset();
+          // Also cancels a match still waiting for its replacement (C5).
+          kusunga::OnMouseDown(self->matcher_, *self->pending_);
           break;
         default:
           break;

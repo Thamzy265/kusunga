@@ -1002,7 +1002,35 @@ static void TestReplaceMatch() {
   CHECK(ReplaceMatch(flow, pending, third, 4, "x") == ReplaceResult::kCancelled);
 }
 
+// C5: a mouse press after a match cancels its replacement.
+static void TestMouseDownCancels() {
+  TypedShortcutMatcher m = Make();
+  PendingMatch pending;
+  uint32_t id = 0;
+  for (char32_t c : std::u32string(U";email")) {
+    if (m.Handle(TypedKey::Text(std::u32string(1, c)), TypedKeyContext{}, 0)
+            .kind == TypedOutcome::Kind::kMatched) {
+      id = pending.Begin(100);
+    }
+  }
+  CHECK(id != 0);
+  OnMouseDown(m, pending);
+  CHECK(pending.InputsSince(id) == 1);
+  FakeReplace p;
+  p.keys_after = pending.InputsSince(id);
+  ReplaceFlow flow(&p);
+  CHECK(ReplaceMatch(flow, pending, id, 6, "x") == ReplaceResult::kCancelled);
+  CHECK(p.log.empty());
+  // And the buffer is empty: ";em", a click, "ail" never fires.
+  TypedShortcutMatcher half = Make();
+  TypeText(half, U";em");
+  OnMouseDown(half, pending);
+  CHECK(half.BufferCount() == 0);
+  CHECK(IsNone(TypeText(half, U"ail")));
+}
+
 int main() {
+  TestMouseDownCancels();
   TestHookHealth();
   TestHookInbox();
   TestFieldCheckQueue();

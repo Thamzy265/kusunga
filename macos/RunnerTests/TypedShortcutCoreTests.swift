@@ -984,3 +984,36 @@ final class PendingMatchTests: XCTestCase {
       .cancelled, "app 100 is in front now")
   }
 }
+
+// MARK: - C5: a mouse press after a match cancels its replacement.
+
+final class MouseDownTests: XCTestCase {
+  func testAClickBetweenTheMatchAndTheReplacementCancelsIt() {
+    let matcher = TypedShortcutMatcher()
+    matcher.setTable([(7, ";email")])
+    let pending = PendingMatch()
+    var id = 0
+    for ch in ";email" {
+      if case .matched = matcher.handle(.text(String(ch)), context: plain, nowMs: 0) {
+        id = pending.begin(target: 100)
+      }
+    }
+    XCTAssertGreaterThan(id, 0)
+    TypedShortcutInput.mouseDown(matcher: matcher, pending: pending)
+    XCTAssertEqual(pending.peek(id)?.inputs, 1)
+    let p = FakeReplacePlatform()
+    p.keysAfterMatch = pending.peek(id)?.inputs ?? 1
+    XCTAssertEqual(
+      ReplaceFlow(platform: p).run(matchId: id, deleteCount: 6, text: "x", pending: pending),
+      .cancelled)
+    XCTAssertEqual(p.log, [], "nothing deleted, nothing pasted")
+  }
+
+  func testAClickEmptiesTheBuffer() {
+    let matcher = TypedShortcutMatcher()
+    matcher.setTable([(7, ";email")])
+    for ch in ";em" { _ = matcher.handle(.text(String(ch)), context: plain, nowMs: 0) }
+    TypedShortcutInput.mouseDown(matcher: matcher, pending: PendingMatch())
+    XCTAssertEqual(matcher.bufferCount, 0)
+  }
+}

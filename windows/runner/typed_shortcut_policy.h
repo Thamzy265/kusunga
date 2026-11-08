@@ -467,6 +467,14 @@ class PendingMatch {
   int inputs_ = 0;
 };
 
+// Any mouse button press (C5): the cursor may have moved, so the buffer
+// empties, and a match still waiting for its replacement counts it as
+// input, which cancels the replacement.
+inline void OnMouseDown(TypedShortcutMatcher& matcher, PendingMatch& pending) {
+  matcher.Reset();
+  pending.NoteInput();
+}
+
 // The delete count (1 to 32) and the match id in one positive number that
 // fits a 32-bit LPARAM, for the field check's message to the UI thread.
 inline int64_t PackMatch(int delete_count, uint32_t match_id) {

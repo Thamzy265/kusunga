@@ -209,7 +209,8 @@ final class TypedShortcutBridge {
         stop(status: "stopped")
       }
     case .leftMouseDown, .rightMouseDown, .otherMouseDown:
-      matcher.reset()
+      // Also cancels a match still waiting for its replacement (C5).
+      TypedShortcutInput.mouseDown(matcher: matcher, pending: pending)
     case .keyDown:
       onKey(event)
     default:
