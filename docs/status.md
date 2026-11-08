@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.4 Saved snippets — main pushed
+- Changed: local main pushed to origin/main (from ee54f37), including the M1.4 merge 0d57b37. The feat/saved-snippets branch is not pushed and not deleted.
+- Gates: developer done · tester pass · reviewer approve with notes · QA pass · PM merge approved
+- Open findings: none new; N1, N2, F5 (Windows), R1 unchanged
+- Decisions: PM (2026-11-08) approved the push: "Yes, push main"
+- Blockers: PM — VoiceOver sign-off; paste-access revoke with a dialog open; extra uncaught slip kinds; GitHub billing or acceptance of local results (Windows uncompiled); leftover qa-m13 link item
+
 ## 2026-11-08 — M1.4 Saved snippets — merged to main
 - Changed: feat/saved-snippets merged into main locally with `git merge --no-ff` (merge commit 0d57b37, 99 branch commits). ./tool/check.sh on merged main: format, analyze and 2374 tests pass (8 skipped). M1.4 ticked in docs/PLAN.md. Nothing is pushed; origin/main is still at ee54f37.
 - Gates: developer done · tester pass (round 18) · reviewer approve with notes · QA pass (3a, 3b, 4c by widget tests, PM 2026-11-08) · PM merge approved
