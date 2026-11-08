@@ -254,6 +254,11 @@ final class FakeReplacePlatform: ReplacePlatform {
   var failAfterClear = false
   /// Writing the previous text back fails too (it still clears).
   var restoreOk = true
+  /// L2: another app wrote to the clipboard during the failed write, so it
+  /// is not empty afterwards.
+  var otherWroteOnFail = false
+  /// The clipboard holds nothing at all now.
+  var empty = false
   var pasteKeyFound = true
   var count = 10
   var scheduled: [(Int, () -> Void)] = []
@@ -270,10 +275,18 @@ final class FakeReplacePlatform: ReplacePlatform {
   func writeSnippet(_ text: String) -> Int? {
     log.append("write")
     guard writeOk else {
-      if failAfterClear { count += 1 }
+      if failAfterClear {
+        count += 1
+        empty = true
+      }
+      if otherWroteOnFail {
+        count += 1
+        empty = false
+      }
       return nil
     }
     count += 1
+    empty = false
     return count
   }
   func postPaste() -> Bool {
@@ -286,7 +299,9 @@ final class FakeReplacePlatform: ReplacePlatform {
     log.append("restore")
     count += 1
     if restoreOk { restored.append(saved) }
+    empty = !restoreOk
   }
+  func clipboardIsEmpty() -> Bool { empty }
 }
 
 final class ReplaceFlowTests: XCTestCase {
@@ -1467,6 +1482,8 @@ final class ScriptedReplacePlatform: ReplacePlatform {
   var writeResult: (() -> Int?) = { nil }
   var scheduled: [() -> Void] = []
   var restored: [SavedClipboard] = []
+  /// The clipboard holds nothing at all now (L2).
+  var empty = false
 
   func frontmostPid() -> Int32? { 100 }
   func keysSinceMatch() -> Int { 0 }
@@ -1490,7 +1507,9 @@ final class ScriptedReplacePlatform: ReplacePlatform {
     log.append("restore")
     restored.append(saved)
     count += 1
+    empty = false
   }
+  func clipboardIsEmpty() -> Bool { empty }
 }
 
 final class FailedWriteEdgeTests: XCTestCase {
@@ -1499,6 +1518,7 @@ final class FailedWriteEdgeTests: XCTestCase {
       let p = ScriptedReplacePlatform()
       p.writeResult = { [unowned p] in
         p.count += delta
+        p.empty = true  // our clear (perhaps with others): nothing on it
         return nil
       }
       let flow = ReplaceFlow(platform: p)
@@ -1508,10 +1528,11 @@ final class FailedWriteEdgeTests: XCTestCase {
     }
   }
 
-  /// If the count moved because the user copied during the write, the flow
-  /// cannot tell it from its own clear: it writes the saved text back. Locks
-  /// today's behaviour (the window is a few milliseconds); see the hand-off.
-  func testACopyByTheUserDuringAFailedWriteIsIndistinguishableAndIsOverwritten() {
+  /// L2 (was the N9 lock): if the count moved because the user, or a
+  /// password manager's auto-clear, wrote during the failed write, the
+  /// clipboard is not empty, so their change wins: nothing is written back
+  /// and the saved text is forgotten.
+  func testACopyByTheUserDuringAFailedWriteWinsAndThePreviousTextIsForgotten() {
     let p = ScriptedReplacePlatform()
     p.writeResult = { [unowned p] in
       p.count += 1  // the user's own copy, not our clear
@@ -1519,7 +1540,8 @@ final class FailedWriteEdgeTests: XCTestCase {
     }
     let flow = ReplaceFlow(platform: p)
     XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
-    XCTAssertEqual(p.restored.map { $0.text }, ["mine"])
+    XCTAssertTrue(p.restored.isEmpty)
+    XCTAssertFalse(flow.hasPendingRestore)
   }
 
   func testAFailedWriteThatMovedNothingNeverRestoresEvenWithSavedText() {
@@ -1535,6 +1557,7 @@ final class FailedWriteEdgeTests: XCTestCase {
     p.previous = nil  // an image was on it: Kusunga only keeps text
     p.writeResult = { [unowned p] in
       p.count += 1
+      p.empty = true
       return nil
     }
     let flow = ReplaceFlow(platform: p)
@@ -1551,6 +1574,7 @@ final class FailedWriteEdgeTests: XCTestCase {
       p.previous = saved
       p.writeResult = { [unowned p] in
         p.count += 1
+        p.empty = true
         return nil
       }
       let flow = ReplaceFlow(platform: p)
@@ -1659,5 +1683,54 @@ final class FailedWriteEdgeTests: XCTestCase {
     XCTAssertEqual(flow.run(deleteCount: 3, text: "b", matchPid: 100), .failed)
     XCTAssertTrue(flow.hasPendingRestore)
     XCTAssertTrue(p.restored.isEmpty, "this path does not run the L1 write-back")
+  }
+}
+
+// MARK: - L2: the change count alone can't tell Kusunga's clear from another
+// app's write; the clipboard must also be empty.
+
+final class FailedWriteOtherWriterTests: XCTestCase {
+  func testMovedButNotEmptyWritesNothingBackAndForgets() {
+    let p = FakeReplacePlatform()
+    p.writeOk = false
+    p.otherWroteOnFail = true  // e.g. a password manager's auto-clear wrote
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 6, text: "x", matchPid: 100), .failed)
+    XCTAssertFalse(p.log.contains("restore"))
+    XCTAssertFalse(flow.hasPendingRestore)
+    XCTAssertTrue(p.scheduled.isEmpty)
+  }
+
+  func testOurClearThenAnotherWriteAlsoWritesNothingBack() {
+    let p = FakeReplacePlatform()
+    p.writeOk = false
+    p.failAfterClear = true
+    p.otherWroteOnFail = true
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 6, text: "x", matchPid: 100), .failed)
+    XCTAssertFalse(p.log.contains("restore"))
+    XCTAssertFalse(flow.hasPendingRestore)
+  }
+
+  func testMovedAndEmptyIsWrittenBackAsBefore() {
+    let p = FakeReplacePlatform()
+    p.writeOk = false
+    p.failAfterClear = true
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 6, text: "x", matchPid: 100), .failed)
+    XCTAssertEqual(p.restored, [SavedClipboard(text: "what I copied", markerTypes: [])])
+    XCTAssertFalse(flow.hasPendingRestore)
+  }
+
+  func testAnEarlierRestoreWaitingIsNotLeftToOverwriteTheOtherAppsChange() {
+    let p = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 6, text: "first", matchPid: 100), .replaced)
+    p.writeOk = false
+    p.otherWroteOnFail = true
+    XCTAssertEqual(flow.run(deleteCount: 4, text: "second", matchPid: 100), .failed)
+    XCTAssertFalse(flow.hasPendingRestore)
+    for work in p.scheduled { work.1() }
+    XCTAssertTrue(p.restored.isEmpty)
   }
 }

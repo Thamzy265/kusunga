@@ -276,6 +276,8 @@ class FakeReplace : public ReplacePlatform {
   bool fail_after_clear = false;  // the failed write had emptied it (L1)
   bool restore_ok = true;         // writing the previous text back works
   int extra_moves_on_fail = 0;    // other writers moved the sequence too
+  bool other_wrote_on_fail = false;  // L2: and left something on it
+  bool empty = false;                // the clipboard holds nothing now
   uint32_t sequence = 10;
   std::vector<std::pair<int, std::function<void()>>> scheduled;
   int restores = 0;
@@ -309,10 +311,18 @@ class FakeReplace : public ReplacePlatform {
   bool WriteSnippet(const std::string&, uint32_t* seq) override {
     log.push_back("write");
     if (!write_ok) {
-      if (fail_after_clear) ++sequence;
+      if (fail_after_clear) {
+        ++sequence;
+        empty = true;
+      }
       sequence += static_cast<uint32_t>(extra_moves_on_fail);
+      if (other_wrote_on_fail) {
+        ++sequence;
+        empty = false;
+      }
       return false;
     }
+    empty = false;
     *seq = ++sequence;
     return true;
   }
@@ -327,7 +337,9 @@ class FakeReplace : public ReplacePlatform {
     restore_attempts++;
     sequence++;
     if (restore_ok) restores++;
+    empty = !restore_ok;
   }
+  bool ClipboardEmpty() override { return empty; }
 };
 
 static void TestReplace() {
@@ -1744,7 +1756,8 @@ static void TestFailedWriteEdges() {
     CHECK(flow.Run(3, "x", 100) == ReplaceResult::kFailed);
     CHECK(p.restores == 0 && !p.saved);
   }
-  {  // Moved by more than one (another app also wrote): still restored once.
+  {  // Moved by more than one, and the clipboard is empty (other apps also
+     // cleared): still restored once.
     FakeReplace p;
     p.write_ok = false;
     p.fail_after_clear = true;
@@ -1753,14 +1766,16 @@ static void TestFailedWriteEdges() {
     CHECK(flow.Run(3, "x", 100) == ReplaceResult::kFailed);
     CHECK(p.restores == 1 && !p.saved);
   }
-  {  // Moved by the user's own copy during the write: indistinguishable from
-     // the clear, so the saved text is written back (locked; hand-off note).
+  {  // L2 (was the N9 lock): moved by the user's own copy, or a password
+     // manager's auto-clear, during the write: the clipboard is not empty,
+     // so their change wins. Nothing is written back; the text is forgotten.
     FakeReplace p;
     p.write_ok = false;
     p.fail_after_clear = true;
+    p.other_wrote_on_fail = true;
     ReplaceFlow flow(&p);
     CHECK(flow.Run(3, "x", 100) == ReplaceResult::kFailed);
-    CHECK(p.restores == 1);
+    CHECK(p.restore_attempts == 0 && !p.saved);
   }
   {  // The earlier timer's restore is still valid: it is used once, and the
      // old timer fires later with nothing to do (no second write-back).
@@ -1861,7 +1876,41 @@ static void TestFailedWriteEdges() {
   }
 }
 
+// L2: the sequence number alone can't tell Kusunga's own empty from another
+// app's write (OpenClipboard can fail while another app writes or clears).
+// Write back only when it moved AND the clipboard is empty now.
+static void TestFailedWriteOtherWriter() {
+  {  // Moved without emptying: nothing written back, text forgotten.
+    FakeReplace p;
+    p.write_ok = false;
+    p.other_wrote_on_fail = true;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(6, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restore_attempts == 0 && !p.saved);
+    CHECK(p.scheduled.empty());
+  }
+  {  // Moved and empty: written back as before.
+    FakeReplace p;
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(6, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restores == 1 && !p.saved);
+  }
+  {  // An earlier restore waiting is not left to overwrite the other app.
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(6, "first", 100) == ReplaceResult::kReplaced);
+    p.write_ok = false;
+    p.other_wrote_on_fail = true;
+    CHECK(flow.Run(4, "second", 100) == ReplaceResult::kFailed);
+    for (auto& w : p.scheduled) w.second();
+    CHECK(p.restore_attempts == 0 && !p.saved);
+  }
+}
+
 int main() {
+  TestFailedWriteOtherWriter();
   TestFailedWriteEdges();
   TestFailedWriteRestores();
   TestModifierWait();

@@ -391,6 +391,8 @@ protocol ReplacePlatform: AnyObject {
   func changeCount() -> Int
   /// Writes [saved] back, as Kusunga's own change.
   func restore(_ saved: SavedClipboard)
+  /// The clipboard holds no type and no item at all now.
+  func clipboardIsEmpty() -> Bool
 }
 
 /// The answers to Dart (lib/shortcuts/channel_typed_shortcuts_port.dart).
@@ -447,7 +449,10 @@ final class ReplaceFlow {
       if platform.changeCount() != before {
         // The write failed after clearing the clipboard: put the user's
         // text back now, with its markers (L1). Tried once; then let go.
-        if let saved = previous { platform.restore(saved) }
+        // Only if the clipboard is empty: a moved count can also be another
+        // app's write (the user's copy, a password manager's auto-clear),
+        // and that change wins (L2).
+        if let saved = previous, platform.clipboardIsEmpty() { platform.restore(saved) }
       } else if reused {
         // Nothing changed: the earlier restore still puts the text back.
         pending = earlier

@@ -602,6 +602,8 @@ class ReplacePlatform {
   // Ctrl, Shift, Alt (AltGr) or Windows is held down now.
   virtual bool ModifiersDown() = 0;
   virtual int64_t NowMs() = 0;
+  // The clipboard holds no format at all now (CountClipboardFormats() == 0).
+  virtual bool ClipboardEmpty() = 0;
 };
 
 // Shift, Ctrl, Alt (either side) and the Windows keys. A held modifier
@@ -764,7 +766,10 @@ class ReplaceFlow {
       if (p_->Sequence() != before) {
         // The write failed after emptying the clipboard: put the user's text
         // back now (RestoreMarks, L1). Tried once; the guard then forgets.
-        if (has_text) p_->RestorePrevious();
+        // Only if the clipboard is empty: OpenClipboard can fail while
+        // another app writes or clears (a password manager's auto-clear),
+        // which moves the number too, and that change wins (L2).
+        if (has_text && p_->ClipboardEmpty()) p_->RestorePrevious();
       } else if (reused) {
         // Nothing changed: the earlier restore still puts the text back.
         pending_ = true;

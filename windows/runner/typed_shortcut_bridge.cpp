@@ -284,6 +284,8 @@ class WinReplacePlatform : public kusunga::ReplacePlatform {
 
   int64_t NowMs() override { return ::NowMs(); }
 
+  bool ClipboardEmpty() override { return ::CountClipboardFormats() == 0; }
+
   // A one-shot WM_TIMER on Kusunga's window; several can wait at once (a
   // restore and a modifier poll). Never sleeps.
   void Schedule(int ms, std::function<void()> work) override {

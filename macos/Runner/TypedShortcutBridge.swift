@@ -424,6 +424,10 @@ final class MacReplacePlatform: ReplacePlatform {
 
   func changeCount() -> Int { pasteboard.changeCount }
 
+  func clipboardIsEmpty() -> Bool {
+    (pasteboard.types ?? []).isEmpty && (pasteboard.pasteboardItems ?? []).isEmpty
+  }
+
   func restore(_ saved: SavedClipboard) {
     guard let mine = MacReplacePlatform.write(.restore(saved), to: pasteboard) else { return }
     OwnClipboardChanges.shared.record(mine)
