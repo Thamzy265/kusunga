@@ -174,8 +174,8 @@ On each added character, native checks whether the buffer ends with a shortcut. 
   - `setIgnored(appIds)`;
   - `setEnabled(bool)`;
   - `status()`;
-  - `replace(deleteCount, text)`;
-  - the event `matched(snippetId, deleteCount)`;
+  - `replace(matchId, deleteCount, text)`;
+  - the event `matched(snippetId, deleteCount, matchId)`. `matchId` is an opaque counter, never anything typed; native answers a `replace` only for the newest match, so a late answer to an older match never deletes text (reviewer C2, 2026-11-08);
   - added by the lead on 2026-11-08 to serve the approved UI (developer Q1):
     - `runningApps()` → `[{appId, name, icon PNG bytes or null}]`, for "Add app…";
     - `requestListenAccess()`, for the explanation card's Continue;
