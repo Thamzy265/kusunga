@@ -8,6 +8,7 @@
 #include <functional>
 #include <future>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -31,7 +32,10 @@ constexpr UINT kMsgMatched = WM_APP + 0x51;    // the field check passed
 constexpr UINT kMsgHookLost = WM_APP + 0x52;   // removed, and not put back
 constexpr UINT kMsgHookState = WM_APP + 0x53;  // put back after Kusunga was
                                                // activated (wparam 1) or not
-constexpr UINT_PTR kRestoreTimerId = 0x4B55;   // the 0.5 s restore (D2)
+// The replacement's timers (the 0.5 s restore, D2; the 10 ms modifier
+// poll, C1), on Kusunga's window: one id each, from this range.
+constexpr UINT_PTR kFirstFlowTimerId = 0x4C00;
+constexpr UINT_PTR kFlowTimerIds = 0x100;
 
 // Posted to the hook thread's message-only window.
 constexpr UINT kMsgInbox = WM_APP + 0x60;      // settings in the inbox
@@ -270,17 +274,48 @@ class WinReplacePlatform : public kusunga::ReplacePlatform {
     ::SendInput(4, inputs, sizeof(INPUT));
   }
 
+  // Same as the picker (picker_bridge.cpp).
+  bool ModifiersDown() override {
+    for (int vk : {VK_CONTROL, VK_SHIFT, VK_MENU, VK_LWIN, VK_RWIN}) {
+      if (::GetAsyncKeyState(vk) & 0x8000) return true;
+    }
+    return false;
+  }
+
+  int64_t NowMs() override { return ::NowMs(); }
+
+  // A one-shot WM_TIMER on Kusunga's window; several can wait at once (a
+  // restore and a modifier poll). Never sleeps.
   void Schedule(int ms, std::function<void()> work) override {
-    work_ = std::move(work);
-    ::SetTimer(bridge_->window_, kRestoreTimerId, static_cast<UINT>(ms),
+    UINT_PTR id = 0;
+    for (UINT_PTR i = 0; i < kFlowTimerIds; i++) {
+      const UINT_PTR candidate = kFirstFlowTimerId + (next_ + i) % kFlowTimerIds;
+      if (work_.count(candidate) == 0) {
+        id = candidate;
+        break;
+      }
+    }
+    if (id == 0) return;  // 256 timers waiting: cannot happen
+    next_ = (id - kFirstFlowTimerId + 1) % kFlowTimerIds;
+    work_[id] = std::move(work);
+    ::SetTimer(bridge_->window_, id, static_cast<UINT>(std::max(ms, 1)),
                nullptr);
   }
 
-  void RunScheduled() {
-    ::KillTimer(bridge_->window_, kRestoreTimerId);
-    auto work = std::move(work_);
-    work_ = nullptr;
+  bool Owns(UINT_PTR id) const { return work_.count(id) > 0; }
+
+  void RunScheduled(UINT_PTR id) {
+    ::KillTimer(bridge_->window_, id);
+    auto it = work_.find(id);
+    if (it == work_.end()) return;
+    auto work = std::move(it->second);
+    work_.erase(it);
     if (work) work();
+  }
+
+  void CancelAll() {
+    for (const auto& entry : work_) ::KillTimer(bridge_->window_, entry.first);
+    work_.clear();
   }
 
   uint32_t Sequence() override { return ::GetClipboardSequenceNumber(); }
@@ -323,7 +358,8 @@ class WinReplacePlatform : public kusunga::ReplacePlatform {
   TypedShortcutBridge* bridge_;
   std::wstring saved_;
   bool has_saved_ = false;
-  std::function<void()> work_;
+  std::map<UINT_PTR, std::function<void()>> work_;
+  UINT_PTR next_ = 0;
 };
 
 // Rule 6 on its own persistent thread (R1): UI Automation in the
@@ -637,7 +673,9 @@ class HookThread {
   void OnKey(const KBDLLHOOKSTRUCT& key) {
     // Kusunga's own Backspaces and Ctrl+V.
     if (kusunga::IsOwnKey(key.dwExtraInfo)) return;
-    pending_->NoteInput();
+    // A held modifier repeats; it moves nothing, so it does not cancel a
+    // replacement waiting for it to be released (C1).
+    if (!kusunga::IsModifierKey(key.vkCode)) pending_->NoteInput();
     HWND foreground = ::GetForegroundWindow();
     UpdateForeground(foreground);
 
@@ -727,7 +765,7 @@ TypedShortcutBridge::TypedShortcutBridge(flutter::BinaryMessenger* messenger,
 TypedShortcutBridge::~TypedShortcutBridge() {
   Stop("off");
   field_worker_ = nullptr;  // after the hook thread, which asks it
-  ::KillTimer(window_, kRestoreTimerId);
+  replace_platform_->CancelAll();
   if (channel_) channel_->SetMethodCallHandler(nullptr);
 }
 
@@ -805,8 +843,13 @@ void TypedShortcutBridge::HandleCall(
       result->Success(EncodableValue("failed"));
       return;
     }
-    result->Success(EncodableValue(Replace(static_cast<uint32_t>(match_id), n,
-                                           std::get<std::string>(*text))));
+    // Answered now, or after the modifiers are released (C1).
+    std::shared_ptr<flutter::MethodResult<EncodableValue>> reply(
+        std::move(result));
+    Replace(static_cast<uint32_t>(match_id), n, std::get<std::string>(*text),
+            [reply](const char* answer) {
+              reply->Success(EncodableValue(answer));
+            });
   } else if (method == "runningApps") {
     WindowsOfApps found;
     ::EnumWindows(CollectWindow, reinterpret_cast<LPARAM>(&found));
@@ -876,21 +919,27 @@ void TypedShortcutBridge::OnMatched(int snippet_id, int delete_count,
   channel_->InvokeMethod("matched", std::make_unique<EncodableValue>(args));
 }
 
-std::string TypedShortcutBridge::Replace(uint32_t match_id, int delete_count,
-                                         const std::string& text) {
+void TypedShortcutBridge::Replace(uint32_t match_id, int delete_count,
+                                  const std::string& text,
+                                  std::function<void(const char*)> answer) {
   // An older or unknown match: cancelled, and nothing else changes (C2).
-  if (!enabled_ || !pending_.Get(match_id, nullptr, nullptr)) {
-    return "cancelled";
+  // One at a time: another one still waiting for the modifiers wins.
+  if (!enabled_ || replacing_id_ != 0 ||
+      !pending_.Get(match_id, nullptr, nullptr)) {
+    answer("cancelled");
+    return;
   }
   replacing_id_ = match_id;
-  const std::string answer = kusunga::ReplaceResultName(
-      kusunga::ReplaceMatch(*replace_flow_, pending_, match_id, delete_count,
-                            text));
-  replacing_id_ = 0;
-  // A replacement is a reset event; the hook thread empties its buffer.
-  inbox_.PutReset();
-  if (hook_thread_) hook_thread_->Wake();
-  return answer;
+  kusunga::StartReplaceMatch(
+      *replace_flow_, pending_, match_id, delete_count, text,
+      [this, answer = std::move(answer)](kusunga::ReplaceResult result) {
+        replacing_id_ = 0;
+        // A replacement is a reset event; the hook thread empties its
+        // buffer.
+        inbox_.PutReset();
+        if (hook_thread_) hook_thread_->Wake();
+        answer(kusunga::ReplaceResultName(result));
+      });
 }
 
 std::optional<LRESULT> TypedShortcutBridge::HandleMessage(UINT message,
@@ -931,8 +980,8 @@ std::optional<LRESULT> TypedShortcutBridge::HandleMessage(UINT message,
       }
       return std::nullopt;
     case WM_TIMER:
-      if (wparam == kRestoreTimerId) {
-        replace_platform_->RunScheduled();
+      if (replace_platform_->Owns(static_cast<UINT_PTR>(wparam))) {
+        replace_platform_->RunScheduled(static_cast<UINT_PTR>(wparam));
         return 0;
       }
       return std::nullopt;

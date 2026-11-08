@@ -277,8 +277,18 @@ class FakeReplace : public ReplacePlatform {
   std::vector<std::pair<int, std::function<void()>>> scheduled;
   int restores = 0;
 
+  bool mods_down = false;
+  int64_t now = 0;
+  // When set, keys since the match come from here, as in the bridge.
+  PendingMatch* pending = nullptr;
+  uint32_t watch_id = 0;
+
   uintptr_t Foreground() override { return foreground; }
-  int KeysSinceMatch() override { return keys_after; }
+  int KeysSinceMatch() override {
+    return pending ? pending->InputsSince(watch_id) : keys_after;
+  }
+  bool ModifiersDown() override { return mods_down; }
+  int64_t NowMs() override { return now; }
   bool saved = false;  // the platform holds the previous text
   int forgets = 0;
   bool SavePrevious() override {
@@ -1062,7 +1072,161 @@ static void TestIdleDeadline() {
   CHECK(m.MsUntilIdleClear(4000, &ms) && ms == 1000);
 }
 
+// C1: a modifier still held when the replacement starts (Shift for the
+// last character, AltGr) would turn Backspace and Ctrl+V into Ctrl+Shift+V
+// (Kusunga's own picker) or Ctrl+Alt+Backspace. Wait on a timer, never
+// sleeping, up to 300 ms for it to be released; otherwise copy only and
+// leave the code.
+static int RunScheduledPoll(FakeReplace& p) {
+  // The newest 10 ms poll, after the time it waits.
+  for (size_t i = p.scheduled.size(); i-- > 0;) {
+    if (p.scheduled[i].first == kPollMs) {
+      auto work = std::move(p.scheduled[i].second);
+      p.scheduled.erase(p.scheduled.begin() + static_cast<long>(i));
+      p.now += kPollMs;
+      work();
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static void TestModifierWait() {
+  {  // No modifier: answered at once, as before.
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    int answers = 0;
+    ReplaceResult got = ReplaceResult::kFailed;
+    flow.Start(6, "x", 100, [&](ReplaceResult r) {
+      got = r;
+      answers++;
+    });
+    CHECK(answers == 1 && got == ReplaceResult::kReplaced);
+  }
+  {  // Shift still down: nothing is sent until it is released.
+    FakeReplace p;
+    p.mods_down = true;
+    ReplaceFlow flow(&p);
+    int answers = 0;
+    ReplaceResult got = ReplaceResult::kFailed;
+    flow.Start(6, "x", 100, [&](ReplaceResult r) {
+      got = r;
+      answers++;
+    });
+    CHECK(answers == 0);
+    CHECK(p.log.empty());
+    CHECK(p.scheduled.size() == 1 && p.scheduled[0].first == kPollMs);
+    CHECK(RunScheduledPoll(p) == 1);  // 10 ms: still down
+    CHECK(answers == 0 && p.log.empty());
+    p.mods_down = false;
+    CHECK(RunScheduledPoll(p) == 1);  // 20 ms: released
+    CHECK(answers == 1 && got == ReplaceResult::kReplaced);
+    CHECK((p.log == std::vector<std::string>{"readPrevious", "write",
+                                              "backspace6", "paste"}));
+  }
+  {  // Held for 300 ms: copy only; the code stays, nothing is read back.
+    FakeReplace p;
+    p.mods_down = true;
+    ReplaceFlow flow(&p);
+    int answers = 0;
+    ReplaceResult got = ReplaceResult::kFailed;
+    flow.Start(6, "x", 100, [&](ReplaceResult r) {
+      got = r;
+      answers++;
+    });
+    int polls = 0;
+    while (answers == 0 && polls < 100) polls += RunScheduledPoll(p);
+    CHECK(answers == 1 && got == ReplaceResult::kCopied);
+    CHECK(p.now >= kModifierTimeoutMs && p.now <= kModifierTimeoutMs + kPollMs);
+    CHECK((p.log == std::vector<std::string>{"write"}));
+    CHECK(!p.saved);
+    for (const auto& w : p.scheduled) CHECK(w.first != kRestoreDelayMs);
+  }
+  {  // Held, and the copy-only write fails: failed, code stays.
+    FakeReplace p;
+    p.mods_down = true;
+    p.write_ok = false;
+    ReplaceFlow flow(&p);
+    ReplaceResult got = ReplaceResult::kReplaced;
+    flow.Start(6, "x", 100, [&](ReplaceResult r) { got = r; });
+    for (int i = 0; i < 100 && got == ReplaceResult::kReplaced; i++) {
+      RunScheduledPoll(p);
+    }
+    CHECK(got == ReplaceResult::kFailed);
+    for (const auto& l : p.log) CHECK(l.rfind("backspace", 0) != 0);
+  }
+  {  // A key typed during the wait cancels; nothing is written.
+    FakeReplace p;
+    p.mods_down = true;
+    ReplaceFlow flow(&p);
+    ReplaceResult got = ReplaceResult::kReplaced;
+    flow.Start(6, "x", 100, [&](ReplaceResult r) { got = r; });
+    p.keys_after = 1;
+    p.mods_down = false;
+    RunScheduledPoll(p);
+    CHECK(got == ReplaceResult::kCancelled);
+    CHECK(p.log.empty());
+  }
+  {  // Another window in front after the wait: cancelled.
+    FakeReplace p;
+    p.mods_down = true;
+    ReplaceFlow flow(&p);
+    ReplaceResult got = ReplaceResult::kReplaced;
+    flow.Start(6, "x", 100, [&](ReplaceResult r) { got = r; });
+    p.foreground = 200;
+    p.mods_down = false;
+    RunScheduledPoll(p);
+    CHECK(got == ReplaceResult::kCancelled);
+    CHECK(p.log.empty());
+  }
+  {  // A second replacement while one waits is cancelled at once.
+    FakeReplace p;
+    p.mods_down = true;
+    ReplaceFlow flow(&p);
+    ReplaceResult first = ReplaceResult::kFailed, second = ReplaceResult::kFailed;
+    flow.Start(6, "x", 100, [&](ReplaceResult r) { first = r; });
+    flow.Start(4, "y", 100, [&](ReplaceResult r) { second = r; });
+    CHECK(second == ReplaceResult::kCancelled);
+    p.mods_down = false;
+    RunScheduledPoll(p);
+    CHECK(first == ReplaceResult::kReplaced);
+  }
+  {  // With the match id: a newer match during the wait cancels the older.
+    FakeReplace p;
+    PendingMatch pending;
+    p.pending = &pending;
+    p.mods_down = true;
+    ReplaceFlow flow(&p);
+    const uint32_t id = pending.Begin(100);
+    p.watch_id = id;
+    ReplaceResult got = ReplaceResult::kFailed;
+    StartReplaceMatch(flow, pending, id, 6, "x",
+                      [&](ReplaceResult r) { got = r; });
+    pending.Begin(100);  // the user typed another shortcut meanwhile
+    p.mods_down = false;
+    RunScheduledPoll(p);
+    CHECK(got == ReplaceResult::kCancelled);
+    CHECK(p.log.empty());
+    // A stale id is answered at once.
+    ReplaceResult stale = ReplaceResult::kFailed;
+    StartReplaceMatch(flow, pending, id, 6, "x",
+                      [&](ReplaceResult r) { stale = r; });
+    CHECK(stale == ReplaceResult::kCancelled);
+  }
+  // A held modifier repeats (key-down after key-down); that is not input
+  // that moves the cursor, so it never counts against the match.
+  for (uint32_t vk : {0x10u, 0x11u, 0x12u, 0xA0u, 0xA1u, 0xA2u, 0xA3u, 0xA4u,
+                      0xA5u, 0x5Bu, 0x5Cu}) {
+    CHECK(IsModifierKey(vk));
+  }
+  for (uint32_t vk : {0x08u, 0x41u, 0x0Du, 0x25u, 0x14u, 0x70u}) {
+    CHECK(!IsModifierKey(vk));
+  }
+  CHECK(kModifierTimeoutMs == 300 && kPollMs == 10);
+}
+
 int main() {
+  TestModifierWait();
   TestIdleDeadline();
   TestMouseDownCancels();
   TestHookHealth();

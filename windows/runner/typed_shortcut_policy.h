@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "clipboard_policy.h"
+#include "picker_policy.h"  // kModifierTimeoutMs, kPollMs (the same rule)
 
 namespace kusunga {
 
@@ -598,7 +599,32 @@ class ReplacePlatform {
   virtual void RestorePrevious() = 0;
   // Overwrites and lets go of the saved text.
   virtual void ForgetPrevious() = 0;
+  // Ctrl, Shift, Alt (AltGr) or Windows is held down now.
+  virtual bool ModifiersDown() = 0;
+  virtual int64_t NowMs() = 0;
 };
+
+// Shift, Ctrl, Alt (either side) and the Windows keys. A held modifier
+// repeats its key-down; that moves no cursor and types nothing, so it never
+// counts as input after a match (C1: Shift held at the last character).
+inline bool IsModifierKey(uint32_t vk) {
+  switch (vk) {
+    case 0x10:  // VK_SHIFT
+    case 0x11:  // VK_CONTROL
+    case 0x12:  // VK_MENU
+    case 0xA0:  // VK_LSHIFT
+    case 0xA1:  // VK_RSHIFT
+    case 0xA2:  // VK_LCONTROL
+    case 0xA3:  // VK_RCONTROL
+    case 0xA4:  // VK_LMENU
+    case 0xA5:  // VK_RMENU
+    case 0x5B:  // VK_LWIN
+    case 0x5C:  // VK_RWIN
+      return true;
+    default:
+      return false;
+  }
+}
 
 // Forgets the saved previous text when it goes out of scope, unless a
 // restore took it over (Keep). So every exit of a replacement that
@@ -688,6 +714,36 @@ class ReplaceFlow {
  public:
   explicit ReplaceFlow(ReplacePlatform* p) : p_(p) {}
 
+  using Done = std::function<void(ReplaceResult)>;
+
+  // C1: the same rule as the picker's paste. A modifier still held (Shift
+  // for the last character, AltGr) would turn Backspace and Ctrl+V into
+  // Ctrl+Alt+Backspace or Ctrl+Shift+V, Kusunga's own picker. So wait on
+  // the platform's timer, never sleeping, up to 300 ms for it to be
+  // released, then Run (which checks the window and the keys again). Still
+  // held after 300 ms: copy only, the code stays (the M1.3 toast). [done]
+  // gets the answer, at once when no modifier is held. One at a time: a
+  // second Start while one waits is cancelled.
+  void Start(int delete_count, std::string text, uintptr_t match_window,
+             Done done) {
+    if (waiting_ || p_->Foreground() != match_window ||
+        p_->KeysSinceMatch() != 0) {
+      done(ReplaceResult::kCancelled);
+      return;
+    }
+    if (!p_->ModifiersDown()) {
+      done(Run(delete_count, text, match_window));
+      return;
+    }
+    waiting_ = true;
+    wait_count_ = delete_count;
+    wait_text_ = std::move(text);
+    wait_window_ = match_window;
+    wait_done_ = std::move(done);
+    wait_started_ms_ = p_->NowMs();
+    p_->Schedule(kPollMs, [this] { Poll(); });
+  }
+
   ReplaceResult Run(int delete_count, const std::string& text,
                     uintptr_t match_window) {
     if (p_->Foreground() != match_window || p_->KeysSinceMatch() != 0) {
@@ -723,6 +779,35 @@ class ReplaceFlow {
   }
 
  private:
+  void Poll() {
+    if (!waiting_) return;
+    if (p_->ModifiersDown()) {
+      if (p_->NowMs() - wait_started_ms_ < kModifierTimeoutMs) {
+        p_->Schedule(kPollMs, [this] { Poll(); });
+        return;
+      }
+      // Still held: nothing is deleted or pasted.
+      if (p_->Foreground() != wait_window_ || p_->KeysSinceMatch() != 0) {
+        Finish(ReplaceResult::kCancelled);
+        return;
+      }
+      uint32_t mine = 0;
+      Finish(p_->WriteSnippet(wait_text_, &mine) ? ReplaceResult::kCopied
+                                                 : ReplaceResult::kFailed);
+      return;
+    }
+    Finish(Run(wait_count_, wait_text_, wait_window_));
+  }
+
+  void Finish(ReplaceResult result) {
+    Done done = std::move(wait_done_);
+    wait_done_ = nullptr;
+    std::fill(wait_text_.begin(), wait_text_.end(), ' ');
+    wait_text_.clear();
+    waiting_ = false;
+    if (done) done(result);
+  }
+
   void RestoreDue(uint32_t mine) {
     if (!pending_ || pending_mine_ != mine) return;  // a newer one took over
     pending_ = false;
@@ -733,11 +818,36 @@ class ReplaceFlow {
   ReplacePlatform* p_;
   bool pending_ = false;
   uint32_t pending_mine_ = 0;
+
+  // A replacement waiting for the modifiers to be released (C1).
+  bool waiting_ = false;
+  int wait_count_ = 0;
+  std::string wait_text_;
+  uintptr_t wait_window_ = 0;
+  Done wait_done_;
+  int64_t wait_started_ms_ = 0;
 };
 
 // Replaces for [match_id] only if it is still the newest match (C2): an
 // answer for an older match is cancelled and sends nothing. The match ends
-// either way.
+// either way. [done] gets the answer, perhaps after waiting for modifiers
+// to be released (C1).
+inline void StartReplaceMatch(ReplaceFlow& flow, PendingMatch& pending,
+                              uint32_t match_id, int delete_count,
+                              std::string text, ReplaceFlow::Done done) {
+  uintptr_t window = 0;
+  if (!pending.Get(match_id, &window, nullptr)) {
+    done(ReplaceResult::kCancelled);
+    return;
+  }
+  flow.Start(delete_count, std::move(text), window,
+             [&pending, match_id, done = std::move(done)](ReplaceResult r) {
+               pending.End(match_id);
+               done(r);
+             });
+}
+
+// The same, for a replacement that never waits (no modifier held).
 inline ReplaceResult ReplaceMatch(ReplaceFlow& flow, PendingMatch& pending,
                                   uint32_t match_id, int delete_count,
                                   const std::string& text) {

@@ -159,7 +159,7 @@ On each added character, native checks whether the buffer ends with a shortcut. 
 
 1. Check that the front app is still the one where the match happened. If not, cancel and send nothing.
 2. Write the snippet to the clipboard, then post K Backspaces only if the write succeeded; if it failed, nothing is deleted and the code stays (reviewer C3, 2026-11-08). The write is marked transient and concealed (Mac `org.nspasteboard.TransientType` and `ConcealedType`; Windows `ExcludeClipboardContentFromMonitorProcessing`), so other clipboard managers don't save it.
-3. Post ⌘V or Ctrl+V with the M1.3 paste flow.
+3. Post ⌘V or Ctrl+V with the M1.3 paste flow. On Windows, as in the picker, nothing is sent while Ctrl, Shift, Alt (AltGr) or Windows is still held (Shift for the last character would turn Ctrl+V into Ctrl+Shift+V): Kusunga waits on a timer, never sleeping, up to 300 ms for it to be released; otherwise the code stays and the snippet is only copied, with the M1.3 toast (reviewer C1, 2026-11-08). A held modifier's repeats do not count as typing after the match.
 4. Then follow D2. If D2 is A, after 500 ms put back the previous clipboard text. If the previous clipboard held something other than text, leave the snippet there; Kusunga only handles text.
 5. Kusunga's own posted keys carry a marker (Mac `eventSourceUserData`; Windows `dwExtraInfo`), so the hook never feeds them back into the buffer.
 6. Kusunga's own clipboard writes are skipped by the history watcher using the M1.4 change-number check. A typed shortcut never adds to history, as decided for the picker in M1.4 D1.

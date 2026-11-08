@@ -6,6 +6,7 @@
 #include <flutter/method_channel.h>
 #include <windows.h>
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <set>
@@ -57,8 +58,9 @@ class TypedShortcutBridge {
   TypedShortcutBridge& operator=(const TypedShortcutBridge&) = delete;
 
   // Handles the bridge's own WM_APP messages (a checked match, the hooks
-  // lost or put back), WM_TIMER for the 0.5 s restore, and looks at
-  // WM_ACTIVATE (put the hooks back) without handling it.
+  // lost or put back), WM_TIMER for the replacement's timers (the 0.5 s
+  // restore, the modifier poll), and looks at WM_ACTIVATE (put the hooks
+  // back) without handling it.
   std::optional<LRESULT> HandleMessage(UINT message, WPARAM wparam,
                                        LPARAM lparam);
 
@@ -73,8 +75,10 @@ class TypedShortcutBridge {
   void Stop(const char* status);
   void SetStatus(const char* status);
   void OnMatched(int snippet_id, int delete_count, uint32_t match_id);
-  std::string Replace(uint32_t match_id, int delete_count,
-                      const std::string& text);
+  // Answers through [answer], at once or after waiting for held modifiers
+  // to be released (C1, never sleeping).
+  void Replace(uint32_t match_id, int delete_count, const std::string& text,
+               std::function<void(const char*)> answer);
 
   HWND window_;
   kusunga::OwnClipboardChanges* own_;
