@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.5 Typed shortcuts — developer fixed U1, U2, T2
+- Changed: Developer fixed T2 (789424c: a lone surrogate is refused with the existing "Shortcuts can't have spaces or line breaks." copy), U1 (8ee34cc: chip names shrink and end with an ellipsis; Remove stays on screen; full name in the accessible name) and U2 (ffecef4: toasts in the section queue, so each removal keeps its Undo for 5 s; "Preset list restored" still replaces the current toast). The repros are now normal tests; failing runs on the old code: T2 "Expected: not null Actual: <null>", U1 "RenderFlex overflowed by 550 pixels", U1b "by 102 pixels", U2 "Found 0 widgets with text \"Bitwarden removed\"". ./tool/check.sh 2573 passed, 10 skipped (T1 and T1b repros stay skipped); test_mac_shortcuts.sh 79, 0 failures; test_windows_policy.sh all passed. Side effect: a second removal's toast waits until the first closes (up to 5 s). Shortcut rules and native matchers unchanged.
+- Gates: design approved · developer done (round 2) · tester findings U1, U2, T2 fixed · reviewer to be briefed · QA not started · PM merge n/a yet
+- Open findings: T1 low and notes N1-N3, waiting for the PM
+- Decisions: none
+- Blockers: PM — T1 and N1-N3 (widen the clash rule; refuse emoji and combining marks); Q4 Windows icons; 3 spec deviations; Input Monitoring grant for QA; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-08 — M1.5 Typed shortcuts — tester report
 - Changed: Tester (sonnet) added 133 tests in eab7e73, 78466a4, f1df693 (Swift 38, C++ 8 functions with about 380 assertions, Dart 52 + 6 skipped finding repros). Mutation runs showed the tests fail when reset keys, the 5 s idle clear, the Alt reset, the ignored-app skip or the per-character injected check are removed. ./tool/check.sh 2569 passed, 14 skipped (6 are finding repros, run with KUSUNGA_REPRO=1); test_mac_shortcuts.sh 79 pass; test_windows_policy.sh all pass. No production code changed; Kusunga not launched; xcodebuild test not run. Abuse cases 5/6 (remote desktop out of scope). UI states 13/17; real tap, hooks, UIA, secure input, clipboard and timing need QA.
 - Gates: design approved · developer done · tester findings · reviewer, QA not started · PM merge n/a yet
