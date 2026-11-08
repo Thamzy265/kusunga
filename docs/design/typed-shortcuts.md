@@ -1,6 +1,6 @@
 # M1.5 Typed shortcuts — design note
 
-Date: 2026-11-08 — Size: large — keyboard monitoring in every app, a new trust boundary (keys typed in other apps, and keystrokes Kusunga posts into them), personal data (what the user types), a schema change and new native code on Mac and Windows — Phase: MVP — Status: draft, waiting for PM
+Date: 2026-11-08 — Size: large — keyboard monitoring in every app, a new trust boundary (keys typed in other apps, and keystrokes Kusunga posts into them), personal data (what the user types), a schema change and new native code on Mac and Windows — Phase: MVP — Status: approved by PM 2026-11-08 ("Approve as recommended": option A, D1–D6 all A)
 
 ## Context
 
@@ -113,7 +113,7 @@ INSERT INTO settings (key, value) VALUES ('typed_shortcuts_on', 0);
 
 Option A, recorded in ADR 0004 (`docs/adr/0004-typed-shortcut-matching-in-native-code.md`). It is hard to reverse, because the privacy promise in the UI copy depends on it. We give up a single shared matcher.
 
-PM decisions D1 to D6 are open; see "Decisions for the PM".
+PM decisions D1 to D6: all option A (PM, 2026-11-08). See "Decisions for the PM".
 
 ## How it works
 

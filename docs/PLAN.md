@@ -13,6 +13,7 @@ Phase: MVP. Approved by the PM on 2026-11-03 (deck: `docs/slides/mvp-plan.html`)
 - M1.3 (2026-11-04): taken-shortcut reporting accepted as a Mac limitation (Windows only).
 - M1.3 (2026-11-04): direct notarised Mac download with the App Sandbox on (ADR 0003); default picker shortcut ⌘⇧V / Ctrl+Shift+V; pasted item stays on the clipboard; design approved.
 - M1.4 (2026-11-04): snippets in the same encrypted file; pasting a snippet does not add it to history; pinning copies (the item stays in history); the picker always opens on History; bank and card details allowed with a note until the M2 vault; design approved.
+- M1.5 (2026-11-08): matching in native code, typed keys never leave it (ADR 0004); a shortcut fires as soon as it is typed and may not start another; the previous clipboard text is put back after 0.5 s; off until the user turns it on; ignored-apps list built now (M1.6 reuses it); keys sent by other software are ignored; keystroke-watching DPIA in the M1.9 DPIA; design approved.
 - M1.2 (2026-11-03): default history 200 items (range 10–5,000); keychain failure → memory only with a warning; Apple Developer account only if unsigned builds cannot use the Keychain; scope change approved.
 Research behind this plan: `docs/marketing/competitor-research.md`.
 
@@ -67,6 +68,7 @@ Everything stays on the device. No account, no server.
   - AC: each snippet can have a shortcut such as `;email`; typing it in any app replaces it with the snippet.
   - AC: shortcuts do not fire in password fields or in apps on the ignore list.
   - AC: a single switch turns typed shortcuts off.
+  - Design: `docs/design/typed-shortcuts.md`, ADR 0004, UI spec `docs/ui/typed-shortcuts.md`, deck `docs/slides/typed-shortcuts.html` (approved 2026-11-08).
 - [ ] **M1.6 Sensitive-content protection** — large (personal data).
   - (Secret-marker skip moved to M1.2.)
   - AC: an app ignore list (preset with common password managers and banking apps) stops capture from those apps.
@@ -82,7 +84,7 @@ Everything stays on the device. No account, no server.
   - AC: Hardened Runtime enabled for the macOS build (notarisation needs it).
   - AC: the Mac history key moves from the login keychain to the data-protection keychain, with a key move (read old item, write new, delete old) so no user's history is moved aside; must be done before the first external beta (PM decision 2026-11-03).
   - AC: release notes and a rollback plan exist; the PM approves the release.
-  - AC: a short DPIA is written in `docs/design/dpia.md` and the PM signs it off before the beta.
+  - AC: a short DPIA is written in `docs/design/dpia.md` and the PM signs it off before the beta; it covers typed-shortcut keystroke watching (M1.5 D6, PM 2026-11-08).
   - AC: the app's licence page includes the SQLite3 Multiple Ciphers MIT notice (reviewer note, 2026-11-03).
   - AC: profile and release macOS builds succeed on the current macOS (Flutter 3.44.6 fails on macOS 27: the new `lipo` takes one architecture per `-verify_arch`; workaround `ARCHS = arm64` or a Flutter update), and the built architectures are stated (developer note, 2026-11-05).
   - AC: the minimum macOS (12.0, forced by Xcode 27.2 in M1.3) is stated in ADR 0003 or the README and in the release notes (reviewer note C7, 2026-11-04).
@@ -134,3 +136,8 @@ Needs its own design note and deck. Mobile cannot record clipboard history in th
 - Snippet folders or tags — a flat list is enough at a few dozen snippets — trigger: median beta user has > 50 snippets, or ≥ 10 requests — noted 2026-11-04 by lead
 - Paste counts and "most used" snippet order — no use until the list is long — trigger: median beta user has > 30 snippets — noted 2026-11-04 by lead
 - Snippet editor: lay out very long content lazily (today the whole text is laid out, so pasting one unbroken 1 MiB line can take seconds) — fixed text like a phone number is a few bytes — trigger: pasting 100 KB into the editor takes > 1 s on the QA Mac, or ≥ 3 beta reports of a slow editor — noted 2026-11-04 by developer
+- Undo a typed-shortcut replacement with Backspace straight after it — not needed to paste fixed text — trigger: ≥ 10 beta requests, or ≥ 5 reports of an unwanted replacement — noted 2026-11-08 by lead
+- Per-app typed-shortcut sets — one global set covers personal use — trigger: ≥ 10 beta requests — noted 2026-11-08 by lead
+- Typed shortcuts with input methods (Chinese, Japanese, Korean) and dead keys — shortcuts are usually ASCII such as ;email — trigger: ≥ 5 beta reports of a shortcut that won't fire — noted 2026-11-08 by lead
+- Typed shortcuts in Windows apps running as administrator (needs an elevated helper) — rare, and a large security change — trigger: ≥ 5 beta reports — noted 2026-11-08 by lead
+- Typed shortcuts from on-screen keyboards and remote-desktop tools — ignored for safety (M1.5 D5) — trigger: ≥ 5 beta reports from such users — noted 2026-11-08 by lead

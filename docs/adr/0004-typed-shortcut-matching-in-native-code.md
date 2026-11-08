@@ -4,7 +4,7 @@ Date: 2026-11-08
 
 ## Status
 
-Proposed (waiting for PM, with the M1.5 deck)
+Accepted (PM, 2026-11-08)
 
 ## Context
 

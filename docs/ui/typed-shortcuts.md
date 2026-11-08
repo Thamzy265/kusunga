@@ -1,6 +1,6 @@
 # M1.5 Typed shortcuts — UI spec
 
-Date: 2026-11-08 — Design note: `docs/design/typed-shortcuts.md` — Status: draft, waiting for PM
+Date: 2026-11-08 — Design note: `docs/design/typed-shortcuts.md` — Status: approved by PM 2026-11-08
 
 ## User and task
 
