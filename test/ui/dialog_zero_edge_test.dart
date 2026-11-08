@@ -521,61 +521,51 @@ void main() {
       await settle(tester);
     }
 
-    testWidgets(
-      '"Set limit" by Tab and Enter: it sets the limit and '
-      'deletes nothing, and the field then shows it',
-      (tester) async {
-        await atZero(tester);
-        expect(keepZero(), findsOneWidget);
-        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-        await tester.pump();
-        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-        await settle(tester);
-        expect(find.byType(AlertDialog), findsNothing);
-        expect(service.limit, 10);
-        expect(service.items, hasLength(8));
-        expect(
-          tester
-              .widget<TextField>(
-                find.descendant(
-                  of: find.byType(LimitField),
-                  matching: find.byType(TextField),
-                ),
-              )
-              .controller!
-              .text,
-          '10',
-        );
-      },
-      skip: true,
-    ); // BUG-D1: focus leaves the Keep dialog when its count changes
+    testWidgets('"Set limit" by Tab and Enter: it sets the limit and '
+        'deletes nothing, and the field then shows it', (tester) async {
+      await atZero(tester);
+      expect(keepZero(), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await settle(tester);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(service.limit, 10);
+      expect(service.items, hasLength(10));
+      expect(
+        tester
+            .widget<TextField>(
+              find.descendant(
+                of: find.byType(LimitField),
+                matching: find.byType(TextField),
+              ),
+            )
+            .controller!
+            .text,
+        '10',
+      );
+    });
 
-    testWidgets(
-      '"Set limit" by Tab and Space',
-      (tester) async {
-        await atZero(tester);
-        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-        await tester.pump();
-        await tester.sendKeyEvent(LogicalKeyboardKey.space);
-        await settle(tester);
-        expect(service.limit, 10);
-        expect(service.items, hasLength(10));
-      },
-      skip: true,
-    ); // BUG-D1: focus leaves the Keep dialog when its count changes
+    testWidgets('"Set limit" by Tab and Space', (tester) async {
+      await atZero(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await settle(tester);
+      expect(service.limit, 10);
+      expect(service.items, hasLength(10));
+    });
 
-    testWidgets(
-      'Enter on the default focus (Cancel) at 0 keeps the old '
-      'limit',
-      (tester) async {
-        await atZero(tester);
-        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-        await settle(tester);
-        expect(service.limit, 200);
-        expect(service.items, hasLength(10));
-      },
-      skip: true,
-    ); // BUG-D1: focus leaves the Keep dialog when its count changes
+    testWidgets('Enter on the default focus (Cancel) at 0 keeps the old '
+        'limit', (tester) async {
+      await atZero(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await settle(tester);
+      // Enter reached Cancel, not a row behind the dialog (BUG-D1).
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(service.limit, 200);
+      expect(service.items, hasLength(10));
+    });
 
     testWidgets('after "Set limit" the limit field works for a second, '
         'lower change, and a raise', (tester) async {
@@ -656,12 +646,17 @@ void main() {
       source.copy('the count changes while the dialog is open');
       await settle(tester);
       final before = service.items.length;
-      for (var i = 0; i < 3; i++) {
+      // Tab, Tab from Cancel is back on Cancel (the dialog has two
+      // controls): Enter then closes it and touches nothing. Three Tabs
+      // would be on the dialog's own "Delete 4 items", and Enter there is
+      // its confirm, not a row behind it.
+      for (var i = 0; i < 2; i++) {
         await tester.sendKeyEvent(LogicalKeyboardKey.tab);
         await tester.pump();
       }
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await settle(tester);
+      expect(find.byType(AlertDialog), findsNothing, reason: 'Enter on Cancel');
       expect(
         service.items.length,
         before,
@@ -670,10 +665,20 @@ void main() {
             'was deleted with the keyboard',
       );
       expect(service.limit, 200);
+      // Again with three Tabs and Escape: it closes, whatever Tab reached.
+      await lowerLimitTo(tester, 10);
+      source.copy('another while open');
+      await settle(tester);
+      for (var i = 0; i < 3; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+      }
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await settle(tester);
       expect(find.byType(AlertDialog), findsNothing, reason: 'Escape');
-    }, skip: true);
+      expect(service.items.length, before + 1);
+      expect(service.limit, 200);
+    });
 
     testWidgets('the Clear history dialog keeps the focus inside when a '
         'copy arrives: Escape closes it and nothing behind is touched', (

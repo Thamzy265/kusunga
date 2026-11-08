@@ -716,6 +716,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final items = _service.items;
     _prune(items);
     final setupCard = _service.pasteAccess == PasteAccess.needsSetup;
+    // The first row asks for the focus whenever a row becomes the first one,
+    // and Flutter grants it whenever this route's scope has no focused child
+    // (none after Enter in the limit field: the field unfocuses itself),
+    // whichever route holds the focus. So while a dialog or a menu is on top
+    // the rows never ask: a copy or a delete must not pull the focus out of
+    // it (BUG-D1). Reading the route status here rebuilds on push and pop.
+    final routeIsCurrent = ModalRoute.isCurrentOf(context) ?? true;
 
     return ScaffoldMessenger(
       key: _messenger,
@@ -791,7 +798,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   child: _EmptyState(),
                                 )
                               else
-                                _list(items, setupCard),
+                                _list(items, setupCard, routeIsCurrent),
                             ],
                           ),
                         ),
@@ -824,7 +831,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ctx.findAncestorWidgetOfExactType<EditableText>() != null;
   }
 
-  Widget _list(List<ClipItem> items, bool setupCard) {
+  Widget _list(List<ClipItem> items, bool setupCard, bool routeIsCurrent) {
     final now = _nowMs;
     // Tab enters the list at the rows in view, and every row it reaches is
     // scrolled into view (QA-M14-5).
@@ -849,7 +856,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 focusNode: _nodeFor(item.id),
                 nowMs: now,
                 animateIn: _newIds.contains(item.id),
-                autofocus: i == 0 && !setupCard,
+                autofocus: i == 0 && !setupCard && routeIsCurrent,
                 onCopy: () => _copy(item.id),
                 onDelete: () => _delete(item.id),
                 onMove: (m) => _move(item.id, m),
