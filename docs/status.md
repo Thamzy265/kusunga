@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.5 Typed shortcuts — design approved by PM
+- Changed: PM approved the M1.5 deck (docs/slides/typed-shortcuts.html) with every recommendation. ADR 0004 accepted. Design note and UI spec marked approved on feat/typed-shortcuts.
+- Gates: design approved · developer to be briefed (opus, xhigh — data model change, personal data, several modules) · tester, reviewer, QA not started · PM merge n/a yet
+- Open findings: none
+- Decisions: PM (2026-11-08): "Approve as recommended". This approves: option A, matching in native code (ADR 0004); D1 A, a shortcut fires as soon as its last character is typed and no shortcut may be the start of another; D2 A, the previous clipboard text is put back after 0.5 s; D3 A, typed shortcuts are off until the user turns them on; D4 A, the ignored-apps list is built now with password managers preset and M1.6 reuses it; D5 A, keys sent by other software are ignored; D6 A, the DPIA for keystroke watching goes into the M1.9 DPIA; lawful basis n/a while nothing leaves the device (as plan D7).
+- Blockers: PM — M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item) · Lead — the plugin role agents are not loaded; roles run as subagents that load their my-tech-team skill, with the model and effort from the role table
+
 ## 2026-11-08 — M1.5 Typed shortcuts — design ready for PM
 - Changed: PM said "Yes, start M1.5". Size: large — keyboard monitoring in every app, a new trust boundary, personal data, schema v4 and new native code on Mac and Windows. Branch feat/typed-shortcuts from main 8abfcf0. Design note docs/design/typed-shortcuts.md, ADR 0004 (proposed: matching in native code, typed keys never leave it), UI spec docs/ui/typed-shortcuts.md, deck docs/slides/typed-shortcuts.html. Recommended option A (native matcher).
 - Gates: design waiting for PM approval · developer not briefed · tester, reviewer, QA not started · PM merge n/a yet
