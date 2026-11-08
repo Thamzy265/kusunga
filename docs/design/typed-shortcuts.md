@@ -174,8 +174,13 @@ On each added character, native checks whether the buffer ends with a shortcut. 
   - `setEnabled(bool)`;
   - `status()`;
   - `replace(deleteCount, text)`;
-  - the event `matched(snippetId, deleteCount)`.
-- No call carries typed characters.
+  - the event `matched(snippetId, deleteCount)`;
+  - added by the lead on 2026-11-08 to serve the approved UI (developer Q1):
+    - `runningApps()` → `[{appId, name, icon PNG bytes or null}]`, for "Add app…";
+    - `requestListenAccess()`, for the explanation card's Continue;
+    - `openInputMonitoringSettings()`;
+    - the event `statusChanged(code)`.
+- No call carries typed characters. App names travel only in `runningApps()` and live only in the encrypted `ignored_apps` table. They never appear in a log, or in `matched` or anything else tied to typing.
 
 ## Failure plan
 
