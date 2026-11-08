@@ -126,6 +126,5 @@ void main() {
       await tester.pump(const Duration(milliseconds: 600));
       expect(find.text('Bitwarden removed'), findsOneWidget);
     },
-    skip: true, // U2 is fixed in the next commit
   );
 }

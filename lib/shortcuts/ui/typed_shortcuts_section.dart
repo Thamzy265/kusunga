@@ -139,20 +139,28 @@ class _TypedShortcutsSectionState extends State<TypedShortcutsSection> {
     }
   }
 
-  void _toast(String text, {SnackBarAction? action, Duration? duration}) {
+  /// Toasts queue: a new one never hides an earlier Undo, so each removal
+  /// keeps its Undo for 5 s (U2). Only [replace] (the preset list is back,
+  /// so an earlier Undo has nothing left to do) takes the place of the one
+  /// showing.
+  void _toast(
+    String text, {
+    SnackBarAction? action,
+    Duration? duration,
+    bool replace = false,
+  }) {
     final m = ScaffoldMessenger.maybeOf(context);
-    m
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(text),
-          action: action,
-          duration: duration ?? const Duration(seconds: 2),
-          persist: false,
-          behavior: SnackBarBehavior.floating,
-          width: 320,
-        ),
-      );
+    if (replace) m?.hideCurrentSnackBar();
+    m?.showSnackBar(
+      SnackBar(
+        content: Text(text),
+        action: action,
+        duration: duration ?? const Duration(seconds: 2),
+        persist: false,
+        behavior: SnackBarBehavior.floating,
+        width: 320,
+      ),
+    );
   }
 
   void _remove(IgnoredApp app) {
@@ -174,7 +182,8 @@ class _TypedShortcutsSectionState extends State<TypedShortcutsSection> {
   }
 
   void _restore() {
-    _toast(_s.restorePresets() ? _presetRestored : _listFailed);
+    final ok = _s.restorePresets();
+    _toast(ok ? _presetRestored : _listFailed, replace: ok);
   }
 
   Future<void> _addApp() async {
