@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.5 Typed shortcuts — tester round 4 (L1): pass
+- Changed: Tester re-checked f37243f and added 6a47610 (11 Swift tests, 1 C++ function with about 40 assertions). 8 mutation runs, each caught. Covered: sequence wrap 0xFFFFFFFF to 0; moves larger than 1; an earlier pending restore valid, stale or failing; privacy markers kept on the write-back; non-text previous clipboard; the copy-only paths unchanged. ./tool/check.sh 2589 passed, 10 skipped; test_mac_shortcuts.sh 133; test_windows_policy.sh all pass. No production code changed.
+- Gates: design approved · developer done (L1) · tester pass (round 4) · reviewer re-check of f37243f to be briefed · QA not started · PM merge n/a yet
+- Open findings: none. Notes: N8 on the copy-only paths and for a non-text previous clipboard nothing is saved, so a write that fails after the clear still loses the previous clipboard (pre-existing, same as M1.3); N9 a user copy during the few milliseconds of a failed write is overwritten by the saved text
+- Decisions: none
+- Blockers: PM — rich copies (keep as designed or restore every format); Input Monitoring grant for QA; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-08 — M1.5 Typed shortcuts — developer fixed L1
 - Changed: Developer fixed L1 in f37243f: before the snippet write the flow notes the clipboard change number (Mac change count, Windows sequence number); if the write fails and the number moved, the saved text is written back once with its privacy marks, then forgotten. Logic in the Swift core and C++ policy header; the shared M1.3 clipboard_bridge.cpp and the Mac bridge write are unchanged; design note step 2 has one added sentence. Failing run first (C++ 4 failed lines; Swift 5 tests, 6 failures). ./tool/check.sh +2589 ~10; test_mac_shortcuts.sh 121; test_windows_policy.sh all pass; macOS debug build ok. Not changed: copy-only paths (Mac without post permission, Windows modifiers held) read no previous text, as M1.3. Windows sequence-number behaviour on EmptyClipboard not checked on a real machine.
 - Gates: design approved · developer done (L1) · tester re-check of f37243f to be briefed · reviewer approve with notes, re-check of f37243f after the tester · QA not started · PM merge n/a yet
