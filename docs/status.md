@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.4 Saved snippets — Reviewer re-check: approve with notes; F-M1 (Low) to the developer
+- Changed: reviewer re-checked 0f55781..432131d: approve with notes. No path takes focus from behind a dialog or menu; BUG-D1 to D4 fixed (61c8cf3, 578ee22); PM's "Close or relabel" built as recorded (be09a77); auto-close sound (listens only while mounted, closes once, in-memory count, removeRoute when another route is on top); dropped D3 requests leave no state; focus return matches docs/ui/clipboard-history.md; Tab-out trade-off accepted (WCAG 2.4.3). D5 no_change_needed. check.sh +2363 ~8 passed (reviewer ran it). New: F-M1 (Low) — _focusMore relies on PopupMenuButton's private focus node being the first child of _moreWrap; a Flutter change could make the focus return silently do nothing (fails safe). F-M1 sent to the developer.
+- Gates: developer in progress (F-M1) · tester pass (round 17) · reviewer approve with notes · QA re-run pending (needs the Mac) · PM merge waiting
+- Open findings: F-M1 (Low); N1, N2, F5 (Windows), R1 unchanged
+- Decisions: none new
+- Blockers: PM — free the Mac for the QA re-run; VoiceOver sign-off; confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; push of local main
+
 ## 2026-11-08 — M1.4 Saved snippets — Tester round 17: D2-D4 fixes hold; reviewer re-check started
 - Changed: tester round 17 on 60b557b..578ee22 (432131d, tests only): about 79 tests in test/ui/dialog_focus_return_edge_test.dart, 31 fail on 60b557b, 0 on HEAD. Focus returns to the opener on every open/close path over five "meanwhile" events (none, copy, burst, first row deleted, setup card); More menu dismissal; Tab-out gives no trap or loop; dropped D3 requests leave no hold and later End/Home/text-size work; _moreWrap adds no Tab stop or semantics node; nested dialogs keep focus; screen removed while a return is pending is safe. No new bugs. Picker-over-dialog observation (D5) not reproduced in 9 widget-test combinations; if real it predates this branch (M1.3) and is low; QA to check manually. check.sh +2363 ~8 passed. Reviewer re-check of 0f55781..432131d started.
 - Gates: developer done · tester pass (round 17) · reviewer re-check in progress · QA re-run pending (needs the Mac; includes the D5 manual check and the qa-m13-* cleanup) · PM merge waiting
