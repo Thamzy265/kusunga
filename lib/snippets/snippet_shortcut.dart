@@ -17,7 +17,9 @@ enum ShortcutProblem {
   /// Under 2 or over 32 characters.
   length,
 
-  /// A space, a tab, a line break or another invisible control character.
+  /// A space, a tab, a line break, another invisible control character, or
+  /// half of a character (a lone UTF-16 surrogate, which the database would
+  /// store as U+FFFD).
   spaces,
 }
 
@@ -39,6 +41,7 @@ ShortcutProblem? checkShortcutText(String shortcut) {
 }
 
 bool _isSpaceOrControl(int r) =>
+    (r >= 0xD800 && r <= 0xDFFF) || // a lone surrogate (T2)
     r < 0x20 ||
     r == 0x20 ||
     r == 0x7F ||

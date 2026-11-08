@@ -65,8 +65,11 @@ void main() {
   // U+FFFD, so what native gets is not what the user typed, and two different
   // lone-surrogate shortcuts collide in the unique index (a generic "save
   // failed" instead of a clash message).
+  // Fixed: refused with the existing "can't have" error (spaces problem).
   test('T2 a lone surrogate is not a valid shortcut', () {
-    expect(checkShortcutText('\uD800a'), isNotNull);
-    expect(checkShortcutText('a\uDC00'), isNotNull);
-  }, skip: _skip);
+    expect(checkShortcutText('\uD800a'), ShortcutProblem.spaces);
+    expect(checkShortcutText('a\uDC00'), ShortcutProblem.spaces);
+    // A whole surrogate pair (an emoji) is still fine.
+    expect(checkShortcutText(';\u{1F600}'), isNull);
+  });
 }
