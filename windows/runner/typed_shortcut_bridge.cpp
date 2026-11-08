@@ -238,9 +238,6 @@ class WinReplacePlatform : public kusunga::ReplacePlatform {
         found = true;
       }
     }
-    const UINT exclude = ::RegisterClipboardFormatW(
-        L"ExcludeClipboardContentFromMonitorProcessing");
-    saved_secret_ = exclude != 0 && ::IsClipboardFormatAvailable(exclude);
     ::CloseClipboard();
     has_saved_ = found;
     return found;
@@ -259,7 +256,7 @@ class WinReplacePlatform : public kusunga::ReplacePlatform {
 
   bool WriteSnippet(const std::string& text, uint32_t* sequence) override {
     if (!WriteClipboardText(bridge_->window_, bridge_->format_own_, text,
-                            bridge_->own_, /*exclude_from_monitors=*/true)) {
+                            bridge_->own_, kusunga::SnippetMarks())) {
       return false;
     }
     *sequence = ::GetClipboardSequenceNumber();
@@ -297,10 +294,11 @@ class WinReplacePlatform : public kusunga::ReplacePlatform {
 
   uint32_t Sequence() override { return ::GetClipboardSequenceNumber(); }
 
+  // Always marked "don't keep", whatever marks the copy had (S1).
   void RestorePrevious() override {
     if (!has_saved_) return;
     WriteClipboardText(bridge_->window_, bridge_->format_own_, Utf8Of(saved_),
-                       bridge_->own_, saved_secret_);
+                       bridge_->own_, kusunga::RestoreMarks());
   }
 
  private:
@@ -309,13 +307,11 @@ class WinReplacePlatform : public kusunga::ReplacePlatform {
     std::fill(saved_.begin(), saved_.end(), L' ');
     saved_.clear();
     has_saved_ = false;
-    saved_secret_ = false;
   }
 
   TypedShortcutBridge* bridge_;
   std::wstring saved_;
   bool has_saved_ = false;
-  bool saved_secret_ = false;
   std::function<void()> work_;
 };
 

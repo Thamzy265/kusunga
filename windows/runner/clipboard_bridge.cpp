@@ -69,11 +69,26 @@ bool ReadDword(UINT format, uint32_t* value) {
   return true;
 }
 
+// Adds a registered format holding one DWORD to the open clipboard.
+void SetDwordFormat(const wchar_t* name, DWORD value) {
+  const UINT format = ::RegisterClipboardFormatW(name);
+  HGLOBAL memory = format ? ::GlobalAlloc(GMEM_MOVEABLE, sizeof(DWORD)) : nullptr;
+  if (!memory) return;
+  void* data = ::GlobalLock(memory);
+  if (!data) {
+    ::GlobalFree(memory);
+    return;
+  }
+  *static_cast<DWORD*>(data) = value;
+  ::GlobalUnlock(memory);
+  if (!::SetClipboardData(format, memory)) ::GlobalFree(memory);
+}
+
 }  // namespace
 
 bool WriteClipboardText(HWND window, UINT format_own, const std::string& text,
                         kusunga::OwnClipboardChanges* own,
-                        bool exclude_from_monitors) {
+                        const kusunga::ClipboardMarks& marks) {
   const std::wstring wide = ToWide(text);
   if (wide.empty() && !text.empty()) return false;
   if (own) own->BeginWrite();
@@ -118,20 +133,13 @@ bool WriteClipboardText(HWND window, UINT format_own, const std::string& text,
       }
     }
   }
-  if (ok && exclude_from_monitors) {
-    const UINT exclude = ::RegisterClipboardFormatW(
-        L"ExcludeClipboardContentFromMonitorProcessing");
-    HGLOBAL flag = exclude ? ::GlobalAlloc(GMEM_MOVEABLE, sizeof(DWORD)) : nullptr;
-    if (flag) {
-      void* data = ::GlobalLock(flag);
-      if (data) {
-        *static_cast<DWORD*>(data) = 0;
-        ::GlobalUnlock(flag);
-        if (!::SetClipboardData(exclude, flag)) ::GlobalFree(flag);
-      } else {
-        ::GlobalFree(flag);
-      }
+  if (ok) {
+    // The "don't keep this" formats (typed shortcuts): each is a DWORD.
+    if (marks.exclude_from_monitor) {
+      SetDwordFormat(L"ExcludeClipboardContentFromMonitorProcessing", 0);
     }
+    if (marks.no_history) SetDwordFormat(L"CanIncludeInClipboardHistory", 0);
+    if (marks.no_cloud) SetDwordFormat(L"CanUploadToCloudClipboard", 0);
   }
   ::CloseClipboard();
   // Read at once, before any message is handled: this number is ours.

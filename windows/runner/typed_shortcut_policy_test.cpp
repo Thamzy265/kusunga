@@ -714,7 +714,33 @@ static void TestEdgeReplace() {
   CHECK(!IsOwnKey(0x4B534E48));
 }
 
+// S1: the text put back after a shortcut is always marked "don't keep",
+// whatever marks it had, so a copy marked only CanIncludeInClipboardHistory=0
+// (or not at all) never lands in Windows clipboard history, the cloud
+// clipboard or another clipboard manager.
+static void TestRestoreMarks() {
+  ClipboardFlags history_only{};
+  history_only.has_can_include = true;
+  history_only.can_include_value = 0;
+  CHECK(IsSecret(history_only));  // it was a secret copy
+  const ClipboardMarks m = RestoreMarks();
+  CHECK(m.exclude_from_monitor);
+  CHECK(m.no_history);
+  CHECK(m.no_cloud);
+  // The same marks for a plain previous copy: never weaker.
+  ClipboardFlags plain{};
+  CHECK(!IsSecret(plain));
+  CHECK(RestoreMarks().exclude_from_monitor && RestoreMarks().no_history &&
+        RestoreMarks().no_cloud);
+  // The snippet itself stays excluded from clipboard monitors.
+  CHECK(SnippetMarks().exclude_from_monitor);
+  // Nothing marked by default (the picker and "writeOwn" stay as they are).
+  const ClipboardMarks none{};
+  CHECK(!none.exclude_from_monitor && !none.no_history && !none.no_cloud);
+}
+
 int main() {
+  TestRestoreMarks();
   TestReplace();
   TestBuffer();
   TestTable();

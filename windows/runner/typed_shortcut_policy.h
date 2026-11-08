@@ -20,6 +20,8 @@
 #include <utility>
 #include <vector>
 
+#include "clipboard_policy.h"
+
 namespace kusunga {
 
 // ---- Text helpers (UTF-8 from Dart, UTF-16 from ToUnicodeEx) ----
@@ -377,6 +379,14 @@ class ReplacePlatform {
   // Writes the saved text back as Kusunga's own change, then forgets it.
   virtual void RestorePrevious() = 0;
 };
+
+// The snippet a shortcut pastes is excluded from clipboard monitors. The
+// previous text put back after it (D2) is always marked with all three
+// "don't keep" formats, whatever marks it had: a password manager may have
+// used any one of them (CanIncludeInClipboardHistory=0 alone, for example),
+// so marking it always is the only way never to make it weaker (S1).
+inline ClipboardMarks SnippetMarks() { return {true, false, false}; }
+inline ClipboardMarks RestoreMarks() { return {true, true, true}; }
 
 enum class ReplaceResult { kReplaced, kCancelled, kCopied, kFailed };
 
