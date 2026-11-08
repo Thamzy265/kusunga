@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'dart:convert';
 
+import '../shortcuts/ignored_apps.dart';
 import '../snippets/sqlite_snippet_store.dart';
 import 'clip_item.dart';
 import 'history_store.dart';
@@ -167,6 +168,11 @@ class SqliteHistoryStore implements HistoryStore {
   /// Closing the history closes it.
   SqliteSnippetStore snippetStore() => _snippets ??= SqliteSnippetStore(_db);
   SqliteSnippetStore? _snippets;
+
+  /// The typed-shortcut ignore list on this same connection (version 4).
+  SqliteIgnoredAppStore ignoredAppStore() =>
+      _ignored ??= SqliteIgnoredAppStore(_db);
+  SqliteIgnoredAppStore? _ignored;
 
   @override
   int get limit => _limit;

@@ -29,10 +29,17 @@ class FlakySnippetStore extends MemorySnippetStore {
     required String content,
     required SnippetType type,
     required int nowMs,
+    String? shortcut,
   }) {
     _check();
     if (capped) throw SnippetCapReached();
-    return super.insert(name: name, content: content, type: type, nowMs: nowMs);
+    return super.insert(
+      name: name,
+      content: content,
+      type: type,
+      nowMs: nowMs,
+      shortcut: shortcut,
+    );
   }
 
   @override
@@ -42,6 +49,7 @@ class FlakySnippetStore extends MemorySnippetStore {
     required String content,
     required SnippetType type,
     required int nowMs,
+    String? shortcut,
   }) {
     _check();
     return super.update(
@@ -50,6 +58,7 @@ class FlakySnippetStore extends MemorySnippetStore {
       content: content,
       type: type,
       nowMs: nowMs,
+      shortcut: shortcut,
     );
   }
 

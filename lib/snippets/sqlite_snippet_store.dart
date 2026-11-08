@@ -4,9 +4,10 @@ import 'package:sqlite3/sqlite3.dart';
 
 import '../history/clip_item.dart';
 import 'snippet.dart';
+import 'snippet_shortcut.dart';
 import 'snippet_store.dart';
 
-/// The `snippets` table (schema version 3) on the history's encrypted
+/// The `snippets` table (schema version 3; the shortcut column is version 4) on the history's encrypted
 /// connection (ADR 0002). The connection belongs to the history store, which
 /// opens and closes it, so [close] does nothing here.
 class SqliteSnippetStore implements SnippetStore {
@@ -45,7 +46,7 @@ class SqliteSnippetStore implements SnippetStore {
     // As for history: the preview is cut on the bytes, because SQL text
     // functions stop at a NUL.
     final rows = _db.select(
-      'SELECT id, name, type, position, created_at, updated_at, '
+      'SELECT id, name, type, position, created_at, updated_at, shortcut, '
       'substr(CAST(content AS BLOB), 1, $_previewBytes) AS head, '
       'length(CAST(content AS BLOB)) AS bytes '
       'FROM snippets ORDER BY position, id',
@@ -68,6 +69,7 @@ class SqliteSnippetStore implements SnippetStore {
             position: r['position'] as int,
             createdAt: r['created_at'] as int,
             updatedAt: r['updated_at'] as int,
+            shortcut: r['shortcut'] as String?,
           );
         }(),
     ];
@@ -80,21 +82,44 @@ class SqliteSnippetStore implements SnippetStore {
   }
 
   @override
+  List<ShortcutOwner> shortcuts() => [
+    for (final r in _db.select(
+      'SELECT id, name, shortcut FROM snippets WHERE shortcut IS NOT NULL '
+      'ORDER BY position, id',
+    ))
+      (
+        id: r['id'] as int,
+        name: r['name'] as String,
+        shortcut: r['shortcut'] as String,
+      ),
+  ];
+
+  /// Inside the write's transaction, so no other save can slip in between.
+  void _checkClash(String? shortcut, int? selfId) {
+    if (shortcut == null) return;
+    final clash = findShortcutClash(shortcut, shortcuts(), selfId: selfId);
+    if (clash != null) throw ShortcutTaken(clash);
+  }
+
+  @override
   int insert({
     required String name,
     required String content,
     required SnippetType type,
     required int nowMs,
+    String? shortcut,
   }) {
     checkSnippetFields(name, content);
+    checkShortcutField(shortcut);
     return _transaction(() {
       final n = count;
       if (n >= SnippetStore.maxCount) throw SnippetCapReached();
+      _checkClash(shortcut, null);
       return _db.select(
             'INSERT INTO snippets '
-            '(name, content, type, position, created_at, updated_at) '
-            'VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
-            [name, content, type.name, n, nowMs, nowMs],
+            '(name, content, type, position, created_at, updated_at, '
+            'shortcut) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id',
+            [name, content, type.name, n, nowMs, nowMs, shortcut],
           ).single['id']
           as int;
     });
@@ -107,13 +132,16 @@ class SqliteSnippetStore implements SnippetStore {
     required String content,
     required SnippetType type,
     required int nowMs,
+    String? shortcut,
   }) {
     checkSnippetFields(name, content);
+    checkShortcutField(shortcut);
     return _transaction(() {
+      _checkClash(shortcut, id);
       _db.execute(
-        'UPDATE snippets SET name = ?, content = ?, type = ?, updated_at = ? '
-        'WHERE id = ?',
-        [name, content, type.name, nowMs, id],
+        'UPDATE snippets SET name = ?, content = ?, type = ?, updated_at = ?, '
+        'shortcut = ? WHERE id = ?',
+        [name, content, type.name, nowMs, shortcut, id],
       );
       return _db.updatedRows > 0;
     });
@@ -146,8 +174,8 @@ class SqliteSnippetStore implements SnippetStore {
   @override
   SnippetRecord? delete(int id) => _transaction(() {
     final rows = _db.select(
-      'SELECT name, content, type, created_at, updated_at FROM snippets '
-      'WHERE id = ?',
+      'SELECT name, content, type, created_at, updated_at, shortcut '
+      'FROM snippets WHERE id = ?',
       [id],
     );
     if (rows.isEmpty) return null;
@@ -162,20 +190,25 @@ class SqliteSnippetStore implements SnippetStore {
       position: ids.indexOf(id),
       createdAt: r['created_at'] as int,
       updatedAt: r['updated_at'] as int,
+      shortcut: r['shortcut'] as String?,
     );
   });
 
   @override
   void restore(SnippetRecord record) {
     checkSnippetFields(record.name, record.content);
+    checkShortcutField(record.shortcut);
     _transaction(() {
       final ids = _ids();
       if (ids.length >= SnippetStore.maxCount) throw SnippetCapReached();
+      final shortcut = record.shortcut;
+      final keep =
+          shortcut != null && findShortcutClash(shortcut, shortcuts()) == null;
       final id =
           _db.select(
                 'INSERT INTO snippets '
-                '(name, content, type, position, created_at, updated_at) '
-                'VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
+                '(name, content, type, position, created_at, updated_at, '
+                'shortcut) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id',
                 [
                   record.name,
                   record.content,
@@ -183,6 +216,7 @@ class SqliteSnippetStore implements SnippetStore {
                   ids.length,
                   record.createdAt,
                   record.updatedAt,
+                  keep ? shortcut : null,
                 ],
               ).single['id']
               as int;

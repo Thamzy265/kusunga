@@ -1,5 +1,6 @@
 import '../history/clip_item.dart';
 import 'snippet.dart';
+import 'snippet_shortcut.dart';
 import 'snippet_store.dart';
 
 /// Snippets kept in memory only (tests, and memory-only or incompatible
@@ -24,8 +25,21 @@ class MemorySnippetStore implements SnippetStore {
         position: i,
         createdAt: _entries[i].createdAt,
         updatedAt: _entries[i].updatedAt,
+        shortcut: _entries[i].shortcut,
       ),
   ];
+
+  @override
+  List<ShortcutOwner> shortcuts() => [
+    for (final e in _entries)
+      if (e.shortcut != null) (id: e.id, name: e.name, shortcut: e.shortcut!),
+  ];
+
+  void _checkClash(String? shortcut, int? selfId) {
+    if (shortcut == null) return;
+    final clash = findShortcutClash(shortcut, shortcuts(), selfId: selfId);
+    if (clash != null) throw ShortcutTaken(clash);
+  }
 
   _Entry? _find(int id) {
     for (final e in _entries) {
@@ -43,11 +57,14 @@ class MemorySnippetStore implements SnippetStore {
     required String content,
     required SnippetType type,
     required int nowMs,
+    String? shortcut,
   }) {
     checkSnippetFields(name, content);
+    checkShortcutField(shortcut);
     if (_entries.length >= SnippetStore.maxCount) throw SnippetCapReached();
+    _checkClash(shortcut, null);
     final id = _nextId++;
-    _entries.add(_Entry(id, name, content, type, nowMs, nowMs));
+    _entries.add(_Entry(id, name, content, type, nowMs, nowMs, shortcut));
     return id;
   }
 
@@ -58,15 +75,19 @@ class MemorySnippetStore implements SnippetStore {
     required String content,
     required SnippetType type,
     required int nowMs,
+    String? shortcut,
   }) {
     checkSnippetFields(name, content);
+    checkShortcutField(shortcut);
     final e = _find(id);
     if (e == null) return false;
+    _checkClash(shortcut, id);
     e
       ..name = name
       ..content = content
       ..type = type
-      ..updatedAt = nowMs;
+      ..updatedAt = nowMs
+      ..shortcut = shortcut;
     return true;
   }
 
@@ -93,13 +114,18 @@ class MemorySnippetStore implements SnippetStore {
       position: i,
       createdAt: e.createdAt,
       updatedAt: e.updatedAt,
+      shortcut: e.shortcut,
     );
   }
 
   @override
   void restore(SnippetRecord record) {
     checkSnippetFields(record.name, record.content);
+    checkShortcutField(record.shortcut);
     if (_entries.length >= SnippetStore.maxCount) throw SnippetCapReached();
+    final shortcut = record.shortcut;
+    final keep =
+        shortcut != null && findShortcutClash(shortcut, shortcuts()) == null;
     _entries.insert(
       record.position.clamp(0, _entries.length),
       _Entry(
@@ -109,6 +135,7 @@ class MemorySnippetStore implements SnippetStore {
         record.type,
         record.createdAt,
         record.updatedAt,
+        keep ? shortcut : null,
       ),
     );
   }
@@ -124,8 +151,9 @@ class _Entry {
     this.content,
     this.type,
     this.createdAt,
-    this.updatedAt,
-  );
+    this.updatedAt, [
+    this.shortcut,
+  ]);
 
   final int id;
   String name;
@@ -133,4 +161,5 @@ class _Entry {
   SnippetType type;
   final int createdAt;
   int updatedAt;
+  String? shortcut;
 }

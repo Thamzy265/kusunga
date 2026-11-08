@@ -7,9 +7,14 @@ abstract interface class HistoryStore {
   static const minLimit = 10;
   static const maxLimit = 5000;
 
-  /// Text settings kept next to the history (schema version 2): the picker
-  /// shortcut and the paste mode. Not personal data.
-  static const storedSettingKeys = {'picker_shortcut', 'paste_mode'};
+  /// Settings kept next to the history: the picker shortcut and the paste
+  /// mode (schema version 2), and the typed-shortcuts switch, "0" or "1"
+  /// (version 4). Not personal data.
+  static const storedSettingKeys = {
+    'picker_shortcut',
+    'paste_mode',
+    'typed_shortcuts_on',
+  };
   static const maxSettingLength = 64;
 
   /// How many newest items are kept.

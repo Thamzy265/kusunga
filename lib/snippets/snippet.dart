@@ -31,6 +31,7 @@ class SnippetItem {
     required this.position,
     required this.createdAt,
     required this.updatedAt,
+    this.shortcut,
   });
 
   final int id;
@@ -45,6 +46,9 @@ class SnippetItem {
   /// Unix milliseconds.
   final int createdAt;
   final int updatedAt;
+
+  /// The typed shortcut, such as `;email` (M1.5), or null.
+  final String? shortcut;
 }
 
 /// A whole snippet, kept in memory only while it is deleted, so that Undo can
@@ -57,6 +61,7 @@ class SnippetRecord {
     required this.position,
     required this.createdAt,
     required this.updatedAt,
+    this.shortcut,
   });
 
   final String name;
@@ -65,6 +70,7 @@ class SnippetRecord {
   final int position;
   final int createdAt;
   final int updatedAt;
+  final String? shortcut;
 }
 
 /// The store already keeps the most snippets it may (1,000).
