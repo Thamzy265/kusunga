@@ -26,8 +26,10 @@
 		A1B2C3D4E5F60718293A4B32 /* PickerWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B22 /* PickerWindow.swift */; };
 		A1B2C3D4E5F60718293A4B31 /* HotKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B21 /* HotKeys.swift */; };
 		A1B2C3D4E5F60718293A4B30 /* PasteFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B20 /* PasteFlow.swift */; };
+		B660666754054761027207F9 /* TypedShortcutCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B560666754054761027207F9 /* TypedShortcutCore.swift */; };
 		331C80D8294CF71000263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C80D7294CF71000263BE5 /* RunnerTests.swift */; };
 		A1B2C3D4E5F60718293A4B34 /* PickerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B24 /* PickerTests.swift */; };
+		B69B74DFA606C519A6464B60 /* TypedShortcutCoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B59B74DFA606C519A6464B60 /* TypedShortcutCoreTests.swift */; };
 		E7E57ED001A2B3C4D5E6F701 /* PickerEdgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E57ED001A2B3C4D5E6F702 /* PickerEdgeTests.swift */; };
 		E7E57ED002A2B3C4D5E6F701 /* DiagEdgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E57ED002A2B3C4D5E6F702 /* DiagEdgeTests.swift */; };
 		335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */; };
@@ -77,9 +79,11 @@
 		A1B2C3D4E5F60718293A4B22 /* PickerWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickerWindow.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B21 /* HotKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeys.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B20 /* PasteFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteFlow.swift; sourceTree = "<group>"; };
+		B560666754054761027207F9 /* TypedShortcutCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypedShortcutCore.swift; sourceTree = "<group>"; };
 		331C80D5294CF71000263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		331C80D7294CF71000263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B24 /* PickerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickerTests.swift; sourceTree = "<group>"; };
+		B59B74DFA606C519A6464B60 /* TypedShortcutCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypedShortcutCoreTests.swift; sourceTree = "<group>"; };
 		E7E57ED001A2B3C4D5E6F702 /* PickerEdgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickerEdgeTests.swift; sourceTree = "<group>"; };
 		E7E57ED002A2B3C4D5E6F702 /* DiagEdgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagEdgeTests.swift; sourceTree = "<group>"; };
 		333000ED22D3DE5D00554162 /* Warnings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Warnings.xcconfig; sourceTree = "<group>"; };
@@ -128,6 +132,7 @@
 			children = (
 				331C80D7294CF71000263BE5 /* RunnerTests.swift */,
 				A1B2C3D4E5F60718293A4B24 /* PickerTests.swift */,
+				B59B74DFA606C519A6464B60 /* TypedShortcutCoreTests.swift */,
 				E7E57ED001A2B3C4D5E6F702 /* PickerEdgeTests.swift */,
 				E7E57ED002A2B3C4D5E6F702 /* DiagEdgeTests.swift */,
 			);
@@ -200,6 +205,7 @@
 				A1B2C3D4E5F60718293A4B22 /* PickerWindow.swift */,
 				A1B2C3D4E5F60718293A4B21 /* HotKeys.swift */,
 				A1B2C3D4E5F60718293A4B20 /* PasteFlow.swift */,
+				B560666754054761027207F9 /* TypedShortcutCore.swift */,
 				33CC11122044BFA00003C045 /* MainFlutterWindow.swift */,
 				33E51913231747F40026EE4D /* DebugProfile.entitlements */,
 				33E51914231749380026EE4D /* Release.entitlements */,
@@ -381,6 +387,7 @@
 			files = (
 				331C80D8294CF71000263BE5 /* RunnerTests.swift in Sources */,
 				A1B2C3D4E5F60718293A4B34 /* PickerTests.swift in Sources */,
+				B69B74DFA606C519A6464B60 /* TypedShortcutCoreTests.swift in Sources */,
 				E7E57ED001A2B3C4D5E6F701 /* PickerEdgeTests.swift in Sources */,
 				E7E57ED002A2B3C4D5E6F701 /* DiagEdgeTests.swift in Sources */,
 			);
@@ -400,6 +407,7 @@
 				A1B2C3D4E5F60718293A4B32 /* PickerWindow.swift in Sources */,
 				A1B2C3D4E5F60718293A4B31 /* HotKeys.swift in Sources */,
 				A1B2C3D4E5F60718293A4B30 /* PasteFlow.swift in Sources */,
+				B660666754054761027207F9 /* TypedShortcutCore.swift in Sources */,
 				335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
