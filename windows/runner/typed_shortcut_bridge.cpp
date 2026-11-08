@@ -294,7 +294,6 @@ class WinReplacePlatform : public kusunga::ReplacePlatform {
     auto work = std::move(work_);
     work_ = nullptr;
     if (work) work();
-    Forget();
   }
 
   uint32_t Sequence() override { return ::GetClipboardSequenceNumber(); }
@@ -302,9 +301,13 @@ class WinReplacePlatform : public kusunga::ReplacePlatform {
   // Always marked "don't keep", whatever marks the copy had (S1).
   void RestorePrevious() override {
     if (!has_saved_) return;
-    WriteClipboardText(bridge_->window_, bridge_->format_own_, Utf8Of(saved_),
+    std::string utf8 = Utf8Of(saved_);
+    WriteClipboardText(bridge_->window_, bridge_->format_own_, utf8,
                        bridge_->own_, kusunga::RestoreMarks());
+    std::fill(utf8.begin(), utf8.end(), ' ');
   }
+
+  void ForgetPrevious() override { Forget(); }
 
  private:
   // Every format on the open clipboard, with the names of registered ones.

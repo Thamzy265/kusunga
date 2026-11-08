@@ -378,8 +378,28 @@ class ReplacePlatform {
   virtual void SendPaste() = 0;
   virtual void Schedule(int ms, std::function<void()> work) = 0;
   virtual uint32_t Sequence() = 0;
-  // Writes the saved text back as Kusunga's own change, then forgets it.
+  // Writes the saved text back as Kusunga's own change (RestoreMarks).
   virtual void RestorePrevious() = 0;
+  // Overwrites and lets go of the saved text.
+  virtual void ForgetPrevious() = 0;
+};
+
+// Forgets the saved previous text when it goes out of scope, unless a
+// restore took it over (Keep). So every exit of a replacement that
+// schedules no restore lets go of it (C3).
+class SavedTextGuard {
+ public:
+  explicit SavedTextGuard(ReplacePlatform* p) : p_(p) {}
+  ~SavedTextGuard() {
+    if (!kept_) p_->ForgetPrevious();
+  }
+  SavedTextGuard(const SavedTextGuard&) = delete;
+  SavedTextGuard& operator=(const SavedTextGuard&) = delete;
+  void Keep() { kept_ = true; }
+
+ private:
+  ReplacePlatform* p_;
+  bool kept_ = false;
 };
 
 // The snippet a shortcut pastes is excluded from clipboard monitors. The
@@ -443,10 +463,11 @@ inline const char* ReplaceResultName(ReplaceResult r) {
 
 constexpr int kRestoreDelayMs = 500;
 
-// Check nothing moved since the match, delete the code, paste the snippet,
-// then put the previous text back after 0.5 s unless something else was
-// copied meanwhile. One flow for the app: a second shortcut within 0.5 s
-// keeps the user's own text, not the first snippet. [p] outlives the flow.
+// Check nothing moved since the match, write the snippet, delete the code,
+// paste, then put the previous text back after 0.5 s unless something else
+// was copied meanwhile. One flow for the app: a second shortcut within 0.5 s
+// takes the restore over, so the user's own text comes back, not the first
+// snippet. [p] outlives the flow.
 class ReplaceFlow {
  public:
   explicit ReplaceFlow(ReplacePlatform* p) : p_(p) {}
@@ -456,30 +477,43 @@ class ReplaceFlow {
     if (p_->Foreground() != match_window || p_->KeysSinceMatch() != 0) {
       return ReplaceResult::kCancelled;
     }
-    bool has_text;
-    if (pending_ && p_->Sequence() == pending_mine_) {
-      has_text = true;  // the platform still holds the user's own text
-    } else {
-      has_text = p_->SavePrevious();
-    }
+    // The platform still holds the user's own text from a restore waiting
+    // for the first snippet, or reads the clipboard now.
+    const bool reused = pending_ && p_->Sequence() == pending_mine_;
+    const uint32_t earlier_mine = pending_mine_;
     pending_ = false;
-    p_->SendBackspaces(delete_count);
+    const bool has_text = reused || p_->SavePrevious();
+    SavedTextGuard guard(p_);
+    // The snippet first: if it can't be written, nothing is deleted and the
+    // code stays where the user typed it (C3).
     uint32_t mine = 0;
-    if (!p_->WriteSnippet(text, &mine)) return ReplaceResult::kFailed;
+    if (!p_->WriteSnippet(text, &mine)) {
+      if (reused) {  // the earlier restore still puts the user's text back
+        pending_ = true;
+        pending_mine_ = earlier_mine;
+        guard.Keep();
+      }
+      return ReplaceResult::kFailed;
+    }
+    p_->SendBackspaces(delete_count);
     p_->SendPaste();
     if (has_text) {
       pending_ = true;
       pending_mine_ = mine;
-      ReplacePlatform* p = p_;
-      p_->Schedule(kRestoreDelayMs, [this, p, mine] {
-        if (pending_ && pending_mine_ == mine) pending_ = false;
-        if (p->Sequence() == mine) p->RestorePrevious();
-      });
+      guard.Keep();
+      p_->Schedule(kRestoreDelayMs, [this, mine] { RestoreDue(mine); });
     }
     return ReplaceResult::kReplaced;
   }
 
  private:
+  void RestoreDue(uint32_t mine) {
+    if (!pending_ || pending_mine_ != mine) return;  // a newer one took over
+    pending_ = false;
+    if (p_->Sequence() == mine) p_->RestorePrevious();
+    p_->ForgetPrevious();
+  }
+
   ReplacePlatform* p_;
   bool pending_ = false;
   uint32_t pending_mine_ = 0;

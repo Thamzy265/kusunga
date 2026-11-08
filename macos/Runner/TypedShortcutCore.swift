@@ -306,19 +306,24 @@ enum ReplaceResult: String {
   case failed
 }
 
-/// Check that nothing moved since the match, delete the code, paste the
-/// snippet, then put the previous clipboard text back after 0.5 s if nobody
-/// copied anything else meanwhile.
+/// Check that nothing moved since the match, write the snippet, delete the
+/// code, paste, then put the previous clipboard text back after 0.5 s if
+/// nobody copied anything else meanwhile.
 final class ReplaceFlow {
   static let restoreDelayMs = 500
 
   private let platform: ReplacePlatform
   /// A restore still waiting: what it will put back, and the change count of
-  /// the snippet it follows. A second shortcut within 0.5 s keeps the
-  /// user's own text, not the first snippet.
+  /// the snippet it follows. A second shortcut within 0.5 s takes it over,
+  /// so the user's own text comes back, not the first snippet. Only this
+  /// holds the previous text; it is let go on every path that puts nothing
+  /// back (C3).
   private var pending: (saved: SavedClipboard, mine: Int)?
 
   init(platform: ReplacePlatform) { self.platform = platform }
+
+  /// True while the previous text is kept for a restore (tests).
+  var hasPendingRestore: Bool { pending != nil }
 
   func run(deleteCount: Int, text: String, matchPid: Int32) -> ReplaceResult {
     // Another app in front, or more keys typed: deleting now could remove
@@ -330,23 +335,35 @@ final class ReplaceFlow {
       // No keys can be sent: the code stays, and the user pastes (M1.3).
       return platform.writeSnippet(text) == nil ? .failed : .copied
     }
-    let previous: SavedClipboard?
-    if let p = pending, platform.changeCount() == p.mine {
-      previous = p.saved
-    } else {
-      previous = platform.previousText()
-    }
+    let earlier = pending
     pending = nil
+    // The user's own text from a restore still waiting, or the clipboard now.
+    let reused = earlier.map { platform.changeCount() == $0.mine } ?? false
+    var previous = reused ? earlier?.saved : platform.previousText()
+    var handedOver = false
+    defer {
+      // Every exit that schedules no restore lets go of the previous text.
+      if !handedOver { previous = nil }
+    }
+    // The snippet first: if it can't be written, nothing is deleted and the
+    // code stays where the user typed it (C3).
+    guard let mine = platform.writeSnippet(text) else {
+      // An earlier restore still waiting keeps the user's text.
+      if reused { pending = earlier }
+      return .failed
+    }
     platform.postBackspaces(deleteCount)
-    guard let mine = platform.writeSnippet(text) else { return .failed }
     guard platform.postPaste() else { return .copied }
-    if let previous = previous {
-      pending = (previous, mine)
-      platform.schedule(afterMs: ReplaceFlow.restoreDelayMs) { [weak self, platform] in
-        if let self = self, self.pending?.mine == mine { self.pending = nil }
+    if let saved = previous {
+      pending = (saved, mine)
+      handedOver = true
+      platform.schedule(afterMs: ReplaceFlow.restoreDelayMs) { [self, platform] in
+        // A newer shortcut took the restore over.
+        guard let waiting = self.pending, waiting.mine == mine else { return }
+        self.pending = nil
         // The user copied something else in the meantime: keep that.
         guard platform.changeCount() == mine else { return }
-        platform.restore(previous)
+        platform.restore(waiting.saved)
       }
     }
     return .replaced

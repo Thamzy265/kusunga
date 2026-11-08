@@ -157,7 +157,7 @@ On each added character, native checks whether the buffer ends with a shortcut. 
 **Replacing**
 
 1. Check that the front app is still the one where the match happened. If not, cancel and send nothing.
-2. Post K Backspaces, then write the snippet to the clipboard. The write is marked transient and concealed (Mac `org.nspasteboard.TransientType` and `ConcealedType`; Windows `ExcludeClipboardContentFromMonitorProcessing`), so other clipboard managers don't save it.
+2. Write the snippet to the clipboard, then post K Backspaces only if the write succeeded; if it failed, nothing is deleted and the code stays (reviewer C3, 2026-11-08). The write is marked transient and concealed (Mac `org.nspasteboard.TransientType` and `ConcealedType`; Windows `ExcludeClipboardContentFromMonitorProcessing`), so other clipboard managers don't save it.
 3. Post ⌘V or Ctrl+V with the M1.3 paste flow.
 4. Then follow D2. If D2 is A, after 500 ms put back the previous clipboard text. If the previous clipboard held something other than text, leave the snippet there; Kusunga only handles text.
 5. Kusunga's own posted keys carry a marker (Mac `eventSourceUserData`; Windows `dwExtraInfo`), so the hook never feeds them back into the buffer.

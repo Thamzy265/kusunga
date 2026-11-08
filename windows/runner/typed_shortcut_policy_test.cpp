@@ -277,9 +277,16 @@ class FakeReplace : public ReplacePlatform {
 
   uintptr_t Foreground() override { return foreground; }
   int KeysSinceMatch() override { return keys_after; }
+  bool saved = false;  // the platform holds the previous text
+  int forgets = 0;
   bool SavePrevious() override {
     log.push_back("readPrevious");
+    saved = has_previous;
     return has_previous;
+  }
+  void ForgetPrevious() override {
+    saved = false;
+    forgets++;
   }
   void SendBackspaces(int n) override {
     log.push_back("backspace" + std::to_string(n));
@@ -296,6 +303,7 @@ class FakeReplace : public ReplacePlatform {
   }
   uint32_t Sequence() override { return sequence; }
   void RestorePrevious() override {
+    if (!saved) return;
     restores++;
     sequence++;
   }
@@ -305,8 +313,9 @@ static void TestReplace() {
   {
     FakeReplace p;
     CHECK(ReplaceFlow(&p).Run(6, "will@example.com", 100) == ReplaceResult::kReplaced);
-    CHECK((p.log == std::vector<std::string>{"readPrevious", "backspace6",
-                                              "write", "paste"}));
+    // C3: the code is deleted only once the snippet is on the clipboard.
+    CHECK((p.log == std::vector<std::string>{"readPrevious", "write",
+                                              "backspace6", "paste"}));
     CHECK(p.scheduled.size() == 1 && p.scheduled[0].first == 500);
     p.scheduled[0].second();
     CHECK(p.restores == 1);
@@ -766,7 +775,64 @@ static void TestRestorableFormats() {
   CHECK(!CanRestoreClipboard({unicode, {0xC021, ""}}));  // unnamed custom
 }
 
+// C3: the snippet is written before anything is deleted, and the previous
+// text is forgotten on every exit that schedules no restore.
+static void TestWriteFirstAndForget() {
+  {  // A failed write deletes nothing and keeps nothing.
+    FakeReplace p;
+    p.write_ok = false;
+    CHECK(ReplaceFlow(&p).Run(6, "x", 100) == ReplaceResult::kFailed);
+    for (const auto& l : p.log) CHECK(l.rfind("backspace", 0) != 0);
+    CHECK(!p.saved);
+  }
+  {  // Nothing to put back: forgotten at once.
+    FakeReplace p;
+    p.has_previous = false;
+    CHECK(ReplaceFlow(&p).Run(6, "x", 100) == ReplaceResult::kReplaced);
+    CHECK(!p.saved);
+  }
+  {  // Kept for the restore, then forgotten once it is put back.
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(6, "x", 100) == ReplaceResult::kReplaced);
+    CHECK(p.saved);
+    p.scheduled[0].second();
+    CHECK(p.restores == 1);
+    CHECK(!p.saved);
+  }
+  {  // ... or forgotten when something else was copied meanwhile.
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    flow.Run(6, "x", 100);
+    p.sequence++;
+    p.scheduled[0].second();
+    CHECK(p.restores == 0);
+    CHECK(!p.saved);
+  }
+  {  // A second shortcut takes the restore over; the first one's timer
+     // neither restores nor forgets what the second still needs.
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    flow.Run(6, "first", 100);
+    flow.Run(4, "second", 100);
+    p.scheduled[0].second();
+    CHECK(p.saved && p.restores == 0);
+    p.scheduled[1].second();
+    CHECK(p.restores == 1 && !p.saved);
+  }
+  {  // The second write fails: the first restore still puts the text back.
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    flow.Run(6, "first", 100);
+    p.write_ok = false;
+    CHECK(flow.Run(4, "second", 100) == ReplaceResult::kFailed);
+    p.scheduled[0].second();
+    CHECK(p.restores == 1 && !p.saved);
+  }
+}
+
 int main() {
+  TestWriteFirstAndForget();
   TestRestorableFormats();
   TestRestoreMarks();
   TestReplace();

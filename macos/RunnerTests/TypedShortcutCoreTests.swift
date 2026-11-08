@@ -287,10 +287,11 @@ final class ReplaceFlowTests: XCTestCase {
     ReplaceFlow(platform: p).run(deleteCount: 6, text: "will@example.com", matchPid: matchPid)
   }
 
-  func testDeletesTheCodeThenWritesAndPastesInThatOrder() {
+  func testWritesTheSnippetThenDeletesTheCodeAndPastesInThatOrder() {
+    // C3: the code is deleted only once the snippet is on the clipboard.
     let p = FakeReplacePlatform()
     XCTAssertEqual(run(p), .replaced)
-    XCTAssertEqual(p.log, ["readPrevious", "backspace×6", "write", "paste"])
+    XCTAssertEqual(p.log, ["readPrevious", "write", "backspace×6", "paste"])
   }
 
   func testPutsThePreviousTextBackAfterHalfASecond() {
@@ -359,6 +360,42 @@ final class ReplaceFlowTests: XCTestCase {
     p.writeOk = false
     XCTAssertEqual(run(p), .failed)
     XCTAssertFalse(p.log.contains("paste"))
+  }
+
+  func testAFailedWriteLeavesTheCodeAndForgetsThePreviousText() {
+    // C3: nothing is deleted when the snippet could not be written, and the
+    // text read for a restore is not kept.
+    let p = FakeReplacePlatform()
+    p.writeOk = false
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(
+      flow.run(deleteCount: 6, text: "will@example.com", matchPid: 100), .failed)
+    XCTAssertFalse(p.log.contains { $0.hasPrefix("backspace") })
+    XCTAssertFalse(flow.hasPendingRestore)
+    XCTAssertTrue(p.scheduled.isEmpty)
+  }
+
+  func testThePreviousTextIsForgottenOnEveryExitWithoutARestore() {
+    let p = FakeReplacePlatform()
+    p.pasteKeyFound = false
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 6, text: "x", matchPid: 100), .copied)
+    XCTAssertFalse(flow.hasPendingRestore)
+
+    let q = FakeReplacePlatform()
+    let replaced = ReplaceFlow(platform: q)
+    XCTAssertEqual(replaced.run(deleteCount: 6, text: "x", matchPid: 100), .replaced)
+    XCTAssertTrue(replaced.hasPendingRestore, "kept for the restore in 0.5 s")
+    q.scheduled[0].1()
+    XCTAssertFalse(replaced.hasPendingRestore, "forgotten once put back")
+
+    let r = FakeReplacePlatform()
+    let moved = ReplaceFlow(platform: r)
+    _ = moved.run(deleteCount: 6, text: "x", matchPid: 100)
+    r.count += 1  // the user copied something else
+    r.scheduled[0].1()
+    XCTAssertFalse(moved.hasPendingRestore, "forgotten when not put back")
+    XCTAssertTrue(r.restored.isEmpty)
   }
 
   func testTwoShortcutsWithinHalfASecondPutBackTheFirstClipboardNotASnippet() {
