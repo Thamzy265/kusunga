@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.5 Typed shortcuts — PM keeps the approved shortcut rules
+- Changed: PM decision recorded. No code change. The T1 and T1b repros stay skipped. Later line added on feat/typed-shortcuts for N1-N3 (emoji, combining marks and decomposed accents; trigger: the first Windows QA run of M1.5, or ≥ 1 report of a shortcut deleting text it should not). T1 already has the developer's Later line (trigger: ≥ 3 beta reports).
+- Gates: design approved · developer done (round 2) · tester findings U1, U2, T2 fixed · reviewer in progress · QA not started · PM merge n/a yet
+- Open findings: none open for the developer
+- Decisions: Risk accepted by PM (2026-11-08): accepted: T1 (a shortcut inside another one, not at its start, fires first, so the longer one can't be typed; the editor accepts both) and notes N1-N3 (Mac and Windows differ for canonically equal Unicode; delete counts differ for emoji and combining marks, so Windows may delete text before such a shortcut; a shortcut may start with a combining mark); the D1 rule stays as approved and emoji and combining marks stay allowed — scope: M1.5 Typed shortcuts, feat/typed-shortcuts, findings T1, N1, N2, N3 — expiry/review: the Later line triggers — PM said: "Keep as approved"
+- Blockers: PM — Q4 Windows icons; 3 spec deviations; Input Monitoring grant for QA; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-08 — M1.5 Typed shortcuts — developer fixed U1, U2, T2
 - Changed: Developer fixed T2 (789424c: a lone surrogate is refused with the existing "Shortcuts can't have spaces or line breaks." copy), U1 (8ee34cc: chip names shrink and end with an ellipsis; Remove stays on screen; full name in the accessible name) and U2 (ffecef4: toasts in the section queue, so each removal keeps its Undo for 5 s; "Preset list restored" still replaces the current toast). The repros are now normal tests; failing runs on the old code: T2 "Expected: not null Actual: <null>", U1 "RenderFlex overflowed by 550 pixels", U1b "by 102 pixels", U2 "Found 0 widgets with text \"Bitwarden removed\"". ./tool/check.sh 2573 passed, 10 skipped (T1 and T1b repros stay skipped); test_mac_shortcuts.sh 79, 0 failures; test_windows_policy.sh all passed. Side effect: a second removal's toast waits until the first closes (up to 5 s). Shortcut rules and native matchers unchanged.
 - Gates: design approved · developer done (round 2) · tester findings U1, U2, T2 fixed · reviewer to be briefed · QA not started · PM merge n/a yet
