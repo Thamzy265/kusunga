@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.5 Typed shortcuts — PM accepts the 3 spec changes
+- Changed: PM decision recorded. docs/ui/typed-shortcuts.md updated on feat/typed-shortcuts to match. No code change.
+- Gates: design approved (spec updated) · developer round 3 in progress (R1, S1, C1-C9) · reviewer block · QA not started · PM merge n/a yet
+- Open findings: R1 High; S1, C1, C2 Medium; C3-C9 Low (all with the developer)
+- Decisions: PM (2026-11-08) accepted three changes to the approved UI spec: the Mac explanation card shows each time the switch is turned on without permission (spec said the first time); the Add app list has no Cancel button, Esc or a click outside closes it; Undo after removing an ignored app puts it back at the end of the list (Later line exists). PM said: "Accept all three"
+- Blockers: Reviewer — R1 · PM — Q4 Windows icons; Input Monitoring grant for QA; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-08 — M1.5 Typed shortcuts — reviewer: block
 - Changed: Reviewer (opus, high) reviewed 2f79840..ffecef4 read-only. Checks pass (check.sh +2573 ~10; 79 XCTests; Windows policy suites). ADR 0004 holds: no typed character reaches Dart, a channel message, a log, a file or a crash path; buffer bound, reset events and every skip rule present; App Sandbox on, no Accessibility API; schema v4 expand-only with bound parameters. Later lines pass. Verdict: block on R1. The reviewer's process note (no M1.5 entries in status.md) is because the log lives on main; the entries are there (fface18, 92bf9ac, a070178, 76a2d64).
 - Gates: design approved · developer round 3 to be briefed · tester done for round 2 · reviewer block · QA not started · PM merge n/a yet
