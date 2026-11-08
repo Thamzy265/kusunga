@@ -250,6 +250,10 @@ final class FakeReplacePlatform: ReplacePlatform {
   var canPost = true
   var previous: SavedClipboard? = SavedClipboard(text: "what I copied", markerTypes: [])
   var writeOk = true
+  /// The failed write had already cleared the clipboard (L1).
+  var failAfterClear = false
+  /// Writing the previous text back fails too (it still clears).
+  var restoreOk = true
   var pasteKeyFound = true
   var count = 10
   var scheduled: [(Int, () -> Void)] = []
@@ -265,7 +269,10 @@ final class FakeReplacePlatform: ReplacePlatform {
   func postBackspaces(_ n: Int) { log.append("backspace×\(n)") }
   func writeSnippet(_ text: String) -> Int? {
     log.append("write")
-    guard writeOk else { return nil }
+    guard writeOk else {
+      if failAfterClear { count += 1 }
+      return nil
+    }
     count += 1
     return count
   }
@@ -277,8 +284,8 @@ final class FakeReplacePlatform: ReplacePlatform {
   func changeCount() -> Int { count }
   func restore(_ saved: SavedClipboard) {
     log.append("restore")
-    restored.append(saved)
     count += 1
+    if restoreOk { restored.append(saved) }
   }
 }
 
@@ -1379,5 +1386,71 @@ final class Round3EdgeTests: XCTestCase {
     XCTAssertFalse(flow.hasPendingRestore)
     p.scheduled[0].1()
     XCTAssertTrue(p.restored.isEmpty, "the snippet stays; the old text must not overwrite it")
+  }
+}
+
+// MARK: - L1: a snippet write that fails after clearing the clipboard puts
+// the user's previous text back at once.
+
+final class FailedWriteRestoreTests: XCTestCase {
+  func testAWriteThatFailedAfterTheClearPutsThePreviousTextBack() {
+    let p = FakeReplacePlatform()
+    p.previous = SavedClipboard(text: "pw", markerTypes: ["org.nspasteboard.ConcealedType"])
+    p.writeOk = false
+    p.failAfterClear = true
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 6, text: "x", matchPid: 100), .failed)
+    XCTAssertEqual(p.log, ["readPrevious", "write", "restore"], "nothing deleted or pasted")
+    XCTAssertEqual(
+      p.restored, [SavedClipboard(text: "pw", markerTypes: ["org.nspasteboard.ConcealedType"])],
+      "with its privacy markers")
+    XCTAssertFalse(flow.hasPendingRestore, "then forgotten")
+    XCTAssertTrue(p.scheduled.isEmpty)
+  }
+
+  func testAWriteThatFailedBeforeTheClearLeavesTheClipboardAlone() {
+    let p = FakeReplacePlatform()
+    p.writeOk = false
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 6, text: "x", matchPid: 100), .failed)
+    XCTAssertFalse(p.log.contains("restore"), "the user's copy is still there")
+    XCTAssertFalse(flow.hasPendingRestore)
+  }
+
+  func testNoSavedTextMeansNothingToPutBack() {
+    let p = FakeReplacePlatform()
+    p.previous = nil
+    p.writeOk = false
+    p.failAfterClear = true
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 6, text: "x", matchPid: 100), .failed)
+    XCTAssertFalse(p.log.contains("restore"))
+    XCTAssertFalse(flow.hasPendingRestore)
+  }
+
+  func testTheWriteBackFailingTooStillForgetsTheText() {
+    let p = FakeReplacePlatform()
+    p.writeOk = false
+    p.failAfterClear = true
+    p.restoreOk = false
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 6, text: "x", matchPid: 100), .failed)
+    XCTAssertEqual(p.log.filter { $0 == "restore" }.count, 1, "tried once, no retry")
+    XCTAssertTrue(p.restored.isEmpty)
+    XCTAssertFalse(flow.hasPendingRestore)
+    XCTAssertFalse(p.log.contains { $0.hasPrefix("backspace") })
+  }
+
+  func testASecondShortcutWhoseWriteFailedAfterTheClearPutsTheUsersTextBack() {
+    let p = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 6, text: "first", matchPid: 100), .replaced)
+    p.writeOk = false
+    p.failAfterClear = true
+    XCTAssertEqual(flow.run(deleteCount: 4, text: "second", matchPid: 100), .failed)
+    XCTAssertEqual(p.restored, [SavedClipboard(text: "what I copied", markerTypes: [])])
+    XCTAssertFalse(flow.hasPendingRestore)
+    p.scheduled[0].1()  // the first restore: nothing more to do
+    XCTAssertEqual(p.restored.count, 1)
   }
 }

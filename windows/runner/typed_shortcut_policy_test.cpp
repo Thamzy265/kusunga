@@ -273,6 +273,8 @@ class FakeReplace : public ReplacePlatform {
   int keys_after = 0;
   bool has_previous = true;
   bool write_ok = true;
+  bool fail_after_clear = false;  // the failed write had emptied it (L1)
+  bool restore_ok = true;         // writing the previous text back works
   uint32_t sequence = 10;
   std::vector<std::pair<int, std::function<void()>>> scheduled;
   int restores = 0;
@@ -305,7 +307,10 @@ class FakeReplace : public ReplacePlatform {
   }
   bool WriteSnippet(const std::string&, uint32_t* seq) override {
     log.push_back("write");
-    if (!write_ok) return false;
+    if (!write_ok) {
+      if (fail_after_clear) ++sequence;
+      return false;
+    }
     *seq = ++sequence;
     return true;
   }
@@ -314,10 +319,12 @@ class FakeReplace : public ReplacePlatform {
     scheduled.push_back({ms, std::move(work)});
   }
   uint32_t Sequence() override { return sequence; }
+  int restore_attempts = 0;
   void RestorePrevious() override {
     if (!saved) return;
-    restores++;
+    restore_attempts++;
     sequence++;
+    if (restore_ok) restores++;
   }
 };
 
@@ -1660,7 +1667,63 @@ static void TestRound3Idle() {
   CHECK(!b.MsUntilIdleClear(3500, &ms));
 }
 
+// L1: a snippet write that fails after emptying the clipboard puts the
+// user's previous text back at once (RestoreMarks), then forgets it.
+static void TestFailedWriteRestores() {
+  {
+    FakeReplace p;
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(6, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restores == 1);
+    CHECK(!p.saved);
+    CHECK((p.log == std::vector<std::string>{"readPrevious", "write"}));
+    CHECK(p.scheduled.empty());
+  }
+  {  // Failed before emptying it: the user's copy is still there.
+    FakeReplace p;
+    p.write_ok = false;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(6, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restores == 0 && !p.saved);
+  }
+  {  // No saved text: nothing to put back.
+    FakeReplace p;
+    p.has_previous = false;
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(6, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restores == 0 && !p.saved);
+  }
+  {  // The write back fails too: tried once, still forgotten.
+    FakeReplace p;
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    p.restore_ok = false;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(6, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restore_attempts == 1 && p.restores == 0);
+    CHECK(!p.saved);
+    for (const auto& l : p.log) CHECK(l.rfind("backspace", 0) != 0);
+  }
+  {  // A second shortcut's write fails after the clear: the user's own text
+     // comes back now; the first timer then has nothing to do.
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(6, "first", 100) == ReplaceResult::kReplaced);
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    CHECK(flow.Run(4, "second", 100) == ReplaceResult::kFailed);
+    CHECK(p.restores == 1 && !p.saved);
+    p.scheduled[0].second();
+    CHECK(p.restores == 1);
+  }
+}
+
 int main() {
+  TestFailedWriteRestores();
   TestModifierWait();
   TestIdleDeadline();
   TestMouseDownCancels();

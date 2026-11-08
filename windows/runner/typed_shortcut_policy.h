@@ -759,8 +759,14 @@ class ReplaceFlow {
     // The snippet first: if it can't be written, nothing is deleted and the
     // code stays where the user typed it (C3).
     uint32_t mine = 0;
+    const uint32_t before = p_->Sequence();
     if (!p_->WriteSnippet(text, &mine)) {
-      if (reused) {  // the earlier restore still puts the user's text back
+      if (p_->Sequence() != before) {
+        // The write failed after emptying the clipboard: put the user's text
+        // back now (RestoreMarks, L1). Tried once; the guard then forgets.
+        if (has_text) p_->RestorePrevious();
+      } else if (reused) {
+        // Nothing changed: the earlier restore still puts the text back.
         pending_ = true;
         pending_mine_ = earlier_mine;
         guard.Keep();

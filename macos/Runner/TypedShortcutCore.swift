@@ -442,9 +442,16 @@ final class ReplaceFlow {
     }
     // The snippet first: if it can't be written, nothing is deleted and the
     // code stays where the user typed it (C3).
+    let before = platform.changeCount()
     guard let mine = platform.writeSnippet(text) else {
-      // An earlier restore still waiting keeps the user's text.
-      if reused { pending = earlier }
+      if platform.changeCount() != before {
+        // The write failed after clearing the clipboard: put the user's
+        // text back now, with its markers (L1). Tried once; then let go.
+        if let saved = previous { platform.restore(saved) }
+      } else if reused {
+        // Nothing changed: the earlier restore still puts the text back.
+        pending = earlier
+      }
       return .failed
     }
     platform.postBackspaces(deleteCount)
