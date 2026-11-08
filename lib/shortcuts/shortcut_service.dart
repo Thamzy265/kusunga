@@ -179,19 +179,23 @@ class ShortcutService extends ChangeNotifier {
     switch (event) {
       case ShortcutStatusChanged(:final status):
         if (_enabled && available) _setStatus(status);
-      case ShortcutMatched(:final snippetId, :final deleteCount):
-        unawaited(_replace(snippetId, deleteCount));
+      case ShortcutMatched(
+        :final snippetId,
+        :final deleteCount,
+        :final matchId,
+      ):
+        unawaited(_replace(snippetId, deleteCount, matchId));
     }
   }
 
-  Future<void> _replace(int snippetId, int deleteCount) async {
+  Future<void> _replace(int snippetId, int deleteCount, int matchId) async {
     if (!_enabled || !available || _replacing) return;
     final text = _snippets.textOf(snippetId);
     if (text == null) return;
     _replacing = true;
     ReplaceOutcome outcome;
     try {
-      outcome = await port.replace(deleteCount, text);
+      outcome = await port.replace(matchId, deleteCount, text);
     } catch (_) {
       outcome = ReplaceOutcome.failed;
     }

@@ -624,6 +624,7 @@ void main() {
       await fromNative('matched', {
         'snippetId': 7,
         'deleteCount': 32,
+        'matchId': 9,
         'text': 'hunter2',
         'typed': ';email',
       });
@@ -661,15 +662,19 @@ void main() {
         final p = ChannelTypedShortcutsPort(channel: channel);
         for (final a in <Object?>[null, 'Replaced', 7, true, 'ok']) {
           answer = (_) => a;
-          expect(await p.replace(3, 'x'), ReplaceOutcome.failed, reason: '$a');
+          expect(
+            await p.replace(1, 3, 'x'),
+            ReplaceOutcome.failed,
+            reason: '$a',
+          );
         }
         answer = (_) => PlatformException(code: 'x');
-        expect(await p.replace(3, 'x'), ReplaceOutcome.failed);
+        expect(await p.replace(1, 3, 'x'), ReplaceOutcome.failed);
         answer = (_) => MissingPluginException();
-        expect(await p.replace(3, 'x'), ReplaceOutcome.failed);
+        expect(await p.replace(1, 3, 'x'), ReplaceOutcome.failed);
         for (final name in ['replaced', 'cancelled', 'copied', 'failed']) {
           answer = (_) => name;
-          expect((await p.replace(3, 'x')).name, name);
+          expect((await p.replace(1, 3, 'x')).name, name);
         }
       },
     );
@@ -752,9 +757,9 @@ class _ThrowingPort implements TypedShortcutsPort {
   @override
   Future<TypedShortcutStatus> status() => inner.status();
   @override
-  Future<ReplaceOutcome> replace(int n, String text) async {
+  Future<ReplaceOutcome> replace(int matchId, int n, String text) async {
     if (failReplace) throw StateError('native');
-    return inner.replace(n, text);
+    return inner.replace(matchId, n, text);
   }
 
   @override

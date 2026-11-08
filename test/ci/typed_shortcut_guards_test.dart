@@ -50,6 +50,9 @@ const _allowedKeys = {
   'deleteCount',
   'text',
   'snippetId',
+  // C2: an opaque counter naming the match `replace` answers. Never typed
+  // text: it is an integer from a counter on both systems (checked below).
+  'matchId',
   'status',
   'appId',
   'name',
@@ -111,7 +114,8 @@ void main() {
       expect(cppSent, _nativeToDart);
     });
 
-    test('matched carries only snippetId and deleteCount, on both systems', () {
+    test('matched carries only snippetId, deleteCount and matchId, on both '
+        'systems', () {
       final swift = _code(_swiftBridge);
       final m = RegExp(
         r'"matched",\s*arguments:\s*\[([^\]]*)\]',
@@ -121,8 +125,13 @@ void main() {
           for (final k in RegExp(r'"(\w+)":').allMatches(m.group(1)!))
             k.group(1),
         },
-        {'snippetId', 'deleteCount'},
+        {'snippetId', 'deleteCount', 'matchId'},
       );
+      // The match id is the counter's answer, nothing typed.
+      final idName = RegExp(
+        r'"matchId":\s*(\w+)',
+      ).firstMatch(m.group(1)!)!.group(1)!;
+      expect(swift, contains('let $idName = pending.begin('));
       final cpp = _code(_cppBridge);
       final start = cpp.indexOf('void TypedShortcutBridge::OnMatched');
       final body = cpp.substring(start, cpp.indexOf('\n}\n', start));
@@ -131,11 +140,35 @@ void main() {
           for (final k in RegExp(r'EncodableValue\("(\w+)"\)').allMatches(body))
             k.group(1),
         },
-        {'snippetId', 'deleteCount'},
+        {'snippetId', 'deleteCount', 'matchId'},
       );
+      // An integer token from the pending match's counter.
+      expect(
+        body,
+        contains('void TypedShortcutBridge::OnMatched(int snippet_id'),
+      );
+      expect(body, contains('EncodableValue(static_cast<int64_t>(match_id))'));
+      expect(body, matches(RegExp(r'uint32_t match_id\)')));
       // And the values are the outcome's numbers, never the buffer.
       expect(body, isNot(contains('matcher_')));
       expect(body, isNot(contains('Contents')));
+    });
+
+    test('Dart reads matchId only as a positive int and sends back exactly '
+        'matchId, deleteCount and text', () {
+      final src = _code(_dartPort);
+      expect(src, contains("final matchId = args['matchId'];"));
+      expect(src, contains('matchId is int'));
+      final call = RegExp(
+        r"_invoke<Object\?>\('replace', \{([^}]*)\}",
+      ).firstMatch(src)!;
+      expect(
+        {
+          for (final k in RegExp(r"'(\w+)':").allMatches(call.group(1)!))
+            k.group(1),
+        },
+        {'matchId', 'deleteCount', 'text'},
+      );
     });
 
     test('no message key names typed text', () {

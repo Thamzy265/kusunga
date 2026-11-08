@@ -208,9 +208,7 @@ class WinReplacePlatform : public kusunga::ReplacePlatform {
   // From the pending match the hook thread counts into; none counts as
   // "something happened", so the replacement is cancelled.
   int KeysSinceMatch() override {
-    uintptr_t window = 0;
-    int inputs = 0;
-    return bridge_->pending_.Get(&window, &inputs) ? inputs : 1;
+    return bridge_->pending_.InputsSince(bridge_->replacing_id_);
   }
 
   bool SavePrevious() override {
@@ -348,8 +346,8 @@ class FieldCheckWorker {
   FieldCheckWorker& operator=(const FieldCheckWorker&) = delete;
 
   // From the hook thread: returns at once.
-  void Ask(int snippet_id, int delete_count) {
-    queue_.Push({snippet_id, delete_count, NowMs()});
+  void Ask(int snippet_id, int delete_count, uint32_t match_id) {
+    queue_.Push({snippet_id, delete_count, NowMs(), match_id});
   }
 
  private:
@@ -374,7 +372,7 @@ class FieldCheckWorker {
         timeouts->Release();
       }
     }
-    kusunga::FieldCheckRequest request{0, 0, 0};
+    kusunga::FieldCheckRequest request{0, 0, 0, 0};
     while (queue_.Pop(&request)) {
       const kusunga::FieldState state = kusunga::FieldStateInTime(
           automation ? FocusedFieldState(automation)
@@ -385,7 +383,8 @@ class FieldCheckWorker {
       if (kusunga::DecideField(state) == nullptr) {
         ::PostMessageW(ui_window_, kMsgMatched,
                        static_cast<WPARAM>(request.snippet_id),
-                       static_cast<LPARAM>(request.delete_count));
+                       static_cast<LPARAM>(kusunga::PackMatch(
+                           request.delete_count, request.match_id)));
       }
     }
     if (automation) automation->Release();
@@ -667,8 +666,9 @@ class HookThread {
     if (outcome.kind == kusunga::TypedOutcome::Kind::kMatched) {
       // The field check and the channel call happen on other threads; this
       // returns at once.
-      pending_->Begin(reinterpret_cast<uintptr_t>(foreground));
-      field_->Ask(outcome.snippet_id, outcome.delete_count);
+      const uint32_t match_id =
+          pending_->Begin(reinterpret_cast<uintptr_t>(foreground));
+      field_->Ask(outcome.snippet_id, outcome.delete_count, match_id);
     }
   }
 
@@ -770,9 +770,17 @@ void TypedShortcutBridge::HandleCall(
   } else if (method == "status") {
     result->Success(EncodableValue(status_));
   } else if (method == "replace") {
+    const auto* match = Find(args, "matchId");
     const auto* count = Find(args, "deleteCount");
     const auto* text = Find(args, "text");
-    if (!count || !std::holds_alternative<int32_t>(*count) || !text ||
+    int64_t match_id = 0;
+    if (match && std::holds_alternative<int32_t>(*match)) {
+      match_id = std::get<int32_t>(*match);
+    } else if (match && std::holds_alternative<int64_t>(*match)) {
+      match_id = std::get<int64_t>(*match);
+    }
+    if (match_id < 1 || match_id > kusunga::kMaxMatchId || !count ||
+        !std::holds_alternative<int32_t>(*count) || !text ||
         !std::holds_alternative<std::string>(*text)) {
       result->Success(EncodableValue("failed"));
       return;
@@ -782,7 +790,8 @@ void TypedShortcutBridge::HandleCall(
       result->Success(EncodableValue("failed"));
       return;
     }
-    result->Success(EncodableValue(Replace(n, std::get<std::string>(*text))));
+    result->Success(EncodableValue(Replace(static_cast<uint32_t>(match_id), n,
+                                           std::get<std::string>(*text))));
   } else if (method == "runningApps") {
     WindowsOfApps found;
     ::EnumWindows(CollectWindow, reinterpret_cast<LPARAM>(&found));
@@ -840,26 +849,29 @@ void TypedShortcutBridge::Stop(const char* status) {
   SetStatus(status);
 }
 
-void TypedShortcutBridge::OnMatched(int snippet_id, int delete_count) {
-  uintptr_t window = 0;
-  int inputs = 0;
-  if (!enabled_ || !pending_.Get(&window, &inputs)) return;
+void TypedShortcutBridge::OnMatched(int snippet_id, int delete_count,
+                                    uint32_t match_id) {
+  // A newer match came meanwhile: Dart hears only about that one.
+  if (!enabled_ || !pending_.Get(match_id, nullptr, nullptr)) return;
   EncodableMap args;
   args[EncodableValue("snippetId")] = EncodableValue(snippet_id);
   args[EncodableValue("deleteCount")] = EncodableValue(delete_count);
+  args[EncodableValue("matchId")] =
+      EncodableValue(static_cast<int64_t>(match_id));
   channel_->InvokeMethod("matched", std::make_unique<EncodableValue>(args));
 }
 
-std::string TypedShortcutBridge::Replace(int delete_count,
+std::string TypedShortcutBridge::Replace(uint32_t match_id, int delete_count,
                                          const std::string& text) {
-  uintptr_t window = 0;
-  int inputs = 0;
-  std::string answer = "cancelled";
-  if (enabled_ && pending_.Get(&window, &inputs)) {
-    answer = kusunga::ReplaceResultName(
-        replace_flow_->Run(delete_count, text, window));
+  // An older or unknown match: cancelled, and nothing else changes (C2).
+  if (!enabled_ || !pending_.Get(match_id, nullptr, nullptr)) {
+    return "cancelled";
   }
-  pending_.Clear();
+  replacing_id_ = match_id;
+  const std::string answer = kusunga::ReplaceResultName(
+      kusunga::ReplaceMatch(*replace_flow_, pending_, match_id, delete_count,
+                            text));
+  replacing_id_ = 0;
   // A replacement is a reset event; the hook thread empties its buffer.
   inbox_.PutReset();
   if (hook_thread_) hook_thread_->Wake();
@@ -870,9 +882,14 @@ std::optional<LRESULT> TypedShortcutBridge::HandleMessage(UINT message,
                                                           WPARAM wparam,
                                                           LPARAM lparam) {
   switch (message) {
-    case kMsgMatched:
-      OnMatched(static_cast<int>(wparam), static_cast<int>(lparam));
+    case kMsgMatched: {
+      int delete_count = 0;
+      uint32_t match_id = 0;
+      kusunga::UnpackMatch(static_cast<int64_t>(lparam), &delete_count,
+                           &match_id);
+      OnMatched(static_cast<int>(wparam), delete_count, match_id);
       return 0;
+    }
     case kMsgHookLost:
       // Windows removed the hooks and they could not be put back.
       if (enabled_ && hook_thread_) Stop("stopped");

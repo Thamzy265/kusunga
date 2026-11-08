@@ -912,3 +912,75 @@ final class ClipboardContentTests: XCTestCase {
     XCTAssertFalse(String(reflecting: c).contains("secret"))
   }
 }
+
+// MARK: - C2: a replacement says which match it answers; a newer match
+// makes older ones invalid.
+
+final class PendingMatchTests: XCTestCase {
+  func testEachMatchGetsANewOpaqueId() {
+    let p = PendingMatch()
+    let a = p.begin(target: 100)
+    let b = p.begin(target: 100)
+    XCTAssertGreaterThan(a, 0)
+    XCTAssertNotEqual(a, b)
+    XCTAssertNil(p.peek(a), "a newer match makes the older one invalid")
+    XCTAssertEqual(p.peek(b)?.target, 100)
+    XCTAssertNil(p.peek(0))
+    XCTAssertNil(p.peek(b + 1))
+  }
+
+  func testEndingAnOlderMatchLeavesTheNewerOne() {
+    let p = PendingMatch()
+    let a = p.begin(target: 100)
+    let b = p.begin(target: 200)
+    p.end(a)
+    XCTAssertEqual(p.peek(b)?.target, 200)
+    p.end(b)
+    XCTAssertNil(p.peek(b))
+  }
+
+  func testInputsAreCountedFromTheMatch() {
+    let p = PendingMatch()
+    p.noteInput()  // nothing pending: not counted
+    let a = p.begin(target: 1)
+    XCTAssertEqual(p.peek(a)?.inputs, 0)
+    p.noteInput()
+    XCTAssertEqual(p.peek(a)?.inputs, 1)
+    let b = p.begin(target: 1)
+    XCTAssertEqual(p.peek(b)?.inputs, 0, "a new match starts from 0")
+  }
+
+  func testIdsStayPositiveAndSmallWhenTheCounterWraps() {
+    let p = PendingMatch(lastId: PendingMatch.maxId - 1)
+    XCTAssertEqual(p.begin(target: 1), PendingMatch.maxId)
+    XCTAssertEqual(p.begin(target: 1), 1)
+    XCTAssertEqual(PendingMatch.maxId, 0x7F_FFFF)
+  }
+
+  func testAReplaceForAnOlderMatchIsCancelledAndSendsNothing() {
+    // Two quick matches: the first answer must not delete text.
+    let p = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: p)
+    let pending = PendingMatch()
+    let first = pending.begin(target: 100)
+    let second = pending.begin(target: 100)
+    XCTAssertEqual(
+      flow.run(matchId: first, deleteCount: 6, text: "will@example.com", pending: pending),
+      .cancelled)
+    XCTAssertEqual(p.log, [])
+    XCTAssertEqual(
+      flow.run(matchId: second, deleteCount: 4, text: "07700", pending: pending), .replaced)
+    XCTAssertNil(pending.peek(second), "answered once")
+    XCTAssertEqual(
+      flow.run(matchId: second, deleteCount: 4, text: "07700", pending: pending), .cancelled)
+  }
+
+  func testTheMatchTargetIsTheAppItHappenedIn() {
+    let p = FakeReplacePlatform()
+    let pending = PendingMatch()
+    let id = pending.begin(target: 200)
+    XCTAssertEqual(
+      ReplaceFlow(platform: p).run(matchId: id, deleteCount: 6, text: "x", pending: pending),
+      .cancelled, "app 100 is in front now")
+  }
+}

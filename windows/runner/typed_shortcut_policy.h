@@ -403,42 +403,80 @@ class HookInbox {
   Batch next_;
 };
 
-// The match Dart may still answer with "replace": the window it happened in
-// and how much the user did since (any of it cancels). The hook thread
-// begins it and counts; the UI thread reads and clears it.
+// Match ids (C2): an opaque counter, never anything typed. It fits in 23
+// bits so it can travel with the delete count in one LPARAM (PackMatch).
+constexpr uint32_t kMaxMatchId = 0x7FFFFF;
+
+// The match Dart may still answer with "replace": its id, the window it
+// happened in and how much the user did since (any of it cancels). Only
+// the newest match is valid: a newer one makes older ids worthless, so a
+// late "replace" for an older match never deletes text (C2). The hook
+// thread begins it and counts; the UI thread reads and ends it.
 class PendingMatch {
  public:
-  void Begin(uintptr_t window) {
+  explicit PendingMatch(uint32_t last_id = 0) : last_id_(last_id) {}
+
+  uint32_t Begin(uintptr_t window) {
     std::lock_guard<std::mutex> lock(mutex_);
-    active_ = true;
+    last_id_ = last_id_ >= kMaxMatchId ? 1 : last_id_ + 1;
+    id_ = last_id_;
     window_ = window;
     inputs_ = 0;
+    return id_;
   }
   // A key or a mouse press by the user after the match.
   void NoteInput() {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (active_) inputs_++;
+    if (id_ != 0) inputs_++;
   }
-  bool Get(uintptr_t* window, int* inputs) const {
+  // True if [id] is the newest match, with its window and input count.
+  bool Get(uint32_t id, uintptr_t* window, int* inputs) const {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (!active_) return false;
-    *window = window_;
-    *inputs = inputs_;
+    if (id == 0 || id != id_) return false;
+    if (window) *window = window_;
+    if (inputs) *inputs = inputs_;
     return true;
+  }
+  // Input since [id]; a large number when it is not the newest match, which
+  // cancels a replacement.
+  int InputsSince(uint32_t id) const {
+    int inputs = 0;
+    return Get(id, nullptr, &inputs) ? inputs : 1 << 30;
+  }
+  // [id] was answered: nothing is pending unless a newer match came.
+  void End(uint32_t id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (id == id_) Reset();
   }
   void Clear() {
     std::lock_guard<std::mutex> lock(mutex_);
-    active_ = false;
+    Reset();
+  }
+
+ private:
+  void Reset() {
+    id_ = 0;
     window_ = 0;
     inputs_ = 0;
   }
 
- private:
   mutable std::mutex mutex_;
-  bool active_ = false;
+  uint32_t last_id_;
+  uint32_t id_ = 0;  // 0: nothing pending
   uintptr_t window_ = 0;
   int inputs_ = 0;
 };
+
+// The delete count (1 to 32) and the match id in one positive number that
+// fits a 32-bit LPARAM, for the field check's message to the UI thread.
+inline int64_t PackMatch(int delete_count, uint32_t match_id) {
+  return (static_cast<int64_t>(match_id & kMaxMatchId) << 8) |
+         (delete_count & 0xFF);
+}
+inline void UnpackMatch(int64_t packed, int* delete_count, uint32_t* match_id) {
+  *delete_count = static_cast<int>(packed & 0xFF);
+  *match_id = static_cast<uint32_t>(packed >> 8) & kMaxMatchId;
+}
 
 // Rule 6 runs on its own persistent thread (UI Automation can take long, or
 // hang in a busy app). The hook thread only pushes a request; a newer one
@@ -447,6 +485,7 @@ struct FieldCheckRequest {
   int snippet_id;
   int delete_count;
   int64_t asked_ms;
+  uint32_t match_id;
 };
 
 class FieldCheckQueue {
@@ -479,7 +518,7 @@ class FieldCheckQueue {
  private:
   std::mutex mutex_;
   std::condition_variable wake_;
-  FieldCheckRequest latest_{0, 0, 0};
+  FieldCheckRequest latest_{0, 0, 0, 0};
   bool has_ = false;
   bool stopped_ = false;
 };
@@ -674,6 +713,19 @@ class ReplaceFlow {
   bool pending_ = false;
   uint32_t pending_mine_ = 0;
 };
+
+// Replaces for [match_id] only if it is still the newest match (C2): an
+// answer for an older match is cancelled and sends nothing. The match ends
+// either way.
+inline ReplaceResult ReplaceMatch(ReplaceFlow& flow, PendingMatch& pending,
+                                  uint32_t match_id, int delete_count,
+                                  const std::string& text) {
+  uintptr_t window = 0;
+  if (!pending.Get(match_id, &window, nullptr)) return ReplaceResult::kCancelled;
+  const ReplaceResult result = flow.Run(delete_count, text, window);
+  pending.End(match_id);
+  return result;
+}
 
 }  // namespace kusunga
 

@@ -257,6 +257,19 @@ void main() {
       },
     );
 
+    test('C2: replace answers the match it was told about', () async {
+      final id = addSnippet('Work email', 'will@example.com', ';email');
+      settings['typed_shortcuts_on'] = '1';
+      final s = make();
+      await s.start();
+      port.match(id, 6, matchId: 41);
+      await pumpEventQueue();
+      expect(port.replacedMatchIds, [41]);
+      port.match(id, 6, matchId: 42);
+      await pumpEventQueue();
+      expect(port.replacedMatchIds, [41, 42]);
+    });
+
     test('cancelled is logged; copied shows the M1.3 toast', () async {
       final id = addSnippet('Work email', 'will@example.com', ';email');
       settings['typed_shortcuts_on'] = '1';

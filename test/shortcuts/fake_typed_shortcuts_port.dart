@@ -10,6 +10,10 @@ class FakeTypedShortcutsPort implements TypedShortcutsPort {
   final ignoredSent = <List<String>>[];
   final replaced = <(int, String)>[];
 
+  /// The match id each replace answered (C2).
+  final replacedMatchIds = <int>[];
+  var _nextMatchId = 0;
+
   /// What setEnabled(true) answers.
   TypedShortcutStatus onStatus = TypedShortcutStatus.on;
   ReplaceOutcome replaceAnswer = ReplaceOutcome.replaced;
@@ -22,7 +26,9 @@ class FakeTypedShortcutsPort implements TypedShortcutsPort {
   @override
   Stream<TypedShortcutEvent> get events => controller.stream;
 
-  void match(int id, int count) => controller.add(ShortcutMatched(id, count));
+  /// A match from native. Each gets a new match id unless one is given.
+  void match(int id, int count, {int? matchId}) =>
+      controller.add(ShortcutMatched(id, count, matchId ?? ++_nextMatchId));
   void statusChanged(TypedShortcutStatus s) =>
       controller.add(ShortcutStatusChanged(s));
 
@@ -49,8 +55,13 @@ class FakeTypedShortcutsPort implements TypedShortcutsPort {
   Future<TypedShortcutStatus> status() async => TypedShortcutStatus.off;
 
   @override
-  Future<ReplaceOutcome> replace(int deleteCount, String text) async {
+  Future<ReplaceOutcome> replace(
+    int matchId,
+    int deleteCount,
+    String text,
+  ) async {
     calls.add('replace');
+    replacedMatchIds.add(matchId);
     replaced.add((deleteCount, text));
     return replaceAnswer;
   }

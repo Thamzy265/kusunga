@@ -10,13 +10,15 @@ import 'typed_shortcuts_port.dart';
 ///  - `setTable {entries: [{id, shortcut}]}`;
 ///  - `setIgnored {appIds: [..]}`;
 ///  - `setEnabled {on}` and `status` answer a status name;
-///  - `replace {deleteCount, text}` answers `replaced`, `cancelled`,
-///    `copied` or `failed` (`text` is the snippet Kusunga pastes);
+///  - `replace {matchId, deleteCount, text}` answers `replaced`,
+///    `cancelled`, `copied` or `failed` (`text` is the snippet Kusunga
+///    pastes; `matchId` says which match it answers, C2);
 ///  - `runningApps` answers `[{appId, name, icon}]` (icon: PNG bytes or
 ///    null);
 ///  - `requestListenAccess` answers a bool; `openInputMonitoringSettings`.
-/// Native to Dart: `matched {snippetId, deleteCount}` and
-/// `statusChanged {status}`.
+/// Native to Dart: `matched {snippetId, deleteCount, matchId}` and
+/// `statusChanged {status}`. `matchId` is an opaque counter, never anything
+/// typed; a newer match makes older ids worthless.
 /// Nothing carries a typed character (ADR 0004; a source guard test checks
 /// these names).
 class ChannelTypedShortcutsPort implements TypedShortcutsPort {
@@ -39,8 +41,14 @@ class ChannelTypedShortcutsPort implements TypedShortcutsPort {
         if (args is Map) {
           final id = args['snippetId'];
           final count = args['deleteCount'];
-          if (id is int && count is int && count >= 1 && count <= 32) {
-            _events.add(ShortcutMatched(id, count));
+          final matchId = args['matchId'];
+          if (id is int &&
+              count is int &&
+              count >= 1 &&
+              count <= 32 &&
+              matchId is int &&
+              matchId >= 1) {
+            _events.add(ShortcutMatched(id, count, matchId));
           }
         }
       case 'statusChanged':
@@ -91,8 +99,13 @@ class ChannelTypedShortcutsPort implements TypedShortcutsPort {
       _status(await _invoke<Object?>('status')) ?? TypedShortcutStatus.off;
 
   @override
-  Future<ReplaceOutcome> replace(int deleteCount, String text) async {
+  Future<ReplaceOutcome> replace(
+    int matchId,
+    int deleteCount,
+    String text,
+  ) async {
     final reply = await _invoke<Object?>('replace', {
+      'matchId': matchId,
       'deleteCount': deleteCount,
       'text': text,
     });

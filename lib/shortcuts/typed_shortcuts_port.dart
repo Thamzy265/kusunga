@@ -54,15 +54,20 @@ class RunningApp {
 }
 
 /// Things the native side tells Dart. Neither carries anything typed (ADR
-/// 0004): a match is a snippet id and how many characters to delete.
+/// 0004): a match is a snippet id, how many characters to delete and an
+/// opaque match id.
 sealed class TypedShortcutEvent {
   const TypedShortcutEvent();
 }
 
 class ShortcutMatched extends TypedShortcutEvent {
-  const ShortcutMatched(this.snippetId, this.deleteCount);
+  const ShortcutMatched(this.snippetId, this.deleteCount, this.matchId);
   final int snippetId;
   final int deleteCount;
+
+  /// An opaque counter from native code naming this match (C2). [replace]
+  /// sends it back; native answers only the newest match.
+  final int matchId;
 }
 
 class ShortcutStatusChanged extends TypedShortcutEvent {
@@ -89,9 +94,10 @@ abstract interface class TypedShortcutsPort {
 
   Future<TypedShortcutStatus> status();
 
-  /// Deletes [deleteCount] characters and pastes [text] (the snippet), then
-  /// puts the previous clipboard text back after 0.5 s (PM decision D2).
-  Future<ReplaceOutcome> replace(int deleteCount, String text);
+  /// Answers the match [matchId]: deletes [deleteCount] characters and
+  /// pastes [text] (the snippet), then puts the previous clipboard text back
+  /// after 0.5 s (PM decision D2). `cancelled` if a newer match came.
+  Future<ReplaceOutcome> replace(int matchId, int deleteCount, String text);
 
   /// The apps running now, for "Add app…".
   Future<List<RunningApp>> runningApps();

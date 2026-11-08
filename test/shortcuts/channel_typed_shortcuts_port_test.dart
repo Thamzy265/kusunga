@@ -74,17 +74,20 @@ void main() {
     expect(await port().status(), TypedShortcutStatus.off);
   });
 
-  test('replace sends the delete count and the snippet text', () async {
+  test('replace sends the match id, the delete count and the snippet '
+      'text', () async {
     for (final r in ReplaceOutcome.values) {
       answer = (_) => r.name;
-      expect(await port().replace(6, 'will@example.com'), r);
+      expect(await port().replace(41, 6, 'will@example.com'), r);
     }
+    // C2: the match id says which match this answers.
     expect(calls.first.arguments, {
+      'matchId': 41,
       'deleteCount': 6,
       'text': 'will@example.com',
     });
     answer = (_) => PlatformException(code: 'x');
-    expect(await port().replace(6, 'x'), ReplaceOutcome.failed);
+    expect(await port().replace(41, 6, 'x'), ReplaceOutcome.failed);
   });
 
   test('runningApps reads id, name and icon; bad rows are dropped', () async {
@@ -114,19 +117,53 @@ void main() {
     ]);
   });
 
-  test('matched carries a snippet id and a delete count only', () async {
+  test('matched carries a snippet id, a delete count and a match id '
+      'only', () async {
     final p = port();
     final events = <TypedShortcutEvent>[];
     p.events.listen(events.add);
-    await fromNative('matched', {'snippetId': 7, 'deleteCount': 6});
+    await fromNative('matched', {
+      'snippetId': 7,
+      'deleteCount': 6,
+      'matchId': 3,
+    });
     // Out of range or malformed: dropped.
-    await fromNative('matched', {'snippetId': 7, 'deleteCount': 0});
-    await fromNative('matched', {'snippetId': 7, 'deleteCount': 33});
-    await fromNative('matched', {'snippetId': '7', 'deleteCount': 6});
+    await fromNative('matched', {
+      'snippetId': 7,
+      'deleteCount': 0,
+      'matchId': 4,
+    });
+    await fromNative('matched', {
+      'snippetId': 7,
+      'deleteCount': 33,
+      'matchId': 4,
+    });
+    await fromNative('matched', {
+      'snippetId': '7',
+      'deleteCount': 6,
+      'matchId': 4,
+    });
+    // C2: no match id, or not a positive integer: dropped.
+    await fromNative('matched', {'snippetId': 7, 'deleteCount': 6});
+    await fromNative('matched', {
+      'snippetId': 7,
+      'deleteCount': 6,
+      'matchId': ';email',
+    });
+    await fromNative('matched', {
+      'snippetId': 7,
+      'deleteCount': 6,
+      'matchId': 0,
+    });
+    await fromNative('matched', {
+      'snippetId': 7,
+      'deleteCount': 6,
+      'matchId': 2.0,
+    });
     await fromNative('matched', null);
     expect(events.length, 1);
     final m = events.single as ShortcutMatched;
-    expect((m.snippetId, m.deleteCount), (7, 6));
+    expect((m.snippetId, m.deleteCount, m.matchId), (7, 6, 3));
   });
 
   test('statusChanged carries a status name', () async {

@@ -197,6 +197,52 @@ final class TypedShortcutMatcher {
   }
 }
 
+/// The match Dart may still answer with `replace` (C2): its id, the app it
+/// happened in and how much the user did since (any of it cancels). Only
+/// the newest match is valid: a newer one makes older ids worthless, so a
+/// late `replace` for an older match never deletes text. The id is an
+/// opaque counter, never anything typed. Main thread only.
+final class PendingMatch {
+  /// Ids stay in 23 bits, the same range as on Windows.
+  static let maxId = 0x7F_FFFF
+
+  private var lastId: Int
+  private var current: (id: Int, target: Int32)?
+  private var inputs = 0
+
+  init(lastId: Int = 0) { self.lastId = lastId }
+
+  /// A new match in the app [target]; answers its id.
+  @discardableResult
+  func begin(target: Int32) -> Int {
+    lastId = lastId >= PendingMatch.maxId ? 1 : lastId + 1
+    current = (lastId, target)
+    inputs = 0
+    return lastId
+  }
+
+  /// A key or a mouse press by the user after the match.
+  func noteInput() {
+    if current != nil { inputs += 1 }
+  }
+
+  /// The app and the input count, if [id] is the newest match.
+  func peek(_ id: Int) -> (target: Int32, inputs: Int)? {
+    guard let c = current, c.id == id else { return nil }
+    return (c.target, inputs)
+  }
+
+  /// [id] was answered: nothing is pending unless a newer match came.
+  func end(_ id: Int) {
+    if current?.id == id { clear() }
+  }
+
+  func clear() {
+    current = nil
+    inputs = 0
+  }
+}
+
 /// Mac key codes (kVK_*) and what they mean for the buffer.
 enum MacKeyClassifier {
   static let deleteKey: Int64 = 51
@@ -394,5 +440,18 @@ final class ReplaceFlow {
       }
     }
     return .replaced
+  }
+}
+
+extension ReplaceFlow {
+  /// Replaces for [matchId] only if it is still the newest match (C2): an
+  /// answer for an older match is cancelled and sends nothing. The match
+  /// ends either way.
+  func run(matchId: Int, deleteCount: Int, text: String, pending: PendingMatch)
+    -> ReplaceResult
+  {
+    guard let match = pending.peek(matchId) else { return .cancelled }
+    defer { pending.end(matchId) }
+    return run(deleteCount: deleteCount, text: text, matchPid: match.target)
   }
 }

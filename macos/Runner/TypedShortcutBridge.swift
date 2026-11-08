@@ -10,10 +10,11 @@ import FlutterMacOS
 /// lib/shortcuts/channel_typed_shortcuts_port.dart):
 ///  - Dart calls `setTable {entries: [{id, shortcut}]}`, `setIgnored
 ///    {appIds}`, `setEnabled {on}` and `status` (both answer a status name),
-///    `replace {deleteCount, text}`, `runningApps`, `requestListenAccess` and
-///    `openInputMonitoringSettings`;
-///  - native calls `matched {snippetId, deleteCount}` and `statusChanged
-///    {status}`.
+///    `replace {matchId, deleteCount, text}`, `runningApps`,
+///    `requestListenAccess` and `openInputMonitoringSettings`;
+///  - native calls `matched {snippetId, deleteCount, matchId}` and
+///    `statusChanged {status}`. `matchId` is an opaque counter (C2): a
+///    `replace` answers only the newest match, never an older one.
 /// Typed keys never leave the matcher's buffer (ADR 0004): no channel
 /// message, log line or file carries one. The front app is known by pid and
 /// bundle id, in memory only, and never logged.
@@ -38,8 +39,9 @@ final class TypedShortcutBridge {
   private var timer: Timer?
   private var frontPid: pid_t?
   private var frontBundle: String?
-  private var matchPid: pid_t?
-  private var keysSinceMatch = 0
+  /// The match Dart may answer, and the one being replaced now.
+  private let pending = PendingMatch()
+  private var replacingId = 0
   private var observers: [NSObjectProtocol] = []
   private let ownPid = ProcessInfo.processInfo.processIdentifier
 
@@ -93,10 +95,11 @@ final class TypedShortcutBridge {
     case "status":
       result(status)
     case "replace":
-      guard let count = args?["deleteCount"] as? Int, count >= 1, count <= TypedBuffer.maxLength,
+      guard let matchId = args?["matchId"] as? Int,
+        let count = args?["deleteCount"] as? Int, count >= 1, count <= TypedBuffer.maxLength,
         let text = args?["text"] as? String
       else { return result(ReplaceResult.failed.rawValue) }
-      result(replace(deleteCount: count, text: text).rawValue)
+      result(replace(matchId: matchId, deleteCount: count, text: text).rawValue)
     case "runningApps":
       result(TypedShortcutBridge.runningApps())
     case "requestListenAccess":
@@ -170,7 +173,7 @@ final class TypedShortcutBridge {
     tap = nil
     source = nil
     matcher.reset()
-    matchPid = nil
+    pending.clear()
     setStatus(next)
   }
 
@@ -219,7 +222,7 @@ final class TypedShortcutBridge {
     if event.getIntegerValueField(.eventSourceUserData) == TypedShortcutBridge.ownEventMarker {
       return
     }
-    if matchPid != nil { keysSinceMatch += 1 }
+    pending.noteInput()
     let flags = event.flags
     var length = 0
     var units = [UniChar](repeating: 0, count: 8)
@@ -244,29 +247,37 @@ final class TypedShortcutBridge {
     case .skipped(let code):
       DiagLog.log(code, nil)
     case .matched(let snippetId, let deleteCount):
-      matchPid = frontPid
-      keysSinceMatch = 0
+      // No front app: nothing could be replaced safely.
+      guard let target = frontPid else { break }
+      let matchId = pending.begin(target: target)
       channel?.invokeMethod(
-        "matched", arguments: ["snippetId": snippetId, "deleteCount": deleteCount])
+        "matched",
+        arguments: ["snippetId": snippetId, "deleteCount": deleteCount, "matchId": matchId])
     }
   }
 
   // MARK: Replacing
 
-  private func replace(deleteCount: Int, text: String) -> ReplaceResult {
+  /// Answers the match [matchId] only if it is still the newest one (C2).
+  /// An older or unknown id is cancelled and changes nothing.
+  private func replace(matchId: Int, deleteCount: Int, text: String) -> ReplaceResult {
+    guard enabled, pending.peek(matchId) != nil else { return .cancelled }
+    replacingId = matchId
     defer {
-      matchPid = nil
-      keysSinceMatch = 0
+      replacingId = 0
       matcher.reset()
     }
-    guard enabled, let pid = matchPid else { return .cancelled }
-    return replaceFlow.run(deleteCount: deleteCount, text: text, matchPid: pid)
+    return replaceFlow.run(
+      matchId: matchId, deleteCount: deleteCount, text: text, pending: pending)
   }
 
   /// One flow for the app, so a second shortcut within 0.5 s still puts
   /// back the user's own text.
   private lazy var replaceFlow = ReplaceFlow(
-    platform: MacReplacePlatform(keysSinceMatch: { [weak self] in self?.keysSinceMatch ?? 1 }))
+    platform: MacReplacePlatform(keysSinceMatch: { [weak self] in
+      guard let self = self else { return 1 }
+      return self.pending.peek(self.replacingId)?.inputs ?? 1
+    }))
 
   // MARK: Helpers
 

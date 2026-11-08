@@ -36,12 +36,14 @@ class FieldCheckWorker;
 // lib/shortcuts/channel_typed_shortcuts_port.dart):
 //  - Dart calls "setTable" {entries: [{id, shortcut}]}, "setIgnored"
 //    {appIds}, "setEnabled" {on} and "status" (both answer a status name),
-//    "replace" {deleteCount, text}, "runningApps" (names only for now; see
+//    "replace" {matchId, deleteCount, text}, "runningApps" (names only for
+//    now; see
 //    RunningAppIcon), "requestListenAccess" (true: Windows asks for no
 //    permission) and "openInputMonitoringSettings" (nothing on Windows);
-//  - native calls "matched" {snippetId, deleteCount} and "statusChanged"
-//    {status} ("stopped" when Windows removed the hooks and they could not
-//    be put back).
+//  - native calls "matched" {snippetId, deleteCount, matchId} and
+//    "statusChanged" {status} ("stopped" when Windows removed the hooks and
+//    they could not be put back). matchId is an opaque counter (C2): a
+//    "replace" answers only the newest match, never an older one.
 // Typed keys never leave the matcher's buffer (ADR 0004). The front window
 // is known by handle and executable name, in memory only, never logged.
 class TypedShortcutBridge {
@@ -70,8 +72,9 @@ class TypedShortcutBridge {
   void Start();
   void Stop(const char* status);
   void SetStatus(const char* status);
-  void OnMatched(int snippet_id, int delete_count);
-  std::string Replace(int delete_count, const std::string& text);
+  void OnMatched(int snippet_id, int delete_count, uint32_t match_id);
+  std::string Replace(uint32_t match_id, int delete_count,
+                      const std::string& text);
 
   HWND window_;
   kusunga::OwnClipboardChanges* own_;
@@ -83,6 +86,7 @@ class TypedShortcutBridge {
   // Shared with the hook thread (each has its own lock).
   kusunga::HookInbox inbox_;
   kusunga::PendingMatch pending_;
+  uint32_t replacing_id_ = 0;  // the match being replaced now (UI thread)
 
   std::unique_ptr<FieldCheckWorker> field_worker_;
   std::unique_ptr<HookThread> hook_thread_;

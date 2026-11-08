@@ -899,10 +899,11 @@ static void TestFieldCheckQueue() {
   CHECK(FieldStateInTime(FieldState::kPassword, 1000, 5000) == FieldState::kUnknown);
   {  // The newest request wins; the worker takes it once.
     FieldCheckQueue q;
-    q.Push({1, 6, 100});
-    q.Push({2, 4, 200});
+    q.Push({1, 6, 100, 1});
+    q.Push({2, 4, 200, 2});
     FieldCheckRequest r{};
-    CHECK(q.Pop(&r) && r.snippet_id == 2 && r.delete_count == 4 && r.asked_ms == 200);
+    CHECK(q.Pop(&r) && r.snippet_id == 2 && r.delete_count == 4 &&
+          r.asked_ms == 200 && r.match_id == 2);
     q.Stop();
     CHECK(!q.Pop(&r));
   }
@@ -914,7 +915,7 @@ static void TestFieldCheckQueue() {
       FieldCheckRequest r{};
       while (q.Pop(&r)) got.push_back(r.snippet_id);
     });
-    q.Push({5, 3, 0});
+    q.Push({5, 3, 0, 7});
     for (int i = 0; i < 200 && got.empty(); i++) {
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
@@ -928,25 +929,77 @@ static void TestPendingMatch() {
   PendingMatch p;
   uintptr_t window = 0;
   int inputs = -1;
-  CHECK(!p.Get(&window, &inputs));
+  CHECK(!p.Get(1, &window, &inputs));
   p.NoteInput();  // no match yet: nothing counted
-  p.Begin(100);
-  CHECK(p.Get(&window, &inputs) && window == 100 && inputs == 0);
+  const uint32_t a = p.Begin(100);
+  CHECK(a > 0);
+  CHECK(p.Get(a, &window, &inputs) && window == 100 && inputs == 0);
   p.NoteInput();
-  CHECK(p.Get(&window, &inputs) && inputs == 1);
-  p.Begin(200);  // a new match starts again from 0
-  CHECK(p.Get(&window, &inputs) && window == 200 && inputs == 0);
+  CHECK(p.Get(a, &window, &inputs) && inputs == 1);
+  CHECK(p.InputsSince(a) == 1);
+  // C2: a new match starts again from 0, and the older id is no longer
+  // valid.
+  const uint32_t b = p.Begin(200);
+  CHECK(b != a);
+  CHECK(!p.Get(a, &window, &inputs));
+  CHECK(p.InputsSince(a) > 1000);  // "something happened": cancel
+  CHECK(p.Get(b, &window, &inputs) && window == 200 && inputs == 0);
+  p.End(a);  // ending the older one leaves the newer
+  CHECK(p.Get(b, &window, &inputs));
+  p.End(b);
+  CHECK(!p.Get(b, &window, &inputs));
+  const uint32_t c = p.Begin(1);
   p.Clear();
-  CHECK(!p.Get(&window, &inputs));
+  CHECK(!p.Get(c, &window, &inputs));
+  // Ids stay positive and fit in 23 bits when the counter wraps.
+  PendingMatch wrap(kMaxMatchId - 1);
+  CHECK(wrap.Begin(1) == kMaxMatchId);
+  CHECK(wrap.Begin(1) == 1);
+  CHECK(kMaxMatchId == 0x7FFFFF);
   // The hook thread counts while the UI thread reads.
   PendingMatch shared;
-  shared.Begin(1);
+  const uint32_t s = shared.Begin(1);
   std::thread hook([&] {
     for (int i = 0; i < 1000; i++) shared.NoteInput();
   });
-  for (int i = 0; i < 1000; i++) shared.Get(&window, &inputs);
+  for (int i = 0; i < 1000; i++) shared.Get(s, &window, &inputs);
   hook.join();
-  CHECK(shared.Get(&window, &inputs) && inputs == 1000);
+  CHECK(shared.Get(s, &window, &inputs) && inputs == 1000);
+}
+
+// C2: the match id travels from the field check to the UI thread packed
+// with the delete count in one LPARAM, even a 32-bit one.
+static void TestPackMatch() {
+  for (const uint32_t id : {1u, 2u, 255u, 256u, kMaxMatchId}) {
+    for (const int count : {1, 6, 32}) {
+      int c = 0;
+      uint32_t i = 0;
+      const int64_t packed = PackMatch(count, id);
+      CHECK(packed > 0 && packed <= 0x7FFFFFFF);
+      UnpackMatch(packed, &c, &i);
+      CHECK(c == count && i == id);
+    }
+  }
+}
+
+// C2: a replace for an older match is cancelled and sends nothing.
+static void TestReplaceMatch() {
+  FakeReplace p;
+  ReplaceFlow flow(&p);
+  PendingMatch pending;
+  const uint32_t first = pending.Begin(100);
+  const uint32_t second = pending.Begin(100);
+  CHECK(ReplaceMatch(flow, pending, first, 6, "will@example.com") ==
+        ReplaceResult::kCancelled);
+  CHECK(p.log.empty());
+  CHECK(ReplaceMatch(flow, pending, second, 4, "07700") ==
+        ReplaceResult::kReplaced);
+  CHECK(!pending.Get(second, nullptr, nullptr));  // answered once
+  CHECK(ReplaceMatch(flow, pending, second, 4, "07700") ==
+        ReplaceResult::kCancelled);
+  // The window of the match, not whatever is in front now.
+  const uint32_t third = pending.Begin(200);
+  CHECK(ReplaceMatch(flow, pending, third, 4, "x") == ReplaceResult::kCancelled);
 }
 
 int main() {
@@ -954,6 +1007,8 @@ int main() {
   TestHookInbox();
   TestFieldCheckQueue();
   TestPendingMatch();
+  TestPackMatch();
+  TestReplaceMatch();
   TestWriteFirstAndForget();
   TestRestorableFormats();
   TestRestoreMarks();
