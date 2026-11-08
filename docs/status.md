@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.4 Saved snippets — Reviewer re-check: approve with notes (F-M1 closed); waiting for the Mac
+- Changed: reviewer re-checked 432131d..b9632e7: approve with notes, 0 new findings. F-M1 fixed (df38af8): _focusMore uses the public traversalDescendants API, so the fix no longer depends on PopupMenuButton's private structure; nothing else in lib/ changed. check.sh +2374 ~8 passed (reviewer ran it). Developer, tester and reviewer gates are done for every change since QA session 5. Next: QA session 6 on b9632e7 (wording, live dialog counts, unknown count, count-of-0 close/relabel, focus return and no reach-through behind dialogs, footer count, D5 picker-over-dialog manual check, qa-m13-* cleanup).
+- Gates: developer done · tester pass (round 18) · reviewer approve with notes · QA session 6 pending (needs the Mac) · PM merge waiting
+- Open findings: none open; N1, N2, F5 (Windows), R1 unchanged
+- Decisions: none new
+- Blockers: PM — free the Mac for QA session 6; VoiceOver sign-off; confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; push of local main
+
 ## 2026-11-08 — M1.4 Saved snippets — Tester round 18: F-M1 fix holds; reviewer re-check started
 - Changed: tester round 18 on 432131d..df38af8 (b9632e7, tests only): 10 tests in test/ui/dialog_focus_more_target_test.dart; focus lands on the visible, traversable "More options" button after every Clear close path and menu dismissal, also with the setup card shown and at 0 items (button never disabled or absent; empty traversal list is a safe no-op). Mutation check: the guard and the new file fail on the wrap, the parent, or no focus call; the new file also catches a skipTraversal target. Old target behaves the same today, so no fail-then-pass. Round 17 file still green. No bugs. check.sh +2374 ~8 passed. Reviewer re-check of 432131d..b9632e7 started.
 - Gates: developer done · tester pass (round 18) · reviewer re-check in progress · QA re-run pending (needs the Mac) · PM merge waiting
