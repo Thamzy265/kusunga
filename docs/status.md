@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.4 Saved snippets — PM decision: QA removes the qa-m13-* items
+- Changed: PM asked whether QA should also remove the old synthetic qa-m13-* test items (e.g. qa-m13-a5-timing-*) from the PM's real history; the 2026-11-06 cleanup exception covered qa-m14-* only. QA will remove them in the next QA session, one at a time, under the same rules as the qa-m14-* cleanup (only items whose text starts with "qa-m13-"; no Clear history; Keep stays 500; record counts before and after).
+- Gates: developer in progress (BUG-D1, fable) · tester round 15 fail (BUG-D1) · reviewer pending · QA re-run pending (needs the Mac) · PM merge waiting
+- Open findings: BUG-D1 (high); N1, N2, F5 (Windows), R1 unchanged
+- Decisions: PM decision (2026-11-08): cleanup of qa-m13-* items from the real history — question: "Should QA also remove the old qa-m13 test items from your real history?" — PM said: "Yes, remove them"
+- Blockers: PM — free the Mac for the QA re-run; VoiceOver sign-off; confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; push of local main
+
 ## 2026-11-08 — M1.4 Saved snippets — Tester round 15: BUG-D1 (high) in the Keep dialog; developer escalated
 - Changed: tester round 15 on 0f55781..be09a77 (cbf47de, tests only): 18 tests pass, 4 skipped (BUG-D1 repro and 3 keyboard "Set limit" tests it blocks); 11 fail on 0f55781. Clear history auto-close holds (bursts, other paths, same-frame copy, Escape/Enter in the frame, dialog or menu on top, screen removed, no listener leaks, never closes on failed read or save, keyboard focus same as Cancel). Keep toggles 0/1/unknown agree. The 5 updated tests still test the right thing. New: BUG-D1 (high, keyboard and data; not the Windows "D1" item) — with the Keep dialog open, a count change rebuilds the dialog and focus leaves it: Escape and Enter stop working, Tab walks the History rows behind the modal, and Tab, Tab, Tab, Enter deleted a row behind the dialog. Mouse not affected. Present since 2020e85 (BUG-W1 fix); Clear dialog not affected. check.sh +2246 ~12 passed. Escalation: second failure on the dialog work by the developer already on opus xhigh, so the developer is dispatched on fable (xhigh).
 - Gates: developer in progress (BUG-D1, escalated to fable) · tester round 15 fail (BUG-D1) · reviewer pending · QA re-run pending (needs the Mac) · PM merge waiting
