@@ -275,6 +275,7 @@ class FakeReplace : public ReplacePlatform {
   bool write_ok = true;
   bool fail_after_clear = false;  // the failed write had emptied it (L1)
   bool restore_ok = true;         // writing the previous text back works
+  int extra_moves_on_fail = 0;    // other writers moved the sequence too
   uint32_t sequence = 10;
   std::vector<std::pair<int, std::function<void()>>> scheduled;
   int restores = 0;
@@ -309,6 +310,7 @@ class FakeReplace : public ReplacePlatform {
     log.push_back("write");
     if (!write_ok) {
       if (fail_after_clear) ++sequence;
+      sequence += static_cast<uint32_t>(extra_moves_on_fail);
       return false;
     }
     *seq = ++sequence;
@@ -1722,7 +1724,145 @@ static void TestFailedWriteRestores() {
   }
 }
 
+// ---- Tester round 4: edges of the L1 fix (a failed write after the clear) ----
+
+static void TestFailedWriteEdges() {
+  {  // The sequence number wrapping past zero still counts as moved.
+    FakeReplace p;
+    p.sequence = 0xFFFFFFFFu;
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(3, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restores == 1 && !p.saved);
+  }
+  {  // A failed write that moved nothing: the user's copy is still there,
+     // so nothing is written back.
+    FakeReplace p;
+    p.write_ok = false;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(3, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restores == 0 && !p.saved);
+  }
+  {  // Moved by more than one (another app also wrote): still restored once.
+    FakeReplace p;
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    p.extra_moves_on_fail = 5;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(3, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restores == 1 && !p.saved);
+  }
+  {  // Moved by the user's own copy during the write: indistinguishable from
+     // the clear, so the saved text is written back (locked; hand-off note).
+    FakeReplace p;
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(3, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restores == 1);
+  }
+  {  // The earlier timer's restore is still valid: it is used once, and the
+     // old timer fires later with nothing to do (no second write-back).
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(3, "first", 100) == ReplaceResult::kReplaced);
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    CHECK(flow.Run(3, "second", 100) == ReplaceResult::kFailed);
+    CHECK(p.restores == 1);
+    for (auto& w : p.scheduled) w.second();
+    CHECK(p.restores == 1 && !p.saved);
+  }
+  {  // The earlier restore went stale (the user copied): a fresh read is
+     // written back and the old timer does nothing more.
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    flow.Run(3, "first", 100);
+    p.sequence++;  // the user's copy
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    CHECK(flow.Run(3, "second", 100) == ReplaceResult::kFailed);
+    int reads = 0;
+    for (const auto& l : p.log) reads += l == "readPrevious";
+    CHECK(reads == 2);
+    CHECK(p.restores == 1);
+    for (auto& w : p.scheduled) w.second();
+    CHECK(p.restores == 1 && !p.saved);
+  }
+  {  // The write back fails while an earlier timer waits: tried once, and the
+     // timer later does not try again.
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    flow.Run(3, "first", 100);
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    p.restore_ok = false;
+    CHECK(flow.Run(3, "second", 100) == ReplaceResult::kFailed);
+    CHECK(p.restore_attempts == 1);
+    for (auto& w : p.scheduled) w.second();
+    CHECK(p.restore_attempts == 1 && !p.saved);
+  }
+  {  // Nothing moved and an earlier restore is valid: it is kept and fires.
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    flow.Run(3, "first", 100);
+    p.write_ok = false;
+    CHECK(flow.Run(3, "second", 100) == ReplaceResult::kFailed);
+    CHECK(p.restores == 0 && p.saved);
+    p.scheduled[0].second();
+    CHECK(p.restores == 1 && !p.saved);
+  }
+  {  // Non-text before: nothing to put back, nothing saved.
+    FakeReplace p;
+    p.has_previous = false;
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(3, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restores == 0 && p.restore_attempts == 0 && !p.saved);
+  }
+  {  // The next shortcut after a failed write starts fresh.
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    flow.Run(3, "a", 100);
+    p.write_ok = true;
+    p.fail_after_clear = false;
+    p.log.clear();
+    CHECK(flow.Run(3, "b", 100) == ReplaceResult::kReplaced);
+    CHECK((p.log == std::vector<std::string>{"readPrevious", "write", "backspace3",
+                                              "paste"}));
+    CHECK(p.saved);
+  }
+  // The write back uses all three marks, whichever marks the copy had.
+  const ClipboardMarks m = RestoreMarks();
+  CHECK(m.exclude_from_monitor && m.no_history && m.no_cloud);
+  // Copy-only after a modifier timeout: unchanged. The snippet is written, the
+  // code stays, and no previous text was read, so none is put back (even if
+  // that write failed after the clear).
+  for (const bool fails : {false, true}) {
+    FakeReplace p;
+    p.mods_down = true;
+    p.write_ok = !fails;
+    p.fail_after_clear = fails;
+    ReplaceFlow flow(&p);
+    ReplaceResult got = ReplaceResult::kReplaced;
+    int answers = 0;
+    flow.Start(3, "x", 100, [&](ReplaceResult r) {
+      got = r;
+      answers++;
+    });
+    while (answers == 0) RunScheduledPoll(p);
+    CHECK(got == (fails ? ReplaceResult::kFailed : ReplaceResult::kCopied));
+    CHECK((p.log == std::vector<std::string>{"write"}));
+    CHECK(p.restores == 0 && p.restore_attempts == 0 && !p.saved);
+  }
+}
+
 int main() {
+  TestFailedWriteEdges();
   TestFailedWriteRestores();
   TestModifierWait();
   TestIdleDeadline();

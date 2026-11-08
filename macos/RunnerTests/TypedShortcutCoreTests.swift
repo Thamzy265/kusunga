@@ -1454,3 +1454,210 @@ final class FailedWriteRestoreTests: XCTestCase {
     XCTAssertEqual(p.restored.count, 1)
   }
 }
+
+// MARK: - Tester round 4: edges of the L1 fix (a failed write after the clear)
+
+/// A platform whose write can change the change count in any way, so the
+/// "moved for another reason" cases can be scripted.
+final class ScriptedReplacePlatform: ReplacePlatform {
+  var log: [String] = []
+  var count = 100
+  var previous: SavedClipboard? = SavedClipboard(text: "mine", markerTypes: [])
+  var canPost = true
+  var writeResult: (() -> Int?) = { nil }
+  var scheduled: [() -> Void] = []
+  var restored: [SavedClipboard] = []
+
+  func frontmostPid() -> Int32? { 100 }
+  func keysSinceMatch() -> Int { 0 }
+  func canPostEvents() -> Bool { canPost }
+  func previousText() -> SavedClipboard? {
+    log.append("readPrevious")
+    return previous
+  }
+  func postBackspaces(_ n: Int) { log.append("backspace") }
+  func writeSnippet(_ text: String) -> Int? {
+    log.append("write")
+    return writeResult()
+  }
+  func postPaste() -> Bool {
+    log.append("paste")
+    return true
+  }
+  func schedule(afterMs: Int, _ work: @escaping () -> Void) { scheduled.append(work) }
+  func changeCount() -> Int { count }
+  func restore(_ saved: SavedClipboard) {
+    log.append("restore")
+    restored.append(saved)
+    count += 1
+  }
+}
+
+final class FailedWriteEdgeTests: XCTestCase {
+  func testAnyMovementOfTheChangeCountCountsNotJustPlusOne() {
+    for delta in [1, 2, 7, 1000] {
+      let p = ScriptedReplacePlatform()
+      p.writeResult = { [unowned p] in
+        p.count += delta
+        return nil
+      }
+      let flow = ReplaceFlow(platform: p)
+      XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
+      XCTAssertEqual(p.restored.count, 1, "delta \(delta)")
+      XCTAssertFalse(flow.hasPendingRestore)
+    }
+  }
+
+  /// If the count moved because the user copied during the write, the flow
+  /// cannot tell it from its own clear: it writes the saved text back. Locks
+  /// today's behaviour (the window is a few milliseconds); see the hand-off.
+  func testACopyByTheUserDuringAFailedWriteIsIndistinguishableAndIsOverwritten() {
+    let p = ScriptedReplacePlatform()
+    p.writeResult = { [unowned p] in
+      p.count += 1  // the user's own copy, not our clear
+      return nil
+    }
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
+    XCTAssertEqual(p.restored.map { $0.text }, ["mine"])
+  }
+
+  func testAFailedWriteThatMovedNothingNeverRestoresEvenWithSavedText() {
+    let p = ScriptedReplacePlatform()
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
+    XCTAssertTrue(p.restored.isEmpty)
+    XCTAssertEqual(p.log, ["readPrevious", "write"])
+  }
+
+  func testNonTextPreviousClipboardIsNotRestoredAndNothingIsInvented() {
+    let p = ScriptedReplacePlatform()
+    p.previous = nil  // an image was on it: Kusunga only keeps text
+    p.writeResult = { [unowned p] in
+      p.count += 1
+      return nil
+    }
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
+    XCTAssertTrue(p.restored.isEmpty)
+    XCTAssertFalse(flow.hasPendingRestore)
+  }
+
+  func testEveryPrivacyMarkerSurvivesTheWriteBack() {
+    for marker in RestorableClipboard.privacyMarkers {
+      let saved = RestorableClipboard.saved(
+        text: "pw", types: ["public.utf8-plain-text", marker, "org.nspasteboard.source"])
+      let p = ScriptedReplacePlatform()
+      p.previous = saved
+      p.writeResult = { [unowned p] in
+        p.count += 1
+        return nil
+      }
+      let flow = ReplaceFlow(platform: p)
+      XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
+      XCTAssertEqual(p.restored.first?.markerTypes, [marker], marker)
+      // The platform writes that content as one item with exactly those markers.
+      XCTAssertEqual(ClipboardContent.restore(p.restored[0]).markerTypes, [marker])
+    }
+    let all = RestorableClipboard.saved(
+      text: "pw", types: ["public.utf8-plain-text"] + RestorableClipboard.privacyMarkers)
+    XCTAssertEqual(Set(all?.markerTypes ?? []), Set(RestorableClipboard.privacyMarkers))
+  }
+
+  func testAnEarlierPendingRestoreThatIsStillValidIsUsedOnceAndItsTimerIsHarmless() {
+    let p = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "first", matchPid: 100), .replaced)
+    p.writeOk = false
+    p.failAfterClear = true
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "second", matchPid: 100), .failed)
+    XCTAssertEqual(p.restored, [SavedClipboard(text: "what I copied", markerTypes: [])])
+    XCTAssertFalse(flow.hasPendingRestore)
+    for work in p.scheduled { work.1() }
+    XCTAssertEqual(p.restored.count, 1, "no second write-back from the old timer")
+  }
+
+  func testAnEarlierPendingRestoreThatWentStaleRestoresTheFreshCopyNotTheOldText() {
+    let p = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: p)
+    _ = flow.run(deleteCount: 3, text: "first", matchPid: 100)
+    p.count += 1  // the user copied something new after the first shortcut
+    p.previous = SavedClipboard(text: "fresh copy", markerTypes: [])
+    p.writeOk = false
+    p.failAfterClear = true
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "second", matchPid: 100), .failed)
+    XCTAssertEqual(p.restored.map { $0.text }, ["fresh copy"])
+    for work in p.scheduled { work.1() }
+    XCTAssertEqual(p.restored.map { $0.text }, ["fresh copy"])
+    XCTAssertFalse(flow.hasPendingRestore)
+  }
+
+  func testWhenTheWriteBackFailsTheEarlierTimerStillDoesNotWriteStaleText() {
+    let p = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: p)
+    _ = flow.run(deleteCount: 3, text: "first", matchPid: 100)
+    p.writeOk = false
+    p.failAfterClear = true
+    p.restoreOk = false
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "second", matchPid: 100), .failed)
+    XCTAssertEqual(p.log.filter { $0 == "restore" }.count, 1)
+    for work in p.scheduled { work.1() }
+    XCTAssertEqual(p.log.filter { $0 == "restore" }.count, 1)
+    XCTAssertFalse(flow.hasPendingRestore)
+  }
+
+  func testTheNextShortcutAfterAFailedWriteStartsFresh() {
+    let p = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: p)
+    p.writeOk = false
+    p.failAfterClear = true
+    _ = flow.run(deleteCount: 3, text: "a", matchPid: 100)
+    p.writeOk = true
+    p.failAfterClear = false
+    p.log.removeAll()
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "b", matchPid: 100), .replaced)
+    XCTAssertEqual(p.log, ["readPrevious", "write", "backspace×3", "paste"])
+    XCTAssertTrue(flow.hasPendingRestore)
+  }
+
+  // The copy-only paths are unchanged ------------------------------------------
+
+  func testCopyOnlyNeverReadsOrRestoresEvenWhenItsWriteFailedAfterTheClear() {
+    let p = FakeReplacePlatform()
+    p.canPost = false
+    p.writeOk = false
+    p.failAfterClear = true
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
+    XCTAssertEqual(p.log, ["write"], "no previous text was saved on this path")
+    XCTAssertTrue(p.restored.isEmpty)
+  }
+
+  func testCopyOnlySuccessAndMissingPasteKeyAreAsBefore() {
+    var p = FakeReplacePlatform()
+    p.canPost = false
+    var flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .copied)
+    XCTAssertEqual(p.log, ["write"])
+    XCTAssertTrue(p.scheduled.isEmpty)
+
+    p = FakeReplacePlatform()
+    p.pasteKeyFound = false
+    flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .copied)
+    XCTAssertTrue(p.restored.isEmpty)
+    XCTAssertFalse(flow.hasPendingRestore)
+  }
+
+  func testCopyOnlyLeavesAnEarlierPendingRestoreAlone() {
+    let p = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: p)
+    _ = flow.run(deleteCount: 3, text: "a", matchPid: 100)
+    p.canPost = false
+    p.writeOk = false
+    p.failAfterClear = true
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "b", matchPid: 100), .failed)
+    XCTAssertTrue(flow.hasPendingRestore)
+    XCTAssertTrue(p.restored.isEmpty, "this path does not run the L1 write-back")
+  }
+}
