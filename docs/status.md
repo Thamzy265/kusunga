@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.4 Saved snippets — PM accepts widget tests for 3a, 3b, 4c
+- Changed: PM decision recorded. No code change.
+- Gates: developer done · tester pass (round 18) · reviewer approve with notes · QA pass (3a, 3b, 4c covered by widget tests under the PM decision below) · PM merge waiting
+- Open findings: none new; N1, N2, F5 (Windows), R1 unchanged
+- Decisions: Risk accepted by PM (2026-11-08): accepted: QA checks 3a (Clear dialog closes itself at 0), 3b (Keep dialog "No items will be deleted." / "Set limit") and 4c (End, then open ⋯ at once) are not run on the real app and are covered only by widget tests (be09a77, 578ee22, b9632e7) — scope: M1.4 Saved snippets, feat/saved-snippets, QA gate for these 3 checks — expiry/review: none — PM said: "Yes, accept them"
+- Blockers: PM — leftover qa-m13 link item; VoiceOver sign-off; paste-access revoke with a dialog open; extra uncaught slip kinds; GitHub billing or acceptance of local results; push of local main; merge route
+
 ## 2026-11-08 — M1.4 Saved snippets — QA session 6 report
 - Changed: QA session 6 on b9632e7. The run stopped once on an API sign-in error (not an app fault) and was resumed. Pass: count wording (1 item / 2 items), live dialog counts, keyboard focus D1-D4 and F-M1, footer count, D5 picker over a dialog (Escape and paste paths), AC1-AC3 smoke. Not run on the real app: 3a (Clear dialog closes at 0) and 3b (Keep dialog "No items will be deleted.") because no path deletes items while a dialog is open; 4c (End then ⋯) because End scrolls ⋯ away. These rely on widget tests (be09a77, 578ee22). Re-verified QA-M14-7. Real-data cleanup: 76 qa-m13- items deleted one at a time, 440 -> 364, Keep 500, Clear history not used. One link item that contains "qa-m13" but does not start with it is left. The "after" search screenshot is not taken (Mac was in use); confirmed from the accessibility tree only. Test-profile slips only (stray snippet deleted, one bulk item deleted, copies trimmed by Keep 200). Evidence: docs/qa/m1.md "M1.4 session 6", 13 screenshots m1.4-s6-* (commit on feat/saved-snippets), videos qa-artifacts/m1.4/m1.4-s6-flow-*.mp4 (not committed).
 - Gates: developer done · tester pass (round 18) · reviewer approve with notes · QA pass with 3 checks not run on the real app · PM merge waiting
