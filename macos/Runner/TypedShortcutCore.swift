@@ -237,6 +237,33 @@ struct SavedClipboard: Equatable, CustomStringConvertible, CustomDebugStringConv
   var customMirror: Mirror { Mirror(self, children: [:]) }
 }
 
+/// One clipboard write: the text and its marker types. The platform writes
+/// them as one pasteboard item in one call, so no app can read the text
+/// before its markers are there (C6). Never described or logged.
+struct ClipboardContent: Equatable, CustomStringConvertible, CustomDebugStringConvertible,
+  CustomReflectable
+{
+  let text: String
+  let markerTypes: [String]
+
+  /// The snippet a shortcut pastes: transient and concealed, so other
+  /// clipboard managers do not keep it.
+  static func snippet(_ text: String) -> ClipboardContent {
+    ClipboardContent(
+      text: text,
+      markerTypes: ["org.nspasteboard.TransientType", "org.nspasteboard.ConcealedType"])
+  }
+
+  /// The previous text put back, with the privacy markers it had.
+  static func restore(_ saved: SavedClipboard) -> ClipboardContent {
+    ClipboardContent(text: saved.text, markerTypes: saved.markerTypes)
+  }
+
+  var description: String { "ClipboardContent" }
+  var debugDescription: String { description }
+  var customMirror: Mirror { Mirror(self, children: [:]) }
+}
+
 /// Whether the clipboard from before a replacement may be put back (design
 /// note, "Replacing" step 4): only when every type on it was plain text or a
 /// marker. Anything else (rich text, HTML, an image, files) leaves the

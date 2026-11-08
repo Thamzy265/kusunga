@@ -1045,6 +1045,21 @@ class OwnChangeRecordTests: XCTestCase {
     XCTAssertEqual(pb.changeCount, cleared + NSPasteboardWriter.changesAfterClear)
   }
 
+  /// C6: a typed shortcut writes one item with the text and its markers
+  /// together, and that write does not move the count either.
+  func testTheTypedShortcutWriteIsOneItemWithItsMarkers() {
+    let pb = NSPasteboard(name: NSPasteboard.Name("kusunga.test.c6.\(UUID().uuidString)"))
+    defer { pb.releaseGlobally() }
+    let cleared = MacReplacePlatform.write(ClipboardContent.snippet("will@example.com"), to: pb)
+    XCTAssertEqual(cleared, pb.changeCount)
+    XCTAssertEqual(pb.pasteboardItems?.count, 1)
+    let types = pb.pasteboardItems?.first?.types.map { $0.rawValue } ?? []
+    XCTAssertTrue(types.contains("public.utf8-plain-text"))
+    XCTAssertTrue(types.contains("org.nspasteboard.TransientType"))
+    XCTAssertTrue(types.contains("org.nspasteboard.ConcealedType"))
+    XCTAssertEqual(pb.string(forType: .string), "will@example.com")
+  }
+
   func testTheWriterRecordsTheNumberClearContentsGave() {
     let pb = NSPasteboard(name: NSPasteboard.Name("kusunga.test.f5.\(UUID().uuidString)"))
     defer { pb.releaseGlobally() }

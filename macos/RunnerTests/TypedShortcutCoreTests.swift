@@ -886,3 +886,29 @@ final class RestorableClipboardTests: XCTestCase {
       ])
   }
 }
+
+// MARK: - C6: one write holds the text and its markers together.
+
+final class ClipboardContentTests: XCTestCase {
+  func testTheSnippetIsTransientAndConcealed() {
+    let c = ClipboardContent.snippet("will@example.com")
+    XCTAssertEqual(c.text, "will@example.com")
+    XCTAssertEqual(
+      c.markerTypes, ["org.nspasteboard.TransientType", "org.nspasteboard.ConcealedType"])
+  }
+
+  func testThePutBackTextKeepsItsOwnMarkersOnly() {
+    let saved = SavedClipboard(text: "pw", markerTypes: ["org.nspasteboard.ConcealedType"])
+    XCTAssertEqual(
+      ClipboardContent.restore(saved),
+      ClipboardContent(text: "pw", markerTypes: ["org.nspasteboard.ConcealedType"]))
+    XCTAssertEqual(
+      ClipboardContent.restore(SavedClipboard(text: "x", markerTypes: [])).markerTypes, [])
+  }
+
+  func testNeverDescribesItsText() {
+    let c = ClipboardContent.snippet("secret")
+    XCTAssertFalse(String(describing: c).contains("secret"))
+    XCTAssertFalse(String(reflecting: c).contains("secret"))
+  }
+}

@@ -351,14 +351,24 @@ final class MacReplacePlatform: ReplacePlatform {
   /// other clipboard managers do not keep it, and recorded as Kusunga's own
   /// change, so Kusunga's history does not either.
   func writeSnippet(_ text: String) -> Int? {
-    let cleared = pasteboard.clearContents()
-    guard pasteboard.setString(text, forType: .string) else { return nil }
-    for marker in ["org.nspasteboard.TransientType", "org.nspasteboard.ConcealedType"] {
-      _ = pasteboard.setData(Data(), forType: NSPasteboard.PasteboardType(marker))
-    }
-    let mine = cleared + NSPasteboardWriter.changesAfterClear
+    guard let mine = MacReplacePlatform.write(.snippet(text), to: pasteboard) else { return nil }
     OwnClipboardChanges.shared.record(mine)
     return mine
+  }
+
+  /// Writes [content] as one pasteboard item, the text and its markers in
+  /// one call, so no app reads the text before its markers are there (C6).
+  /// Answers the change count of this write: the one `clearContents()`
+  /// gave, as writing the item does not move it (RunnerTests pins this).
+  static func write(_ content: ClipboardContent, to pasteboard: NSPasteboard) -> Int? {
+    let item = NSPasteboardItem()
+    for marker in content.markerTypes {
+      guard item.setData(Data(), forType: NSPasteboard.PasteboardType(marker)) else { return nil }
+    }
+    guard item.setString(content.text, forType: .string) else { return nil }
+    let cleared = pasteboard.clearContents()
+    guard pasteboard.writeObjects([item]) else { return nil }
+    return cleared + NSPasteboardWriter.changesAfterClear
   }
 
   func postPaste() -> Bool {
@@ -374,11 +384,7 @@ final class MacReplacePlatform: ReplacePlatform {
   func changeCount() -> Int { pasteboard.changeCount }
 
   func restore(_ saved: SavedClipboard) {
-    let cleared = pasteboard.clearContents()
-    _ = pasteboard.setString(saved.text, forType: .string)
-    for marker in saved.markerTypes {
-      _ = pasteboard.setData(Data(), forType: NSPasteboard.PasteboardType(marker))
-    }
-    OwnClipboardChanges.shared.record(cleared + NSPasteboardWriter.changesAfterClear)
+    guard let mine = MacReplacePlatform.write(.restore(saved), to: pasteboard) else { return }
+    OwnClipboardChanges.shared.record(mine)
   }
 }
