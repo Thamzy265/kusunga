@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-08 — M1.4 Saved snippets — BUG-D1 fixed (fable); tester round 16 started
+- Changed: escalated developer (fable, xhigh) fixed BUG-D1 in 61c8cf3. Cause: the first History row has autofocus (since 160afec); Enter in the Keep field unfocuses with the scope disposition, so the History route scope has no focused child; a count change makes a new first row, whose autofocus is granted although a dialog holds the route on top. Not the dialog rebuild. Clear history is affected the same way when opened after an Enter in the field. Fix: rows ask for autofocus only while the History route is current (ModalRoute.isCurrentOf). Focus lands: "Delete N items" → "Set limit" keeps focus; Delete disabled while focused → Cancel. 3 of the tester's 4 skipped tests needed assertion changes (explained in the commit). Failing run 8 failures ("Actual: 'row …'", "a row behind the dialog was deleted with the keyboard"); check.sh +2255 ~8 ×2. Notes: after the Keep dialog opened by Enter closes, focus does not return to the field (pre-existing; docs/ui/clipboard-history.md line 72 says Esc returns focus to the opener); two other autofocus widgets (Mac setup card heading in HistoryScreen; picker settings permission card in lib/picker/ui/picker_settings_section.dart) could in theory fire behind a modal. Tester round 16 on cbf47de..61c8cf3 started.
+- Gates: developer done · tester round 16 in progress · reviewer pending · QA re-run pending (needs the Mac) · PM merge waiting
+- Open findings: none open (BUG-D1 fixed, pending test); spec gap: focus return after the Keep dialog opened by Enter; N1, N2, F5 (Windows), R1 unchanged
+- Decisions: none new
+- Blockers: PM — free the Mac for the QA re-run; VoiceOver sign-off; confirm the extra uncaught slip kinds; GitHub billing or acceptance of local results for M1.4; push of local main
+
 ## 2026-11-08 — M1.4 Saved snippets — PM decision: QA removes the qa-m13-* items
 - Changed: PM asked whether QA should also remove the old synthetic qa-m13-* test items (e.g. qa-m13-a5-timing-*) from the PM's real history; the 2026-11-06 cleanup exception covered qa-m14-* only. QA will remove them in the next QA session, one at a time, under the same rules as the qa-m14-* cleanup (only items whose text starts with "qa-m13-"; no Clear history; Keep stays 500; record counts before and after).
 - Gates: developer in progress (BUG-D1, fable) · tester round 15 fail (BUG-D1) · reviewer pending · QA re-run pending (needs the Mac) · PM merge waiting
