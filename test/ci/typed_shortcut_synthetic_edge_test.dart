@@ -204,10 +204,6 @@ void main() {
       );
     });
 
-    final repro = Platform.environment.containsKey('KUSUNGA_REPRO')
-        ? null
-        : 'tester finding open: run with KUSUNGA_REPRO=1';
-
     // G1: `#if DEBUG || true` (or `|| anything`) is true in Release too, but
     // the guard reads it as a DEBUG block.
     test(
@@ -233,6 +229,31 @@ void main() {
     // makes the guard think the code after it is inside a DEBUG block.
     test('G2 an #if DEBUG line inside a block comment is not a block', () {
       expect(inDebug('/*\n#if DEBUG\n*/\nLEAK', 'LEAK'), isFalse);
-    }, skip: repro);
+      // Swift block comments nest.
+      expect(inDebug('/* /* */\n#if DEBUG\n*/\nLEAK', 'LEAK'), isFalse);
+      // Nor inside a multi-line string.
+      expect(inDebug('let s = """\n#if DEBUG\n"""\nLEAK', 'LEAK'), isFalse);
+      // A comment-looking string does not hide the code after it.
+      expect(inDebug('let a = "/*"\nLEAK', 'LEAK'), isFalse);
+      expect(inDebug('#if DEBUG\nlet a = "/*"\nLEAK\n#endif', 'LEAK'), isTrue);
+      // A real block after a comment still counts, and so does code with a
+      // comment after it.
+      expect(inDebug('/* x */\n#if DEBUG\nLEAK\n#endif', 'LEAK'), isTrue);
+      expect(inDebug('#if DEBUG\nLEAK // c\n#endif', 'LEAK'), isTrue);
+      expect(inDebug('/* a */ #if DEBUG\nLEAK\n#endif', 'LEAK'), isTrue);
+    });
+
+    test('the guards still see a needle in a string literal, and never one in '
+        'a comment', () {
+      expect(inDebug('#if DEBUG\nlet a = "LEAK"\n#endif', 'LEAK'), isTrue);
+      expect(inDebug('let a = "LEAK"', 'LEAK'), isFalse);
+      for (final src in ['// LEAK', '/* LEAK */', '/*\nLEAK\n*/', '/// LEAK']) {
+        expect(
+          swiftDebugLines(src).any((l) => l.$1.contains('LEAK')),
+          isFalse,
+          reason: src,
+        );
+      }
+    });
   });
 }
