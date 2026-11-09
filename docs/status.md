@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-09 — M1.5 Typed shortcuts — reviewer re-check (L2): approve with notes, L3
+- Changed: Reviewer re-checked 6a47610..4fdfb3c. Checks pass (check.sh +2589 ~10; 143 XCTests; Windows policy suites). L2 confirmed fixed (mutation check failed as expected; on a private pasteboard clearContents leaves no types or items and moves the change count by exactly 1).
+- Gates: design approved · developer to fix L3 · tester pass (round 5) · reviewer approve with notes · QA not started · PM merge n/a yet
+- Open findings: L3 Low (privacy) — the remaining gap: another app that empties the clipboard (e.g. a password manager's EmptyClipboard auto-clear) during a failed write can't be told from Kusunga's clear, so the password comes back. The reviewer says privacy is never deferred, so fix now (or a PM decision). Fix: Windows also require GetClipboardOwner() == Kusunga's window; Mac require changeCount == before + 1. Lead: fix now (developer), no skip
+- Decisions: none
+- Blockers: Developer — L3 · PM — rich copies (keep as designed or restore every format); Input Monitoring grant for QA; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-09 — M1.5 Typed shortcuts — tester round 5 (L2): pass
 - Changed: Tester re-checked ef74f74 and added 4fdfb3c (6 Swift tests including a 12-case matrix; 1 C++ function, about 45 assertions). 6 mutation runs, each caught. The developer's edits to the tester's fakes and the N9 lock keep the tester's intent. Covered: earlier restore none/valid/stale against nothing moved, our clear, another app's write, clear then write; sequence wrap with and without an empty clipboard; emptiness checked after the write; copy-only paths unchanged. Locked as the accepted remaining gap: another app that empties the clipboard during the failed write can't be told apart from Kusunga's clear, so the text is written back over the empty clipboard. ./tool/check.sh 2589 passed, 10 skipped; test_mac_shortcuts.sh 143; test_windows_policy.sh all pass. No production code changed.
 - Gates: design approved · developer done (L2) · tester pass (round 5) · reviewer re-check of ef74f74 to be briefed · QA not started · PM merge n/a yet
