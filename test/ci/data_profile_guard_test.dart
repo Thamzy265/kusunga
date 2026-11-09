@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/swift_conditional.dart';
+
 /// The test data profile (`-KusungaDataProfile <name>`) exists in Debug
 /// builds only, like `-KusungaForcePost` (6e24bed): the Mac side passes it
 /// on only inside `#if DEBUG`, and Dart reads it only when `kDebugMode`, so a
@@ -84,7 +86,7 @@ void main() {
         // QA's synthetic-keys switch (PM 2026-11-09) is on only with a test
         // profile, and is compiled into Debug builds only: the name may
         // appear there, inside #if DEBUG blocks and nowhere else.
-        final outside = text.replaceAll(RegExp(r'#if DEBUG[\s\S]*?#endif'), '');
+        final outside = swiftOutsideDebug(text);
         expect(key.allMatches(outside).length, 0, reason: e.path);
       } else {
         expect(n, 0, reason: e.path);

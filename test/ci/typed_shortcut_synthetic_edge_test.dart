@@ -11,6 +11,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/data_profile.dart';
 
+import '../support/swift_conditional.dart';
+
 String _read(String p) => File(p).readAsStringSync();
 
 void main() {
@@ -177,36 +179,11 @@ void main() {
     },
   );
 
-  // The guard in typed_shortcut_guards_test.dart classifies lines with this
-  // function (copied here, keep in sync). Both repros below are ways to put
-  // the switch into a Release build that the guard calls "inside #if DEBUG".
-  List<(String, bool)> guardDebugLines(String src) {
-    final stack = <bool>[];
-    final out = <(String, bool)>[];
-    for (final raw in src.split('\n')) {
-      final line = raw.trim();
-      if (line.startsWith('#if')) {
-        stack.add(RegExp(r'^#if\s+DEBUG\b').hasMatch(line));
-        out.add((raw, stack.contains(true)));
-        continue;
-      }
-      if (line.startsWith('#else') || line.startsWith('#elseif')) {
-        if (stack.isNotEmpty) stack[stack.length - 1] = false;
-        out.add((raw, stack.contains(true)));
-        continue;
-      }
-      if (line.startsWith('#endif')) {
-        out.add((raw, stack.contains(true)));
-        if (stack.isNotEmpty) stack.removeLast();
-        continue;
-      }
-      out.add((raw, stack.contains(true)));
-    }
-    return out;
-  }
-
+  // The guards classify lines with the shared helper
+  // (test/support/swift_conditional.dart), so these tests check exactly what
+  // the guards use.
   bool inDebug(String src, String needle) =>
-      guardDebugLines(src).firstWhere((l) => l.$1.contains(needle)).$2;
+      swiftDebugLines(src).firstWhere((l) => l.$1.contains(needle)).$2;
 
   group('the guard classifies what the compiler would', () {
     test('plain cases are right (regression lock for the guard)', () {
@@ -241,8 +218,15 @@ void main() {
           inDebug('#if DEBUG || os(macOS)\nLEAK\n#endif', 'LEAK'),
           isFalse,
         );
+        expect(inDebug('#if DEBUG||true\nLEAK\n#endif', 'LEAK'), isFalse);
+        expect(inDebug('#if DEBUG && true\nLEAK\n#endif', 'LEAK'), isFalse);
+        expect(inDebug('#if (DEBUG)\nLEAK\n#endif', 'LEAK'), isFalse);
+        // A bare #if DEBUG, with spaces or a line comment after it, counts.
+        expect(inDebug('#if DEBUG  \nLEAK\n#endif', 'LEAK'), isTrue);
+        expect(inDebug('  #if DEBUG\t\nLEAK\n#endif', 'LEAK'), isTrue);
+        expect(inDebug('#if DEBUG // QA only\nLEAK\n#endif', 'LEAK'), isTrue);
+        expect(inDebug('#if DEBUG//x\nLEAK\n#endif', 'LEAK'), isTrue);
       },
-      skip: repro,
     );
 
     // G2: a block comment that contains a line starting with `#if DEBUG`

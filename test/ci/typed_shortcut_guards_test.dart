@@ -10,6 +10,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/log/app_log.dart';
 
+import '../support/swift_conditional.dart';
+
 String _read(String path) => File(path).readAsStringSync();
 
 /// Source without line comments, so a comment can't satisfy or break a check.
@@ -309,33 +311,6 @@ void main() {
   });
 
   group('QA\'s synthetic-keys switch is debug only (PM 2026-11-09)', () {
-    /// Each line of [src] with whether it is inside an `#if DEBUG` block
-    /// (nested `#if` blocks counted; an `#else` of `#if DEBUG` is outside).
-    List<(String, bool)> debugLines(String src) {
-      final stack = <bool>[]; // true: this level is a DEBUG branch
-      final out = <(String, bool)>[];
-      for (final raw in src.split('\n')) {
-        final line = raw.trim();
-        if (line.startsWith('#if')) {
-          stack.add(RegExp(r'^#if\s+DEBUG\b').hasMatch(line));
-          out.add((raw, stack.contains(true)));
-          continue;
-        }
-        if (line.startsWith('#else') || line.startsWith('#elseif')) {
-          if (stack.isNotEmpty) stack[stack.length - 1] = false;
-          out.add((raw, stack.contains(true)));
-          continue;
-        }
-        if (line.startsWith('#endif')) {
-          out.add((raw, stack.contains(true)));
-          if (stack.isNotEmpty) stack.removeLast();
-          continue;
-        }
-        out.add((raw, stack.contains(true)));
-      }
-      return out;
-    }
-
     test('its symbols and argument appear only inside #if DEBUG in the '
         'Swift sources', () {
       final needles = [
@@ -350,7 +325,7 @@ void main() {
               .listSync(recursive: true)
               .whereType<File>()
               .where((f) => f.path.endsWith('.swift'))) {
-        for (final (line, inDebug) in debugLines(f.readAsStringSync())) {
+        for (final (line, inDebug) in swiftDebugLines(f.readAsStringSync())) {
           if (line.trimLeft().startsWith('//')) continue;
           for (final n in needles) {
             if (!line.contains(n)) continue;
@@ -369,7 +344,7 @@ void main() {
     });
 
     test('the guard itself sees #else and nesting', () {
-      final lines = debugLines(
+      final lines = swiftDebugLines(
         '#if DEBUG\na\n#if os(macOS)\nb\n#endif\n#else\nc\n#endif\nd',
       );
       bool at(String s) => lines.firstWhere((l) => l.$1 == s).$2;
