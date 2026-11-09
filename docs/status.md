@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-09 — M1.5 Typed shortcuts — PM keeps text-only restore
+- Changed: PM decision recorded. Later line added on feat/typed-shortcuts: restore formatted copies after a typed shortcut, trigger ≥ 5 beta reports of losing a formatted copy. No code change.
+- Gates: design approved · developer done · tester pass (round 6) · reviewer approve with notes · QA next (needs a free Mac and the PM's Input Monitoring grant) · PM merge n/a yet
+- Open findings: none
+- Decisions: PM (2026-11-09) on rich copies after a shortcut: keep the approved design — the previous copy is put back only when it was plain text (with privacy markers); otherwise the snippet stays on the clipboard. PM said: "Keep as designed"
+- Blockers: PM — a free Mac and the Input Monitoring grant for QA; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-09 — M1.5 Typed shortcuts — reviewer re-check (L3): approve with notes
 - Changed: Reviewer re-checked 4fdfb3c..2436a5b. Checks pass (check.sh +2589 ~10; 151 XCTests; Windows policy suites). L3 confirmed fixed (OwnClear removed in a scratch copy, policy test failed). The Windows locked case (another app's clear, then Kusunga's clear, then SetClipboardData failing) is acceptable with no fix and no Later line: it needs a near out-of-memory failure at the same moment as a password manager's auto-clear, the text goes back with all three don't-keep marks, and the Mac has the same window in microseconds. Mac lastOwnClear set by the restore path is correct. Optional later hardening noted by the reviewer (read the sequence number while the previous text is read, then a "+1 since the read" rule once Windows runs).
 - Gates: design approved · developer done · tester pass (round 6) · reviewer approve with notes · QA not started (needs the PM's Input Monitoring grant and the Mac) · PM merge n/a yet
