@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-09 — M1.5 Typed shortcuts — developer: focus ring and debug-only switch
+- Changed: Developer fixed QA-M15-1 in 2f79116 (the switch gets the shared 2 px focus ring, outside the switch, keyboard focus only, light and dark; reduce motion unchanged) and added the PM's debug-only switch in 356be28: Mac only, all inside `#if DEBUG`; on only with both `-KusungaAcceptSyntheticKeys YES` and `-KusungaDataProfile qa|dev`, each once; bypasses only the D5 software-key rule; logs shortcutSyntheticKeysAllowed at tap start (added to LogCode, DiagLog, the design note and the CI guard); design note rule 4 records the exception. CI guard: the switch's symbols, argument and log call appear only inside `#if DEBUG`. The data-profile guard now also allows the profile name in TypedShortcutCore.swift inside `#if DEBUG`. Failing runs first. ./tool/check.sh +2601 ~10; test_mac_shortcuts.sh 155 (now compiled with -D DEBUG); test_windows_policy.sh all pass; Debug build ok. Release: not built in full (Release builds already fail on macOS 27 with Flutter 3.44.6, lipo, as in the plan); the core compiled without DEBUG shows 0 symbols and 0 strings for the switch.
+- Gates: design approved (D5 debug-only exception, PM 2026-11-09) · developer done · tester re-check to be briefed · reviewer re-check after the tester · QA session 2 after that · PM merge n/a yet
+- Open findings: none open
+- Decisions: none
+- Blockers: PM — B2 (accept widget tests for the card, or revoke Input Monitoring); VoiceOver; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-09 — M1.5 Typed shortcuts — PM chooses a debug-only switch for QA typing
 - Changed: PM decision recorded. Developer briefed: a launch option accepted only in Debug builds (compiled out of Release) and only with a qa or dev data profile, that lets the Mac typed-shortcut tap accept software-sent keys so QA can run the real-typing checks; logged with a code when active; guard tests that Release has no path to it. Mac only (QA has no Windows). Design note D5 to record the debug-only exception. Tester and reviewer check it before QA session 2.
 - Gates: design approved (D5 debug-only exception) · developer in progress (QA-M15-1, debug switch) · tester and reviewer to re-check · QA blocked until then · PM merge n/a yet
