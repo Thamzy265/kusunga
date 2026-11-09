@@ -88,6 +88,7 @@ Everything stays on the device. No account, no server.
   - AC: the app's licence page includes the SQLite3 Multiple Ciphers MIT notice (reviewer note, 2026-11-03).
   - AC: profile and release macOS builds succeed on the current macOS (Flutter 3.44.6 fails on macOS 27: the new `lipo` takes one architecture per `-verify_arch`; workaround `ARCHS = arm64` or a Flutter update), and the built architectures are stated (developer note, 2026-11-05).
   - AC: the minimum macOS (12.0, forced by Xcode 27.2 in M1.3) is stated in ADR 0003 or the README and in the release notes (reviewer note C7, 2026-11-04).
+  - AC: the release pipeline fails if the shipped Mac binary contains `KusungaAcceptSyntheticKeys` (`strings … | grep -c` is 0), and a guard checks `Local.xcconfig.example` sets no Swift compilation conditions — owner developer, due with M1.9, before the first beta (reviewer note N-R1, 2026-11-09).
   - Before start: decide whether to build sqlite3mc from source instead of the SHA-256-pinned prebuilt download (reviewer note, 2026-11-03).
 
 ## M2 — Secure vault (bank details, IDs)
