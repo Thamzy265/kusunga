@@ -280,6 +280,7 @@ class FakeReplace : public ReplacePlatform {
   bool empty = false;                // the clipboard holds nothing now
   bool owner = false;                // L3: Kusunga's window emptied it last
   bool other_emptied_on_fail = false;  // L3: another app emptied it
+  bool partial_write_on_fail = false;  // we emptied it, set some formats, then failed
   uint32_t sequence = 10;
   std::vector<std::pair<int, std::function<void()>>> scheduled;
   int restores = 0;
@@ -319,6 +320,10 @@ class FakeReplace : public ReplacePlatform {
         owner = true;
       }
       sequence += static_cast<uint32_t>(extra_moves_on_fail);
+      if (partial_write_on_fail) {
+        owner = true;
+        empty = false;
+      }
       if (other_wrote_on_fail) {
         ++sequence;
         empty = false;
@@ -2078,7 +2083,127 @@ static void TestFailedWriteOwnClear() {
   }
 }
 
+// ---- Tester round 6: edges of the L3 fix (own clear: empty AND owner) ----
+
+static void TestFailedWriteL3Edges() {
+  enum Earlier { kNone, kValid, kStale };
+  // What the failed write did: the facts the flow checks.
+  struct Scene {
+    bool fail_after_clear;   // our clear: sequence +1, empty, we own it
+    int extra_moves;         // other writers moved the sequence too
+    bool other_wrote;        // someone left something on it
+    bool other_emptied;      // someone emptied it (they own it)
+  };
+  auto run = [](Earlier earlier, Scene sc, int* restores, bool* held) {
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    if (earlier != kNone) flow.Run(3, "first", 100);
+    if (earlier == kStale) p.sequence++;
+    p.write_ok = false;
+    p.fail_after_clear = sc.fail_after_clear;
+    p.extra_moves_on_fail = sc.extra_moves;
+    p.other_wrote_on_fail = sc.other_wrote;
+    p.other_emptied_on_fail = sc.other_emptied;
+    CHECK(flow.Run(3, "second", 100) == ReplaceResult::kFailed);
+    for (auto& w : p.scheduled) w.second();
+    *restores = p.restores;
+    *held = p.saved;
+  };
+  int n = 0;
+  bool held = false;
+  // Ours alone, with or without other writers' extra moves: we own it, it is
+  // empty: written back exactly once, whatever was waiting.
+  for (Earlier e : {kNone, kValid, kStale}) {
+    run(e, {true, 0, false, false}, &n, &held);
+    CHECK(n == 1 && !held);
+    // Another app emptied it first and we cleared after (we re-took
+    // ownership): Windows has no exact-count rule, so it is written back.
+    run(e, {true, 1, false, false}, &n, &held);
+    CHECK(n == 1 && !held);
+    // We cleared and another app emptied after: they own it. Never.
+    run(e, {true, 0, false, true}, &n, &held);
+    CHECK(n == 0 && !held);
+    // Another app alone: never.
+    run(e, {false, 0, false, true}, &n, &held);
+    CHECK(n == 0 && !held);
+    // Something left on it: never.
+    run(e, {true, 0, true, false}, &n, &held);
+    CHECK(n == 0 && !held);
+  }
+  {  // Ownership without a sequence move: nothing is written back, and an
+     // earlier valid restore stays valid and fires on its timer.
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    flow.Run(3, "first", 100);
+    p.write_ok = false;
+    p.empty = true;
+    p.owner = true;
+    CHECK(flow.Run(3, "second", 100) == ReplaceResult::kFailed);
+    CHECK(p.restores == 0 && p.saved);
+    p.scheduled[0].second();
+    CHECK(p.restores == 1 && !p.saved);
+  }
+  {  // The sequence wrapping while we own an empty clipboard: written back.
+    FakeReplace p;
+    p.sequence = 0xFFFFFFFFu;
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(3, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restores == 1);
+    FakeReplace q;  // wrapping while another app owns it: not
+    q.sequence = 0xFFFFFFFFu;
+    q.write_ok = false;
+    q.other_emptied_on_fail = true;
+    ReplaceFlow flow2(&q);
+    CHECK(flow2.Run(3, "x", 100) == ReplaceResult::kFailed);
+    CHECK(q.restore_attempts == 0 && !q.saved);
+  }
+  {  // We own it but it is not empty (our own partial write): never write
+     // the previous text over it; the text is forgotten.
+    FakeReplace p;
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    p.partial_write_on_fail = true;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(3, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restore_attempts == 0 && !p.saved);
+  }
+  {  // The write-back's own result: ownership stays ours, the text is not
+     // held, and a failed write-back is tried once.
+    FakeReplace p;
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    p.restore_ok = false;
+    ReplaceFlow flow(&p);
+    flow.Run(3, "x", 100);
+    CHECK(p.restore_attempts == 1 && !p.saved);
+  }
+  {  // Copy-only after the modifier timeout: unchanged whatever the clipboard
+     // looks like or who owns it.
+    for (const bool other : {false, true}) {
+      FakeReplace p;
+      p.mods_down = true;
+      p.write_ok = false;
+      p.fail_after_clear = !other;
+      p.other_emptied_on_fail = other;
+      ReplaceFlow flow(&p);
+      ReplaceResult got = ReplaceResult::kReplaced;
+      int answers = 0;
+      flow.Start(3, "x", 100, [&](ReplaceResult r) {
+        got = r;
+        answers++;
+      });
+      while (answers == 0) RunScheduledPoll(p);
+      CHECK(got == ReplaceResult::kFailed);
+      CHECK((p.log == std::vector<std::string>{"write"}));
+      CHECK(p.restore_attempts == 0 && !p.saved);
+    }
+  }
+}
+
 int main() {
+  TestFailedWriteL3Edges();
   TestFailedWriteOwnClear();
   TestFailedWriteL2Edges();
   TestFailedWriteOtherWriter();

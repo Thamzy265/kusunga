@@ -263,6 +263,8 @@ final class FakeReplacePlatform: ReplacePlatform {
   var ownClear = false
   /// L3: another app emptied the clipboard during the failed write.
   var otherEmptiedOnFail = false
+  /// A failed write's effect, scripted freely (tester round 6).
+  var scripted: (() -> Void)?
   var pasteKeyFound = true
   var count = 10
   var scheduled: [(Int, () -> Void)] = []
@@ -279,6 +281,7 @@ final class FakeReplacePlatform: ReplacePlatform {
   func writeSnippet(_ text: String) -> Int? {
     log.append("write")
     guard writeOk else {
+      scripted?()
       if failAfterClear {
         count += 1
         empty = true
@@ -1928,5 +1931,112 @@ final class FailedWriteOwnClearTests: XCTestCase {
     let flow = ReplaceFlow(platform: p)
     XCTAssertEqual(flow.run(deleteCount: 6, text: "x", matchPid: 100), .failed)
     XCTAssertEqual(p.restored.count, 1)
+  }
+}
+
+// MARK: - Tester round 6: edges of the L3 fix (own clear, exactly +1)
+
+final class FailedWriteL3EdgeTests: XCTestCase {
+  /// What a failed write did to the clipboard, in terms of the three facts the
+  /// flow checks.
+  struct Scene {
+    var moved: Int
+    var empty: Bool
+    var ownClear: Bool
+  }
+
+  private func restoredText(_ scene: Scene, earlier: Bool = false) -> (restored: [String], pending: Bool) {
+    let p = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: p)
+    if earlier { _ = flow.run(deleteCount: 3, text: "first", matchPid: 100) }
+    p.writeOk = false
+    // Script the write's effect directly on the fake.
+    p.scripted = { [unowned p] in
+      p.count += scene.moved
+      p.empty = scene.empty
+      p.ownClear = scene.ownClear
+    }
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "second", matchPid: 100), .failed)
+    let pending = flow.hasPendingRestore
+    for work in p.scheduled { work.1() }
+    return (p.restored.map { $0.text }, pending)
+  }
+
+  func testTheThreeFactsAreEachNecessary() {
+    XCTAssertEqual(restoredText(Scene(moved: 1, empty: true, ownClear: true)).restored, ["what I copied"])
+    XCTAssertEqual(restoredText(Scene(moved: 1, empty: true, ownClear: false)).restored, [])
+    XCTAssertEqual(restoredText(Scene(moved: 1, empty: false, ownClear: true)).restored, [])
+    XCTAssertEqual(restoredText(Scene(moved: 2, empty: true, ownClear: true)).restored, [],
+      "another app cleared and then we did, or the reverse")
+    XCTAssertEqual(restoredText(Scene(moved: 0, empty: true, ownClear: true)).restored, [],
+      "ownership without a moved count")
+    XCTAssertEqual(restoredText(Scene(moved: 3, empty: true, ownClear: true)).restored, [])
+    // Our own partial write: +1, ours, but something is on it.
+    XCTAssertEqual(restoredText(Scene(moved: 1, empty: false, ownClear: true)).restored, [])
+  }
+
+  func testAnEarlierWaitingRestoreInEachScene() {
+    // Ours alone: the user's text returns once, from the failed write; the old
+    // timer adds nothing.
+    var o = restoredText(Scene(moved: 1, empty: true, ownClear: true), earlier: true)
+    XCTAssertEqual(o.restored, ["what I copied"])
+    XCTAssertFalse(o.pending)
+    // Anyone else's change: nothing is written, nothing stays held, and the
+    // old timer must not write over it.
+    for scene in [
+      Scene(moved: 1, empty: true, ownClear: false), Scene(moved: 2, empty: true, ownClear: true),
+      Scene(moved: 2, empty: true, ownClear: false), Scene(moved: 1, empty: false, ownClear: true),
+    ] {
+      o = restoredText(scene, earlier: true)
+      XCTAssertEqual(o.restored, [], "\(scene)")
+      XCTAssertFalse(o.pending, "\(scene)")
+    }
+    // Ownership only, nothing moved: the earlier restore is still valid and
+    // fires on its timer.
+    o = restoredText(Scene(moved: 0, empty: true, ownClear: true), earlier: true)
+    XCTAssertEqual(o.restored, ["what I copied"])
+    XCTAssertTrue(o.pending)
+  }
+
+  func testTheBoundaryNearTheTopOfTheCounterStillWorks() {
+    let p = ScriptedReplacePlatform()
+    p.count = Int.max - 3
+    p.empty = true
+    p.writeResult = { [unowned p] in
+      p.count += 1
+      return nil
+    }
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
+    XCTAssertEqual(p.restored.map { $0.text }, ["mine"])
+  }
+
+  func testCopyOnlyIsUnchangedWhateverTheClipboardLooksLike() {
+    for own in [true, false] {
+      let p = ScriptedReplacePlatform()
+      p.canPost = false
+      p.ownClear = own
+      p.writeResult = { [unowned p] in
+        p.count += 1
+        p.empty = true
+        return nil
+      }
+      let flow = ReplaceFlow(platform: p)
+      XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
+      XCTAssertEqual(p.log, ["write"])
+      XCTAssertTrue(p.restored.isEmpty)
+    }
+  }
+
+  func testMarksStillComeBackOnOurOwnClear() {
+    let saved = RestorableClipboard.saved(
+      text: "pw", types: ["public.utf8-plain-text", "org.nspasteboard.TransientType"])
+    let p = FakeReplacePlatform()
+    p.previous = saved
+    p.writeOk = false
+    p.failAfterClear = true
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
+    XCTAssertEqual(p.restored.first?.markerTypes, ["org.nspasteboard.TransientType"])
   }
 }
