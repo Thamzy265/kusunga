@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-09 — M1.5 Typed shortcuts — N-R2 done
+- Changed: Developer added a "Swift typed-shortcut core tests, compiled as Release (no DEBUG)" step running ./tool/test_mac_shortcuts_release.sh to the macOS job in .github/workflows/check.yml (435d174). The workflow parses; flutter test test/ci +64; release core 153 pass. The step runs once CI runs (billing). No app code changed.
+- Gates: design approved · developer done · tester round 7 done · reviewer approve with notes · QA session 2 waiting for the Mac · PM merge n/a yet
+- Open findings: none open; N-R1 is an M1.9 task
+- Decisions: none
+- Blockers: PM — the Mac for QA session 2; B2 (accept widget tests for the card, or revoke Input Monitoring); VoiceOver; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-09 — M1.5 Typed shortcuts — reviewer: approve with notes (focus ring, debug switch, guards)
 - Changed: Reviewer reviewed 2436a5b..84e6c70. Checks pass (check.sh +2624 ~10; Debug core 165; release core 153; Windows policy). The switch can't reach a Release or Profile build or the real data by any checked-in path: DEBUG is set only in the Debug configuration, no checked-in xcconfig sets a Swift flag, every use is inside `#if DEBUG`, an -O compile without DEBUG has 0 strings and 0 symbols; when the switch is on, Dart runs the qa/dev profile or memory-only, never the real folder; it reads CommandLine.arguments only. ADR 0004 intact. QA-M15-1, G1, G2 fixed. BUG-H4 row count accepted as a trade-off.
 - Gates: design approved · developer done · tester round 7 done · reviewer approve with notes · QA session 2 next (needs the Mac) · PM merge n/a yet
