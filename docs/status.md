@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-09 — M1.5 Typed shortcuts — PM accepts widget tests for the explanation card (B2)
+- Changed: PM decision recorded. No code change. QA session 2 still running.
+- Gates: design approved · developer done · tester round 7 done · reviewer approve with notes · QA in progress (card checks covered by widget tests under the decision below) · PM merge n/a yet
+- Open findings: none open
+- Decisions: Risk accepted by PM (2026-11-09): accepted: the Mac explanation card "Turn on typed shortcuts?" (shown each time the switch is turned on without Input Monitoring; Not now and Esc turn the switch back off and return focus to the switch; Continue asks macOS once, then opens System Settings) is not checked on the real app, because Input Monitoring was already granted for the build, and is covered only by widget tests — scope: M1.5 Typed shortcuts, feat/typed-shortcuts, QA gate, card checks (B2) — expiry/review: none — PM said: "Accept the tests"
+- Blockers: PM — VoiceOver; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-09 — M1.5 Typed shortcuts — QA session 2 started
 - Changed: PM freed the Mac. QA session 2 on feat/typed-shortcuts at 435d174 in the qa profile, launched with the debug-only switch (-KusungaAcceptSyntheticKeys YES): the real-typing checks blocked in session 1, plus a re-check of QA-M15-1. Standing QA rules repeated in the brief.
 - Gates: design approved · developer done · tester round 7 done · reviewer approve with notes · QA in progress · PM merge n/a yet
