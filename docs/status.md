@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-09 — M1.5 Typed shortcuts — tester round 5 (L2): pass
+- Changed: Tester re-checked ef74f74 and added 4fdfb3c (6 Swift tests including a 12-case matrix; 1 C++ function, about 45 assertions). 6 mutation runs, each caught. The developer's edits to the tester's fakes and the N9 lock keep the tester's intent. Covered: earlier restore none/valid/stale against nothing moved, our clear, another app's write, clear then write; sequence wrap with and without an empty clipboard; emptiness checked after the write; copy-only paths unchanged. Locked as the accepted remaining gap: another app that empties the clipboard during the failed write can't be told apart from Kusunga's clear, so the text is written back over the empty clipboard. ./tool/check.sh 2589 passed, 10 skipped; test_mac_shortcuts.sh 143; test_windows_policy.sh all pass. No production code changed.
+- Gates: design approved · developer done (L2) · tester pass (round 5) · reviewer re-check of ef74f74 to be briefed · QA not started · PM merge n/a yet
+- Open findings: none. Remaining gap above goes to the reviewer
+- Decisions: none
+- Blockers: PM — rich copies (keep as designed or restore every format); Input Monitoring grant for QA; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-08 — M1.5 Typed shortcuts — developer fixed L2
 - Changed: Developer fixed L2 in ef74f74: after a failed snippet write the previous text goes back only if the change number moved AND the clipboard is empty now (Mac no types or items; Windows CountClipboardFormats() == 0); otherwise the other app's change wins, the text is forgotten, and an earlier waiting restore doesn't overwrite it. Design note step 2 updated. Failing run first (Swift 4 failures; C++ 3 failed lines). The tester's N9 lock was changed to the new behaviour (a user copy in the gap now wins), as the lead asked. ./tool/check.sh +2589 ~10; test_mac_shortcuts.sh 137; test_windows_policy.sh all pass; macOS debug build ok. Remaining gap: if another app empties the clipboard during the failed write, the text is still written back over the empty clipboard. Windows bridge not compiled.
 - Gates: design approved · developer done (L2) · tester re-check of ef74f74 to be briefed · reviewer approve with notes, re-check after the tester · QA not started · PM merge n/a yet
