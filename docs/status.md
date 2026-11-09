@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-09 — M1.5 Typed shortcuts — QA session 1 started
+- Changed: PM freed the Mac. QA (my-tech-team:qa agent, sonnet) started on feat/typed-shortcuts at a3e3433 in the qa test profile. Steps that need no permission first; at the macOS Input Monitoring prompt QA stops and the PM grants it. Standing QA rules repeated in the brief.
+- Gates: design approved · developer done · tester pass (round 6) · reviewer approve with notes · QA in progress · PM merge n/a yet
+- Open findings: none
+- Decisions: PM (2026-11-09): "Mac is free"
+- Blockers: PM — Input Monitoring grant when QA reaches the prompt; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-09 — M1.5 Typed shortcuts — PM keeps text-only restore
 - Changed: PM decision recorded. Later line added on feat/typed-shortcuts: restore formatted copies after a typed shortcut, trigger ≥ 5 beta reports of losing a formatted copy. No code change.
 - Gates: design approved · developer done · tester pass (round 6) · reviewer approve with notes · QA next (needs a free Mac and the PM's Input Monitoring grant) · PM merge n/a yet
