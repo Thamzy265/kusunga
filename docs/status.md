@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-09 — M1.5 Typed shortcuts — QA session 2 started
+- Changed: PM freed the Mac. QA session 2 on feat/typed-shortcuts at 435d174 in the qa profile, launched with the debug-only switch (-KusungaAcceptSyntheticKeys YES): the real-typing checks blocked in session 1, plus a re-check of QA-M15-1. Standing QA rules repeated in the brief.
+- Gates: design approved · developer done · tester round 7 done · reviewer approve with notes · QA in progress · PM merge n/a yet
+- Open findings: none open
+- Decisions: PM (2026-11-09): "Mac is free"
+- Blockers: PM — B2 (accept widget tests for the card, or revoke Input Monitoring); VoiceOver; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-09 — M1.5 Typed shortcuts — N-R2 done
 - Changed: Developer added a "Swift typed-shortcut core tests, compiled as Release (no DEBUG)" step running ./tool/test_mac_shortcuts_release.sh to the macOS job in .github/workflows/check.yml (435d174). The workflow parses; flutter test test/ci +64; release core 153 pass. The step runs once CI runs (billing). No app code changed.
 - Gates: design approved · developer done · tester round 7 done · reviewer approve with notes · QA session 2 waiting for the Mac · PM merge n/a yet
