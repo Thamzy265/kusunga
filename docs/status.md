@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-09 — M1.5 Typed shortcuts — PM standing approval while away
+- Changed: PM decision recorded. No code change. QA session 2 still running.
+- Gates: design approved · developer done · tester round 7 done · reviewer approve with notes · QA in progress · PM merge: pre-approved below, used only after QA passes and every gate is green
+- Open findings: none open
+- Decisions: PM (2026-11-09), while the PM is asleep: "You can merge and push, run recommended actions". Lead's reading: once every gate (developer, tester, reviewer, QA) has passed, merge feat/typed-shortcuts into main locally with `git merge --no-ff` and push main; for any decision that comes up, take the lead's recommendation and log it here with this approval. Limits the lead keeps: no merge or push before QA passes; fix findings rather than skip them; no System Settings changes; standing QA rules unchanged
+- Blockers: PM — VoiceOver; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-09 — M1.5 Typed shortcuts — PM accepts widget tests for the explanation card (B2)
 - Changed: PM decision recorded. No code change. QA session 2 still running.
 - Gates: design approved · developer done · tester round 7 done · reviewer approve with notes · QA in progress (card checks covered by widget tests under the decision below) · PM merge n/a yet
