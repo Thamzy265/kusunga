@@ -64,7 +64,7 @@ Everything stays on the device. No account, no server.
   - AC: snippets show in the picker in their own tab, and pinning a history item turns it into a snippet.
   - AC: snippets are never removed by the history limit.
   - Design: `docs/design/saved-snippets.md`, UI spec `docs/ui/saved-snippets.md`, deck `docs/slides/saved-snippets.html` (approved 2026-11-04).
-- [ ] **M1.5 Typed shortcuts** — large (keyboard monitoring, trust boundary).
+- [x] **M1.5 Typed shortcuts** — large (keyboard monitoring, trust boundary).
   - AC: each snippet can have a shortcut such as `;email`; typing it in any app replaces it with the snippet.
   - AC: shortcuts do not fire in password fields or in apps on the ignore list.
   - AC: a single switch turns typed shortcuts off.
