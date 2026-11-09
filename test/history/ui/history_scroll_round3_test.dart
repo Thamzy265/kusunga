@@ -345,17 +345,29 @@ void main() {
       expectFocusedOnScreen(tester, 'a copy after the arrow key');
     });
 
-    testWidgets('BUG-H4: End in 5,000 rows with six copies arriving takes '
-        'no more than 3x as long as without copies', (tester) async {
+    // Measured as work done, not wall time: the cause of BUG-H4 was that
+    // each copy made the list build and lay out every row between the top
+    // and the viewport again (54x slower), so the test counts the history
+    // rows built. That count is the same on any machine; the wall times
+    // are printed for information only (they varied 5x on a loaded Mac).
+    testWidgets('BUG-H4: End in 5,000 rows with six copies arriving builds '
+        'no more than 3x the rows it builds without copies', (tester) async {
       fill(5000);
       await show(tester);
       await focusTop(tester);
+      var built = 0;
+      debugOnRebuildDirtyWidget = (e, _) {
+        if (e.widget is HistoryRow) built++;
+      };
+      addTearDown(() => debugOnRebuildDirtyWidget = null);
       final plain = Stopwatch()..start();
       await tester.sendKeyEvent(LogicalKeyboardKey.end);
       await settle(tester, 500);
       final plainMs = plain.elapsedMilliseconds;
+      final plainBuilt = built;
       await tester.sendKeyEvent(LogicalKeyboardKey.home);
       await settle(tester, 500);
+      built = 0;
       final withCopies = Stopwatch()..start();
       await tester.sendKeyEvent(LogicalKeyboardKey.end);
       for (var i = 0; i < 6; i++) {
@@ -366,9 +378,10 @@ void main() {
       // ignore: avoid_print
       print(
         'PERF End 5000: plain $plainMs ms, with copies '
-        '${withCopies.elapsedMilliseconds} ms',
+        '${withCopies.elapsedMilliseconds} ms; rows built $plainBuilt / $built',
       );
-      expect(withCopies.elapsedMilliseconds, lessThan(plainMs * 3));
+      expect(plainBuilt, greaterThan(0), reason: 'the count works');
+      expect(built, lessThan(plainBuilt * 3));
     });
   });
 }

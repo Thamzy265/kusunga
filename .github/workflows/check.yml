@@ -25,6 +25,8 @@ jobs:
         run: xcodebuild test -workspace macos/Runner.xcworkspace -scheme Runner -configuration Debug -destination 'platform=macOS' -only-testing:RunnerTests CODE_SIGN_IDENTITY=-
       - name: C++ tests (Windows clipboard and picker policy, built on the Mac runner)
         run: ./tool/test_windows_policy.sh
+      - name: Swift typed-shortcut core tests, compiled as Release (no DEBUG)
+        run: ./tool/test_mac_shortcuts_release.sh
 
   windows:
     runs-on: windows-latest

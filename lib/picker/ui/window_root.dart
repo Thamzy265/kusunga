@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../history/history_service.dart';
 import '../../history/ui/history_host.dart';
+import '../../shortcuts/shortcut_service.dart';
+import '../../shortcuts/ui/typed_shortcuts_section.dart';
 import '../picker_controller.dart';
 import 'picker_panel.dart';
 import 'picker_settings_section.dart';
@@ -21,10 +24,15 @@ class WindowRoot extends StatefulWidget {
     required this.picker,
     this.dataProfile,
     this.dataProfileRejected = false,
+    this.shortcuts,
   });
 
   final Future<HistoryService> history;
   final PickerController picker;
+
+  /// Typed shortcuts (M1.5), once the history has opened. Without it the
+  /// Snippets tab has no "Typed shortcuts" section.
+  final Future<ShortcutService>? shortcuts;
 
   /// The test data profile in use, if any (see `HistoryHost.dataProfile`).
   final String? dataProfile;
@@ -87,6 +95,7 @@ class _WindowRootState extends State<WindowRoot> {
           history: widget.history,
           initial: picker.history,
           topSlot: PickerSettingsSection(controller: picker),
+          snippetsTopSlot: _shortcutsSection(),
           dataProfile: widget.dataProfile,
           dataProfileRejected: widget.dataProfileRejected,
         );
@@ -104,6 +113,20 @@ class _WindowRootState extends State<WindowRoot> {
           ),
         );
       },
+    );
+  }
+
+  Widget? _shortcutsSection() {
+    final shortcuts = widget.shortcuts;
+    if (shortcuts == null) return null;
+    return FutureBuilder<ShortcutService>(
+      future: shortcuts,
+      builder: (context, snap) => snap.data == null
+          ? const SizedBox.shrink()
+          : TypedShortcutsSection(
+              service: snap.data!,
+              isMac: defaultTargetPlatform == TargetPlatform.macOS,
+            ),
     );
   }
 

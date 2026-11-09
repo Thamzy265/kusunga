@@ -26,9 +26,14 @@ class SnippetsScreen extends StatefulWidget {
     required this.service,
     this.now,
     this.dataProfileRejected = false,
+    this.topSlot,
   });
 
   final SnippetService service;
+
+  /// Shown under the banners, above the list: the "Typed shortcuts" section
+  /// (M1.5).
+  final Widget? topSlot;
 
   /// A test profile switch was given but not recognised (Debug builds
   /// only): the banner names the switch, not the keychain (QA-M14-6).
@@ -438,6 +443,7 @@ class SnippetsScreenState extends State<SnippetsScreen> {
                                       widget.dataProfileRejected,
                                   onRetry: _service.reload,
                                 ),
+                              if (widget.topSlot != null) widget.topSlot!,
                             ],
                           ),
                         ),
@@ -821,10 +827,33 @@ class _SnippetRowState extends State<SnippetRow> {
                       fontWeight: FontWeight.bold,
                     ),
                   );
-                  if (narrow) return Row(children: [Flexible(child: nameText)]);
+                  // The shortcut follows the name and is never cut (M1.5):
+                  // when the row is too narrow it wraps instead.
+                  final shortcut = item.shortcut == null
+                      ? const <Widget>[]
+                      : [
+                          SizedBox(width: KusungaTokens.space2),
+                          Flexible(
+                            child: Text(
+                              item.shortcut!,
+                              style: KusungaTokens.mono.copyWith(
+                                color: t.textMuted,
+                              ),
+                            ),
+                          ),
+                        ];
+                  if (narrow) {
+                    return Row(
+                      children: [
+                        Flexible(child: nameText),
+                        ...shortcut,
+                      ],
+                    );
+                  }
                   return Row(
                     children: [
                       Flexible(child: nameText),
+                      ...shortcut,
                       SizedBox(width: KusungaTokens.space2),
                       ConstrainedBox(
                         constraints: BoxConstraints(

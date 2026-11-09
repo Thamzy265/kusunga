@@ -38,6 +38,17 @@ inline bool IsSecret(const ClipboardFlags& f) {
          f.viewer_ignore || (f.has_can_include && f.can_include_unreadable);
 }
 
+// The "don't keep this" formats Kusunga adds to a copy it writes.
+struct ClipboardMarks {
+  // "ExcludeClipboardContentFromMonitorProcessing" (other clipboard
+  // managers and Windows clipboard history skip the copy).
+  bool exclude_from_monitor = false;
+  // "CanIncludeInClipboardHistory" = 0.
+  bool no_history = false;
+  // "CanUploadToCloudClipboard" = 0.
+  bool no_cloud = false;
+};
+
 enum class SizeCheck { kEmpty, kOk, kTooLarge };
 
 // The most bytes a CF_UNICODETEXT block may hold: the characters and one

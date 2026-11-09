@@ -115,7 +115,10 @@ class PickerController extends ChangeNotifier {
   }
 
   static bool _sameLine(SnippetItem? a, SnippetItem b) =>
-      a != null && a.name == b.name && a.preview == b.preview;
+      a != null &&
+      a.name == b.name &&
+      a.preview == b.preview &&
+      a.shortcut == b.shortcut;
 
   static ClipItem _entryFor(SnippetItem s) => ClipItem(
     id: s.id,
@@ -381,6 +384,18 @@ class PickerController extends ChangeNotifier {
       return;
     }
     _toast = toast;
+    _mode = WindowMode.toast;
+    _notify();
+    unawaited(port.showToast());
+    _toastTimer?.cancel();
+    _toastTimer = Timer(toastDuration, _hideToast);
+  }
+
+  /// A typed shortcut could only copy (M1.5): the M1.3 "Copied" toast near
+  /// the pointer. Not while the picker is open.
+  void showCopiedToast() {
+    if (_disposed || _mode == WindowMode.picker) return;
+    _toast = ToastKind.copied;
     _mode = WindowMode.toast;
     _notify();
     unawaited(port.showToast());

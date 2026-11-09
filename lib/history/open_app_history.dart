@@ -37,6 +37,7 @@ Future<HistoryService> openAppHistory({
     notices: opened.notices,
     snippetStore: opened.snippets,
     snippetsUnavailable: opened.snippetsUnavailable,
+    ignoredAppStore: opened.ignoredApps,
     source: source,
     log: deferred,
   )..start();

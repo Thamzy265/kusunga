@@ -83,6 +83,10 @@ void main() {
     for (final sql in kMigrations[2].statements) {
       db.execute(sql);
     }
+    // Version 4's shortcut column and index (the rest needs `settings`).
+    for (final sql in kMigrations[3].statements.take(2)) {
+      db.execute(sql);
+    }
     return (
       store: SqliteSnippetStore(db),
       breakWrites: () {

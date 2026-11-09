@@ -31,6 +31,7 @@ class SnippetItem {
     required this.position,
     required this.createdAt,
     required this.updatedAt,
+    this.shortcut,
   });
 
   final int id;
@@ -45,6 +46,9 @@ class SnippetItem {
   /// Unix milliseconds.
   final int createdAt;
   final int updatedAt;
+
+  /// The typed shortcut, such as `;email` (M1.5), or null.
+  final String? shortcut;
 }
 
 /// A whole snippet, kept in memory only while it is deleted, so that Undo can
@@ -57,6 +61,7 @@ class SnippetRecord {
     required this.position,
     required this.createdAt,
     required this.updatedAt,
+    this.shortcut,
   });
 
   final String name;
@@ -65,6 +70,7 @@ class SnippetRecord {
   final int position;
   final int createdAt;
   final int updatedAt;
+  final String? shortcut;
 }
 
 /// The store already keeps the most snippets it may (1,000).
@@ -87,7 +93,18 @@ String normaliseName(String raw) =>
     raw.replaceAll('\u0000', '').replaceAll(_lineBreaks, ' ').trim();
 
 /// What is wrong with a snippet the user wants to save.
-enum SnippetProblem { emptyName, longName, emptyContent, longContent }
+enum SnippetProblem {
+  emptyName,
+  longName,
+  emptyContent,
+  longContent,
+
+  /// The shortcut (M1.5) is under 2 or over 32 characters.
+  shortcutLength,
+
+  /// The shortcut has a space, a line break or another control character.
+  shortcutSpaces,
+}
 
 /// The problems with [name] (already normalised) and [content]. Content is
 /// "empty" when it is only white space, as for history.

@@ -582,4 +582,19 @@ void main() {
       expect(log.codes.where((c) => c.name.startsWith('dataProfile')), isEmpty);
     });
   });
+
+  test('QA\'s synthetic-keys switch next to the profile does not disturb it '
+      '(PM decision 2026-11-09)', () {
+    for (final args in [
+      ['-KusungaDataProfile', 'qa', '-KusungaAcceptSyntheticKeys', 'YES'],
+      ['-KusungaAcceptSyntheticKeys', 'YES', '-KusungaDataProfile', 'dev'],
+    ]) {
+      final p = dataProfileFrom(args, debug: true);
+      expect(p, isA<ActiveDataProfile>(), reason: '$args');
+    }
+    expect(
+      dataProfileFrom(['-KusungaAcceptSyntheticKeys', 'YES'], debug: true),
+      isA<NoDataProfile>(),
+    );
+  });
 }

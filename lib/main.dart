@@ -17,6 +17,8 @@ import 'log/app_log.dart';
 import 'log/unified_log.dart';
 import 'picker/channel_picker_port.dart';
 import 'picker/picker_controller.dart';
+import 'shortcuts/channel_typed_shortcuts_port.dart';
+import 'shortcuts/shortcut_service.dart';
 import 'tray/tray_manager_port.dart';
 import 'tray/tray_service.dart';
 import 'window/window_manager_port.dart';
@@ -62,10 +64,30 @@ Future<void> main(List<String> args) async {
           isMac: defaultTargetPlatform == TargetPlatform.macOS,
         )
       : null;
+  // Typed shortcuts (M1.5): off until the user turns them on (D3 A). The
+  // table and the ignore list are sent once the history has opened.
+  final shortcuts = isDesktop
+      ? history.then((h) async {
+          final service = ShortcutService(
+            port: ChannelTypedShortcutsPort(),
+            snippets: h.snippets,
+            ignoredApps: h.ignoredApps,
+            readSetting: h.setting,
+            writeSetting: h.saveSetting,
+            log: deferredLog,
+            isWindows: Platform.isWindows,
+            available: h.snippets.canEdit,
+            onCopied: picker!.showCopiedToast,
+          );
+          await service.start();
+          return service;
+        })
+      : null;
   runApp(
     KusungaApp(
       history: history,
       picker: picker,
+      shortcuts: shortcuts,
       dataProfile: profile is ActiveDataProfile ? profile.name : null,
       dataProfileRejected: profile is RejectedDataProfile,
     ),

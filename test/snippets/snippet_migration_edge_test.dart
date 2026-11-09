@@ -153,7 +153,11 @@ void main() {
       expect(itemsBefore.length, greaterThan(4900));
 
       final sw = Stopwatch()..start();
-      final store = SqliteHistoryStore.open(path: path, keyHex: _key);
+      final store = SqliteHistoryStore.open(
+        path: path,
+        keyHex: _key,
+        migrations: kMigrations.sublist(0, 3),
+      );
       sw.stop();
       expect(
         sw.elapsed,
@@ -251,7 +255,7 @@ void main() {
 
       final good = await open();
       expect(good.notices, isEmpty);
-      expect(version(), 3);
+      expect(version(), 4);
       expect(allRows('clip_items'), rows);
       expect(files(), ['kusunga.db'], reason: 'the backup goes on success');
       good.store.close();
@@ -281,7 +285,7 @@ void main() {
 
       final good = await open();
       expect(good.notices, isEmpty);
-      expect(version(), 3);
+      expect(version(), 4);
       expect(allRows('clip_items'), rows);
       expect(files(), ['kusunga.db']);
       good.store.close();
@@ -293,7 +297,7 @@ void main() {
       File('$path.bak').writeAsBytesSync(List.filled(5000, 7));
       final opened = await open();
       expect(opened.notices, isEmpty);
-      expect(version(), 3);
+      expect(version(), 4);
       expect(files(), ['kusunga.db']);
       opened.store.close();
     });
@@ -377,14 +381,14 @@ void main() {
 
     test('a file one version ahead of this build is left alone as well, and '
         'the old data is still all there for the newer build', () async {
-      await makeNewerFile(version: 4);
+      await makeNewerFile(version: 5);
       final before = sha(path);
       final opened = await open();
       expect(opened.notices, {HistoryNotice.incompatible});
       opened.store.close();
       expect(sha(path), before);
       // The newer build (here: this one, once the version is put back).
-      final db = raw()..execute('PRAGMA user_version = 3');
+      final db = raw()..execute('PRAGMA user_version = 4');
       db.close();
       final back = await open();
       expect(back.notices, isEmpty);

@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../theme/tokens.dart';
 import '../snippet.dart';
 import '../snippet_service.dart';
+import '../snippet_shortcut.dart';
 
 /// How the editor opens: empty ("New snippet"), with a snippet ("Edit
 /// snippet"), or filled in from a history item ("Save as snippet").
@@ -31,7 +34,42 @@ String _problemText(SnippetProblem p) => switch (p) {
   SnippetProblem.longName => 'Names can be up to 100 characters.',
   SnippetProblem.emptyContent => 'Enter the text to paste.',
   SnippetProblem.longContent => "That's too long. Snippets can be up to 1 MB.",
+  SnippetProblem.shortcutLength => _shortcutLengthText,
+  SnippetProblem.shortcutSpaces => _shortcutSpacesText,
 };
+
+// Typed shortcuts (M1.5 UI spec, "Copy", "Editor Shortcut field").
+const _shortcutLabel = 'Shortcut (optional)';
+const _shortcutHint = 'Type this in any app to paste.';
+const _shortcutPlaceholder = ';email';
+const _shortcutTip =
+    "Tip: start with a symbol like ; so normal typing doesn't trigger it.";
+const _shortcutLengthText = 'Use 2 to 32 characters.';
+const _shortcutSpacesText = "Shortcuts can't have spaces or line breaks.";
+
+/// The message for a clash of [mine] with another snippet's shortcut.
+String shortcutClashText(ShortcutClash c, String mine) {
+  final other = c.otherShortcut;
+  final name = '“${c.otherName}”';
+  return switch (c.kind) {
+    ShortcutClashKind.same =>
+      '$name already uses $other. Choose another shortcut.',
+    ShortcutClashKind.otherIsStart =>
+      "$name uses $other, so $mine would never fire. Choose one that doesn't "
+          'start with $other.',
+    ShortcutClashKind.newIsStart =>
+      '$name uses $other, which starts with $mine, so $other would stop '
+          'firing. Choose a longer or different shortcut.',
+  };
+}
+
+String _issueText(ShortcutIssue issue, String mine) => switch (issue.problem) {
+  ShortcutProblem.length => _shortcutLengthText,
+  ShortcutProblem.spaces => _shortcutSpacesText,
+  null => shortcutClashText(issue.clash!, mine),
+};
+
+final _allLetters = RegExp(r'^\p{L}+$', unicode: true);
 
 /// Opens the editor over the window: a 480 px sheet, or the full window under
 /// 600 px. Returns the id of the saved snippet, or null if it was cancelled.
@@ -59,14 +97,22 @@ class _SnippetEditor extends StatefulWidget {
 class _SnippetEditorState extends State<_SnippetEditor> {
   late final TextEditingController _name;
   late final TextEditingController _content;
+  late final TextEditingController _shortcut;
   final _nameNode = FocusNode(debugLabel: 'snippet name');
+  final _shortcutNode = FocusNode(debugLabel: 'snippet shortcut');
   final _contentNode = FocusNode(debugLabel: 'snippet content');
   late SnippetType _type;
   late bool _typeSuggested;
   late final String _initialName;
   late final String _initialContent;
   late final SnippetType _initialType;
+  late final String _initialShortcut;
   Set<SnippetProblem> _problems = const {};
+
+  /// The message under the Shortcut field: from the live check (500 ms after
+  /// typing stops) or from Save.
+  String? _shortcutError;
+  Timer? _shortcutCheck;
   String? _banner;
   var _closing = false;
 
@@ -108,17 +154,33 @@ class _SnippetEditorState extends State<_SnippetEditor> {
     _initialName = name;
     _initialContent = content;
     _initialType = _type;
+    _initialShortcut = editing?.shortcut ?? '';
     _name = TextEditingController(text: name);
     _content = TextEditingController(text: content)..addListener(_suggest);
+    _shortcut = TextEditingController(text: _initialShortcut);
   }
 
   @override
   void dispose() {
+    _shortcutCheck?.cancel();
     _name.dispose();
     _content.dispose();
+    _shortcut.dispose();
     _nameNode.dispose();
+    _shortcutNode.dispose();
     _contentNode.dispose();
     super.dispose();
+  }
+
+  void _shortcutChanged(String _) {
+    // Rebuilds the hint (the tip depends on the text) and checks again
+    // 500 ms after typing stops (UI spec).
+    setState(() {});
+    _shortcutCheck?.cancel();
+    _shortcutCheck = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      setState(() => _shortcutError = _liveShortcutIssue());
+    });
   }
 
   void _suggest() {
@@ -130,7 +192,8 @@ class _SnippetEditorState extends State<_SnippetEditor> {
   bool get _changed =>
       _name.text != _initialName ||
       _content.text != _initialContent ||
-      _type != _initialType;
+      _type != _initialType ||
+      _shortcut.text != _initialShortcut;
 
   void _save() {
     if (_closing) return;
@@ -146,11 +209,13 @@ class _SnippetEditorState extends State<_SnippetEditor> {
       }
       content = full;
     }
+    _shortcutCheck?.cancel();
     final r = widget.service.save(
       id: _editing?.id,
       name: _name.text,
       content: content,
       type: _type,
+      shortcut: _shortcut.text,
     );
     switch (r.outcome) {
       case SnippetSave.saved:
@@ -160,11 +225,34 @@ class _SnippetEditorState extends State<_SnippetEditor> {
         setState(() {
           _problems = r.problems;
           _banner = null;
+          // A save that failed for another field keeps the live clash
+          // message (it is checked here too, in case Save came before the
+          // 500 ms check).
+          _shortcutError =
+              _errorFor(const {
+                SnippetProblem.shortcutLength,
+                SnippetProblem.shortcutSpaces,
+              }) ??
+              _liveShortcutIssue();
         });
+        // The first bad field in the Tab order gets the focus.
         final nameBad =
             r.problems.contains(SnippetProblem.emptyName) ||
             r.problems.contains(SnippetProblem.longName);
-        (nameBad ? _nameNode : _contentNode).requestFocus();
+        final shortcutBad = _shortcutError != null;
+        (nameBad
+                ? _nameNode
+                : shortcutBad
+                ? _shortcutNode
+                : _contentNode)
+            .requestFocus();
+      case SnippetSave.shortcutTaken:
+        setState(() {
+          _problems = const {};
+          _banner = null;
+          _shortcutError = shortcutClashText(r.clash!, _shortcut.text);
+        });
+        _shortcutNode.requestFocus();
       case SnippetSave.capReached:
         setState(() {
           _problems = const {};
@@ -229,6 +317,12 @@ class _SnippetEditorState extends State<_SnippetEditor> {
     );
   }
 
+  String? _liveShortcutIssue() {
+    final text = _shortcut.text;
+    final issue = widget.service.shortcutIssue(text, selfId: _editing?.id);
+    return issue == null ? null : _issueText(issue, text);
+  }
+
   String? _errorFor(Set<SnippetProblem> which) {
     for (final p in _problems) {
       if (which.contains(p)) return _problemText(p);
@@ -236,29 +330,38 @@ class _SnippetEditorState extends State<_SnippetEditor> {
     return null;
   }
 
-  InputDecoration _decoration(KusungaTokens t, String label, String? error) =>
-      InputDecoration(
-        labelText: label,
-        floatingLabelBehavior: FloatingLabelBehavior.always,
-        errorText: error,
-        errorMaxLines: 3,
-        // 1 px border, darker on hover, a 2 px focus ring (UI spec).
-        border: WidgetStateInputBorder.resolveWith((states) {
-          final focused = states.contains(WidgetState.focused);
-          final color = states.contains(WidgetState.error)
-              ? t.danger
-              : focused
-              ? t.focus
-              : states.contains(WidgetState.hovered)
-              ? t.borderHover
-              : t.border;
-          return OutlineInputBorder(
-            borderRadius: BorderRadius.circular(KusungaTokens.radius2),
-            borderSide: BorderSide(color: color, width: focused ? 2 : 1),
-          );
-        }),
-        hoverColor: Colors.transparent,
+  InputDecoration _decoration(
+    KusungaTokens t,
+    String label,
+    String? error, {
+    String? hint,
+    String? helper,
+  }) => InputDecoration(
+    labelText: label,
+    floatingLabelBehavior: FloatingLabelBehavior.always,
+    errorText: error,
+    errorMaxLines: 3,
+    hintText: hint,
+    helperText: helper,
+    helperMaxLines: 4,
+    helperStyle: KusungaTokens.caption.copyWith(color: t.textMuted),
+    // 1 px border, darker on hover, a 2 px focus ring (UI spec).
+    border: WidgetStateInputBorder.resolveWith((states) {
+      final focused = states.contains(WidgetState.focused);
+      final color = states.contains(WidgetState.error)
+          ? t.danger
+          : focused
+          ? t.focus
+          : states.contains(WidgetState.hovered)
+          ? t.borderHover
+          : t.border;
+      return OutlineInputBorder(
+        borderRadius: BorderRadius.circular(KusungaTokens.radius2),
+        borderSide: BorderSide(color: color, width: focused ? 2 : 1),
       );
+    }),
+    hoverColor: Colors.transparent,
+  );
 
   Widget _form(KusungaTokens t) {
     final gap = SizedBox(height: KusungaTokens.space4);
@@ -356,6 +459,32 @@ class _SnippetEditorState extends State<_SnippetEditor> {
                 style: KusungaTokens.caption.copyWith(color: t.textMuted),
               ),
           ],
+        ),
+        gap,
+        Semantics(
+          identifier: 'snippet-editor-shortcut',
+          child: TextField(
+            controller: _shortcut,
+            focusNode: _shortcutNode,
+            maxLines: 1,
+            autocorrect: false,
+            enableSuggestions: false,
+            // 32 characters at most: the field refuses more (UI spec).
+            inputFormatters: [
+              LengthLimitingTextInputFormatter(maxShortcutLength),
+            ],
+            onChanged: _shortcutChanged,
+            style: KusungaTokens.mono.copyWith(color: t.text),
+            decoration: _decoration(
+              t,
+              _shortcutLabel,
+              _shortcutError,
+              hint: _shortcutPlaceholder,
+              helper: _allLetters.hasMatch(_shortcut.text)
+                  ? '$_shortcutHint\n$_shortcutTip'
+                  : _shortcutHint,
+            ),
+          ),
         ),
         gap,
         Semantics(

@@ -48,7 +48,11 @@ void main() {
     }
 
     test('version 3 adds only the snippets table, as in the design', () {
-      SqliteHistoryStore.open(path: path, keyHex: _key).close();
+      SqliteHistoryStore.open(
+        path: path,
+        keyHex: _key,
+        migrations: kMigrations.sublist(0, 3),
+      ).close();
       final db = raw();
       expect(db.select('PRAGMA user_version').single.values.single, 3);
       expect(db.select('PRAGMA table_info(snippets)').map((r) => r['name']), [
@@ -122,7 +126,7 @@ void main() {
       expect(version(), 2);
 
       final v3 = SqliteHistoryStore.open(path: path, keyHex: _key);
-      expect(version(), 3);
+      expect(version(), 4);
       final after = v3.list();
       expect(after.length, before.length);
       for (var i = 0; i < before.length; i++) {

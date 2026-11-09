@@ -114,7 +114,7 @@ void main() {
         log: FakeLog(),
         migrations: [
           ...kMigrations,
-          const Migration(version: 4, statements: []),
+          const Migration(version: 5, statements: []),
         ],
       );
       newer.store.close();

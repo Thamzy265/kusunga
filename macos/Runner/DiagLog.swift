@@ -23,7 +23,11 @@ enum DiagLog {
     "pasteForcedPost", "pasteTargetElevated", "pasteTargetGone", "snippetSaveFailed",
     "snippetDeleteFailed", "snippetMoveFailed", "snippetCapReached", "snippetsUnavailable",
     "pasteSource", "migrationBackupFailed", "snippetOpenFailed", "dataProfileActive",
-    "dataProfileRejected", "dataProfileNoKey",
+    "dataProfileRejected", "dataProfileNoKey", "shortcutFired", "shortcutCancelled",
+    "shortcutSkippedIgnoredApp", "shortcutSkippedPassword", "shortcutSkippedUnknownField",
+    "shortcutSkippedInjected", "shortcutSkippedAdmin", "shortcutTapReenabled",
+    "shortcutTapFailed", "shortcutHookFailed", "shortcutPermissionMissing", "shortcutTableSize",
+    "shortcutSyntheticKeysAllowed",
     // Native
     "pasteResult", "postKeyNone", "postKeyCode", "postForced", "postFrontmostOk", "postTiming",
     "postSourceState", "postSourceNil", "postTap", "postEventNil", "postSent",

@@ -32,10 +32,15 @@
 //    native calls "flush" and waits for the answer when Windows ends the
 //    session (WM_ENDSESSION).
 // Puts [text] (UTF-8) on the clipboard with Kusunga's marker format. With
-// [own] (a snippet), the change is recorded so the watcher skips it. Used by
-// the paste flow and by "writeOwn".
+// [own] (a snippet), the change is recorded so the watcher skips it. [marks]
+// (typed shortcuts, M1.5 D2 and S1) add the "don't keep this" formats:
+// ExcludeClipboardContentFromMonitorProcessing, CanIncludeInClipboardHistory
+// = 0 and CanUploadToCloudClipboard = 0, so other clipboard managers,
+// Windows clipboard history and the cloud clipboard leave it alone. Used by
+// the paste flow, "writeOwn" and typed shortcuts.
 bool WriteClipboardText(HWND window, UINT format_own, const std::string& text,
-                        kusunga::OwnClipboardChanges* own);
+                        kusunga::OwnClipboardChanges* own,
+                        const kusunga::ClipboardMarks& marks = {});
 
 class ClipboardBridge {
  public:

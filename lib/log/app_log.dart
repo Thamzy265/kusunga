@@ -56,6 +56,26 @@ enum LogCode {
   dataProfileActive,
   dataProfileRejected,
   dataProfileNoKey,
+  // M1.5 typed shortcuts (design note, "Observability"): codes only, never a
+  // typed key, a shortcut, snippet text or an app name. shortcutTableSize
+  // carries the number of shortcuts; shortcutHookFailed a Windows error
+  // number.
+  shortcutFired,
+  shortcutCancelled,
+  shortcutSkippedIgnoredApp,
+  shortcutSkippedPassword,
+  shortcutSkippedUnknownField,
+  shortcutSkippedInjected,
+  shortcutSkippedAdmin,
+  shortcutTapReenabled,
+  shortcutTapFailed,
+  shortcutHookFailed,
+  shortcutPermissionMissing,
+  shortcutTableSize,
+
+  // Debug builds only (Mac): QA's switch that lets software-sent keys fire
+  // typed shortcuts is on (PM decision 2026-11-09). Logged by native code.
+  shortcutSyntheticKeysAllowed,
 }
 
 abstract interface class ErrorLog {

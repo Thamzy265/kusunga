@@ -3,6 +3,7 @@ import 'package:sqlite3/sqlite3.dart';
 
 import '../log/app_log.dart';
 import 'snippet.dart';
+import 'snippet_shortcut.dart';
 import 'snippet_store.dart';
 
 /// Banners at the top of the Snippets tab (UI spec, "Snippets banner" and
@@ -45,13 +46,23 @@ enum SnippetSave {
 
   /// Editing is off (memory-only or incompatible mode, or closed).
   unavailable,
+
+  /// The shortcut clashes with another snippet's; see
+  /// [SnippetSaveResult.clash]. Nothing was changed.
+  shortcutTaken,
 }
 
 class SnippetSaveResult {
-  const SnippetSaveResult(this.outcome, {this.id, this.problems = const {}});
+  const SnippetSaveResult(
+    this.outcome, {
+    this.id,
+    this.problems = const {},
+    this.clash,
+  });
   final SnippetSave outcome;
   final int? id;
   final Set<SnippetProblem> problems;
+  final ShortcutClash? clash;
 }
 
 /// Holds the snippets the main window and the picker show, and makes every
@@ -101,6 +112,28 @@ class SnippetService extends ChangeNotifier {
   /// New snippet and "Save as snippet" are allowed.
   bool get canCreate => canEdit && !atCap;
 
+  /// Every snippet that has a typed shortcut: what the native matcher gets
+  /// (ids and shortcuts only, never names or content; ADR 0004).
+  List<({int id, String shortcut})> get shortcutTable => [
+    for (final s in _items)
+      if (s.shortcut != null) (id: s.id, shortcut: s.shortcut!),
+  ];
+
+  /// The live check for the editor's Shortcut field: a problem with the text,
+  /// a clash with another snippet in the list, or null if it is fine (an
+  /// empty field is no shortcut). [selfId] is the snippet being edited.
+  ShortcutIssue? shortcutIssue(String raw, {int? selfId}) {
+    final shortcut = shortcutOrNull(raw);
+    if (shortcut == null) return null;
+    final problem = checkShortcutText(shortcut);
+    if (problem != null) return ShortcutIssue.problem(problem);
+    final clash = findShortcutClash(shortcut, [
+      for (final s in _items)
+        if (s.shortcut != null) (id: s.id, name: s.name, shortcut: s.shortcut!),
+    ], selfId: selfId);
+    return clash == null ? null : ShortcutIssue.clash(clash);
+  }
+
   /// Reads the list again ("Try again" on the read banner).
   void reload() => _refresh();
 
@@ -143,16 +176,28 @@ class SnippetService extends ChangeNotifier {
       error is SqliteException ? error.extendedResultCode : null;
 
   /// Creates a snippet, or with [id] changes that one. The name is made one
-  /// line first. Every problem with the fields is reported at once.
+  /// line first. Every problem with the fields is reported at once. An empty
+  /// [shortcut] is none; a clash is found by the store in the same
+  /// transaction as the write (PM decision D1 A).
   SnippetSaveResult save({
     int? id,
     required String name,
     required String content,
     required SnippetType type,
+    String? shortcut,
   }) {
     if (!canEdit) return const SnippetSaveResult(SnippetSave.unavailable);
     final clean = normaliseName(name);
-    final problems = checkSnippet(clean, content);
+    final code = shortcutOrNull(shortcut);
+    final problems = {
+      ...checkSnippet(clean, content),
+      if (code != null)
+        ...switch (checkShortcutText(code)) {
+          ShortcutProblem.length => {SnippetProblem.shortcutLength},
+          ShortcutProblem.spaces => {SnippetProblem.shortcutSpaces},
+          null => <SnippetProblem>{},
+        },
+    };
     if (problems.isNotEmpty) {
       return SnippetSaveResult(SnippetSave.invalid, problems: problems);
     }
@@ -165,6 +210,7 @@ class SnippetService extends ChangeNotifier {
           content: content,
           type: type,
           nowMs: now,
+          shortcut: code,
         );
       } else if (!_store.update(
         id,
@@ -172,6 +218,7 @@ class SnippetService extends ChangeNotifier {
         content: content,
         type: type,
         nowMs: now,
+        shortcut: code,
       )) {
         // Deleted meanwhile: nothing to change.
         _log.log(LogCode.snippetSaveFailed);
@@ -181,6 +228,11 @@ class SnippetService extends ChangeNotifier {
     } on SnippetCapReached {
       _log.log(LogCode.snippetCapReached);
       return const SnippetSaveResult(SnippetSave.capReached);
+    } on ShortcutTaken catch (taken) {
+      // The user's choice, not a failure: nothing to log. The list may be
+      // out of date, so it is read again.
+      _refresh();
+      return SnippetSaveResult(SnippetSave.shortcutTaken, clash: taken.clash);
     } catch (error) {
       _log.log(LogCode.snippetSaveFailed, _code(error));
       return const SnippetSaveResult(SnippetSave.failed);

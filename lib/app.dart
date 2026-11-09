@@ -4,6 +4,7 @@ import 'history/history_service.dart';
 import 'history/ui/history_host.dart';
 import 'picker/picker_controller.dart';
 import 'picker/ui/window_root.dart';
+import 'shortcuts/shortcut_service.dart';
 import 'theme/tokens.dart';
 
 class KusungaApp extends StatelessWidget {
@@ -13,7 +14,11 @@ class KusungaApp extends StatelessWidget {
     this.picker,
     this.dataProfile,
     this.dataProfileRejected = false,
+    this.shortcuts,
   });
+
+  /// Typed shortcuts (M1.5), once the history has opened.
+  final Future<ShortcutService>? shortcuts;
 
   /// The history, once it has opened (see `openHistory`).
   final Future<HistoryService> history;
@@ -46,6 +51,7 @@ class KusungaApp extends StatelessWidget {
               picker: picker!,
               dataProfile: dataProfile,
               dataProfileRejected: dataProfileRejected,
+              shortcuts: shortcuts,
             ),
     );
   }

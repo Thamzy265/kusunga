@@ -69,7 +69,7 @@ void main() {
         FakeKeyStore(stored: _key),
         migrations: [
           ...kMigrations,
-          const Migration(version: 4, statements: []),
+          const Migration(version: 5, statements: []),
         ],
       );
       newer.store.close();

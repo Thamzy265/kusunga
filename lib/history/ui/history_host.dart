@@ -22,6 +22,7 @@ class HistoryHost extends StatefulWidget {
     required this.history,
     this.initial,
     this.topSlot,
+    this.snippetsTopSlot,
     this.dataProfile,
     this.dataProfileRejected = false,
   });
@@ -33,6 +34,9 @@ class HistoryHost extends StatefulWidget {
 
   /// Extra content for the history screen (the picker settings).
   final Widget? topSlot;
+
+  /// Extra content for the snippets screen (typed shortcuts, M1.5).
+  final Widget? snippetsTopSlot;
 
   /// The test data profile in use (Debug builds only), shown as "Test
   /// profile: `name`" so test data is never taken for real data.
@@ -234,6 +238,7 @@ class _HistoryHostState extends State<HistoryHost> {
               key: _snippetsKey,
               service: service.snippets,
               dataProfileRejected: widget.dataProfileRejected,
+              topSlot: widget.snippetsTopSlot,
             ),
           ),
         ],
