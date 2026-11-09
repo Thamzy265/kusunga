@@ -79,7 +79,21 @@ class _TypedShortcutsSectionState extends State<TypedShortcutsSection> {
   void initState() {
     super.initState();
     _s.addListener(_changed);
+    _switchNode.addListener(_ringChanged);
+    FocusManager.instance.addHighlightModeListener(_highlightChanged);
   }
+
+  /// The switch's focus ring (QA-M15-1): shown, like the buttons' ring, only
+  /// for keyboard focus.
+  bool get _showRing =>
+      _switchNode.hasFocus &&
+      FocusManager.instance.highlightMode == FocusHighlightMode.traditional;
+
+  void _ringChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _highlightChanged(FocusHighlightMode _) => _ringChanged();
 
   @override
   void didUpdateWidget(TypedShortcutsSection old) {
@@ -93,6 +107,8 @@ class _TypedShortcutsSectionState extends State<TypedShortcutsSection> {
   @override
   void dispose() {
     _s.removeListener(_changed);
+    _switchNode.removeListener(_ringChanged);
+    FocusManager.instance.removeHighlightModeListener(_highlightChanged);
     _startingTimer?.cancel();
     _switchNode.dispose();
     super.dispose();
@@ -253,17 +269,31 @@ class _TypedShortcutsSectionState extends State<TypedShortcutsSection> {
                 label: _title,
                 toggled: on,
                 enabled: _s.available,
-                // With reduce motion on, a new switch is built for each value,
-                // so it starts at its end position and never slides.
-                child: KeyedSubtree(
-                  key: ValueKey(
-                    MediaQuery.disableAnimationsOf(context) ? on : null,
+                // Keyboard focus: the 2 px `focus` ring of the buttons, chips
+                // and tabs, drawn outside the switch on the background (3:1
+                // there). Material's own halo is about 1.25:1 (QA-M15-1).
+                child: DecoratedBox(
+                  key: const ValueKey('typed-shortcuts-switch-ring'),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: _showRing ? t.focus : Colors.transparent,
+                      width: 2,
+                      strokeAlign: BorderSide.strokeAlignOutside,
+                    ),
+                    borderRadius: BorderRadius.circular(24),
                   ),
-                  child: Switch(
-                    key: const ValueKey('typed-shortcuts-switch'),
-                    focusNode: _switchNode,
-                    value: on,
-                    onChanged: _s.available ? _toggle : null,
+                  // With reduce motion on, a new switch is built for each
+                  // value, so it starts at its end position and never slides.
+                  child: KeyedSubtree(
+                    key: ValueKey(
+                      MediaQuery.disableAnimationsOf(context) ? on : null,
+                    ),
+                    child: Switch(
+                      key: const ValueKey('typed-shortcuts-switch'),
+                      focusNode: _switchNode,
+                      value: on,
+                      onChanged: _s.available ? _toggle : null,
+                    ),
                   ),
                 ),
               ),
