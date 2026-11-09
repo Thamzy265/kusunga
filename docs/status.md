@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-09 — M1.5 Typed shortcuts — QA session 2: pass
+- Changed: QA session 2 on 435d174 in the qa profile with the debug-only switch (log showed shortcutSyntheticKeysAllowed). Evidence cc80941 (docs/qa/m1.md "M1.5 session 2", 14 screenshots m1.5-s2-*); videos qa-artifacts/m1.5/m1.5-s2-{ac1-replace-timing,shift-held,two-quick,timing-10-trials}.mp4 and the filtered log (not committed). Pass: AC1 (`;email` replaced, "hello" back, ⌘V pastes "hello", qa history gains nothing over about 35 replacements); Shift held on the last key (software-held Shift; pasted once, no picker, no stray characters); two quick shortcuts delete only shortcut text; a click partway cancels; 6 s pause cancels, under 5 s fires; rich-text copy leaves the snippet (PM decision); AC2 password field in a local Safari test page (secure input, nothing typed or logged) and ignored app (shortcutSkippedIgnoredApp); AC3 switch Off does nothing; replacement median 17 ms, max 50 ms (target 150 ms); Secure Keyboard Entry pauses and recovers; log has codes only. QA-M15-1 fixed in dark (8.1:1). Not run: light appearance (needs System Settings), real keyboard without the switch (optional PM check), card (B2, accepted by PM), VoiceOver, password-manager auto-clear, Windows. Slip, no harm: 10 trial runs went to a windowless Terminal first; redone with TextEdit in front. Cleanup done.
+- Gates: design approved · developer done · tester round 7 done · reviewer approve with notes · QA pass · PM merge approved (standing approval, 2026-11-09)
+- Open findings: none
+- Decisions: Under the PM's standing approval of 2026-11-09 ("You can merge and push, run recommended actions"), lead's recommendation taken: the focus ring in light appearance is covered by widget tests (tester round 7: light and dark, 3:1) and not checked on the real app, because switching appearance needs System Settings — scope: M1.5, QA-M15-1 light appearance — review: next QA session with light appearance available
+- Blockers: PM — VoiceOver on the switch, status and chips; optional real-keyboard check; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-09 — M1.5 Typed shortcuts — PM standing approval while away
 - Changed: PM decision recorded. No code change. QA session 2 still running.
 - Gates: design approved · developer done · tester round 7 done · reviewer approve with notes · QA in progress · PM merge: pre-approved below, used only after QA passes and every gate is green
