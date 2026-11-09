@@ -19,7 +19,9 @@ cat > "$bundle/Contents/Info.plist" <<'PLIST'
 </dict></plist>
 PLIST
 platform="$(xcrun --show-sdk-platform-path)"
-xcrun swiftc -module-name Kusunga -enable-testing -parse-as-library \
+# -D DEBUG: as the Debug build and RunnerTests, so the debug-only parts
+# (QA's synthetic-keys switch) are tested too.
+xcrun swiftc -module-name Kusunga -enable-testing -parse-as-library -D DEBUG \
   -suppress-warnings \
   -F "$platform/Developer/Library/Frameworks" \
   -I "$platform/Developer/usr/lib" -L "$platform/Developer/usr/lib" \

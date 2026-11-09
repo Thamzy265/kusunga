@@ -2040,3 +2040,106 @@ final class FailedWriteL3EdgeTests: XCTestCase {
     XCTAssertEqual(p.restored.first?.markerTypes, ["org.nspasteboard.TransientType"])
   }
 }
+
+// MARK: - Debug only: QA's switch to accept software-sent keys (PM decision
+// 2026-11-09, "Add a debug switch"). Compiled out of Release.
+
+#if DEBUG
+  final class SyntheticKeysSwitchTests: XCTestCase {
+    private func matcher(accepting: Bool) -> TypedShortcutMatcher {
+      let m = TypedShortcutMatcher()
+      m.setTable([(7, ";email")])
+      m.acceptsSyntheticKeys = accepting
+      return m
+    }
+
+    private func type(_ m: TypedShortcutMatcher, _ text: String, _ context: TypedKeyContext)
+      -> TypedOutcome
+    {
+      var last = TypedOutcome.none
+      for ch in text { last = m.handle(.text(String(ch)), context: context, nowMs: 0) }
+      return last
+    }
+
+    func testWithTheSwitchOnASoftwareSentKeyFires() {
+      var injected = TypedKeyContext()
+      injected.injected = true
+      XCTAssertEqual(
+        type(matcher(accepting: true), ";email", injected),
+        .matched(snippetId: 7, deleteCount: 6))
+    }
+
+    func testWithTheSwitchOffItIsSkipped() {
+      var injected = TypedKeyContext()
+      injected.injected = true
+      XCTAssertEqual(
+        type(matcher(accepting: false), ";email", injected),
+        .skipped("shortcutSkippedInjected"))
+      XCTAssertFalse(TypedShortcutMatcher().acceptsSyntheticKeys, "off by default")
+    }
+
+    func testEveryOtherRuleStillApplies() {
+      var c = TypedKeyContext()
+      c.injected = true
+      c.secureInput = true
+      XCTAssertEqual(type(matcher(accepting: true), ";email", c), .skipped("shortcutSkippedPassword"))
+      c.secureInput = false
+      c.frontIsSelf = true
+      XCTAssertEqual(type(matcher(accepting: true), ";email", c), TypedOutcome.none)
+      c.frontIsSelf = false
+      c.frontIgnored = true
+      XCTAssertEqual(
+        type(matcher(accepting: true), ";email", c), .skipped("shortcutSkippedIgnoredApp"))
+      // Resets, the 32-character bound and the 5 s clear are unchanged.
+      let m = matcher(accepting: true)
+      c.frontIgnored = false
+      _ = type(m, ";em", c)
+      _ = m.handle(.reset, context: c, nowMs: 0)
+      XCTAssertEqual(type(m, "ail", c), TypedOutcome.none)
+      _ = type(m, ";em", c)
+      m.tick(nowMs: 5000)
+      XCTAssertEqual(m.bufferCount, 0)
+      _ = m.handle(.text(String(repeating: "x", count: 40)), context: c, nowMs: 0)
+      XCTAssertEqual(m.bufferCount, 32)
+    }
+
+    func testOnOnlyWithTheArgumentAndATestProfile() {
+      let on = ["/K", "-KusungaDataProfile", "qa", "-KusungaAcceptSyntheticKeys", "YES"]
+      XCTAssertTrue(SyntheticKeysSwitch.isOn(arguments: on))
+      XCTAssertTrue(
+        SyntheticKeysSwitch.isOn(arguments: [
+          "/K", "-KusungaAcceptSyntheticKeys", "YES", "-KusungaDataProfile", "dev",
+        ]))
+      // The real profile (no profile), or any other profile: ignored.
+      XCTAssertFalse(SyntheticKeysSwitch.isOn(arguments: ["/K", "-KusungaAcceptSyntheticKeys", "YES"]))
+      for profile in ["real", "default", "QA", "qa2", "", "prod"] {
+        XCTAssertFalse(
+          SyntheticKeysSwitch.isOn(arguments: [
+            "/K", "-KusungaDataProfile", profile, "-KusungaAcceptSyntheticKeys", "YES",
+          ]), profile)
+      }
+      // Without the argument, or not exactly YES, or given twice: off.
+      XCTAssertFalse(SyntheticKeysSwitch.isOn(arguments: ["/K", "-KusungaDataProfile", "qa"]))
+      for value in ["yes", "1", "true", "NO", ""] {
+        XCTAssertFalse(
+          SyntheticKeysSwitch.isOn(arguments: [
+            "/K", "-KusungaDataProfile", "qa", "-KusungaAcceptSyntheticKeys", value,
+          ]), value)
+      }
+      XCTAssertFalse(
+        SyntheticKeysSwitch.isOn(arguments: [
+          "/K", "-KusungaDataProfile", "qa", "-KusungaAcceptSyntheticKeys",
+        ]))
+      XCTAssertFalse(
+        SyntheticKeysSwitch.isOn(arguments: [
+          "/K", "-KusungaDataProfile", "qa", "-KusungaDataProfile", "real",
+          "-KusungaAcceptSyntheticKeys", "YES",
+        ]), "two profiles: Dart rejects it, so does this")
+      XCTAssertFalse(
+        SyntheticKeysSwitch.isOn(arguments: [
+          "/K", "-KusungaAcceptSyntheticKeys", "YES", "-KusungaDataProfile", "qa",
+          "-KusungaAcceptSyntheticKeys", "YES",
+        ]))
+    }
+  }
+#endif

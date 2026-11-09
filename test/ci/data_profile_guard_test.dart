@@ -80,6 +80,12 @@ void main() {
       final n = key.allMatches(text).length;
       if (e.path.endsWith('data_profile.dart')) {
         expect(n, greaterThan(0), reason: e.path);
+      } else if (e.path.endsWith('TypedShortcutCore.swift')) {
+        // QA's synthetic-keys switch (PM 2026-11-09) is on only with a test
+        // profile, and is compiled into Debug builds only: the name may
+        // appear there, inside #if DEBUG blocks and nowhere else.
+        final outside = text.replaceAll(RegExp(r'#if DEBUG[\s\S]*?#endif'), '');
+        expect(key.allMatches(outside).length, 0, reason: e.path);
       } else {
         expect(n, 0, reason: e.path);
       }

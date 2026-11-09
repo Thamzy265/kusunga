@@ -160,6 +160,15 @@ final class TypedShortcutMatcher {
   private let buffer = TypedBuffer()
   private var table = ShortcutTable()
 
+  #if DEBUG
+    /// Debug builds only, for QA (PM decision 2026-11-09, "Add a debug
+    /// switch"): keys sent by software count as typed, so QA can type with
+    /// System Events. Only the D5 rule is bypassed; every other skip rule,
+    /// reset, the 32-character bound and the 5 s clear still apply. Set from
+    /// `SyntheticKeysSwitch`; compiled out of Release.
+    var acceptsSyntheticKeys = false
+  #endif
+
   var bufferCount: Int { buffer.count }
   var tableSize: Int { table.count }
 
@@ -193,7 +202,11 @@ final class TypedShortcutMatcher {
       buffer.backspace(nowMs: nowMs)
       return .none
     case .text(let text):
-      buffer.add(text, nowMs: nowMs, injected: context.injected)
+      var injected = context.injected
+      #if DEBUG
+        if acceptsSyntheticKeys { injected = false }
+      #endif
+      buffer.add(text, nowMs: nowMs, injected: injected)
       guard let m = table.match(buffer.contents) else { return .none }
       // Skips keep the buffer (design note, "Matching and skip rules").
       // Keys from other software never fire a shortcut, not even when the
@@ -264,6 +277,29 @@ enum TypedShortcutInput {
     pending.noteInput()
   }
 }
+
+#if DEBUG
+  /// QA's switch to accept software-sent keys (PM decision 2026-11-09). Debug
+  /// builds only, and on only with BOTH `-KusungaAcceptSyntheticKeys YES` and
+  /// a test data profile, `-KusungaDataProfile qa` or `dev`, each given once.
+  /// With the real data (no profile) the argument is ignored.
+  enum SyntheticKeysSwitch {
+    static let argument = "-KusungaAcceptSyntheticKeys"
+    static let profileArgument = "-KusungaDataProfile"
+    static let testProfiles: Set<String> = ["qa", "dev"]
+
+    static func isOn(arguments: [String]) -> Bool {
+      func onlyValue(of flag: String) -> String? {
+        let at = arguments.indices.filter { arguments[$0] == flag }
+        guard at.count == 1, at[0] + 1 < arguments.count else { return nil }
+        return arguments[at[0] + 1]
+      }
+      guard onlyValue(of: argument) == "YES", let profile = onlyValue(of: profileArgument)
+      else { return false }
+      return testProfiles.contains(profile)
+    }
+  }
+#endif
 
 /// Mac key codes (kVK_*) and what they mean for the buffer.
 enum MacKeyClassifier {

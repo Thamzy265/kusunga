@@ -160,6 +160,11 @@ final class TypedShortcutBridge {
     let source = CFMachPortCreateRunLoopSource(nil, tap, 0)
     self.source = source
     CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+    #if DEBUG
+      // QA only: software-sent keys count as typed (PM 2026-11-09).
+      matcher.acceptsSyntheticKeys = SyntheticKeysSwitch.isOn(arguments: CommandLine.arguments)
+      if matcher.acceptsSyntheticKeys { DiagLog.log("shortcutSyntheticKeysAllowed", nil) }
+    #endif
     CGEvent.tapEnable(tap: tap, enable: true)
     frontChanged(NSWorkspace.shared.frontmostApplication)
     timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in

@@ -72,6 +72,10 @@ enum LogCode {
   shortcutHookFailed,
   shortcutPermissionMissing,
   shortcutTableSize,
+
+  // Debug builds only (Mac): QA's switch that lets software-sent keys fire
+  // typed shortcuts is on (PM decision 2026-11-09). Logged by native code.
+  shortcutSyntheticKeysAllowed,
 }
 
 abstract interface class ErrorLog {

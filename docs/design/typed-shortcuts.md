@@ -152,6 +152,7 @@ On each added character, native checks whether the buffer ends with a shortcut. 
 2. The front app is Kusunga, so the user can type `;email` in the editor.
 3. The front app is on the ignore list.
 4. The key was sent by software, not the keyboard, if D5 is A. On Mac the event's source process id isn't 0. On Windows `LLKHF_INJECTED` is set.
+   - Debug-only exception for QA (PM decision 2026-11-09, "Add a debug switch"): a Mac Debug build launched with both `-KusungaAcceptSyntheticKeys YES` and a test data profile (`-KusungaDataProfile qa` or `dev`) treats software-sent keys as typed, so QA can type with System Events. Only this rule is bypassed; every other skip rule, reset event, the 32-character bound and the 5 s clear still apply. It is compiled out of Release (`#if DEBUG`), ignored with the real data, logs `shortcutSyntheticKeysAllowed` when the tap starts, and does not exist on Windows.
 5. Windows: the front window belongs to a process running as administrator. Windows blocks our keys there anyway.
 6. Windows: the focused field is a password field or can't be read. UI Automation `IsPassword` is checked only when a match happens, never on every key, with a 100 ms limit. "Can't tell" means don't fire.
 
@@ -212,6 +213,7 @@ Log codes only, with no keys, shortcuts, snippet text or app names:
 - `shortcutHookFailed`
 - `shortcutPermissionMissing`
 - `shortcutTableSize` (a number)
+- `shortcutSyntheticKeysAllowed` (Debug builds on the Mac only: QA's synthetic-keys switch is on; see rule 4)
 
 The two numbers to watch in QA are the hook time per key and the time to replace.
 

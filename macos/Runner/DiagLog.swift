@@ -27,6 +27,7 @@ enum DiagLog {
     "shortcutSkippedIgnoredApp", "shortcutSkippedPassword", "shortcutSkippedUnknownField",
     "shortcutSkippedInjected", "shortcutSkippedAdmin", "shortcutTapReenabled",
     "shortcutTapFailed", "shortcutHookFailed", "shortcutPermissionMissing", "shortcutTableSize",
+    "shortcutSyntheticKeysAllowed",
     // Native
     "pasteResult", "postKeyNone", "postKeyCode", "postForced", "postFrontmostOk", "postTiming",
     "postSourceState", "postSourceNil", "postTap", "postEventNil", "postSent",

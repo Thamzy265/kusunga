@@ -72,6 +72,9 @@ const _designCodes = {
   'shortcutHookFailed',
   'shortcutPermissionMissing',
   'shortcutTableSize',
+  // Debug builds only: QA's switch to accept software-sent keys is on (PM
+  // decision 2026-11-09).
+  'shortcutSyntheticKeysAllowed',
 };
 
 void main() {
@@ -302,6 +305,83 @@ void main() {
         'shortcutSkippedUnknownField',
       });
       expect(names.containsAll(used), isTrue);
+    });
+  });
+
+  group('QA\'s synthetic-keys switch is debug only (PM 2026-11-09)', () {
+    /// Each line of [src] with whether it is inside an `#if DEBUG` block
+    /// (nested `#if` blocks counted; an `#else` of `#if DEBUG` is outside).
+    List<(String, bool)> debugLines(String src) {
+      final stack = <bool>[]; // true: this level is a DEBUG branch
+      final out = <(String, bool)>[];
+      for (final raw in src.split('\n')) {
+        final line = raw.trim();
+        if (line.startsWith('#if')) {
+          stack.add(RegExp(r'^#if\s+DEBUG\b').hasMatch(line));
+          out.add((raw, stack.contains(true)));
+          continue;
+        }
+        if (line.startsWith('#else') || line.startsWith('#elseif')) {
+          if (stack.isNotEmpty) stack[stack.length - 1] = false;
+          out.add((raw, stack.contains(true)));
+          continue;
+        }
+        if (line.startsWith('#endif')) {
+          out.add((raw, stack.contains(true)));
+          if (stack.isNotEmpty) stack.removeLast();
+          continue;
+        }
+        out.add((raw, stack.contains(true)));
+      }
+      return out;
+    }
+
+    test('its symbols and argument appear only inside #if DEBUG in the '
+        'Swift sources', () {
+      final needles = [
+        'SyntheticKeysSwitch',
+        'acceptsSyntheticKeys',
+        'KusungaAcceptSyntheticKeys',
+        'shortcutSyntheticKeysAllowed',
+      ];
+      var seen = 0;
+      for (final f
+          in Directory('macos/Runner')
+              .listSync(recursive: true)
+              .whereType<File>()
+              .where((f) => f.path.endsWith('.swift'))) {
+        for (final (line, inDebug) in debugLines(f.readAsStringSync())) {
+          if (line.trimLeft().startsWith('//')) continue;
+          for (final n in needles) {
+            if (!line.contains(n)) continue;
+            seen++;
+            // DiagLog's closed list names every code, debug or not.
+            final inCodeList = f.path.endsWith('DiagLog.swift');
+            expect(
+              inDebug || inCodeList,
+              isTrue,
+              reason: '${f.path}: "$n" outside #if DEBUG: $line',
+            );
+          }
+        }
+      }
+      expect(seen, greaterThanOrEqualTo(4), reason: 'the switch exists');
+    });
+
+    test('the guard itself sees #else and nesting', () {
+      final lines = debugLines(
+        '#if DEBUG\na\n#if os(macOS)\nb\n#endif\n#else\nc\n#endif\nd',
+      );
+      bool at(String s) => lines.firstWhere((l) => l.$1 == s).$2;
+      expect(at('a'), isTrue);
+      expect(at('b'), isTrue);
+      expect(at('c'), isFalse);
+      expect(at('d'), isFalse);
+    });
+
+    test('not on Windows', () {
+      expect(_read(_cppBridge), isNot(contains('Synthetic')));
+      expect(_read(_cppPolicy), isNot(contains('Synthetic')));
     });
   });
 
