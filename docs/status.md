@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-09 — M1.5 Typed shortcuts — developer fixed L3
+- Changed: Developer fixed L3 in c0885a4: after a failed write the text goes back only onto Kusunga's own clear. Windows: sequence moved, ClipboardEmpty() and OwnClear() (GetClipboardOwner() == Kusunga's window). Mac: change count moved by exactly +1, clipboardIsEmpty() and lastChangeWasOwnClear() (the count Kusunga's clearContents returned is still current; added by the developer to also close "write failed before our clear, then another app cleared"). Design note step 2 updated. Failing run first (C++ 3 failed lines; Swift 7 failures). The tester's locks were changed as the lead asked ("any movement" is now +1 only; "indistinguishable" now expects no write-back; the C++ extra-moves block still restores when Kusunga owns the clipboard). ./tool/check.sh +2589 ~10 (one earlier full run failed on the M1.4 timing test history_scroll_round3_test BUG-H4 "End in 5,000 rows … no more than 3x as long", Expected < 59952, Actual 79404, on a loaded machine; the file passed alone and the full re-run passed); test_mac_shortcuts.sh 146; test_windows_policy.sh all pass; macOS debug build ok. Windows GetClipboardOwner behaviour not checked on a real machine.
+- Gates: design approved · developer done (L3) · tester re-check of c0885a4 to be briefed · reviewer approve with notes, re-check after the tester · QA not started · PM merge n/a yet
+- Open findings: none open. Note: the BUG-H4 timing test can fail on a loaded machine (flaky)
+- Decisions: none
+- Blockers: PM — rich copies (keep as designed or restore every format); Input Monitoring grant for QA; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-09 — M1.5 Typed shortcuts — reviewer re-check (L2): approve with notes, L3
 - Changed: Reviewer re-checked 6a47610..4fdfb3c. Checks pass (check.sh +2589 ~10; 143 XCTests; Windows policy suites). L2 confirmed fixed (mutation check failed as expected; on a private pasteboard clearContents leaves no types or items and moves the change count by exactly 1).
 - Gates: design approved · developer to fix L3 · tester pass (round 5) · reviewer approve with notes · QA not started · PM merge n/a yet
