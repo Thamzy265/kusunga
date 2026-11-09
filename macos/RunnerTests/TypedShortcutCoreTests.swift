@@ -2143,3 +2143,194 @@ final class FailedWriteL3EdgeTests: XCTestCase {
     }
   }
 #endif
+
+// MARK: - Tester round 7: the synthetic-keys switch, hard to open by mistake
+
+#if DEBUG
+  final class SyntheticKeysSwitchEdgeTests: XCTestCase {
+    private let yes = ["-KusungaAcceptSyntheticKeys", "YES"]
+
+    private func on(_ args: [String]) -> Bool { SyntheticKeysSwitch.isOn(arguments: args) }
+
+    func testTheEqualsFormAndLookalikesAreOff() {
+      let profile = ["-KusungaDataProfile", "qa"]
+      XCTAssertFalse(on(["/K", "-KusungaAcceptSyntheticKeys=YES"] + profile))
+      XCTAssertFalse(on(["/K", "-KusungaAcceptSyntheticKeys", "YES"] + ["-KusungaDataProfile=qa"]))
+      XCTAssertFalse(on(["/K", "--KusungaAcceptSyntheticKeys", "YES"] + profile))
+      XCTAssertFalse(on(["/K", "KusungaAcceptSyntheticKeys", "YES"] + profile))
+      XCTAssertFalse(on(["/K", "-kusungaacceptsynthetickeys", "YES"] + profile))
+      XCTAssertFalse(on(["/K", "-kusungaacceptsyntheticKeys", "YES"] + profile))
+      XCTAssertFalse(on(["/K", "-KUSUNGAACCEPTSYNTHETICKEYS", "YES"] + profile))
+      XCTAssertFalse(on(["/K", "\u{2212}KusungaAcceptSyntheticKeys", "YES"] + profile), "unicode minus")
+      XCTAssertFalse(on(["/K", " -KusungaAcceptSyntheticKeys", "YES"] + profile), "leading space")
+      XCTAssertFalse(on(["/K"] + yes + ["-kusungadataprofile", "qa"]))
+      XCTAssertFalse(on(["/K"] + yes + ["-KUSUNGADATAPROFILE", "qa"]))
+      XCTAssertFalse(on(["/K"] + yes + ["\u{2212}KusungaDataProfile", "qa"]))
+    }
+
+    func testTheValueMustBeExactlyYesAndTheProfileExactlyQaOrDev() {
+      for value in ["YES ", " YES", "YES\n", "Yes", "yEs", "Y", "YESS", "YES\u{200B}", "ＹＥＳ", "TRUE", "ON", "1", "true"] {
+        XCTAssertFalse(on(["/K", "-KusungaDataProfile", "qa", "-KusungaAcceptSyntheticKeys", value]), value)
+      }
+      for name in ["Qa", "qA", "DEV", "Dev", "qa ", " qa", "qa\n", "q a", "qa\u{200B}", "ｑａ", "dev1", "development", "qa/..", "../qa", "~qa", "default", "real", "prod", "none"] {
+        XCTAssertFalse(on(["/K", "-KusungaDataProfile", name] + yes), name.debugDescription)
+      }
+      XCTAssertTrue(on(["/K", "-KusungaDataProfile", "dev"] + yes))
+      XCTAssertTrue(on(["/K", "-KusungaDataProfile", "qa"] + yes))
+    }
+
+    func testNoArgumentsOnlyTheProgramNameOrOnlyOneHalf() {
+      XCTAssertFalse(on([]))
+      XCTAssertFalse(on(["/K"]))
+      XCTAssertFalse(on(yes))
+      XCTAssertFalse(on(["-KusungaDataProfile", "qa"]))
+      XCTAssertFalse(on(["/K", "YES", "qa"]), "values without their flags")
+    }
+
+    func testAFlagFollowedByAnotherFlagTakesThatFlagAsItsValue() {
+      XCTAssertFalse(on(["/K", "-KusungaAcceptSyntheticKeys", "-KusungaDataProfile", "qa"]))
+      XCTAssertFalse(on(["/K", "-KusungaDataProfile", "-KusungaAcceptSyntheticKeys", "YES"]))
+      XCTAssertFalse(on(["/K", "-KusungaAcceptSyntheticKeys", "-KusungaAcceptSyntheticKeys", "YES", "-KusungaDataProfile", "qa"]))
+      XCTAssertFalse(on(["/K", "-KusungaDataProfile", "-KusungaDataProfile", "qa", "-KusungaAcceptSyntheticKeys", "YES"]))
+      // A flag as the very last argument has no value.
+      XCTAssertFalse(on(["/K", "-KusungaDataProfile", "qa", "-KusungaAcceptSyntheticKeys"]))
+      XCTAssertFalse(on(["/K", "-KusungaAcceptSyntheticKeys", "YES", "-KusungaDataProfile"]))
+    }
+
+    func testEachFlagGivenTwiceInAnyWayIsOff() {
+      let p = ["-KusungaDataProfile", "qa"]
+      XCTAssertFalse(on(["/K"] + yes + yes + p))
+      XCTAssertFalse(on(["/K"] + yes + ["-KusungaAcceptSyntheticKeys", "NO"] + p))
+      XCTAssertFalse(on(["/K", "-KusungaAcceptSyntheticKeys", "NO"] + yes + p))
+      XCTAssertFalse(on(["/K"] + yes + p + p))
+      XCTAssertFalse(on(["/K"] + yes + p + ["-KusungaDataProfile", "dev"]))
+      XCTAssertFalse(on(["/K"] + yes + ["-KusungaDataProfile", "real"] + p))
+      XCTAssertFalse(on(["/K"] + yes + p + ["-KusungaDataProfile"]))
+    }
+
+    func testOrderAndOtherArgumentsInBetweenDoNotMatterWhenEachIsGivenOnce() {
+      XCTAssertTrue(on(["/K", "-KusungaDataProfile", "qa", "-NSDocumentRevisionsDebugMode", "YES", "-KusungaAcceptSyntheticKeys", "YES"]))
+      XCTAssertTrue(on(["-KusungaAcceptSyntheticKeys", "YES", "x", "-KusungaDataProfile", "dev", "y"]))
+      XCTAssertTrue(on(["-KusungaDataProfile", "qa", "-KusungaAcceptSyntheticKeys", "YES"]), "no program name")
+    }
+
+    /// Each flag's value is the next argument whatever it is, so a YES that
+    /// belongs to another flag does not count.
+    func testAYesThatBelongsToAnotherFlagDoesNotCount() {
+      XCTAssertFalse(on(["/K", "-KusungaDataProfile", "qa", "-SomethingElse", "YES"]))
+      XCTAssertFalse(on(["/K", "-KusungaAcceptSyntheticKeys", "NO", "YES", "-KusungaDataProfile", "qa"]))
+    }
+
+    /// With the switch on, a software key behaves exactly like a keyboard key,
+    /// for every combination of the other three rules, and the bypass never
+    /// changes anything else.
+    func testWithTheSwitchOnASoftwareKeyIsExactlyAKeyboardKeyUnderEveryOtherRule() {
+      for bits in 0..<8 {
+        var base = TypedKeyContext()
+        base.secureInput = bits & 1 != 0
+        base.frontIsSelf = bits & 2 != 0
+        base.frontIgnored = bits & 4 != 0
+        func run(accepting: Bool, injected: Bool) -> [TypedOutcome] {
+          let m = TypedShortcutMatcher()
+          m.setTable([(7, ";email"), (8, "ma")])
+          m.acceptsSyntheticKeys = accepting
+          var c = base
+          c.injected = injected
+          return ";email;email".map { m.handle(.text(String($0)), context: c, nowMs: 0) }
+        }
+        XCTAssertEqual(run(accepting: true, injected: true), run(accepting: false, injected: false), "rules \(bits)")
+        XCTAssertEqual(run(accepting: true, injected: false), run(accepting: false, injected: false), "rules \(bits)")
+        // And with the switch off, software keys are skipped whenever the
+        // text would have matched and no earlier rule is silent.
+        if !(base.secureInput || base.frontIsSelf || base.frontIgnored) {
+          XCTAssertTrue(
+            run(accepting: false, injected: true).contains(.skipped("shortcutSkippedInjected")),
+            "rules \(bits)")
+        }
+        // The injected skip code never appears with the switch on.
+        XCTAssertFalse(
+          run(accepting: true, injected: true).contains(.skipped("shortcutSkippedInjected")))
+      }
+    }
+
+    func testOnlyD5IsBypassedMixedKeyboardAndSoftwareKeysAndEveryResetStillApplies() {
+      var soft = TypedKeyContext()
+      soft.injected = true
+      let kb = TypedKeyContext()
+      let m = TypedShortcutMatcher()
+      m.setTable([(7, ";email")])
+      m.acceptsSyntheticKeys = true
+      // Every reset key breaks a half-typed shortcut, whoever typed it.
+      for code in [Int64](MacKeyClassifier.resetKeys) {
+        _ = ";em".map { m.handle(.text(String($0)), context: soft, nowMs: 0) }
+        let key = MacKeyClassifier.classify(keyCode: code, command: false, control: false, chars: "\r")
+        _ = m.handle(key, context: soft, nowMs: 1)
+        XCTAssertEqual(m.bufferCount, 0, "\(code)")
+        XCTAssertEqual(";ail".map { m.handle(.text(String($0)), context: soft, nowMs: 1) }.last, TypedOutcome.none)
+        m.reset()
+      }
+      // Idle at exactly 5 s and the 32-character bound.
+      _ = ";ema".map { m.handle(.text(String($0)), context: soft, nowMs: 0) }
+      XCTAssertEqual(m.handle(.text("il"), context: soft, nowMs: 5000), TypedOutcome.none)
+      m.reset()
+      _ = ";ema".map { m.handle(.text(String($0)), context: soft, nowMs: 0) }
+      XCTAssertEqual(
+        m.handle(.text("i"), context: kb, nowMs: 4999), TypedOutcome.none)
+      XCTAssertEqual(m.handle(.text("l"), context: soft, nowMs: 4999),
+        .matched(snippetId: 7, deleteCount: 6))
+      m.reset()
+      _ = m.handle(.text(String(repeating: "z", count: 100)), context: soft, nowMs: 0)
+      XCTAssertEqual(m.bufferCount, 32)
+      // A new table clears the buffer, as ever.
+      _ = ";em".map { m.handle(.text(String($0)), context: soft, nowMs: 0) }
+      m.setTable([(7, ";email")])
+      XCTAssertEqual(m.bufferCount, 0)
+      XCTAssertTrue(m.acceptsSyntheticKeys, "a new table does not turn the switch off")
+    }
+
+    func testAMatchStillClearsTheBufferSoASoftwareKeyCannotRepeatIt() {
+      let m = TypedShortcutMatcher()
+      m.setTable([(7, ";email")])
+      m.acceptsSyntheticKeys = true
+      var soft = TypedKeyContext()
+      soft.injected = true
+      let out = ";email".map { m.handle(.text(String($0)), context: soft, nowMs: 0) }
+      XCTAssertEqual(out.last, .matched(snippetId: 7, deleteCount: 6))
+      XCTAssertEqual(m.bufferCount, 0)
+    }
+  }
+#endif
+
+#if !DEBUG
+  /// The shipping build (compiled without -D DEBUG by
+  /// tool/test_mac_shortcuts_release.sh): the switch does not exist and
+  /// software-sent keys are always skipped.
+  final class ShippingBuildTests: XCTestCase {
+    func testTheMatcherHasNoSyntheticKeysState() {
+      let labels = Mirror(reflecting: TypedShortcutMatcher()).children.compactMap { $0.label }
+      XCTAssertFalse(labels.contains { $0.lowercased().contains("synthetic") }, "\(labels)")
+      XCTAssertFalse(
+        String(reflecting: TypedShortcutMatcher.self).lowercased().contains("synthetic"))
+    }
+
+    func testSoftwareSentKeysAreAlwaysSkippedWhateverTheArguments() {
+      let m = TypedShortcutMatcher()
+      m.setTable([(7, ";email")])
+      var soft = TypedKeyContext()
+      soft.injected = true
+      let out = ";email".map { m.handle(.text(String($0)), context: soft, nowMs: 0) }
+      XCTAssertEqual(out.last, .skipped("shortcutSkippedInjected"))
+      for i in 0..<6 {
+        var c = TypedKeyContext()
+        var last = TypedOutcome.none
+        let m2 = TypedShortcutMatcher()
+        m2.setTable([(7, ";email")])
+        for (j, ch) in ";email".enumerated() {
+          c.injected = j == i
+          last = m2.handle(.text(String(ch)), context: c, nowMs: 0)
+        }
+        XCTAssertEqual(last, .skipped("shortcutSkippedInjected"), "software key at \(i)")
+      }
+    }
+  }
+#endif
