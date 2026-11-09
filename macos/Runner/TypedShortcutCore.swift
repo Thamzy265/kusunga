@@ -393,6 +393,9 @@ protocol ReplacePlatform: AnyObject {
   func restore(_ saved: SavedClipboard)
   /// The clipboard holds no type and no item at all now.
   func clipboardIsEmpty() -> Bool
+  /// The latest change to the clipboard is Kusunga's own clear: the change
+  /// count is still the one its last `clearContents()` returned (L3).
+  func lastChangeWasOwnClear() -> Bool
 }
 
 /// The answers to Dart (lib/shortcuts/channel_typed_shortcuts_port.dart).
@@ -446,13 +449,20 @@ final class ReplaceFlow {
     // code stays where the user typed it (C3).
     let before = platform.changeCount()
     guard let mine = platform.writeSnippet(text) else {
-      if platform.changeCount() != before {
+      let after = platform.changeCount()
+      if after != before {
         // The write failed after clearing the clipboard: put the user's
         // text back now, with its markers (L1). Tried once; then let go.
-        // Only if the clipboard is empty: a moved count can also be another
-        // app's write (the user's copy, a password manager's auto-clear),
-        // and that change wins (L2).
-        if let saved = previous, platform.clipboardIsEmpty() { platform.restore(saved) }
+        // Only onto our own clear: the count moved by exactly one (one
+        // clearContents; writing the item doesn't move it), that clear is
+        // still the latest change, and the clipboard is empty. Anything
+        // else is another app's change (the user's copy, a password
+        // manager's auto-clear), and it wins (L2, L3).
+        if let saved = previous, after == before + 1, platform.lastChangeWasOwnClear(),
+          platform.clipboardIsEmpty()
+        {
+          platform.restore(saved)
+        }
       } else if reused {
         // Nothing changed: the earlier restore still puts the text back.
         pending = earlier

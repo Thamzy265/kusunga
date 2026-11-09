@@ -259,6 +259,10 @@ final class FakeReplacePlatform: ReplacePlatform {
   var otherWroteOnFail = false
   /// The clipboard holds nothing at all now.
   var empty = false
+  /// L3: Kusunga's own clear is the latest change.
+  var ownClear = false
+  /// L3: another app emptied the clipboard during the failed write.
+  var otherEmptiedOnFail = false
   var pasteKeyFound = true
   var count = 10
   var scheduled: [(Int, () -> Void)] = []
@@ -278,15 +282,23 @@ final class FakeReplacePlatform: ReplacePlatform {
       if failAfterClear {
         count += 1
         empty = true
+        ownClear = true
       }
       if otherWroteOnFail {
         count += 1
         empty = false
+        ownClear = false
+      }
+      if otherEmptiedOnFail {
+        count += 1
+        empty = true
+        ownClear = false
       }
       return nil
     }
     count += 1
     empty = false
+    ownClear = true
     return count
   }
   func postPaste() -> Bool {
@@ -300,8 +312,10 @@ final class FakeReplacePlatform: ReplacePlatform {
     count += 1
     if restoreOk { restored.append(saved) }
     empty = !restoreOk
+    ownClear = true
   }
   func clipboardIsEmpty() -> Bool { empty }
+  func lastChangeWasOwnClear() -> Bool { ownClear }
 }
 
 final class ReplaceFlowTests: XCTestCase {
@@ -1484,6 +1498,9 @@ final class ScriptedReplacePlatform: ReplacePlatform {
   var restored: [SavedClipboard] = []
   /// The clipboard holds nothing at all now (L2).
   var empty = false
+  /// Kusunga's own clear is the latest change (L3). The scripts below
+  /// simulate our own clear unless they say otherwise.
+  var ownClear = true
 
   func frontmostPid() -> Int32? { 100 }
   func keysSinceMatch() -> Int { 0 }
@@ -1510,20 +1527,24 @@ final class ScriptedReplacePlatform: ReplacePlatform {
     empty = false
   }
   func clipboardIsEmpty() -> Bool { empty }
+  func lastChangeWasOwnClear() -> Bool { ownClear }
 }
 
 final class FailedWriteEdgeTests: XCTestCase {
-  func testAnyMovementOfTheChangeCountCountsNotJustPlusOne() {
+  /// L3 (was "any movement counts"): only exactly one clear, ours, puts
+  /// the text back; a count that moved by more means someone else changed
+  /// the clipboard too.
+  func testOnlyAChangeCountMovedByExactlyOneCounts() {
     for delta in [1, 2, 7, 1000] {
       let p = ScriptedReplacePlatform()
       p.writeResult = { [unowned p] in
         p.count += delta
-        p.empty = true  // our clear (perhaps with others): nothing on it
+        p.empty = true
         return nil
       }
       let flow = ReplaceFlow(platform: p)
       XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
-      XCTAssertEqual(p.restored.count, 1, "delta \(delta)")
+      XCTAssertEqual(p.restored.count, delta == 1 ? 1 : 0, "delta \(delta)")
       XCTAssertFalse(flow.hasPendingRestore)
     }
   }
@@ -1792,20 +1813,34 @@ final class FailedWriteL2EdgeTests: XCTestCase {
     }
   }
 
-  /// Another app that empties the clipboard during the failed write looks the
-  /// same as our own clear (moved, empty): the text is written back over the
-  /// empty clipboard. Locks the developer's accepted remaining gap.
-  func testAnotherAppThatEmptiesItIsIndistinguishableAndTheTextComesBack() {
+  /// L3 (was the locked gap): another app that empties the clipboard during
+  /// the failed write (a password manager's auto-clear) is no longer taken
+  /// for our own clear: nothing is written back, the text is forgotten.
+  func testAnotherAppThatEmptiesItGetsNothingWrittenBack() {
+    // After our clear: the count moved by 2.
     let p = ScriptedReplacePlatform()
     p.writeResult = { [unowned p] in
-      p.count += 1  // another app's clear, not ours
+      p.count += 2  // our clear, then theirs
       p.empty = true
+      p.ownClear = false
       return nil
     }
     let flow = ReplaceFlow(platform: p)
     XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
-    XCTAssertEqual(p.restored.map { $0.text }, ["mine"])
+    XCTAssertTrue(p.restored.isEmpty)
     XCTAssertFalse(flow.hasPendingRestore)
+    // Ours failed before clearing, theirs moved it by 1: not our clear.
+    let q = ScriptedReplacePlatform()
+    q.writeResult = { [unowned q] in
+      q.count += 1
+      q.empty = true
+      q.ownClear = false
+      return nil
+    }
+    let flow2 = ReplaceFlow(platform: q)
+    XCTAssertEqual(flow2.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
+    XCTAssertTrue(q.restored.isEmpty)
+    XCTAssertFalse(flow2.hasPendingRestore)
   }
 
   func testEmptyWithoutAMovedCountIsNotEnough() {
@@ -1859,5 +1894,39 @@ final class FailedWriteL2EdgeTests: XCTestCase {
     XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
     XCTAssertEqual(p.log, ["write"], "no previous text was read, none can be restored")
     XCTAssertTrue(p.restored.isEmpty)
+  }
+}
+
+// MARK: - L3: write back only onto Kusunga's own clear.
+
+final class FailedWriteOwnClearTests: XCTestCase {
+  func testMovedByTwoWithTheClipboardEmptyWritesNothingBack() {
+    let p = FakeReplacePlatform()
+    p.writeOk = false
+    p.failAfterClear = true
+    p.otherEmptiedOnFail = true  // a password manager's auto-clear after ours
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 6, text: "x", matchPid: 100), .failed)
+    XCTAssertFalse(p.log.contains("restore"))
+    XCTAssertFalse(flow.hasPendingRestore)
+  }
+
+  func testAnotherAppsClearAloneWritesNothingBack() {
+    let p = FakeReplacePlatform()
+    p.writeOk = false
+    p.otherEmptiedOnFail = true
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 6, text: "x", matchPid: 100), .failed)
+    XCTAssertFalse(p.log.contains("restore"))
+    XCTAssertFalse(flow.hasPendingRestore)
+  }
+
+  func testOurOwnClearStillWritesBack() {
+    let p = FakeReplacePlatform()
+    p.writeOk = false
+    p.failAfterClear = true
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 6, text: "x", matchPid: 100), .failed)
+    XCTAssertEqual(p.restored.count, 1)
   }
 }

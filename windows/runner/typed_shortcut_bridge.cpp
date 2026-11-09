@@ -286,6 +286,10 @@ class WinReplacePlatform : public kusunga::ReplacePlatform {
 
   bool ClipboardEmpty() override { return ::CountClipboardFormats() == 0; }
 
+  // WriteClipboardText opens the clipboard with Kusunga's window, so its
+  // EmptyClipboard makes that window the owner (L3).
+  bool OwnClear() override { return ::GetClipboardOwner() == bridge_->window_; }
+
   // A one-shot WM_TIMER on Kusunga's window; several can wait at once (a
   // restore and a modifier poll). Never sleeps.
   void Schedule(int ms, std::function<void()> work) override {

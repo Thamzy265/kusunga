@@ -278,6 +278,8 @@ class FakeReplace : public ReplacePlatform {
   int extra_moves_on_fail = 0;    // other writers moved the sequence too
   bool other_wrote_on_fail = false;  // L2: and left something on it
   bool empty = false;                // the clipboard holds nothing now
+  bool owner = false;                // L3: Kusunga's window emptied it last
+  bool other_emptied_on_fail = false;  // L3: another app emptied it
   uint32_t sequence = 10;
   std::vector<std::pair<int, std::function<void()>>> scheduled;
   int restores = 0;
@@ -314,15 +316,23 @@ class FakeReplace : public ReplacePlatform {
       if (fail_after_clear) {
         ++sequence;
         empty = true;
+        owner = true;
       }
       sequence += static_cast<uint32_t>(extra_moves_on_fail);
       if (other_wrote_on_fail) {
         ++sequence;
         empty = false;
+        owner = false;
+      }
+      if (other_emptied_on_fail) {
+        ++sequence;
+        empty = true;
+        owner = false;
       }
       return false;
     }
     empty = false;
+    owner = true;
     *seq = ++sequence;
     return true;
   }
@@ -338,8 +348,10 @@ class FakeReplace : public ReplacePlatform {
     sequence++;
     if (restore_ok) restores++;
     empty = !restore_ok;
+    owner = true;
   }
   bool ClipboardEmpty() override { return empty; }
+  bool OwnClear() override { return owner; }
 };
 
 static void TestReplace() {
@@ -1946,13 +1958,15 @@ static void TestFailedWriteL2Edges() {
       CHECK(n == 0 && clean);
     }
   }
-  {  // Another app emptied it: the same as our own clear (locked gap).
+  {  // L3 (was the locked gap): another app emptied it (a password
+     // manager's auto-clear), so it owns the clipboard now: nothing is
+     // written back and the text is forgotten.
     FakeReplace p;
     p.write_ok = false;
-    p.fail_after_clear = true;  // moved and empty, whoever did it
+    p.other_emptied_on_fail = true;  // moved and empty, but not by us
     ReplaceFlow flow(&p);
     CHECK(flow.Run(3, "x", 100) == ReplaceResult::kFailed);
-    CHECK(p.restores == 1);
+    CHECK(p.restore_attempts == 0 && !p.saved);
   }
   {  // The sequence wrapping with an empty clipboard: restored; wrapping with
      // something on it: not.
@@ -2031,7 +2045,41 @@ static void TestFailedWriteL2Edges() {
   }
 }
 
+// L3: an empty clipboard after a moved sequence can be another app's
+// EmptyClipboard. Write back only when Kusunga's window still owns it.
+static void TestFailedWriteOwnClear() {
+  {  // Moved and empty, but another app owns it: nothing written back.
+    FakeReplace p;
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    p.other_emptied_on_fail = true;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(6, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restore_attempts == 0 && !p.saved);
+  }
+  {  // Our own empty, even with extra sequence moves: written back.
+    FakeReplace p;
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    p.extra_moves_on_fail = 3;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(6, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restores == 1 && !p.saved);
+  }
+  {  // An earlier restore waiting is not left to write over their clear.
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(6, "first", 100) == ReplaceResult::kReplaced);
+    p.write_ok = false;
+    p.other_emptied_on_fail = true;
+    CHECK(flow.Run(4, "second", 100) == ReplaceResult::kFailed);
+    for (auto& w : p.scheduled) w.second();
+    CHECK(p.restore_attempts == 0 && !p.saved);
+  }
+}
+
 int main() {
+  TestFailedWriteOwnClear();
   TestFailedWriteL2Edges();
   TestFailedWriteOtherWriter();
   TestFailedWriteEdges();

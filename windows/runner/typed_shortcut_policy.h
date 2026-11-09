@@ -604,6 +604,10 @@ class ReplacePlatform {
   virtual int64_t NowMs() = 0;
   // The clipboard holds no format at all now (CountClipboardFormats() == 0).
   virtual bool ClipboardEmpty() = 0;
+  // Kusunga's window owns the clipboard (GetClipboardOwner): EmptyClipboard
+  // gives it to the window that opened the clipboard, so this is true only
+  // when Kusunga's own empty is the latest one (L3).
+  virtual bool OwnClear() = 0;
 };
 
 // Shift, Ctrl, Alt (either side) and the Windows keys. A held modifier
@@ -766,10 +770,13 @@ class ReplaceFlow {
       if (p_->Sequence() != before) {
         // The write failed after emptying the clipboard: put the user's text
         // back now (RestoreMarks, L1). Tried once; the guard then forgets.
-        // Only if the clipboard is empty: OpenClipboard can fail while
-        // another app writes or clears (a password manager's auto-clear),
-        // which moves the number too, and that change wins (L2).
-        if (has_text && p_->ClipboardEmpty()) p_->RestorePrevious();
+        // Only onto our own empty: the clipboard is empty AND Kusunga's
+        // window owns it. OpenClipboard can fail while another app writes
+        // or empties it (a password manager's auto-clear), which moves the
+        // number too, and that change wins (L2, L3).
+        if (has_text && p_->ClipboardEmpty() && p_->OwnClear()) {
+          p_->RestorePrevious();
+        }
       } else if (reused) {
         // Nothing changed: the earlier restore still puts the text back.
         pending_ = true;

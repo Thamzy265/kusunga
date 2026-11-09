@@ -359,6 +359,8 @@ final class TypedShortcutBridge {
 final class MacReplacePlatform: ReplacePlatform {
   private let keys: () -> Int
   private let pasteboard = NSPasteboard.general
+  /// The change count Kusunga's last `clearContents()` returned (L3).
+  private var lastOwnClear: Int?
 
   init(keysSinceMatch: @escaping () -> Int) { keys = keysSinceMatch }
 
@@ -392,7 +394,10 @@ final class MacReplacePlatform: ReplacePlatform {
   /// other clipboard managers do not keep it, and recorded as Kusunga's own
   /// change, so Kusunga's history does not either.
   func writeSnippet(_ text: String) -> Int? {
-    guard let mine = MacReplacePlatform.write(.snippet(text), to: pasteboard) else { return nil }
+    guard
+      let mine = MacReplacePlatform.write(
+        .snippet(text), to: pasteboard, cleared: { [weak self] in self?.lastOwnClear = $0 })
+    else { return nil }
     OwnClipboardChanges.shared.record(mine)
     return mine
   }
@@ -401,13 +406,18 @@ final class MacReplacePlatform: ReplacePlatform {
   /// one call, so no app reads the text before its markers are there (C6).
   /// Answers the change count of this write: the one `clearContents()`
   /// gave, as writing the item does not move it (RunnerTests pins this).
-  static func write(_ content: ClipboardContent, to pasteboard: NSPasteboard) -> Int? {
+  /// [cleared] gets that number as soon as the clear happened, even if the
+  /// write then fails (L3).
+  static func write(
+    _ content: ClipboardContent, to pasteboard: NSPasteboard, cleared onClear: ((Int) -> Void)? = nil
+  ) -> Int? {
     let item = NSPasteboardItem()
     for marker in content.markerTypes {
       guard item.setData(Data(), forType: NSPasteboard.PasteboardType(marker)) else { return nil }
     }
     guard item.setString(content.text, forType: .string) else { return nil }
     let cleared = pasteboard.clearContents()
+    onClear?(cleared)
     guard pasteboard.writeObjects([item]) else { return nil }
     return cleared + NSPasteboardWriter.changesAfterClear
   }
@@ -424,12 +434,19 @@ final class MacReplacePlatform: ReplacePlatform {
 
   func changeCount() -> Int { pasteboard.changeCount }
 
+  func lastChangeWasOwnClear() -> Bool {
+    lastOwnClear == pasteboard.changeCount
+  }
+
   func clipboardIsEmpty() -> Bool {
     (pasteboard.types ?? []).isEmpty && (pasteboard.pasteboardItems ?? []).isEmpty
   }
 
   func restore(_ saved: SavedClipboard) {
-    guard let mine = MacReplacePlatform.write(.restore(saved), to: pasteboard) else { return }
+    guard
+      let mine = MacReplacePlatform.write(
+        .restore(saved), to: pasteboard, cleared: { [weak self] in self?.lastOwnClear = $0 })
+    else { return }
     OwnClipboardChanges.shared.record(mine)
   }
 }
