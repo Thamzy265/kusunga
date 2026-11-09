@@ -1909,7 +1909,130 @@ static void TestFailedWriteOtherWriter() {
   }
 }
 
+// ---- Tester round 5: edges of the L2 fix (moved AND empty) ----
+
+static void TestFailedWriteL2Edges() {
+  enum Earlier { kNone, kValid, kStale };
+  enum Move { kNothing, kOurClear, kOtherWrites, kClearThenOther };
+  auto run = [](Earlier earlier, Move move, int* attempts, bool* pending_ok) {
+    FakeReplace p;
+    ReplaceFlow flow(&p);
+    if (earlier != kNone) flow.Run(3, "first", 100);
+    if (earlier == kStale) p.sequence++;  // the user copied
+    p.write_ok = false;
+    p.fail_after_clear = move == kOurClear || move == kClearThenOther;
+    p.other_wrote_on_fail = move == kOtherWrites || move == kClearThenOther;
+    CHECK(flow.Run(3, "second", 100) == ReplaceResult::kFailed);
+    const int before_timers = p.restores;
+    for (auto& w : p.scheduled) w.second();
+    *attempts = p.restores;
+    *pending_ok = !p.saved;  // nothing is left held
+    (void)before_timers;
+  };
+  int n = 0;
+  bool clean = false;
+  // Nothing moved: only an earlier valid restore fires.
+  run(kNone, kNothing, &n, &clean);   CHECK(n == 0 && clean);
+  run(kValid, kNothing, &n, &clean);  CHECK(n == 1 && clean);
+  run(kStale, kNothing, &n, &clean);  CHECK(n == 0 && clean);
+  // Our own empty: restored exactly once.
+  run(kNone, kOurClear, &n, &clean);  CHECK(n == 1 && clean);
+  run(kValid, kOurClear, &n, &clean); CHECK(n == 1 && clean);
+  run(kStale, kOurClear, &n, &clean); CHECK(n == 1 && clean);
+  // Another app left something on it: its change wins, nothing held.
+  for (Earlier e : {kNone, kValid, kStale}) {
+    for (Move m : {kOtherWrites, kClearThenOther}) {
+      run(e, m, &n, &clean);
+      CHECK(n == 0 && clean);
+    }
+  }
+  {  // Another app emptied it: the same as our own clear (locked gap).
+    FakeReplace p;
+    p.write_ok = false;
+    p.fail_after_clear = true;  // moved and empty, whoever did it
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(3, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restores == 1);
+  }
+  {  // The sequence wrapping with an empty clipboard: restored; wrapping with
+     // something on it: not.
+    FakeReplace p;
+    p.sequence = 0xFFFFFFFFu;
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(3, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restores == 1 && !p.saved);
+    FakeReplace q;
+    q.sequence = 0xFFFFFFFFu;
+    q.write_ok = false;
+    q.other_wrote_on_fail = true;
+    ReplaceFlow flow2(&q);
+    CHECK(flow2.Run(3, "x", 100) == ReplaceResult::kFailed);
+    CHECK(q.restore_attempts == 0 && !q.saved);
+    FakeReplace r;  // wrap by two (our clear and another write)
+    r.sequence = 0xFFFFFFFEu;
+    r.write_ok = false;
+    r.fail_after_clear = true;
+    r.other_wrote_on_fail = true;
+    ReplaceFlow flow3(&r);
+    CHECK(flow3.Run(3, "x", 100) == ReplaceResult::kFailed);
+    CHECK(r.restore_attempts == 0 && !r.saved);
+  }
+  {  // Empty but never moved: nothing is written back.
+    FakeReplace p;
+    p.write_ok = false;
+    p.empty = true;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(3, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restore_attempts == 0 && !p.saved);
+  }
+  {  // Empty before, something on it after (the check is after the write).
+    FakeReplace p;
+    p.empty = true;
+    p.write_ok = false;
+    p.other_wrote_on_fail = true;
+    ReplaceFlow flow(&p);
+    CHECK(flow.Run(3, "x", 100) == ReplaceResult::kFailed);
+    CHECK(p.restore_attempts == 0 && !p.saved);
+  }
+  {  // The write-back leaves the clipboard non-empty, and fails honestly.
+    FakeReplace p;
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    ReplaceFlow flow(&p);
+    flow.Run(3, "x", 100);
+    CHECK(!p.empty);
+    FakeReplace q;
+    q.write_ok = false;
+    q.fail_after_clear = true;
+    q.restore_ok = false;
+    ReplaceFlow flow2(&q);
+    flow2.Run(3, "x", 100);
+    CHECK(q.restore_attempts == 1 && !q.saved);
+  }
+  {  // Copy-only after the modifier timeout: unchanged, even on an emptied
+     // clipboard: nothing was read, nothing is put back.
+    FakeReplace p;
+    p.mods_down = true;
+    p.write_ok = false;
+    p.fail_after_clear = true;
+    ReplaceFlow flow(&p);
+    ReplaceResult got = ReplaceResult::kReplaced;
+    int answers = 0;
+    flow.Start(3, "x", 100, [&](ReplaceResult r) {
+      got = r;
+      answers++;
+    });
+    while (answers == 0) RunScheduledPoll(p);
+    CHECK(got == ReplaceResult::kFailed);
+    CHECK((p.log == std::vector<std::string>{"write"}));
+    CHECK(p.restore_attempts == 0 && !p.saved);
+  }
+}
+
 int main() {
+  TestFailedWriteL2Edges();
   TestFailedWriteOtherWriter();
   TestFailedWriteEdges();
   TestFailedWriteRestores();

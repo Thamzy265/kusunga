@@ -1734,3 +1734,130 @@ final class FailedWriteOtherWriterTests: XCTestCase {
     XCTAssertTrue(p.restored.isEmpty)
   }
 }
+
+// MARK: - Tester round 5: edges of the L2 fix (moved AND empty)
+
+final class FailedWriteL2EdgeTests: XCTestCase {
+  enum Earlier { case none, valid, stale }
+  enum Move { case nothing, ourClear, otherWrites, clearThenOtherWrites }
+
+  /// Runs a failed write in every combination of an earlier waiting restore
+  /// and what happened to the clipboard, and answers what was written back.
+  private func outcome(_ earlier: Earlier, _ move: Move) -> (restored: [String], pending: Bool) {
+    let p = FakeReplacePlatform()
+    let flow = ReplaceFlow(platform: p)
+    switch earlier {
+    case .none: break
+    case .valid:
+      _ = flow.run(deleteCount: 3, text: "first", matchPid: 100)
+    case .stale:
+      _ = flow.run(deleteCount: 3, text: "first", matchPid: 100)
+      p.count += 1  // the user copied: the earlier restore is stale
+      p.previous = SavedClipboard(text: "fresh", markerTypes: [])
+    }
+    p.writeOk = false
+    switch move {
+    case .nothing: break
+    case .ourClear: p.failAfterClear = true
+    case .otherWrites: p.otherWroteOnFail = true
+    case .clearThenOtherWrites:
+      p.failAfterClear = true
+      p.otherWroteOnFail = true
+    }
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "second", matchPid: 100), .failed)
+    let pendingAfter = flow.hasPendingRestore
+    // Whatever timers are still waiting fire now.
+    for work in p.scheduled { work.1() }
+    return (p.restored.map { $0.text }, pendingAfter)
+  }
+
+  func testTheWholeMatrix() {
+    // Nothing moved: nothing written; an earlier valid restore stays queued
+    // and fires.
+    XCTAssertEqual(outcome(.none, .nothing).restored, [])
+    XCTAssertEqual(outcome(.valid, .nothing).restored, ["what I copied"])
+    XCTAssertTrue(outcome(.valid, .nothing).pending)
+    XCTAssertEqual(outcome(.stale, .nothing).restored, [])
+    // Our clear left it empty: the user's text comes back exactly once.
+    XCTAssertEqual(outcome(.none, .ourClear).restored, ["what I copied"])
+    XCTAssertEqual(outcome(.valid, .ourClear).restored, ["what I copied"])
+    XCTAssertEqual(outcome(.stale, .ourClear).restored, ["fresh"])
+    // Another app left something on it: its change wins, whatever was waiting.
+    for earlier in [Earlier.none, .valid, .stale] {
+      for move in [Move.otherWrites, .clearThenOtherWrites] {
+        let o = outcome(earlier, move)
+        XCTAssertEqual(o.restored, [], "\(earlier) \(move)")
+        XCTAssertFalse(o.pending, "\(earlier) \(move)")
+      }
+    }
+  }
+
+  /// Another app that empties the clipboard during the failed write looks the
+  /// same as our own clear (moved, empty): the text is written back over the
+  /// empty clipboard. Locks the developer's accepted remaining gap.
+  func testAnotherAppThatEmptiesItIsIndistinguishableAndTheTextComesBack() {
+    let p = ScriptedReplacePlatform()
+    p.writeResult = { [unowned p] in
+      p.count += 1  // another app's clear, not ours
+      p.empty = true
+      return nil
+    }
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
+    XCTAssertEqual(p.restored.map { $0.text }, ["mine"])
+    XCTAssertFalse(flow.hasPendingRestore)
+  }
+
+  func testEmptyWithoutAMovedCountIsNotEnough() {
+    let p = ScriptedReplacePlatform()
+    p.writeResult = { [unowned p] in
+      p.empty = true  // empty before and after: the count never moved
+      return nil
+    }
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
+    XCTAssertTrue(p.restored.isEmpty)
+  }
+
+  func testTheEmptyCheckIsAskedAfterTheWriteNotBefore() {
+    // The clipboard is empty before the write and not after: no write-back.
+    let p = ScriptedReplacePlatform()
+    p.empty = true
+    p.writeResult = { [unowned p] in
+      p.count += 1
+      p.empty = false
+      return nil
+    }
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
+    XCTAssertTrue(p.restored.isEmpty)
+  }
+
+  func testRestoreOverAnEmptyClipboardKeepsMarksAndLeavesItNotEmpty() {
+    let saved = RestorableClipboard.saved(
+      text: "pw", types: ["public.utf8-plain-text", "org.nspasteboard.ConcealedType"])
+    let p = FakeReplacePlatform()
+    p.previous = saved
+    p.writeOk = false
+    p.failAfterClear = true
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
+    XCTAssertEqual(p.restored.first?.markerTypes, ["org.nspasteboard.ConcealedType"])
+    XCTAssertFalse(p.empty, "a written-back copy is on the clipboard")
+    XCTAssertFalse(flow.hasPendingRestore)
+  }
+
+  func testCopyOnlyIsStillUnchangedEvenOnAnEmptiedClipboard() {
+    let p = ScriptedReplacePlatform()
+    p.canPost = false
+    p.writeResult = { [unowned p] in
+      p.count += 1
+      p.empty = true
+      return nil
+    }
+    let flow = ReplaceFlow(platform: p)
+    XCTAssertEqual(flow.run(deleteCount: 3, text: "x", matchPid: 100), .failed)
+    XCTAssertEqual(p.log, ["write"], "no previous text was read, none can be restored")
+    XCTAssertTrue(p.restored.isEmpty)
+  }
+}
