@@ -74,7 +74,7 @@ Everything stays on the device. No account, no server.
   - (Secret-marker skip moved to M1.2.)
   - AC: an app ignore list (preset with common password managers) stops capture from those apps. (Banking apps moved to a Later line, PM 2026-11-10, D2.)
   - AC: "Pause history" for 15 min / 1 h / until resumed, from the tray/menu bar.
-  - Design: `docs/design/sensitive-content.md`, ADR 0005 (proposed), UI spec `docs/ui/sensitive-content.md`, deck `docs/slides/sensitive-content.html` (approved 2026-11-10).
+  - Design: `docs/design/sensitive-content.md`, ADR 0005 (accepted 2026-11-10), UI spec `docs/ui/sensitive-content.md`, deck `docs/slides/sensitive-content.html` (approved 2026-11-10).
 - [ ] **M1.7 Settings and expiry** — small.
   - AC: history limit, auto-delete after a set time (never / 1 day / 7 days / 30 days), shortcut, launch at login, ignore list.
   - AC: the most private choice is the default where there is one (e.g. launch at login off until the user turns it on).
