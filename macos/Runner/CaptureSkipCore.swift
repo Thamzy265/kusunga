@@ -41,6 +41,10 @@ final class CaptureGate {
     ignored = Set(appIds)
   }
 
+  /// The pause against the wall clock now. The watcher asks before every
+  /// read of a copy that is still waiting.
+  func isPausedNow() -> Bool { CaptureGate.isPaused(until: pausedUntil, nowMs: now()) }
+
   static func isPaused(until: Int64, nowMs: Int64) -> Bool {
     until == -1 || until > nowMs
   }

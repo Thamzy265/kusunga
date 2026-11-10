@@ -185,11 +185,15 @@ final class CaptureGateEdgeTests: XCTestCase {
     let poller = make(pb, g)
     pb.copy(nil)  // not readable yet: the watcher keeps trying
     poller.tick()
+    // The first look tried a read and got nothing; that was before the
+    // pause. (Developer fix round: the repro counted that read too.)
+    let readsBeforePause = pb.textReads
     g.setPause(-1)  // the user pauses from the tray
     pb.text = "text that arrived after the pause"
     poller.tick()
     poller.tick()
-    XCTAssertEqual(pb.textReads, 0, "text was read after the pause started")
+    XCTAssertEqual(
+      pb.textReads, readsBeforePause, "text was read after the pause started")
     XCTAssertEqual(events.count, 0)
   }
 

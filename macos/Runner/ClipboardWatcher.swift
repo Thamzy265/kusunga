@@ -153,8 +153,17 @@ final class ClipboardPoller {
       return
     }
 
-    // Then the pause and the ignore list, once per copy. The source app id
-    // stays inside this check.
+    // Then the pause, on every try against the wall clock right before any
+    // read or send: a pause started while this copy waits for its text
+    // stops it (B1).
+    if let gate = gate, gate.isPausedNow() {
+      waiting = false
+      held = nil
+      return
+    }
+
+    // Then the ignore list, once per copy: the source app is worked out at
+    // the first look and its id stays inside this check.
     if !gateChecked, let gate = gate {
       gateChecked = true
       let skip = gate.check(source: { [pasteboard, frontApp] in

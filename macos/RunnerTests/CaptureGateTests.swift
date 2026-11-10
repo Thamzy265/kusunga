@@ -269,6 +269,20 @@ final class CapturePollerOrderTests: XCTestCase {
     XCTAssertEqual(types, ["text"])
   }
 
+  func testTextHeldForConfirmationIsNotSentOnceAPauseStarts() {
+    let pb = GatePasteboard()
+    let g = gate()
+    let poller = make(pb, g)
+    pb.copy(nil)
+    poller.tick()  // not ready
+    pb.text = "late text"
+    poller.tick()  // read on a retry, held for the confirming tick
+    g.setPause(nowMs + 60_000)
+    poller.tick()  // the confirming tick: paused now, so nothing is sent
+    poller.tick()
+    XCTAssertEqual(events.count, 0)
+  }
+
   func testWithoutAGateTheWatcherBehavesAsBefore() {
     let pb = GatePasteboard()
     let poller = ClipboardPoller(pasteboard: pb) { [unowned self] in self.events.append($0) }
