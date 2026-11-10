@@ -5,7 +5,9 @@
 #include <flutter/standard_method_codec.h>
 
 #include <cstring>
+#include <cwctype>
 #include <memory>
+#include <set>
 #include <string>
 
 #include "clipboard_policy.h"
@@ -67,6 +69,54 @@ bool ReadDword(UINT format, uint32_t* value) {
   std::memcpy(value, data, sizeof(uint32_t));
   ::GlobalUnlock(handle);
   return true;
+}
+
+// The exe file name of a window's process, lower case ("keepass.exe"), or
+// empty if it can't be read (no window, or a process that refuses, such as
+// an elevated one). Lives only for one capture check (ADR 0005).
+std::string ExeNameOfWindow(HWND window) {
+  if (!window) return std::string();
+  DWORD pid = 0;
+  ::GetWindowThreadProcessId(window, &pid);
+  if (!pid) return std::string();
+  HANDLE process =
+      ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+  if (!process) return std::string();
+  wchar_t path[MAX_PATH] = {0};
+  DWORD size = MAX_PATH;
+  const BOOL ok = ::QueryFullProcessImageNameW(process, 0, path, &size);
+  ::CloseHandle(process);
+  if (!ok) return std::string();
+  const std::wstring full(path, size);
+  const size_t slash = full.find_last_of(L"\\/");
+  std::wstring name = slash == std::wstring::npos ? full : full.substr(slash + 1);
+  for (wchar_t& c : name) c = static_cast<wchar_t>(::towlower(c));
+  return ToUtf8(name.c_str(), name.size());
+}
+
+int64_t WallClockMs() {
+  FILETIME now{};
+  ::GetSystemTimeAsFileTime(&now);
+  const uint64_t ticks =
+      (static_cast<uint64_t>(now.dwHighDateTime) << 32) | now.dwLowDateTime;
+  return kusunga::FileTimeToEpochMs(ticks);
+}
+
+// An integer argument: the codec sends small numbers as int32 and large
+// ones as int64.
+bool ReadInt64(const EncodableMap* args, const char* key, int64_t* out) {
+  if (!args) return false;
+  auto it = args->find(EncodableValue(key));
+  if (it == args->end()) return false;
+  if (const auto* v = std::get_if<int32_t>(&it->second)) {
+    *out = *v;
+    return true;
+  }
+  if (const auto* v = std::get_if<int64_t>(&it->second)) {
+    *out = *v;
+    return true;
+  }
+  return false;
 }
 
 // Adds a registered format holding one DWORD to the open clipboard.
@@ -199,6 +249,33 @@ ClipboardBridge::ClipboardBridge(flutter::BinaryMessenger* messenger,
           }
           result->Success(EncodableValue(
               WriteClipboardText(window_, format_own_, *text, own_)));
+        } else if (call.method_name() == "setCaptureIgnored") {
+          std::set<std::string> ids;
+          const auto* args = std::get_if<EncodableMap>(call.arguments());
+          if (args) {
+            auto it = args->find(EncodableValue("appIds"));
+            if (it != args->end()) {
+              if (const auto* list =
+                      std::get_if<flutter::EncodableList>(&it->second)) {
+                for (const auto& id : *list) {
+                  if (const auto* s = std::get_if<std::string>(&id)) {
+                    ids.insert(*s);
+                  }
+                }
+              }
+            }
+          }
+          gate_.SetIgnored(std::move(ids));
+          result->Success(EncodableValue(true));
+        } else if (call.method_name() == "setCapturePause") {
+          int64_t until = 0;
+          if (!ReadInt64(std::get_if<EncodableMap>(call.arguments()), "until",
+                         &until)) {
+            result->Success(EncodableValue(false));
+            return;
+          }
+          gate_.SetPause(until);
+          result->Success(EncodableValue(true));
         } else {
           result->NotImplemented();
         }
@@ -281,10 +358,30 @@ void ClipboardBridge::OnClipboardUpdate() {
     flags.can_include_unreadable =
         !ReadDword(format_can_include_, &flags.can_include_value);
   }
-  if (kusunga::IsSecret(flags)) {
-    Emit(Event("concealed"));
-    return;
+  // Then the pause against the wall clock, then the source app against the
+  // ignore list (ADR 0005), still before any text is read. The source is
+  // the clipboard owner's process, else the foreground window's.
+  const kusunga::CaptureDecision decision = kusunga::DecideCapture(
+      flags, gate_, WallClockMs(), [] {
+        return kusunga::ChooseSource(
+            [] { return ExeNameOfWindow(::GetClipboardOwner()); },
+            [] { return ExeNameOfWindow(::GetForegroundWindow()); });
+      });
+  switch (decision.outcome) {
+    case kusunga::CaptureOutcome::kSecret:
+      Emit(Event("concealed"));
+      return;
+    case kusunga::CaptureOutcome::kPaused:
+      // Nothing is sent; Dart logged the pause itself.
+      return;
+    case kusunga::CaptureOutcome::kIgnoredApp:
+      Emit(Event("ignoredApp"));
+      return;
+    case kusunga::CaptureOutcome::kRead:
+      break;
   }
+  // Unknown source: captured as today (fail open), counted in Dart's log.
+  if (decision.source_unknown) Emit(Event("sourceUnknown"));
 
   if (!::IsClipboardFormatAvailable(CF_UNICODETEXT)) return;
   HANDLE handle = ::GetClipboardData(CF_UNICODETEXT);
