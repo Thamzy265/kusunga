@@ -151,7 +151,10 @@ void main() {
       opened.store.insertOrBump(_marker, ClipKind.text, 2);
       opened.store.close();
       // Failed migration (leaves a backup copy).
-      final bad = Migration(version: 5, statements: ['THIS IS NOT SQL']);
+      final bad = Migration(
+        version: kMigrations.length + 1,
+        statements: ['THIS IS NOT SQL'],
+      );
       opened = await open(migrations: [...kMigrations, bad]);
       opened.store.close();
       expect(anyFileHolds(_marker), isFalse, reason: files().join(', '));
@@ -275,7 +278,7 @@ void main() {
 
   group('failed migration and newer schema', () {
     final v2 = Migration(
-      version: 5,
+      version: kMigrations.length + 1,
       statements: ['ALTER TABLE clip_items ADD COLUMN note TEXT'],
     );
 
@@ -302,7 +305,7 @@ void main() {
     // Fails on data that starts with the same letter, passes on an empty
     // database, like a real migration that chokes on old rows.
     final dataDependent = Migration(
-      version: 5,
+      version: kMigrations.length + 1,
       statements: [
         'CREATE UNIQUE INDEX one_per_letter ON clip_items '
             '(substr(content, 1, 1))',
@@ -339,7 +342,7 @@ void main() {
       final path = '${dir.path}/m.db';
       SqliteHistoryStore.open(path: path, keyHex: _key).close();
       final good2 = Migration(
-        version: 5,
+        version: kMigrations.length + 1,
         statements: ['ALTER TABLE clip_items ADD COLUMN note TEXT'],
       );
       final bad3 = Migration(version: 6, statements: ['NOT SQL']);
@@ -353,7 +356,10 @@ void main() {
       );
       final db = sqlite3.open(path);
       db.execute("PRAGMA hexkey = '$_key'");
-      expect(db.select('PRAGMA user_version').single.values.single, 5);
+      expect(
+        db.select('PRAGMA user_version').single.values.single,
+        kMigrations.length + 1,
+      );
       db.close();
     });
 
@@ -764,7 +770,7 @@ void main() {
         opened = await open(errorLog: fileLog);
         opened.store.close();
         final bad = Migration(
-          version: 5,
+          version: kMigrations.length + 1,
           statements: ["SELECT '$_marker' FROM"],
         );
         opened = await open(

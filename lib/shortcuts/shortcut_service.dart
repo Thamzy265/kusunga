@@ -34,7 +34,9 @@ class ShortcutService extends ChangeNotifier {
     required this.isWindows,
     required this.available,
     this._onCopied,
-  }) : _ignored = ignoredApps;
+    Future<bool> Function(List<String> appIds)? setCaptureIgnored,
+  }) : _ignored = ignoredApps,
+       _setCaptureIgnored = setCaptureIgnored;
 
   final TypedShortcutsPort port;
   final SnippetService _snippets;
@@ -43,6 +45,10 @@ class ShortcutService extends ChangeNotifier {
   final bool Function(String key, String value) _writeSetting;
   final ErrorLog _log;
   final void Function()? _onCopied;
+
+  /// The clipboard watcher's copy of the list (M1.6 D1 A: one list for
+  /// history and typed shortcuts). Every change goes to both.
+  final Future<bool> Function(List<String> appIds)? _setCaptureIgnored;
   final bool isWindows;
 
   /// False when snippets can't be opened (memory-only or incompatible
@@ -81,7 +87,7 @@ class ShortcutService extends ChangeNotifier {
     _events = port.events.listen(_onEvent);
     _snippets.addListener(_syncTable);
     _loadIgnored();
-    await port.setIgnored([for (final a in _apps) a.appId]);
+    await _sendIgnored();
     _syncTable();
     if (!available) return;
     _enabled = _readSetting(typedShortcutsSetting) == '1';
@@ -228,9 +234,20 @@ class ShortcutService extends ChangeNotifier {
       return false;
     }
     _loadIgnored();
-    unawaited(port.setIgnored([for (final a in _apps) a.appId]));
+    unawaited(_sendIgnored());
     _notify();
     return true;
+  }
+
+  /// The same list to typed shortcuts and to the clipboard watcher. The
+  /// answer is typed shortcuts' own call.
+  Future<void> _sendIgnored() {
+    final ids = [for (final a in _apps) a.appId];
+    final capture = _setCaptureIgnored;
+    if (capture != null) {
+      unawaited(capture(ids).catchError((Object _) => false));
+    }
+    return port.setIgnored(ids);
   }
 
   /// Removes an app and returns it for Undo, or null if that failed.

@@ -60,9 +60,38 @@ class FakeLog implements ErrorLog {
 }
 
 class FakeClipboardSource implements ClipboardSource {
+  FakeClipboardSource() {
+    controller.onListen = () => calls.add('listen');
+  }
+
   final controller = StreamController<ClipboardEvent>.broadcast(sync: true);
   PasteAccess access = PasteAccess.notApplicable;
   int accessChecks = 0;
+
+  /// The capture calls (M1.6) and the start of listening, in order.
+  final calls = <String>[];
+
+  /// The last values sent with setCapturePause and setCaptureIgnored.
+  int? sentPause;
+  List<String>? sentIgnored;
+
+  /// What setCapturePause answers (false: the native call failed).
+  bool pauseAnswer = true;
+
+  @override
+  Future<bool> setCapturePause(int until) async {
+    calls.add('setCapturePause');
+    if (!pauseAnswer) return false;
+    sentPause = until;
+    return true;
+  }
+
+  @override
+  Future<bool> setCaptureIgnored(List<String> appIds) async {
+    calls.add('setCaptureIgnored');
+    sentIgnored = List.of(appIds);
+    return true;
+  }
 
   @override
   Stream<ClipboardEvent> get events => controller.stream;

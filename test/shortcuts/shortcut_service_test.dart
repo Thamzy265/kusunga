@@ -13,6 +13,11 @@ import 'package:kusunga/snippets/snippet_service.dart';
 import '../support/fakes.dart';
 import 'fake_typed_shortcuts_port.dart';
 
+/// How many preset apps the Mac list starts with (v4 and v5 presets).
+final _macPresets = presetIgnoredApps
+    .where((p) => !appIdIsForWindows(p.appId))
+    .length;
+
 void main() {
   late FakeTypedShortcutsPort port;
   late SnippetService snippets;
@@ -113,6 +118,9 @@ void main() {
         'com.bitwarden.desktop',
         'org.keepassxc.keepassxc',
         'com.apple.Passwords',
+        // M1.6 schema v5 presets.
+        for (final p in presetIgnoredAppsV5)
+          if (!appIdIsForWindows(p.appId)) p.appId,
       ]);
       expect(port.ignoredSent.last, mac.ignoredApps.map((a) => a.appId));
       port.ignoredSent.clear();
@@ -123,6 +131,8 @@ void main() {
         'bitwarden.exe',
         'keepassxc.exe',
         'keepass.exe',
+        for (final p in presetIgnoredAppsV5)
+          if (appIdIsForWindows(p.appId)) p.appId,
       ]);
       expect(port.ignoredSent.last, win.ignoredApps.map((a) => a.appId));
     });
@@ -335,7 +345,7 @@ void main() {
       expect(port.ignoredSent.last, contains('com.example.bank'));
       s.removeApp('com.bitwarden.desktop');
       expect(s.restorePresets(), isTrue);
-      expect(s.ignoredApps.length, 6);
+      expect(s.ignoredApps.length, _macPresets + 1);
       expect(s.canRestorePresets, isFalse);
     });
 
@@ -353,7 +363,7 @@ void main() {
       addTearDown(s.dispose);
       await s.start();
       expect(s.removeApp('com.1password.1password'), isNull);
-      expect(s.ignoredApps.length, 5);
+      expect(s.ignoredApps.length, _macPresets);
       expect(s.restorePresets(), isFalse);
       expect(s.addApp(const RunningApp(appId: 'a.b', name: 'AB')), isFalse);
       expect(s.lastIgnoredFailed, isTrue);

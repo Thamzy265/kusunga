@@ -14,6 +14,7 @@ import '../snippets/snippet_service.dart';
 import '../snippets/snippet_store.dart';
 import 'history_opener.dart';
 import 'history_store.dart';
+import 'pause_service.dart';
 
 /// Banners at the top of the history list (UI spec, "Banner" row).
 enum HistoryBanner {
@@ -70,7 +71,18 @@ class HistoryService extends ChangeNotifier {
       clock: _clock,
       writeClipboard: _source.writeOwn,
     );
+    pause = PauseService(
+      setNativePause: _source.setCapturePause,
+      readSetting: setting,
+      writeSetting: saveSetting,
+      log: _log,
+      persists: _persists,
+      clock: _clock,
+    );
   }
+
+  /// "Pause history" (M1.6), kept in the same settings table.
+  late final PauseService pause;
 
   /// The saved snippets, on the same database (M1.4). Editing is off when
   /// this session is memory only.
@@ -108,13 +120,37 @@ class HistoryService extends ChangeNotifier {
   PasteAccess get pasteAccess => _pasteAccess;
 
   /// Starts listening for copies and shows what is already saved.
+  ///
+  /// The pause and the ignore list are sent to the native watcher first
+  /// (M1.6): their messages leave before the event channel's listen, which
+  /// starts the watcher, so no copy slips in at launch while history is
+  /// paused.
   void start() {
     _refresh();
+    pause.load();
+    List<String> ids;
+    try {
+      ids = [for (final a in ignoredApps.list()) a.appId];
+    } catch (_) {
+      _log.log(LogCode.readFailed);
+      ids = const [];
+    }
+    unawaited(setCaptureIgnored(ids));
     _subscription = _source.events.listen(
       _onEvent,
       onError: (Object _) => _log.log(LogCode.clipboardChannelError),
     );
     unawaited(recheckPasteAccess());
+  }
+
+  /// Sends the ignore list to the native watcher (M1.6): at start, and each
+  /// time the list changes (typed shortcuts get the same list).
+  Future<bool> setCaptureIgnored(List<String> appIds) async {
+    try {
+      return await _source.setCaptureIgnored(appIds);
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> recheckPasteAccess() async {
@@ -128,7 +164,16 @@ class HistoryService extends ChangeNotifier {
     if (_closed) return;
     switch (event) {
       case ClipboardSkipped(:final reason):
-        if (reason == SkipReason.tooLarge) _log.log(LogCode.clipboardTooLarge);
+        switch (reason) {
+          case SkipReason.tooLarge:
+            _log.log(LogCode.clipboardTooLarge);
+          case SkipReason.ignoredApp:
+            _log.log(LogCode.captureSkippedIgnoredApp);
+          case SkipReason.concealed:
+            break;
+        }
+      case ClipboardSourceUnknown():
+        _log.log(LogCode.captureSourceUnknown);
       case ClipboardReadError(:final code):
         _log.log(
           code == 'locked'
@@ -136,6 +181,10 @@ class HistoryService extends ChangeNotifier {
               : LogCode.clipboardChannelError,
         );
       case ClipboardText(:final text, :final ownMarker):
+        // Native code already skips copies while paused, before reading
+        // them. If one still arrives (native code out of step after a
+        // failed call), it is not kept.
+        if (pause.isPaused) return;
         _capture(text, ownMarker: ownMarker);
     }
   }
@@ -405,6 +454,7 @@ class HistoryService extends ChangeNotifier {
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
+    pause.dispose();
     await _subscription?.cancel();
     _subscription = null;
     try {
@@ -434,6 +484,7 @@ class HistoryService extends ChangeNotifier {
     _disposed = true;
     _closed = true;
     snippets.dispose();
+    pause.dispose();
     unawaited(_subscription?.cancel());
     super.dispose();
   }

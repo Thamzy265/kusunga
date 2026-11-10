@@ -9,11 +9,14 @@ abstract interface class HistoryStore {
 
   /// Settings kept next to the history: the picker shortcut and the paste
   /// mode (schema version 2), and the typed-shortcuts switch, "0" or "1"
-  /// (version 4). Not personal data.
+  /// (version 4), and the history pause, "0", "-1" or an end time in ms
+  /// (M1.6, `history_paused_until`; the user's choice to stop recording,
+  /// kept in the encrypted file like the rest).
   static const storedSettingKeys = {
     'picker_shortcut',
     'paste_mode',
     'typed_shortcuts_on',
+    'history_paused_until',
   };
   static const maxSettingLength = 64;
 

@@ -13,11 +13,19 @@ class IgnoredApp {
   final bool preset;
 }
 
-/// The password managers on the list from the start (PM decision D4 A). Rows
-/// for both systems are kept; each system shows and uses only its own (see
-/// [appIdIsForWindows]). Schema version 4 seeds exactly these, in this order
-/// (a test checks it). How each id was checked is in the M1.5 hand-off.
+/// The password managers on the list from the start (M1.5 PM decision D4 A;
+/// M1.6 decision D2 A). Rows for both systems are kept; each system shows
+/// and uses only its own (see [appIdIsForWindows]). Schema version 4 seeds
+/// [presetIgnoredAppsV4] and version 5 adds [presetIgnoredAppsV5], in this
+/// order (tests check both).
 const presetIgnoredApps = <IgnoredApp>[
+  ...presetIgnoredAppsV4,
+  ...presetIgnoredAppsV5,
+];
+
+/// The M1.5 presets (schema version 4). How each id was checked is in the
+/// M1.5 hand-off.
+const presetIgnoredAppsV4 = <IgnoredApp>[
   IgnoredApp('com.1password.1password', '1Password', preset: true),
   IgnoredApp('com.agilebits.onepassword7', '1Password 7', preset: true),
   IgnoredApp('com.bitwarden.desktop', 'Bitwarden', preset: true),
@@ -27,6 +35,26 @@ const presetIgnoredApps = <IgnoredApp>[
   IgnoredApp('bitwarden.exe', 'Bitwarden', preset: true),
   IgnoredApp('keepassxc.exe', 'KeePassXC', preset: true),
   IgnoredApp('keepass.exe', 'KeePass', preset: true),
+];
+
+/// The M1.6 presets (schema version 5). Each id was read from a public
+/// listing on 2026-11-10: Mac bundle ids from the Homebrew cask data
+/// (formulae.brew.sh/api/cask) or Apple's App Store lookup; Windows exe
+/// names from public file listings of the installed apps. The sources and
+/// the ids left out are in the M1.6 hand-off.
+const presetIgnoredAppsV5 = <IgnoredApp>[
+  IgnoredApp('com.lastpass.lastpassmacdesktop', 'LastPass', preset: true),
+  IgnoredApp('in.sinew.Enpass-Desktop', 'Enpass', preset: true),
+  IgnoredApp('com.nordsec.nordpass', 'NordPass', preset: true),
+  IgnoredApp('me.proton.pass.electron', 'Proton Pass', preset: true),
+  IgnoredApp('com.dashlane.dashlanephonefinal', 'Dashlane', preset: true),
+  IgnoredApp('com.keepersecurity.passwordmanager', 'Keeper', preset: true),
+  IgnoredApp('com.callpod.keepermac.lite', 'Keeper (App Store)', preset: true),
+  IgnoredApp('lastpass.exe', 'LastPass', preset: true),
+  IgnoredApp('enpass.exe', 'Enpass', preset: true),
+  IgnoredApp('nordpass.exe', 'NordPass', preset: true),
+  IgnoredApp('protonpass.exe', 'Proton Pass', preset: true),
+  IgnoredApp('keeperpasswordmanager.exe', 'Keeper', preset: true),
 ];
 
 /// A Windows id is an executable name; a Mac bundle id never ends in ".exe".

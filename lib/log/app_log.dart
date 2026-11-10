@@ -76,6 +76,16 @@ enum LogCode {
   // Debug builds only (Mac): QA's switch that lets software-sent keys fire
   // typed shortcuts is on (PM decision 2026-11-09). Logged by native code.
   shortcutSyntheticKeysAllowed,
+
+  // M1.6 sensitive-content protection (design note, "Observability"): codes
+  // only, never an app name or text. A copy from an ignored app was skipped
+  // before it was read; history was paused (detail: 15 or 60 minutes, or -1
+  // until resumed) or resumed (detail: 0 the user, 1 the timer); on Windows
+  // the source app of a copy could not be found, so it was captured as today.
+  captureSkippedIgnoredApp,
+  capturePaused,
+  captureResumed,
+  captureSourceUnknown,
 }
 
 abstract interface class ErrorLog {

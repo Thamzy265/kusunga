@@ -40,7 +40,10 @@ void main() {
       SqliteHistoryStore.open(path: path, keyHex: _key).close();
       final db = sqlite3.open(path);
       db.execute("PRAGMA hexkey = '$_key'");
-      expect(db.select('PRAGMA user_version').single.values.single, 4);
+      expect(
+        db.select('PRAGMA user_version').single.values.single,
+        kMigrations.last.version,
+      );
       final cols = db
           .select('PRAGMA table_info(clip_items)')
           .map((r) => r['name'])
@@ -198,7 +201,7 @@ void main() {
     late String path;
     // A later step than the shipped ones (version 3 is the snippets step, 4 typed shortcuts).
     final v2 = Migration(
-      version: 5,
+      version: kMigrations.length + 1,
       statements: ['ALTER TABLE clip_items ADD COLUMN note TEXT'],
     );
 
@@ -228,7 +231,7 @@ void main() {
       );
       expect(b.list().single.preview, 'old data');
       b.close();
-      expect(version(), 5);
+      expect(version(), kMigrations.length + 1);
       expect(File('$path.bak').existsSync(), isFalse);
     });
 
@@ -260,7 +263,7 @@ void main() {
       expect(v2store.readSetting('picker_shortcut'), isNull);
       v2store.writeSetting('picker_shortcut', 'ctrl+alt+k');
       v2store.close();
-      expect(version(), 4);
+      expect(version(), kMigrations.last.version);
       expect(File('$path.bak').existsSync(), isFalse);
 
       final again = SqliteHistoryStore.open(path: path, keyHex: _key);
@@ -273,7 +276,7 @@ void main() {
       SqliteHistoryStore.open(path: path, keyHex: _key).close();
       var backupSeen = false;
       final spy = Migration(
-        version: 5,
+        version: kMigrations.length + 1,
         statements: ['ALTER TABLE clip_items ADD COLUMN note TEXT'],
         onRun: () => backupSeen = File('$path.bak').existsSync(),
       );
@@ -291,7 +294,7 @@ void main() {
       a.close();
 
       final bad = Migration(
-        version: 5,
+        version: kMigrations.length + 1,
         statements: [
           'ALTER TABLE clip_items ADD COLUMN note TEXT',
           'THIS IS NOT SQL',
@@ -305,7 +308,7 @@ void main() {
         ),
         throwsA(isA<MigrationFailed>()),
       );
-      expect(version(), 4);
+      expect(version(), kMigrations.last.version);
       expect(File('$path.bak').existsSync(), isTrue);
 
       final again = SqliteHistoryStore.open(path: path, keyHex: _key);
@@ -323,7 +326,7 @@ void main() {
         () => SqliteHistoryStore.open(path: path, keyHex: _key),
         throwsA(isA<UnsupportedSchemaVersion>()),
       );
-      expect(version(), 5);
+      expect(version(), kMigrations.length + 1);
     });
 
     test('migration versions start at 1 and have no gaps', () {
