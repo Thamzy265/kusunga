@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-10 — M1.6 Sensitive-content protection — developer blocker on the pause timeout, lead decision
+- Changed: Developer raised a blocker. The tester's never-answers repro expects pause() to return true when every native call hangs, but the approved spec and existing tests say a failed native pause changes nothing and returns false. Options: (a) a timed-out user pause still applies in Dart, with the error shown; (b) a timeout counts as a failure and the repro changes. Lead chose (b): it keeps the approved UI spec ("native call failed: Couldn't apply the pause. Try again. under the buttons, buttons stay") and failure plan. Option (a) would change approved behaviour and need the PM. Tester asked to rewrite the repro: a stuck native call makes pause() return false with the apply error within a few seconds; once native answers, a new pause works; at most one queued background send. Developer continues with items 2 (error shown while paused) and 3 (flaky timing tests).
+- Gates: developer fixes in progress · tester repro rewrite in progress · reviewer block · QA not started · PM merge waiting
+- Open findings: N1 (timeout), N1-reviewer (hidden error), flaky timing tests
+- Decisions: lead: option (b), inside the approved spec; no PM decision needed
+- Blockers: Developer none now · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — the banner for a failed Privacy-tab pause; the read-error pause behaviour; VoiceOver on the M1.5 switch, status and chips; M1.4 items
+
 ## 2026-11-10 — M1.6 Sensitive-content protection — reviewer re-check of fix round 2: block
 - Changed: Reviewer re-reviewed 78597f1 (HEAD now ce308b4 with the tester's test commit). R1, R3 to R9 fixed; R2 partly fixed. Fail-on-old-code shown for R1 to R4. app_id.h read for compile problems; none found (not compiled). 0 security vulnerabilities; no new privacy issues. All 7 deviations judged acceptable. check.sh red at ce308b4 only because of the tester's never-answers repro; picker_search_test "under 50 ms a keystroke" also failed once under heavy load (passes alone).
 - Gates: developer fixes needed · tester pass, findings open · reviewer block · QA not started · PM merge waiting
