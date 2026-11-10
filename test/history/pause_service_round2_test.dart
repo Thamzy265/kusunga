@@ -267,4 +267,90 @@ void main() {
     expect(source.sentPause, -1);
     expect(log.codes, contains(LogCode.readFailed));
   });
+
+  group('R8: a tick notifies only when what the user sees changes', () {
+    test('ticks with nothing changed notify nobody', () async {
+      final h = _H();
+      h.service.load();
+      await pumpEventQueue();
+      var heard = 0;
+      h.service.addListener(() => heard++);
+      for (var i = 0; i < 4; i++) {
+        h.now += 15 * 1000;
+        await h.service.tick();
+      }
+      expect(heard, 0, reason: 'not paused, nothing changed');
+      await h.service.pause(PauseLength.hour);
+      heard = 0;
+      for (var i = 0; i < 4; i++) {
+        h.now += 15 * 1000;
+        await h.service.tick();
+      }
+      expect(heard, 0, reason: 'paused, same end time, same day');
+    });
+
+    test('ticks still counts every tick, for the tray\'s retry (B2)', () async {
+      final h = _H();
+      h.service.load();
+      var ticks = 0;
+      h.service.ticks.addListener(() => ticks++);
+      await h.service.tick();
+      await h.service.tick();
+      expect(ticks, 2);
+    });
+
+    test('a timed end still notifies', () async {
+      final h = _H();
+      h.service.load();
+      await h.service.pause(PauseLength.quarterHour);
+      var heard = 0;
+      h.service.addListener(() => heard++);
+      h.now += 16 * _min;
+      await h.service.tick();
+      expect(heard, 1);
+      expect(h.service.isPaused, isFalse);
+    });
+
+    test('midnight passing while paused notifies, so "tomorrow 00:10" '
+        'becomes "00:10"', () async {
+      final h = _H();
+      h.now = DateTime(2026, 11, 10, 23, 55).millisecondsSinceEpoch;
+      h.service.load();
+      await h.service.pause(PauseLength.quarterHour); // ends 00:10
+      String text() =>
+          formatPauseEnd(h.service.endsAt!, h.service.now, use24Hour: true);
+      expect(text(), 'tomorrow 00:10');
+      var heard = 0;
+      h.service.addListener(() => heard++);
+      h.now = DateTime(2026, 11, 10, 23, 59, 50).millisecondsSinceEpoch;
+      await h.service.tick();
+      expect(heard, 0);
+      h.now = DateTime(2026, 11, 11, 0, 0, 5).millisecondsSinceEpoch;
+      await h.service.tick();
+      expect(heard, 1);
+      expect(text(), '00:10');
+    });
+
+    test('a load-time apply error that appears on a tick notifies', () async {
+      final h = _H();
+      h.settings[historyPausedSetting] = '-1';
+      final failing = PauseService(
+        setNativePause: (_) async => false,
+        readSetting: (k) => h.settings[k],
+        writeSetting: (_, _) => true,
+        log: FakeLog(),
+        persists: true,
+        clock: () => h.now,
+      )..load();
+      addTearDown(failing.dispose);
+      await pumpEventQueue();
+      var heard = 0;
+      failing.addListener(() => heard++);
+      await failing.tick();
+      expect(failing.error, PauseError.apply);
+      expect(heard, 1);
+      await failing.tick();
+      expect(heard, 1, reason: 'still failing, nothing new to show');
+    });
+  });
 }

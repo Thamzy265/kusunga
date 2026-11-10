@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 
 import '../log/app_log.dart';
@@ -111,6 +112,10 @@ class PauseService extends ChangeNotifier {
   /// none is waiting, so a call made then starts at once.
   Future<void>? _tail;
   var _queued = 0;
+
+  /// What listeners last saw (see [_seen]); a tick notifies only when it
+  /// changed (R8).
+  Object? _lastSeen;
   Timer? _timer;
   AppLifecycleListener? _lifecycle;
   var _disposed = false;
@@ -119,6 +124,12 @@ class PauseService extends ChangeNotifier {
   /// the user, and a timed pause that ended. A clock-back cut of the end
   /// time does not count (O6).
   int get announceSerial => _announceSerial;
+
+  /// Goes up on every tick, whether or not anything changed. For a
+  /// listener that retries its own failed update on the next tick (the tray,
+  /// B2); the service itself notifies only on a visible change (R8).
+  ValueListenable<int> get ticks => _ticks;
+  final _ticks = ValueNotifier<int>(0);
 
   /// The wall clock this service uses, in local time.
   DateTime get now => DateTime.fromMillisecondsSinceEpoch(_clock());
@@ -167,6 +178,7 @@ class PauseService extends ChangeNotifier {
       _until = raw < -1 ? 0 : raw;
       _settle(fromTimer: false, log: false);
     }
+    _lastSeen = _seen();
     unawaited(_sendState());
   }
 
@@ -306,6 +318,7 @@ class PauseService extends ChangeNotifier {
   /// failed (R2).
   Future<void> tick() async {
     if (_disposed) return;
+    _ticks.value++;
     final changed = _settle(fromTimer: true);
     if (changed) {
       if (await _send(() => _until)) {
@@ -313,7 +326,7 @@ class PauseService extends ChangeNotifier {
       } else {
         _backgroundFailed();
       }
-      _notify();
+      _notifyIfSeenChanged();
       return;
     }
     if (_outOfStep && (_keepRetrying || !_retried)) {
@@ -324,7 +337,28 @@ class PauseService extends ChangeNotifier {
         _error ??= PauseError.apply;
       }
     }
-    _notify();
+    _notifyIfSeenChanged();
+  }
+
+  /// Everything the banner, the Privacy tab and the tray show. The local
+  /// date counts while a timed pause runs: "tomorrow 00:10" becomes "00:10"
+  /// at midnight.
+  Object _seen() {
+    final now = _clock();
+    final timed = isPausedAt(_until, now) && _until > 0;
+    final day = timed ? DateTime.fromMillisecondsSinceEpoch(now) : null;
+    return (
+      paused: isPausedAt(_until, now),
+      until: _until,
+      error: _error,
+      willLast: willLast,
+      announce: _announceSerial,
+      date: day == null ? null : (day.year, day.month, day.day),
+    );
+  }
+
+  void _notifyIfSeenChanged() {
+    if (_seen() != _lastSeen) _notify();
   }
 
   /// Starts the 15 s tick, and with [listenToLifecycle] also ticks when
@@ -342,7 +376,9 @@ class PauseService extends ChangeNotifier {
   }
 
   void _notify() {
-    if (!_disposed) notifyListeners();
+    if (_disposed) return;
+    _lastSeen = _seen();
+    notifyListeners();
   }
 
   @override
@@ -352,6 +388,7 @@ class PauseService extends ChangeNotifier {
     _timer?.cancel();
     _timer = null;
     _lifecycle?.dispose();
+    _ticks.dispose();
     super.dispose();
   }
 }

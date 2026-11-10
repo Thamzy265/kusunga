@@ -133,6 +133,9 @@ class TrayService {
     if (_disposed || _pause != null) return;
     _pause = pause;
     pause.addListener(_onPauseChanged);
+    // A tray update that threw is tried again on the next tick (B2), even
+    // when nothing about the pause changed.
+    pause.ticks.addListener(_onPauseChanged);
     _onPauseChanged();
   }
 
@@ -219,6 +222,7 @@ class TrayService {
     if (_disposed) return;
     _disposed = true;
     _pause?.removeListener(_onPauseChanged);
+    _pause?.ticks.removeListener(_onPauseChanged);
     await _clicks?.cancel();
     await _safeDestroy();
     await _disposePort();
