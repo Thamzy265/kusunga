@@ -97,6 +97,15 @@ class PauseService extends ChangeNotifier {
   PauseError? _error;
   var _outOfStep = false;
   var _retried = false;
+
+  /// The last value native code accepted; null when unknown (a call
+  /// failed, or none was made yet).
+  int? _nativeHas;
+
+  /// Native calls run one at a time, in the order asked (R1). Null when
+  /// none is waiting, so a call made then starts at once.
+  Future<void>? _tail;
+  var _queued = 0;
   Timer? _timer;
   AppLifecycleListener? _lifecycle;
   var _disposed = false;
@@ -171,9 +180,38 @@ class PauseService extends ChangeNotifier {
     }
   }
 
+  /// Sends a value to native code after every call asked before it has
+  /// finished (R1). [value] is read when the call starts, so a call that
+  /// waited sends the state as it is then. With [ifNeeded], nothing is sent
+  /// when native code already has that value.
+  Future<bool> _send(int Function() value, {bool ifNeeded = false}) {
+    Future<bool> run() async {
+      final until = value();
+      if (ifNeeded && _nativeHas == until) return true;
+      final ok = await _call(until);
+      _nativeHas = ok ? until : null;
+      return ok;
+    }
+
+    _queued++;
+    final before = _tail;
+    final result = before == null ? run() : before.then((_) => run());
+    _tail = result.then((_) {
+      if (--_queued == 0) _tail = null;
+    });
+    return result;
+  }
+
+  /// Dart's state as it is now. Sent synchronously when nothing waits.
   Future<void> _sendState() async {
-    final ok = await _call(_until);
-    if (!ok) _outOfStep = true;
+    if (!await _send(() => _until)) _outOfStep = true;
+  }
+
+  /// After a user's pause or resume: a tick that ran while it waited may
+  /// have sent an older value after it (R1). Native code gets Dart's state
+  /// again once every waiting call is done, unless it already has it.
+  Future<void> _resync() async {
+    if (!await _send(() => _until, ifNeeded: true)) _outOfStep = true;
   }
 
   /// Pauses history for [length]. False if native code could not be told,
@@ -181,7 +219,7 @@ class PauseService extends ChangeNotifier {
   Future<bool> pause(PauseLength length) async {
     final minutes = length.minutes;
     final until = minutes == null ? -1 : _clock() + minutes * 60 * 1000;
-    if (!await _call(until)) {
+    if (!await _send(() => until)) {
       _failed(PauseError.apply);
       return false;
     }
@@ -191,13 +229,14 @@ class PauseService extends ChangeNotifier {
     _save();
     _log.log(LogCode.capturePaused, minutes ?? -1);
     _notify();
+    await _resync();
     return true;
   }
 
   /// Resumes history. False if native code could not be told, and then it
   /// stays paused ("Couldn't resume. Try again.").
   Future<bool> resume() async {
-    if (!await _call(0)) {
+    if (!await _send(() => 0)) {
       _failed(PauseError.resume);
       return false;
     }
@@ -207,6 +246,7 @@ class PauseService extends ChangeNotifier {
     _save();
     _log.log(LogCode.captureResumed, 0);
     _notify();
+    await _resync();
     return true;
   }
 
@@ -237,7 +277,7 @@ class PauseService extends ChangeNotifier {
     if (_disposed) return;
     final changed = _settle(fromTimer: true);
     if (changed) {
-      if (await _call(_until)) {
+      if (await _send(() => _until)) {
         if (_outOfStep && !_retried) _nativeInStep();
       } else {
         _outOfStep = true;
@@ -247,7 +287,7 @@ class PauseService extends ChangeNotifier {
     }
     if (_outOfStep && !_retried) {
       _retried = true;
-      if (await _call(_until)) {
+      if (await _send(() => _until)) {
         _outOfStep = false;
       }
     }
