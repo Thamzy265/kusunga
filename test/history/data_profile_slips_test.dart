@@ -468,7 +468,20 @@ void main() {
 
     test('a megabyte of spaces or dashes in front of the switch: rejected, '
         'quickly, without a crash', () {
-      final sw = Stopwatch()..start();
+      // "Quickly" is checked as growth, not wall time, so machine load can't
+      // fail it: ten times the lead may cost about ten times as much
+      // (linear), never about a hundred times (quadratic). Each size takes
+      // its fastest of three runs, which drops pauses from other work.
+      int fastest(List<String> args) {
+        var best = 1 << 62;
+        for (var run = 0; run < 3; run++) {
+          final sw = Stopwatch()..start();
+          rejected(args);
+          best = min(best, sw.elapsedMicroseconds);
+        }
+        return max(best, 1);
+      }
+
       for (final lead in [' ', '\t', '"', '-', '\u00a0', '\u2013']) {
         expect(
           rejected([lead * 1000000 + base]),
@@ -476,8 +489,14 @@ void main() {
           reason: 'lead ${lead.codeUnitAt(0)}',
         );
         expect(rejected([lead * 1000000 + base, 'qa']), isTrue);
+        final small = fastest([lead * 100000 + base, 'qa']);
+        final large = fastest([lead * 1000000 + base, 'qa']);
+        expect(
+          large / small,
+          lessThan(40),
+          reason: 'lead ${lead.codeUnitAt(0)}: $small µs, then $large µs',
+        );
       }
-      expect(sw.elapsedMilliseconds, lessThan(5000));
     });
 
     test('many near-miss arguments in a row stay linear', () {
