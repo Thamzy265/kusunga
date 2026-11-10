@@ -290,15 +290,13 @@ class PauseAnnouncer extends StatefulWidget {
 }
 
 class _PauseAnnouncerState extends State<PauseAnnouncer> {
-  late bool _paused;
-  late int _until;
+  late int _serial;
   String? _message;
 
   @override
   void initState() {
     super.initState();
-    _paused = widget.pause.isPaused;
-    _until = widget.pause.pausedUntil;
+    _serial = widget.pause.announceSerial;
     widget.pause.addListener(_changed);
   }
 
@@ -320,13 +318,11 @@ class _PauseAnnouncerState extends State<PauseAnnouncer> {
   void _changed() {
     if (!mounted) return;
     final pause = widget.pause;
-    final paused = pause.isPaused;
-    final until = pause.pausedUntil;
-    if (paused == _paused && (!paused || until == _until)) return;
-    _paused = paused;
-    _until = until;
+    // Only a user pause or resume, or a timed end (O6).
+    if (pause.announceSerial == _serial) return;
+    _serial = pause.announceSerial;
     String message;
-    if (!paused) {
+    if (!pause.isPaused) {
       message = 'History resumed';
     } else {
       final end = pauseEndText(context, pause);

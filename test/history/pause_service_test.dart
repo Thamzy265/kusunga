@@ -204,7 +204,8 @@ void main() {
       expect(h.sent, isEmpty);
     });
 
-    test('a retry that works clears the error', () async {
+    test('a retry that works puts native in step but keeps the error until '
+        'the user\'s next pause or resume (PM 2026-11-10, O5)', () async {
       final h = _Harness();
       h.service.load();
       await pumpEventQueue();
@@ -213,7 +214,12 @@ void main() {
       h.nativeOk = true;
       h.sent.clear();
       await h.service.tick();
-      expect(h.sent, [0]);
+      expect(h.sent, [0], reason: 'native is told Dart\'s own state');
+      expect(h.service.error, PauseError.apply);
+      await h.service.tick();
+      expect(h.sent, [0], reason: 'in step now: no more retries');
+      expect(h.service.error, PauseError.apply);
+      await h.service.pause(PauseLength.hour);
       expect(h.service.error, isNull);
     });
 
@@ -310,6 +316,36 @@ void main() {
       expect(h.service.pausedUntil, 0);
       h.service.dispose();
       // No timer left behind (testWidgets fails on a pending timer).
+    });
+  });
+
+  group('announcements (O6)', () {
+    test('a user pause, a user resume and a timed end each count once; a '
+        'clock-back cut and plain ticks do not', () async {
+      final h = _Harness();
+      h.service.load();
+      final start = h.service.announceSerial;
+      await h.service.pause(PauseLength.hour);
+      expect(h.service.announceSerial, start + 1);
+      h.now -= 3 * 60 * _min; // the clock went back: the end is cut
+      await h.service.tick();
+      await h.service.tick();
+      expect(h.service.announceSerial, start + 1);
+      h.now += 61 * _min; // the (cut) pause ends
+      await h.service.tick();
+      expect(h.service.announceSerial, start + 2);
+      await h.service.pause(PauseLength.untilResumed);
+      await h.service.resume();
+      expect(h.service.announceSerial, start + 4);
+    });
+
+    test('a failed pause or resume does not count', () async {
+      final h = _Harness();
+      h.service.load();
+      final start = h.service.announceSerial;
+      h.nativeOk = false;
+      await h.service.pause(PauseLength.hour);
+      expect(h.service.announceSerial, start);
     });
   });
 

@@ -92,6 +92,7 @@ class PauseService extends ChangeNotifier {
   final int Function() _clock;
 
   var _until = 0;
+  var _announceSerial = 0;
   var _saveFailed = false;
   PauseError? _error;
   var _outOfStep = false;
@@ -99,6 +100,11 @@ class PauseService extends ChangeNotifier {
   Timer? _timer;
   AppLifecycleListener? _lifecycle;
   var _disposed = false;
+
+  /// Goes up by one on each change worth announcing: a pause or resume by
+  /// the user, and a timed pause that ended. A clock-back cut of the end
+  /// time does not count (O6).
+  int get announceSerial => _announceSerial;
 
   /// The wall clock this service uses, in local time.
   DateTime get now => DateTime.fromMillisecondsSinceEpoch(_clock());
@@ -118,7 +124,8 @@ class PauseService extends ChangeNotifier {
   /// or the setting could not be saved).
   bool get willLast => persists && !_saveFailed;
 
-  /// The last native call failed and has not been put right yet.
+  /// The user's last pause or resume failed. Kept until their next pause or
+  /// resume, even when a tick puts native code back in step.
   PauseError? get error => _error;
 
   /// Reads the setting and sends it to native code. Called before the
@@ -140,6 +147,7 @@ class PauseService extends ChangeNotifier {
       _until = 0;
       _save();
       if (log && fromTimer) _log.log(LogCode.captureResumed, 1);
+      if (fromTimer) _announceSerial++;
       return true;
     }
     if (_until > now + maxTimedMs) {
@@ -150,8 +158,9 @@ class PauseService extends ChangeNotifier {
     return false;
   }
 
+  /// A later save that works clears "won't last" again (B3).
   void _save() {
-    if (!_write(historyPausedSetting, '$_until')) _saveFailed = true;
+    _saveFailed = !_write(historyPausedSetting, '$_until');
   }
 
   Future<bool> _call(int until) async {
@@ -178,6 +187,7 @@ class PauseService extends ChangeNotifier {
     }
     _until = until;
     _inStep();
+    _announceSerial++;
     _save();
     _log.log(LogCode.capturePaused, minutes ?? -1);
     _notify();
@@ -193,6 +203,7 @@ class PauseService extends ChangeNotifier {
     }
     _until = 0;
     _inStep();
+    _announceSerial++;
     _save();
     _log.log(LogCode.captureResumed, 0);
     _notify();
@@ -206,8 +217,16 @@ class PauseService extends ChangeNotifier {
     _notify();
   }
 
+  /// After a user's pause or resume that native code accepted.
   void _inStep() {
     _error = null;
+    _nativeInStep();
+  }
+
+  /// Native code has Dart's state again. The error stays: it is about the
+  /// user's own request, which did not apply, and goes with their next
+  /// pause or resume (PM decision 2026-11-10, O5).
+  void _nativeInStep() {
     _outOfStep = false;
     _retried = false;
   }
@@ -219,7 +238,7 @@ class PauseService extends ChangeNotifier {
     final changed = _settle(fromTimer: true);
     if (changed) {
       if (await _call(_until)) {
-        if (_outOfStep && !_retried) _inStep();
+        if (_outOfStep && !_retried) _nativeInStep();
       } else {
         _outOfStep = true;
       }
@@ -228,7 +247,9 @@ class PauseService extends ChangeNotifier {
     }
     if (_outOfStep && !_retried) {
       _retried = true;
-      if (await _call(_until)) _inStep();
+      if (await _call(_until)) {
+        _outOfStep = false;
+      }
     }
     _notify();
   }
