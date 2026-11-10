@@ -291,3 +291,57 @@ final class CapturePollerOrderTests: XCTestCase {
     XCTAssertEqual(types, ["text"])
   }
 }
+
+// M1.6 fix round 2 (reviewer R5): reading the source marker is a pasteboard
+// data read, which can raise its own paste alert when access is "ask" or
+// "deny". Then the marker is never read; the front app is the source.
+final class CaptureSourceAccessTests: XCTestCase {
+  private var events: [[String: Any]] = []
+  private var front: String? = "com.apple.TextEdit"
+
+  private func make(_ pb: GatePasteboard, mayReadMarker: Bool) -> ClipboardPoller {
+    let g = CaptureGate(now: { 1_000_000 })
+    g.setIgnored(["com.example.vault"])
+    return ClipboardPoller(
+      pasteboard: pb, mayRetry: { mayReadMarker }, mayReadMarker: { mayReadMarker },
+      gate: g, frontApp: { [unowned self] in self.front }
+    ) { [unowned self] in self.events.append($0) }
+  }
+
+  private var types: [String] { events.map { $0["type"] as? String ?? "?" } }
+
+  func testWithoutAlwaysAllowTheMarkerIsNeverReadAndTheFrontAppCounts() {
+    let pb = GatePasteboard()
+    let poller = make(pb, mayReadMarker: false)
+    // The marker names the vault, but it can't be read without an alert:
+    // the front app (TextEdit, not ignored) is the source.
+    pb.copy("hello", marker: "com.example.vault")
+    poller.tick()
+    XCTAssertEqual(pb.markerReads, 0)
+    XCTAssertEqual(types, ["text"])
+    // With the vault in front, its copy is skipped and never read.
+    front = "com.example.vault"
+    pb.copy("secret", marker: "com.apple.TextEdit")
+    poller.tick()
+    XCTAssertEqual(pb.markerReads, 0)
+    XCTAssertEqual(types, ["text", "ignoredApp"])
+    XCTAssertEqual(pb.textReads, 1)
+  }
+
+  func testWithAlwaysAllowTheMarkerStillWins() {
+    let pb = GatePasteboard()
+    let poller = make(pb, mayReadMarker: true)
+    pb.copy("secret", marker: "com.example.vault")
+    poller.tick()
+    XCTAssertEqual(pb.markerReads, 1)
+    XCTAssertEqual(types, ["ignoredApp"])
+    XCTAssertEqual(pb.textReads, 0)
+  }
+
+  func testOnlyAlwaysAllowAndUnsupportedMayReadTheMarker() {
+    XCTAssertTrue(ClipboardPoller.readsAreSilent("allow"))
+    XCTAssertTrue(ClipboardPoller.readsAreSilent("unsupported"))
+    XCTAssertFalse(ClipboardPoller.readsAreSilent("ask"))
+    XCTAssertFalse(ClipboardPoller.readsAreSilent("deny"))
+  }
+}

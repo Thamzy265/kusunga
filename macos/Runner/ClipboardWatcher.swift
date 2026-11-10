@@ -88,8 +88,20 @@ final class ClipboardPoller {
   /// deny): every read can raise a system alert, so a copy is read once only.
   private let mayRetry: () -> Bool
 
+  /// False for the same reason: reading the source marker is a data read
+  /// that can raise its own alert, so the front app is the source (R5).
+  private let mayReadMarker: () -> Bool
+
+  /// True when reading the pasteboard raises no alert: "allow", or a macOS
+  /// before 15.4 ("unsupported"), as `ClipboardBridge.accessBehavior()`
+  /// answers.
+  static func readsAreSilent(_ accessBehavior: String) -> Bool {
+    accessBehavior != "ask" && accessBehavior != "deny"
+  }
+
   init(
     pasteboard: PasteboardReading, mayRetry: @escaping () -> Bool = { true },
+    mayReadMarker: @escaping () -> Bool = { true },
     ownChanges: OwnClipboardChanges? = nil,
     gate: CaptureGate? = nil,
     frontApp: @escaping () -> String? = { nil },
@@ -97,6 +109,7 @@ final class ClipboardPoller {
   ) {
     self.pasteboard = pasteboard
     self.mayRetry = mayRetry
+    self.mayReadMarker = mayReadMarker
     self.ownChanges = ownChanges
     self.gate = gate
     self.frontApp = frontApp
@@ -166,9 +179,14 @@ final class ClipboardPoller {
     // the first look and its id stays inside this check.
     if !gateChecked, let gate = gate {
       gateChecked = true
+      // Without "Allow" the marker is not read (its type is left out), so
+      // no second paste alert can come from it (R5).
+      let markerTypes = mayReadMarker() ? types : types.filter {
+        $0 != CaptureGate.sourceMarkerType
+      }
       let skip = gate.check(source: { [pasteboard, frontApp] in
         CaptureGate.sourceApp(
-          types: types, marker: { pasteboard.sourceMarker() }, front: frontApp)
+          types: markerTypes, marker: { pasteboard.sourceMarker() }, front: frontApp)
       })
       if let skip = skip {
         waiting = false

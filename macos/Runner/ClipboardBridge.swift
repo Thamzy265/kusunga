@@ -80,7 +80,8 @@ final class ClipboardBridge: NSObject, FlutterStreamHandler {
   {
     let poller = ClipboardPoller(
       pasteboard: NSPasteboard.general,
-      mayRetry: { ClipboardBridge.accessBehavior() != "ask" && ClipboardBridge.accessBehavior() != "deny" },
+      mayRetry: { ClipboardPoller.readsAreSilent(ClipboardBridge.accessBehavior()) },
+      mayReadMarker: { ClipboardPoller.readsAreSilent(ClipboardBridge.accessBehavior()) },
       ownChanges: OwnClipboardChanges.shared,
       gate: CaptureGate.shared,
       frontApp: { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }

@@ -64,7 +64,7 @@ Trivially small. A person copies at most a few times a minute. The list holds at
 ## How the source app is found
 
 - **Mac** (in `ClipboardWatcher`, when the change count moves, before reading any text):
-  1. If the pasteboard has the `org.nspasteboard.source` type (the nspasteboard.org convention many apps follow), its value is the source bundle id.
+  1. If the pasteboard has the `org.nspasteboard.source` type (the nspasteboard.org convention many apps follow), its value is the source bundle id, but only when pasteboard access is "Allow" (or before macOS 15.4), because reading the marker can raise its own paste alert under "Ask" or "Don't Allow"; then step 2 applies.
   2. Otherwise, the source is the frontmost app's bundle id (`NSWorkspace.shared.frontmostApplication`), read at the time of the poll.
   - Known limit: with polling every 250 ms, a copy followed by a switch to another app within 250 ms can be credited to the wrong app. A copy made by a background app (not frontmost) is credited to the front app. Secret markers still apply in both cases, and most password managers set them.
 - **Windows** (on `WM_CLIPBOARDUPDATE`, before opening the clipboard to read):
