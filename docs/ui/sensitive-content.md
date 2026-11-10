@@ -2,7 +2,7 @@
 
 Date: 2026-11-10 — Design note: `docs/design/sensitive-content.md` — Status: approved by PM 2026-11-10
 
-Built on the PM's decisions of 2026-11-10: D1 A (one list), D3 A (pause survives restart), D4 A (Privacy tab).
+Built on the PM's decisions of 2026-11-10: D1 A (one list), D3 A (pause survives restart), D4 A (Privacy tab). Later the same day the PM chose a History banner for a failed tray pause, and kept the preset name "Keeper (App Store)".
 
 ## User and task
 
@@ -75,7 +75,7 @@ Typed shortcuts section (Snippets tab): the status line keeps "On · Skipped in 
 | Pause buttons (not paused) | Three buttons: "For 15 minutes", "For 1 hour", "Until I resume" | `surfaceHover` | Focus ring | Memory-only mode: still enabled; a note "Pause won't last after Kusunga quits." | n/a (instant) | n/a | Setting not saved: note as Disabled; native call failed: "Couldn't apply the pause. Try again." under the buttons, buttons stay | Area switches to the paused state; focus moves to Resume; announced "History paused until 14:30" | n/a | n/a | n/a |
 | Paused state (Privacy tab) | "Paused until 14:30." or "Paused until you resume." + Resume button | Resume `surfaceHover` | Focus ring on Resume | n/a | n/a | n/a | Resume failed: "Couldn't resume. Try again." | Area returns to the three buttons; focus to "For 15 minutes"; announced "History resumed" | Time uses the system 12/24-hour format; date added if the end is not today ("until tomorrow 00:10") | n/a | n/a |
 | History banner (paused) | "History paused until 14:30. New copies aren't kept." / "History paused. New copies aren't kept." + Resume | Resume hover | Resume is in tab order before the list | n/a | n/a | n/a | As above | Banner goes away; announced "History resumed" | Wraps to two lines at narrow widths | n/a | n/a |
-| Tray menu | Not paused: Open picker · Open Kusunga · Pause history ▸ (For 15 minutes · For 1 hour · Until I resume) · Quit. Paused: Open picker · Open Kusunga · Resume history · Quit | OS default | OS keyboard navigation | n/a | n/a | n/a | Pause failed: the menu keeps "Pause history ▸"; the History tab shows the error the next time it opens | Menu changes to "Resume history"; icon gets its paused variant | n/a | n/a | n/a |
+| Tray menu | Not paused: Open picker · Open Kusunga · Pause history ▸ (For 15 minutes · For 1 hour · Until I resume) · Quit. Paused: Open picker · Open Kusunga · Resume history · Quit | OS default | OS keyboard navigation | n/a | n/a | n/a | Pause failed: the menu keeps "Pause history ▸"; the History tab shows the error in the warning banner (`_Banner`, `bannerWarnBg`) above the list, "Couldn't apply the pause. Try again.", until the next pause or resume (PM, 2026-11-10) | Menu changes to "Resume history"; icon gets its paused variant | n/a | n/a | n/a |
 | Tray tooltip | "Kusunga" | n/a | n/a | n/a | n/a | n/a | n/a | Paused: "Kusunga — history paused until 14:30" / "Kusunga — history paused" | n/a | n/a | n/a |
 | Ignored apps list | Moved from M1.5 unchanged: chips with ✕, Add app…, Restore preset list, toasts, Undo; copy changed as in Copy | As M1.5 | As M1.5 | n/a — always shown (no longer hidden when typed shortcuts are off) | As M1.5 | "No apps. Kusunga still skips anything an app marks as private." | As M1.5 | As M1.5 | As M1.5 (ellipsis at 30 characters, chip width limited) | n/a | n/a |
 | "Edit ignored apps" link (Snippets tab) | Text button after the chips | Underline | Focus ring | Hidden while typed shortcuts are off (as the chips) | n/a | n/a | n/a | Opens the Privacy tab; focus on the "Ignored apps" heading | n/a | n/a | n/a |
@@ -111,6 +111,7 @@ Typed shortcuts section (Snippets tab): the status line keeps "On · Skipped in 
   - button "Resume";
   - notes "Pause won't last after Kusunga quits." (memory only), "Couldn't apply the pause. Try again.", "Couldn't resume. Try again."
 - Banner: "History paused until {time}. New copies aren't kept." / "History paused. New copies aren't kept." Button "Resume".
+- Banner after a failed tray pause: "Couldn't apply the pause. Try again."
 - Tray:
   - "Pause history" with "For 15 minutes", "For 1 hour" and "Until I resume";
   - "Resume history";
