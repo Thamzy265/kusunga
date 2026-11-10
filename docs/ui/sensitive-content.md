@@ -1,8 +1,8 @@
 # M1.6 Sensitive-content protection — UI spec
 
-Date: 2026-11-10 — Design note: `docs/design/sensitive-content.md` — Status: draft, waiting for PM
+Date: 2026-11-10 — Design note: `docs/design/sensitive-content.md` — Status: approved by PM 2026-11-10
 
-This spec assumes the recommended decisions D1 A (one list), D3 A (pause survives restart) and D4 A (Privacy tab). If the PM chooses otherwise, it is updated before the developer starts.
+Built on the PM's decisions of 2026-11-10: D1 A (one list), D3 A (pause survives restart), D4 A (Privacy tab).
 
 ## User and task
 

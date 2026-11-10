@@ -1,6 +1,6 @@
 # M1.6 Sensitive-content protection — design note
 
-Date: 2026-11-10 — Size: large — personal data (which app a copy came from, and the user's choice to stop recording) and new decisions inside clipboard capture on Mac and Windows — Phase: MVP — Status: draft, waiting for PM
+Date: 2026-11-10 — Size: large — personal data (which app a copy came from, and the user's choice to stop recording) and new decisions inside clipboard capture on Mac and Windows — Phase: MVP — Status: approved by PM 2026-11-10 ("Approve as recommended": option A, D1–D5 all A)
 
 ## Context
 
@@ -100,7 +100,7 @@ Trivially small. A person copies at most a few times a minute. The list holds at
 
 ## Decision
 
-Recommendation: **A**, recorded in ADR 0005 (proposed). Waiting for PM.
+Option **A**, recorded in ADR 0005 (accepted by the PM, 2026-11-10).
 
 ## Pause clock
 

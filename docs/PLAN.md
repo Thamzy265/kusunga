@@ -14,6 +14,7 @@ Phase: MVP. Approved by the PM on 2026-11-03 (deck: `docs/slides/mvp-plan.html`)
 - M1.3 (2026-11-04): direct notarised Mac download with the App Sandbox on (ADR 0003); default picker shortcut ⌘⇧V / Ctrl+Shift+V; pasted item stays on the clipboard; design approved.
 - M1.4 (2026-11-04): snippets in the same encrypted file; pasting a snippet does not add it to history; pinning copies (the item stays in history); the picker always opens on History; bank and card details allowed with a note until the M2 vault; design approved.
 - M1.5 (2026-11-08): matching in native code, typed keys never leave it (ADR 0004); a shortcut fires as soon as it is typed and may not start another; the previous clipboard text is put back after 0.5 s; off until the user turns it on; ignored-apps list built now (M1.6 reuses it); keys sent by other software are ignored; keystroke-watching DPIA in the M1.9 DPIA; design approved.
+- M1.6 (2026-11-10): capture skips decided in native code before reading, the source app never leaves it (ADR 0005); one ignore list for history and typed shortcuts; password-manager presets only (banking apps a Later line); a pause survives a restart; a Privacy tab holds pause and the list; on Mac the pasteboard source marker counts first; design approved.
 - M1.2 (2026-11-03): default history 200 items (range 10–5,000); keychain failure → memory only with a warning; Apple Developer account only if unsigned builds cannot use the Keychain; scope change approved.
 Research behind this plan: `docs/marketing/competitor-research.md`.
 
@@ -71,9 +72,9 @@ Everything stays on the device. No account, no server.
   - Design: `docs/design/typed-shortcuts.md`, ADR 0004, UI spec `docs/ui/typed-shortcuts.md`, deck `docs/slides/typed-shortcuts.html` (approved 2026-11-08).
 - [ ] **M1.6 Sensitive-content protection** — large (personal data).
   - (Secret-marker skip moved to M1.2.)
-  - AC: an app ignore list (preset with common password managers and banking apps) stops capture from those apps.
+  - AC: an app ignore list (preset with common password managers) stops capture from those apps. (Banking apps moved to a Later line, PM 2026-11-10, D2.)
   - AC: "Pause history" for 15 min / 1 h / until resumed, from the tray/menu bar.
-  - Design: `docs/design/sensitive-content.md`, ADR 0005 (proposed), UI spec `docs/ui/sensitive-content.md`, deck `docs/slides/sensitive-content.html` (waiting for PM).
+  - Design: `docs/design/sensitive-content.md`, ADR 0005 (proposed), UI spec `docs/ui/sensitive-content.md`, deck `docs/slides/sensitive-content.html` (approved 2026-11-10).
 - [ ] **M1.7 Settings and expiry** — small.
   - AC: history limit, auto-delete after a set time (never / 1 day / 7 days / 30 days), shortcut, launch at login, ignore list.
   - AC: the most private choice is the default where there is one (e.g. launch at login off until the user turns it on).
@@ -149,3 +150,8 @@ Needs its own design note and deck. Mobile cannot record clipboard history in th
 - Emoji, combining marks and decomposed accents in typed shortcuts — Mac matches canonically equal text and deletes user-visible characters; Windows matches exact code points and deletes code points (";👍🏽": Mac 2, Windows 3), so Windows may delete text before the shortcut; a shortcut may start with a combining mark (tester notes N1-N3, PM kept the approved rules 2026-11-08) — trigger: the first Windows QA run of M1.5, or ≥ 1 report of a shortcut deleting text it should not — noted 2026-11-08 by lead
 - App icons in the Windows "Add app…" list of typed shortcuts — Windows shows names only; icon extraction is Windows-only code that can't be run here (PM chose names only 2026-11-08) — trigger: ≥ 5 beta requests for icons on Windows — noted 2026-11-08 by lead
 - Restore formatted copies (HTML, RTF, files, images) after a typed shortcut, not only plain text — the approved design leaves the snippet on the clipboard when the previous copy held anything but text, so most browser and rich-editor copies are not put back (PM kept the design 2026-11-09) — trigger: ≥ 5 beta reports of losing a formatted copy after a shortcut — noted 2026-11-09 by lead
+- Banking app presets for the ignore list — very few desktop banking apps exist in the UK and EU, and their ids can't be verified here — trigger: ≥ 3 beta requests naming a banking app — noted 2026-11-10 by lead
+- Ignore by website or browser tab — needs browser extensions or Accessibility access, which ADR 0003 rules out — trigger: ≥ 10 beta requests — noted 2026-11-10 by lead
+- Detect card numbers, IBANs or passwords by content and skip or mask them — risk of false positives; the M2 vault covers bank details — trigger: ≥ 5 beta reports of a secret kept in history — noted 2026-11-10 by lead
+- "Copied from <app>" label on history items — needs the source app stored per item, which ADR 0005 avoids — trigger: ≥ 10 beta requests — noted 2026-11-10 by lead
+- Separate ignore lists for history and typed shortcuts — one shared list chosen (M1.6 D1) — trigger: ≥ 3 beta requests — noted 2026-11-10 by lead

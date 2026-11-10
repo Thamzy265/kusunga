@@ -4,7 +4,7 @@ Date: 2026-11-10
 
 ## Status
 
-Proposed (waiting for PM, M1.6)
+Accepted (PM, 2026-11-10)
 
 ## Context
 
