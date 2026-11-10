@@ -78,6 +78,8 @@ Future<void> main(List<String> args) async {
             isWindows: Platform.isWindows,
             available: h.snippets.canEdit,
             onCopied: picker!.showCopiedToast,
+            // M1.6 D1 A: the same list stops history capture.
+            setCaptureIgnored: h.setCaptureIgnored,
           );
           await service.start();
           return service;
@@ -111,6 +113,9 @@ Future<void> main(List<String> args) async {
     iconPath: defaultTargetPlatform == TargetPlatform.windows
         ? 'assets/tray/tray_icon.ico'
         : 'assets/tray/tray_icon.png',
+    pausedIconPath: defaultTargetPlatform == TargetPlatform.windows
+        ? 'assets/tray/tray_icon_paused.ico'
+        : 'assets/tray/tray_icon_paused.png',
     onOpenPicker: picker.openFromTray,
     onOpen: () =>
         unawaited(picker.prepareManageWindow().then((_) => window.show())),
@@ -119,4 +124,10 @@ Future<void> main(List<String> args) async {
   );
   unawaited(window.start());
   unawaited(tray.start());
+  // M1.6: the pause's 15 s tick (and on becoming active), and the tray's
+  // Pause / Resume once the history has opened.
+  history.then<void>((h) {
+    h.pause.startTicking();
+    tray.attachPause(h.pause);
+  }, onError: (Object _) {});
 }
