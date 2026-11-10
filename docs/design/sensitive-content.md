@@ -129,7 +129,7 @@ Option **A**, recorded in ADR 0005 (accepted by the PM, 2026-11-10).
 No outbound calls. Local failures:
 
 - **The setting can't be written** (memory-only mode or a database error): the pause still applies for this session, in memory only. The Privacy tab says "Pause won't last after Kusunga quits." and the error is logged as a code.
-- **Native call fails:** Dart keeps its state. A user's own pause or resume is retried once on the next tick. A send the user didn't ask for (launch, timer end or cut, or the re-send after a user call) is retried on every tick while out of step. Native calls run one at a time, and after a user call Dart re-sends its state if native differs. The status line and the History banner show "Couldn't apply the pause. Try again." until the user's next pause or resume (PM, 2026-11-10). A settings read error at launch counts as "paused until resume" (-1) with the same error.
+- **Native call fails:** Dart keeps its state. A user's own pause or resume is retried once on the next tick. A send the user didn't ask for (launch, timer end or cut, or the re-send after a user call) is retried on every tick while out of step. Native calls run one at a time, and after a user call Dart re-sends its state if native differs. A call with no answer within 2 s counts as failed; a user's call goes ahead of a waiting background send, and ticks keep at most one background send waiting. The status line and the History banner show "Couldn't apply the pause. Try again." until the user's next pause or resume (PM, 2026-11-10). A settings read error at launch counts as "paused until resume" (-1) with the same error.
 - **The source app can't be read:** see "How the source app is found". The copy is captured, as today.
 
 ## Observability

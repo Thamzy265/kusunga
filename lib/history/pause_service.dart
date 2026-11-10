@@ -78,6 +78,10 @@ class PauseService extends ChangeNotifier {
        _write = writeSetting,
        _clock = clock ?? (() => DateTime.now().millisecondsSinceEpoch);
 
+  /// A native call that has not answered by then counts as failed (N2): the
+  /// usual retry and error rules apply, and the next call goes ahead.
+  static const nativeTimeout = Duration(seconds: 2);
+
   /// The longest a timed pause can still have to run. A longer one means the
   /// clock was set back; it is cut to now + 60 minutes.
   static const maxTimedMs = 60 * 60 * 1000;
@@ -108,10 +112,14 @@ class PauseService extends ChangeNotifier {
   /// failed, or none was made yet).
   int? _nativeHas;
 
-  /// Native calls run one at a time, in the order asked (R1). Null when
-  /// none is waiting, so a call made then starts at once.
-  Future<void>? _tail;
-  var _queued = 0;
+  /// Native calls run one at a time (R1): the user's in the order asked,
+  /// ahead of a background send that has not started yet. When none is
+  /// running, a call starts at once (synchronously).
+  final _waiting = <_NativeJob>[];
+  var _running = false;
+
+  /// The background send that has not started yet; at most one (N2).
+  _NativeJob? _backgroundWaiting;
 
   /// What listeners last saw (see [_seen]); a tick notifies only when it
   /// changed (R8).
@@ -207,46 +215,95 @@ class PauseService extends ChangeNotifier {
     _saveFailed = !_write(historyPausedSetting, '$_until');
   }
 
-  Future<bool> _call(int until) async {
-    try {
-      return await _native(until);
-    } catch (_) {
-      return false;
+  /// A call that throws, answers false or does not answer within
+  /// [nativeTimeout] has failed. A late answer is ignored: native code is
+  /// then "unknown" and gets Dart's state again with the next send.
+  Future<bool> _call(int until) {
+    final answer = Completer<bool>();
+    void settle(bool ok) {
+      if (!answer.isCompleted) answer.complete(ok);
     }
+
+    final timer = Timer(nativeTimeout, () => settle(false));
+    try {
+      _native(until).then(settle, onError: (Object _) => settle(false));
+    } catch (_) {
+      settle(false);
+    }
+    return answer.future.whenComplete(timer.cancel);
   }
 
-  /// Sends a value to native code after every call asked before it has
-  /// finished (R1). [value] is read when the call starts, so a call that
-  /// waited sends the state as it is then. With [ifNeeded], nothing is sent
-  /// when native code already has that value.
-  Future<bool> _send(int Function() value, {bool ifNeeded = false}) {
-    Future<bool> run() async {
-      final until = value();
-      if (ifNeeded && _nativeHas == until) return true;
-      final ok = await _call(until);
-      _nativeHas = ok ? until : null;
-      return ok;
-    }
+  /// The user's own value, after the user's earlier calls and ahead of a
+  /// background send that has not started (so a pause or resume waits at
+  /// most one [nativeTimeout] behind a stuck background call).
+  Future<bool> _sendUser(int until) {
+    final job = _NativeJob(() => until, ifNeeded: () => false);
+    final at = _backgroundWaiting == null
+        ? _waiting.length
+        : _waiting.indexOf(_backgroundWaiting!);
+    _waiting.insert(at, job);
+    _pump();
+    return job.done.future;
+  }
 
-    _queued++;
-    final before = _tail;
-    final result = before == null ? run() : before.then((_) => run());
-    _tail = result.then((_) {
-      if (--_queued == 0) _tail = null;
-    });
-    return result;
+  /// Dart's state, read when the send starts, so a send that waited sends
+  /// the state as it is then. Requests while one waits share it (N2): ticks
+  /// never pile up sends behind a stuck call. With [ifNeeded] (and no other
+  /// request without it), nothing is sent when native already has it.
+  Future<bool> _sendBackground({bool ifNeeded = false}) {
+    final waiting = _backgroundWaiting;
+    if (waiting != null) {
+      if (!ifNeeded) waiting.force = true;
+      return waiting.done.future;
+    }
+    late final _NativeJob job;
+    job = _NativeJob(
+      () => _until,
+      ifNeeded: () {
+        if (identical(_backgroundWaiting, job)) _backgroundWaiting = null;
+        return !job.force;
+      },
+    )..force = !ifNeeded;
+    _backgroundWaiting = job;
+    _waiting.add(job);
+    _pump();
+    return job.done.future;
+  }
+
+  /// Runs the waiting calls one by one. The first one starts synchronously
+  /// when nothing is running, so [load]'s call leaves before it returns.
+  void _pump() {
+    if (_running || _waiting.isEmpty) return;
+    _running = true;
+    final job = _waiting.removeAt(0);
+    unawaited(_run(job));
+  }
+
+  Future<void> _run(_NativeJob job) async {
+    final skipIfSame = job.ifNeeded();
+    final until = job.value();
+    var ok = true;
+    if (!(skipIfSame && _nativeHas == until)) {
+      ok = await _call(until);
+      _nativeHas = ok ? until : null;
+    }
+    _running = false;
+    job.done.complete(ok);
+    // After the caller has seen the answer (a pause sets its state first),
+    // so the next send reads Dart's state as it is then.
+    scheduleMicrotask(_pump);
   }
 
   /// Dart's state as it is now. Sent synchronously when nothing waits.
   Future<void> _sendState() async {
-    if (!await _send(() => _until)) _backgroundFailed();
+    if (!await _sendBackground()) _backgroundFailed();
   }
 
   /// After a user's pause or resume: a tick that ran while it waited may
   /// have sent an older value after it (R1). Native code gets Dart's state
   /// again once every waiting call is done, unless it already has it.
   Future<void> _resync() async {
-    if (!await _send(() => _until, ifNeeded: true)) _backgroundFailed();
+    if (!await _sendBackground(ifNeeded: true)) _backgroundFailed();
   }
 
   void _backgroundFailed() {
@@ -259,7 +316,7 @@ class PauseService extends ChangeNotifier {
   Future<bool> pause(PauseLength length) async {
     final minutes = length.minutes;
     final until = minutes == null ? -1 : _clock() + minutes * 60 * 1000;
-    if (!await _send(() => until)) {
+    if (!await _sendUser(until)) {
       _failed(PauseError.apply);
       return false;
     }
@@ -276,7 +333,7 @@ class PauseService extends ChangeNotifier {
   /// Resumes history. False if native code could not be told, and then it
   /// stays paused ("Couldn't resume. Try again.").
   Future<bool> resume() async {
-    if (!await _send(() => 0)) {
+    if (!await _sendUser(0)) {
       _failed(PauseError.resume);
       return false;
     }
@@ -321,7 +378,7 @@ class PauseService extends ChangeNotifier {
     _ticks.value++;
     final changed = _settle(fromTimer: true);
     if (changed) {
-      if (await _send(() => _until)) {
+      if (await _sendBackground()) {
         _nativeInStep();
       } else {
         _backgroundFailed();
@@ -331,7 +388,7 @@ class PauseService extends ChangeNotifier {
     }
     if (_outOfStep && (_keepRetrying || !_retried)) {
       _retried = true;
-      if (await _send(() => _until)) {
+      if (await _sendBackground()) {
         _nativeInStep();
       } else if (_keepRetrying) {
         _error ??= PauseError.apply;
@@ -391,4 +448,20 @@ class PauseService extends ChangeNotifier {
     _ticks.dispose();
     super.dispose();
   }
+}
+
+/// One native call waiting its turn.
+class _NativeJob {
+  _NativeJob(this.value, {required this.ifNeeded});
+
+  /// The value to send, read when the call starts.
+  final int Function() value;
+
+  /// Asked when the call starts: true to send nothing if native code
+  /// already has the value.
+  final bool Function() ifNeeded;
+
+  /// A request that must send even when native seems to have the value.
+  var force = false;
+  final done = Completer<bool>();
 }
