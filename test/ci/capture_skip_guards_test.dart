@@ -200,18 +200,34 @@ void main() {
     });
 
     test('the Windows exe name is looked up only inside the capture check', () {
+      // R7: the lookup is defined once, in app_id.h, shared with typed
+      // shortcuts; the watcher calls it only for the owner and the
+      // foreground window inside DecideCapture's source lambda.
+      final header = _code('windows/runner/app_id.h');
+      expect(
+        RegExp(r'std::string AppIdOfWindow\(').allMatches(header).length,
+        1,
+      );
       final src = _code(_cppBridge);
-      final uses = RegExp(r'ExeNameOfWindow\(').allMatches(src).length;
-      // The definition and the two lookups (owner, foreground) inside
-      // DecideCapture's source lambda.
-      expect(uses, 3);
+      final uses = RegExp(r'AppIdOfWindow\(').allMatches(src).length;
+      expect(uses, 2);
       final start = src.indexOf('kusunga::DecideCapture(');
       final call = src.substring(start, src.indexOf('});', start));
       expect(
-        RegExp(r'ExeNameOfWindow\(').allMatches(call).length,
+        RegExp(r'AppIdOfWindow\(').allMatches(call).length,
         2,
         reason: 'both lookups happen in the decision',
       );
+      // No other runner file looks up a window's app for the watcher.
+      for (final f in Directory('windows/runner').listSync()) {
+        if (f is! File || f.path.endsWith('clipboard_bridge.cpp')) continue;
+        if (f.path.endsWith('app_id.h')) continue;
+        expect(
+          _code(f.path).contains('AppIdOfWindow('),
+          isFalse,
+          reason: f.path,
+        );
+      }
     });
 
     test('the gates hold no field for the source app', () {

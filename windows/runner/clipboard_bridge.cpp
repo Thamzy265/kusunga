@@ -10,6 +10,7 @@
 #include <set>
 #include <string>
 
+#include "app_id.h"
 #include "clipboard_policy.h"
 
 namespace {
@@ -69,29 +70,6 @@ bool ReadDword(UINT format, uint32_t* value) {
   std::memcpy(value, data, sizeof(uint32_t));
   ::GlobalUnlock(handle);
   return true;
-}
-
-// The exe file name of a window's process, lower case ("keepass.exe"), or
-// empty if it can't be read (no window, or a process that refuses, such as
-// an elevated one). Lives only for one capture check (ADR 0005).
-std::string ExeNameOfWindow(HWND window) {
-  if (!window) return std::string();
-  DWORD pid = 0;
-  ::GetWindowThreadProcessId(window, &pid);
-  if (!pid) return std::string();
-  HANDLE process =
-      ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
-  if (!process) return std::string();
-  wchar_t path[MAX_PATH] = {0};
-  DWORD size = MAX_PATH;
-  const BOOL ok = ::QueryFullProcessImageNameW(process, 0, path, &size);
-  ::CloseHandle(process);
-  if (!ok) return std::string();
-  const std::wstring full(path, size);
-  const size_t slash = full.find_last_of(L"\\/");
-  std::wstring name = slash == std::wstring::npos ? full : full.substr(slash + 1);
-  for (wchar_t& c : name) c = static_cast<wchar_t>(::towlower(c));
-  return ToUtf8(name.c_str(), name.size());
 }
 
 int64_t WallClockMs() {
@@ -367,8 +345,8 @@ void ClipboardBridge::OnClipboardUpdate() {
   const kusunga::CaptureDecision decision = kusunga::DecideCapture(
       flags, gate_, WallClockMs(), [] {
         return kusunga::ChooseSource(
-            [] { return ExeNameOfWindow(::GetClipboardOwner()); },
-            [] { return ExeNameOfWindow(::GetForegroundWindow()); });
+            [] { return kusunga::AppIdOfWindow(::GetClipboardOwner()); },
+            [] { return kusunga::AppIdOfWindow(::GetForegroundWindow()); });
       });
   switch (decision.outcome) {
     case kusunga::CaptureOutcome::kSecret:
