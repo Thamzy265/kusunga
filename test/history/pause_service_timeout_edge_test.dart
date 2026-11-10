@@ -17,6 +17,9 @@ class _Native {
 
   /// Which calls hang: by index of arrival. Others answer true at once.
   final hang = <int>{};
+
+  /// Calls (by index of arrival) that answer false at once.
+  final fail = <int>{};
   bool hangAll = false;
 
   Future<bool> call(int until) {
@@ -27,7 +30,7 @@ class _Native {
       pending.add((until, c));
       return c.future;
     }
-    return Future.value(true);
+    return Future.value(!fail.contains(i));
   }
 
   int get has => received.last;
@@ -197,22 +200,26 @@ void main() {
   });
 
   testWidgets('background requests share one waiting send: 20 ticks behind a '
-      'stuck call add at most one call', (tester) async {
+      'stuck call add exactly one call', (tester) async {
     final h = _H();
-    h.native.hangAll = true;
+    h.native.fail.add(0); // the launch send fails: Dart is out of step
+    h.native.hang.add(1); // the first retry hangs (running, not failed)
     h.service.load();
     await tester.pump();
-    final before = h.native.received.length;
-    h.now += 0;
+    expect(h.native.received.length, 1);
+    unawaited(h.service.tick()); // starts call 1, which hangs
+    await tester.pump();
+    expect(h.native.received.length, 2);
     for (var i = 0; i < 20; i++) {
-      unawaited(h.service.tick());
+      unawaited(h.service.tick()); // each asks for a send behind call 1
     }
     await tester.pump(const Duration(milliseconds: 100));
-    expect(h.native.received.length - before, 0, reason: 'still behind call 0');
+    expect(h.native.received.length, 2, reason: 'all still behind call 1');
     await tester.pump(_to + const Duration(milliseconds: 10));
-    // Call 0 timed out: exactly one shared send follows, however many ticks.
-    expect(h.native.received.length - before, lessThanOrEqualTo(1));
+    // Call 1 timed out: the 20 requests share exactly one send.
+    expect(h.native.received.length, 3);
     await tester.pump(const Duration(seconds: 60));
+    expect(h.native.received.length, 3, reason: 'native is in step now');
   });
 
   testWidgets('the waiting background send reads Dart state when it starts, '
