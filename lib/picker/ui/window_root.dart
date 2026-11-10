@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../history/history_service.dart';
 import '../../history/ui/history_host.dart';
 import '../../shortcuts/shortcut_service.dart';
+import '../../shortcuts/ui/ignored_apps_editor.dart';
 import '../../shortcuts/ui/typed_shortcuts_section.dart';
 import '../picker_controller.dart';
 import 'picker_panel.dart';
@@ -96,6 +97,7 @@ class _WindowRootState extends State<WindowRoot> {
           initial: picker.history,
           topSlot: PickerSettingsSection(controller: picker),
           snippetsTopSlot: _shortcutsSection(),
+          ignoredAppsSlot: _ignoredAppsEditor(),
           dataProfile: widget.dataProfile,
           dataProfileRejected: widget.dataProfileRejected,
         );
@@ -126,7 +128,22 @@ class _WindowRootState extends State<WindowRoot> {
           : TypedShortcutsSection(
               service: snap.data!,
               isMac: defaultTargetPlatform == TargetPlatform.macOS,
+              // This context is inside the main window (M1.6).
+              onEditIgnoredApps: () => HistoryHost.showIgnoredApps(context),
             ),
+    );
+  }
+
+  /// The ignored-apps list for the Privacy tab (M1.6): the same list typed
+  /// shortcuts use, always editable there.
+  Widget? _ignoredAppsEditor() {
+    final shortcuts = widget.shortcuts;
+    if (shortcuts == null) return null;
+    return FutureBuilder<ShortcutService>(
+      future: shortcuts,
+      builder: (context, snap) => snap.data == null
+          ? const SizedBox.shrink()
+          : IgnoredAppsEditor(service: snap.data!),
     );
   }
 

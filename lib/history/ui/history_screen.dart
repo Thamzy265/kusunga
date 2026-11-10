@@ -5,11 +5,13 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../../clipboard/clipboard_source.dart';
+import '../../privacy/ui/privacy_screen.dart' show pauseEndText;
 import '../../snippets/ui/snippet_editor.dart';
 import '../../theme/tokens.dart';
 import '../../ui/focus_order.dart';
 import '../clip_item.dart';
 import '../history_service.dart';
+import '../pause_service.dart';
 import 'history_row.dart';
 import 'limit_field.dart';
 
@@ -815,6 +817,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                       ),
                                     ),
                                     SizedBox(height: KusungaTokens.space3),
+                                    // M1.6: while paused, before the list
+                                    // (Resume comes first in tab order).
+                                    PausedBanner(pause: _service.pause),
                                     for (final b in _service.banners)
                                       _Banner(
                                         banner: b,
@@ -1110,6 +1115,86 @@ class _Banner extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// "History paused until 14:30. New copies aren't kept." with Resume (M1.6
+/// UI spec). Shown only while paused; the banner tokens of `_Banner`.
+class PausedBanner extends StatelessWidget {
+  const PausedBanner({super.key, required this.pause});
+
+  final PauseService pause;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: pause,
+      builder: (context, _) {
+        if (!pause.isPaused) return const SizedBox.shrink();
+        final t = KusungaTokens.of(context);
+        final end = pauseEndText(context, pause);
+        final text = end == null
+            ? "History paused. New copies aren't kept."
+            : "History paused until $end. New copies aren't kept.";
+        return Padding(
+          padding: EdgeInsets.only(bottom: KusungaTokens.space2),
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: KusungaTokens.space3,
+              vertical: KusungaTokens.space1,
+            ),
+            decoration: BoxDecoration(
+              color: t.bannerWarnBg,
+              borderRadius: BorderRadius.circular(KusungaTokens.radius2),
+            ),
+            // Text and Resume on one row when they fit; at narrow widths
+            // the text wraps and Resume moves below it.
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: KusungaTokens.space2,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ExcludeSemantics(
+                      child: Icon(
+                        Icons.pause,
+                        size: 16,
+                        color: t.bannerWarnText,
+                      ),
+                    ),
+                    SizedBox(width: KusungaTokens.space2),
+                    Flexible(
+                      child: Text(
+                        text,
+                        style: KusungaTokens.body.copyWith(
+                          color: t.bannerWarnText,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Semantics(
+                  identifier: 'history-paused-resume',
+                  label: 'Resume history',
+                  button: true,
+                  excludeSemantics: true,
+                  onTap: () => unawaited(pause.resume()),
+                  child: TextButton(
+                    onPressed: () => unawaited(pause.resume()),
+                    child: Text(
+                      'Resume',
+                      style: TextStyle(color: t.bannerWarnText),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -453,6 +453,7 @@ void main() {
       expect(focusedHook(), 'main-tab-snippets');
       await setScale(tester, 2);
       expect(focusedHook(), 'main-tab-snippets');
+      await press(tester); // the Privacy tab (M1.6)
       await press(tester); // New snippet
       expect(focusedHook(), 'snippet-new');
       await setScale(tester, 1);
@@ -858,6 +859,7 @@ void main() {
             await wheel(tester, SnippetsScreen, -50000);
             await wheel(tester, SnippetsScreen, dy);
             await tapTab(tester, 'main-tab-snippets');
+            await press(tester); // the Privacy tab (M1.6)
             await press(tester); // New snippet
             await press(tester); // into the list
             final id = focusedSnippetItem();

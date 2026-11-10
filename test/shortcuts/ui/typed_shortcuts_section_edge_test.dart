@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/shortcuts/ignored_apps.dart';
 import 'package:kusunga/shortcuts/shortcut_service.dart';
 import 'package:kusunga/shortcuts/typed_shortcuts_port.dart';
+import 'package:kusunga/shortcuts/ui/ignored_apps_editor.dart';
 import 'package:kusunga/shortcuts/ui/typed_shortcuts_section.dart';
 import 'package:kusunga/snippets/memory_snippet_store.dart';
 import 'package:kusunga/snippets/snippet_service.dart';
@@ -34,6 +35,8 @@ void main() {
     double width = 800,
     double textScale = 1,
     Brightness brightness = Brightness.light,
+    bool editor = false,
+    VoidCallback? onEditIgnoredApps,
   }) async {
     service = ShortcutService(
       port: port,
@@ -65,7 +68,14 @@ void main() {
         theme: KusungaTokens.themeData(brightness),
         home: Scaffold(
           body: SingleChildScrollView(
-            child: TypedShortcutsSection(service: service, isMac: isMac),
+            // M1.6: the list is edited in the Privacy tab's editor.
+            child: editor
+                ? IgnoredAppsEditor(service: service)
+                : TypedShortcutsSection(
+                    service: service,
+                    isMac: isMac,
+                    onEditIgnoredApps: onEditIgnoredApps,
+                  ),
           ),
         ),
       ),
@@ -108,38 +118,43 @@ void main() {
   }
 
   group('keyboard and names', () {
-    testWidgets('focus order: switch, Open System Settings, every Remove in '
-        'order, Add app, Restore preset list', (tester) async {
+    testWidgets('focus order in the section: switch, Open System Settings, '
+        'Edit ignored apps (M1.6: the chips are read only)', (tester) async {
       port.onStatus = TypedShortcutStatus.needsPermission;
-      await show(tester, width: 1000);
+      await show(tester, width: 1000, onEditIgnoredApps: () {});
       await toggle(tester); // opens the card
       await tester.tap(hook('typed-shortcuts-card-continue'));
       await tester.pumpAndSettle();
-      expect(
-        find.text('Needs Input Monitoring.', findRichText: true),
-        findsNothing,
-      );
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
+      final order = await tabThrough(tester, 3);
+      expect(order, [
+        'typed-shortcuts-switch',
+        'typed-shortcuts-open-settings',
+        'typed-shortcuts-edit-ignored',
+      ]);
+    });
+
+    testWidgets('focus order in the list editor: every Remove in order, Add '
+        'app, Restore preset list', (tester) async {
+      await show(tester, width: 1000, editor: true);
       // Remove one preset so Restore shows.
       service.removeApp('com.bitwarden.desktop');
       await tester.pump();
       final mac = service.ignoredApps.map((a) => a.appId).toList();
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump();
-      final order = await tabThrough(tester, 2 + mac.length + 1);
-      expect(order.first, 'typed-shortcuts-switch');
-      expect(order[1], 'typed-shortcuts-open-settings');
-      expect(order.sublist(2, 2 + mac.length), [
+      final order = await tabThrough(tester, mac.length + 2);
+      expect(order.sublist(0, mac.length), [
         for (final id in mac) 'ignored-app-remove-$id',
       ]);
-      expect(order[2 + mac.length], 'typed-shortcuts-add-app');
-      final more = await tabThrough(tester, 1);
-      expect(more.single, 'typed-shortcuts-restore-presets');
+      expect(order[mac.length], 'typed-shortcuts-add-app');
+      expect(order[mac.length + 1], 'typed-shortcuts-restore-presets');
     });
 
     testWidgets('accessible names: Remove <name> from ignored apps and Add an '
         'app to ignore', (tester) async {
-      await show(tester);
-      await toggle(tester);
+      await show(tester, editor: true);
       expect(
         tester
             .getSemantics(hook('ignored-app-remove-com.1password.1password'))
@@ -150,22 +165,18 @@ void main() {
         tester.getSemantics(hook('typed-shortcuts-add-app')).label,
         'Add an app to ignore',
       );
-      expect(
-        tester.getSemantics(hook('typed-shortcuts-switch')).label,
-        contains('Typed shortcuts'),
-      );
     });
 
-    testWidgets('the ignore list is hidden while the switch is off', (
-      tester,
-    ) async {
-      await show(tester);
-      expect(hook('typed-shortcuts-add-app'), findsNothing);
+    testWidgets('the read-only list and its link are hidden while the '
+        'switch is off', (tester) async {
+      await show(tester, onEditIgnoredApps: () {});
+      expect(hook('typed-shortcuts-edit-ignored'), findsNothing);
       expect(find.text('1Password'), findsNothing);
       await toggle(tester);
-      expect(hook('typed-shortcuts-add-app'), findsOneWidget);
+      expect(hook('typed-shortcuts-edit-ignored'), findsOneWidget);
+      expect(find.text('1Password'), findsOneWidget);
       await toggle(tester);
-      expect(hook('typed-shortcuts-add-app'), findsNothing);
+      expect(hook('typed-shortcuts-edit-ignored'), findsNothing);
     });
 
     testWidgets('an unavailable switch does nothing when tapped or toggled by '
@@ -188,8 +199,7 @@ void main() {
   group('Undo', () {
     testWidgets('the toast and Undo are gone after 5 s and the app stays '
         'removed', (tester) async {
-      await show(tester);
-      await toggle(tester);
+      await show(tester, editor: true);
       await tester.tap(hook('ignored-app-remove-com.bitwarden.desktop'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
@@ -205,8 +215,7 @@ void main() {
     });
 
     testWidgets('Undo sends the list to native again', (tester) async {
-      await show(tester);
-      await toggle(tester);
+      await show(tester, editor: true);
       await tester.tap(hook('ignored-app-remove-com.bitwarden.desktop'));
       await tester.pump();
       expect(port.ignoredSent.last, isNot(contains('com.bitwarden.desktop')));
@@ -292,11 +301,10 @@ void main() {
     testWidgets('Esc closes the list without adding and focus returns to Add '
         'app…', (tester) async {
       port.apps = apps;
-      await show(tester);
-      await toggle(tester);
+      await show(tester, editor: true);
       final before = service.ignoredApps.length;
       final order = <String?>[];
-      for (var i = 0; i < 12 && focusedId() != 'typed-shortcuts-add-app'; i++) {
+      for (var i = 0; i < 30 && focusedId() != 'typed-shortcuts-add-app'; i++) {
         await tester.sendKeyEvent(LogicalKeyboardKey.tab);
         await tester.pump();
         order.add(focusedId());
@@ -317,8 +325,7 @@ void main() {
       port.apps = const [
         RunningApp(appId: 'com.1password.1password', name: '1Password'),
       ];
-      await show(tester);
-      await toggle(tester);
+      await show(tester, editor: true);
       final before = service.ignoredApps.length;
       await tester.tap(hook('typed-shortcuts-add-app'));
       await tester.pumpAndSettle();
@@ -333,8 +340,7 @@ void main() {
     testWidgets('a search with no match adds nothing on Enter and does not '
         'crash', (tester) async {
       port.apps = apps;
-      await show(tester);
-      await toggle(tester);
+      await show(tester, editor: true);
       final before = service.ignoredApps.length;
       await tester.tap(hook('typed-shortcuts-add-app'));
       await tester.pumpAndSettle();
@@ -350,8 +356,7 @@ void main() {
       tester,
     ) async {
       port.apps = apps;
-      await show(tester);
-      await toggle(tester);
+      await show(tester, editor: true);
       await tester.tap(hook('typed-shortcuts-add-app'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), '  MY bank ');
@@ -375,8 +380,7 @@ void main() {
         RunningApp(appId: 'com.example.long', name: 'L' * 100),
         ...apps,
       ];
-      await show(tester, width: 360, textScale: 2);
-      await toggle(tester);
+      await show(tester, editor: true, width: 360, textScale: 2);
       await tester.tap(hook('typed-shortcuts-add-app'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
@@ -387,8 +391,7 @@ void main() {
       'the add-app list shows "Finding apps…" only if native is slow',
       (tester) async {
         port.apps = apps;
-        await show(tester);
-        await toggle(tester);
+        await show(tester, editor: true);
         await tester.tap(hook('typed-shortcuts-add-app'));
         await tester.pump(const Duration(milliseconds: 100));
         expect(find.text('Finding apps…'), findsNothing);

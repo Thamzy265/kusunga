@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/shortcuts/ignored_apps.dart';
 import 'package:kusunga/shortcuts/shortcut_service.dart';
 import 'package:kusunga/shortcuts/typed_shortcuts_port.dart';
+import 'package:kusunga/shortcuts/ui/ignored_apps_editor.dart';
 import 'package:kusunga/shortcuts/ui/typed_shortcuts_section.dart';
 import 'package:kusunga/snippets/memory_snippet_store.dart';
 import 'package:kusunga/snippets/snippet_service.dart';
@@ -35,6 +36,7 @@ void main() {
     bool available = true,
     double width = 800,
     double textScale = 1,
+    bool editor = false,
   }) async {
     service = ShortcutService(
       port: port,
@@ -66,7 +68,10 @@ void main() {
         theme: KusungaTokens.themeData(Brightness.light),
         home: Scaffold(
           body: SingleChildScrollView(
-            child: TypedShortcutsSection(service: service, isMac: isMac),
+            // M1.6: the list is edited in the Privacy tab's editor.
+            child: editor
+                ? IgnoredAppsEditor(service: service)
+                : TypedShortcutsSection(service: service, isMac: isMac),
           ),
         ),
       ),
@@ -123,7 +128,7 @@ void main() {
       );
     });
 
-    testWidgets('on: "On", the status, the preset chips and the buttons', (
+    testWidgets('on: "On", the status and the read-only preset chips', (
       tester,
     ) async {
       await show(tester);
@@ -135,6 +140,7 @@ void main() {
         find.text('On · Skipped in password fields and these apps:'),
         findsOneWidget,
       );
+      // M1.6: the chips are read only here; editing is in the Privacy tab.
       for (final name in [
         '1Password',
         '1Password 7',
@@ -146,16 +152,12 @@ void main() {
         expect(
           props(
             tester,
-            'ignored-app-remove-${presetIgnoredApps.firstWhere((a) => a.displayName == name).appId}',
+            'typed-shortcuts-ignored-${presetIgnoredApps.firstWhere((a) => a.displayName == name).appId}',
           ).label,
-          'Remove $name from ignored apps',
+          name,
         );
       }
-      expect(find.text('Add app…'), findsOneWidget);
-      expect(
-        props(tester, 'typed-shortcuts-add-app').label,
-        'Add an app to ignore',
-      );
+      expect(find.text('Add app…'), findsNothing);
       expect(find.text('Restore preset list'), findsNothing);
     });
 
@@ -397,8 +399,7 @@ void main() {
   group('ignored apps', () {
     testWidgets('Remove shows "<name> removed" with Undo for 5 s; Undo puts '
         'it back', (tester) async {
-      await show(tester);
-      await toggle(tester);
+      await show(tester, editor: true);
       await tester.tap(hook('ignored-app-remove-com.bitwarden.desktop'));
       await tester.pump();
       expect(find.text('Bitwarden'), findsNothing);
@@ -412,8 +413,7 @@ void main() {
     });
 
     testWidgets('Restore preset list', (tester) async {
-      await show(tester);
-      await toggle(tester);
+      await show(tester, editor: true);
       await tester.tap(hook('ignored-app-remove-com.bitwarden.desktop'));
       await tester.pump();
       await tester.tap(hook('typed-shortcuts-restore-presets'));
@@ -437,8 +437,7 @@ void main() {
 
     testWidgets('a save that fails: the toast', (tester) async {
       ignored = _BrokenIgnored();
-      await show(tester);
-      await toggle(tester);
+      await show(tester, editor: true);
       await tester.tap(hook('ignored-app-remove-com.bitwarden.desktop'));
       await tester.pump();
       expect(find.text("Couldn't update the list. Try again."), findsOneWidget);
@@ -449,8 +448,7 @@ void main() {
         'accessible name', (tester) async {
       final long = 'A banking app with a very long name indeed';
       ignored.add(IgnoredApp('com.example.long', long));
-      await show(tester);
-      await toggle(tester);
+      await show(tester, editor: true);
       expect(find.text(long), findsNothing);
       expect(find.textContaining('…'), findsWidgets);
       expect(
@@ -460,8 +458,7 @@ void main() {
     });
 
     testWidgets('remove buttons are at least 24 px', (tester) async {
-      await show(tester);
-      await toggle(tester);
+      await show(tester, editor: true);
       final size = tester.getSize(
         hook('ignored-app-remove-com.bitwarden.desktop'),
       );
@@ -480,8 +477,7 @@ void main() {
         const RunningApp(appId: 'com.1password.1password', name: '1Password'),
         const RunningApp(appId: 'com.example.bank', name: 'My Bank'),
       ];
-      await show(tester);
-      await toggle(tester);
+      await show(tester, editor: true);
       await tester.tap(find.text('Add app…'));
       await tester.pumpAndSettle();
       expect(find.text('Choose an app'), findsOneWidget);
@@ -504,8 +500,7 @@ void main() {
       port.apps = const [
         RunningApp(appId: 'com.example.bank', name: 'My Bank'),
       ];
-      await show(tester);
-      await toggle(tester);
+      await show(tester, editor: true);
       await tester.tap(find.text('Add app…'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('My Bank'));
@@ -514,8 +509,7 @@ void main() {
     });
 
     testWidgets('no other apps open', (tester) async {
-      await show(tester);
-      await toggle(tester);
+      await show(tester, editor: true);
       await tester.tap(find.text('Add app…'));
       await tester.pumpAndSettle();
       expect(
@@ -525,8 +519,7 @@ void main() {
     });
 
     testWidgets('the search field has its placeholder', (tester) async {
-      await show(tester);
-      await toggle(tester);
+      await show(tester, editor: true);
       await tester.tap(find.text('Add app…'));
       await tester.pumpAndSettle();
       expect(find.text('Search apps…'), findsOneWidget);
