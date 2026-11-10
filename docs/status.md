@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-10 — M1.7 Settings and expiry — design drafted, waiting for the PM
+- Changed: Lead resized M1.7 from small to large (personal-data retention; login items on Mac and Windows; controls move across tabs). Wrote docs/design/settings-and-expiry.md, docs/ui/settings-and-expiry.md and docs/slides/settings-and-expiry.html. Facts from a scout lookup of main: clip_items has created_at and last_copied_at; secure_delete is on; rollback journal, not WAL; snippets in their own table; no launch-at-login code; macOS target 12.0. No branch and no developer brief yet.
+- Gates: developer not started (waiting for deck approval) · tester — · reviewer — · QA — · PM merge —
+- Open findings: none
+- Decisions: open for the PM — D1 where settings live (rec. A, a new Settings tab); D2 which time starts the clock (rec. A, last copied); D3 default auto-delete (rec. B, 30 days for new installs, Never for existing data); D4 login on macOS 12 (rec. B, disabled with a note); D5 window at login (rec. A, menu bar or tray only). Assumed unless the PM objects: lawful basis n/a; no ADR; the resize to large.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — approve the M1.7 deck and D1–D5; push of main; VoiceOver (M1.6 PM check 3, M1.5 items); optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-10 — M1.6 Sensitive-content protection — merged to main (done)
 - Changed: feat/sensitive-content merged into main with --no-ff as 685eccf (50 commits). Checks on merged main: check.sh 2916 passed, 10 skipped ("All tests passed!"); test_mac_capture.sh 40/0; test_mac_shortcuts.sh 165/0; test_mac_shortcuts_release.sh 153/0; test_windows_policy.sh all 8 programs passed. M1.6 ticked in docs/PLAN.md. Not pushed.
 - Gates: developer pass · tester pass · reviewer approve with notes · QA pass · PM merge approved

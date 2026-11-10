@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M1.7 Settings and expiry</title>
+<!--
+  Deck template: one self-contained file. No external scripts, fonts or trackers.
+  Each <section class="slide"> is one slide. Keys: → ↓ Space PageDown = next; ← ↑ PageUp = back;
+  Home/End = first/last. URL hash (#3) links to a slide. Print (Cmd/Ctrl+P) gives one slide per page.
+-->
+<style>
+  :root {
+    --bg: #f7f6f2; --surface: #ffffff; --text: #1d1d1b; --muted: #5f5e58;
+    --line: #dedcd3; --accent: #c2512f; --accent-soft: #f6e3dc;
+    --ok: #2f7a4f; --ok-soft: #dcefe3; --warn: #9a6a00; --warn-soft: #f7ecd2;
+    --no: #a33a3a; --no-soft: #f6dcdc;
+    --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161614; --surface: #201f1c; --text: #ecebe6; --muted: #a8a69e;
+      --line: #36352f; --accent: #e8805f; --accent-soft: #3a2620;
+      --ok: #6cc290; --ok-soft: #1d3326; --warn: #e0b04d; --warn-soft: #3a3020;
+      --no: #e57f7f; --no-soft: #3d2222;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161614; --surface: #201f1c; --text: #ecebe6; --muted: #a8a69e;
+    --line: #36352f; --accent: #e8805f; --accent-soft: #3a2620;
+    --ok: #6cc290; --ok-soft: #1d3326; --warn: #e0b04d; --warn-soft: #3a3020;
+    --no: #e57f7f; --no-soft: #3d2222;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.45; }
+
+  .slide { display: none; min-height: 100vh; padding: clamp(24px, 6vh, 64px) clamp(16px, 7vw, 96px) 88px; flex-direction: column; justify-content: center; }
+  .slide.active { display: flex; }
+  .slide > .inner { width: 100%; max-width: 1080px; margin: 0 auto; }
+
+  .kicker { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin: 0 0 10px; }
+  h1 { font-size: clamp(34px, 6vw, 64px); line-height: 1.05; margin: 0 0 18px; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(26px, 4vw, 40px); line-height: 1.12; margin: 0 0 22px; letter-spacing: -0.01em; }
+  h3 { font-size: 17px; margin: 0 0 8px; }
+  p, li { font-size: clamp(16px, 1.6vw, 20px); }
+  p.lead { font-size: clamp(18px, 2.1vw, 24px); color: var(--muted); max-width: 46ch; }
+  ul { margin: 0; padding-left: 1.2em; } li { margin: 6px 0; }
+  .small { font-size: 14px; color: var(--muted); }
+  code { font-family: var(--mono); font-size: .9em; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @media (max-width: 760px) { .g2, .g3 { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  .card p, .card li { font-size: 16px; margin: 4px 0; }
+  .card.ok { background: var(--ok-soft); border-color: transparent; }
+  .card.warn { background: var(--warn-soft); border-color: transparent; }
+  .card.no { background: var(--no-soft); border-color: transparent; }
+  .card.accent { background: var(--accent-soft); border-color: transparent; }
+  .tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); margin-right: 6px; }
+
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 14px; }
+  .flow .step { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font-size: 16px; }
+  .flow .step b { color: var(--accent); }
+  .flow .arrow { color: var(--muted); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 16px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+  .table-wrap { overflow-x: auto; }
+
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--bg); border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+  .bar button { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; min-width: 44px; min-height: 36px; }
+  .bar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .bar .title { margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .progress { position: fixed; left: 0; top: 0; height: 3px; background: var(--accent); transition: width .2s ease; }
+
+  @media print {
+    .bar, .progress { display: none; }
+    .slide { display: flex !important; min-height: 0; height: 100vh; page-break-after: always; break-after: page; padding: 40px 56px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .progress { transition: none; } }
+</style>
+</head>
+<body>
+<div class="progress" id="progress" aria-hidden="true"></div>
+<main id="deck">
+
+
+<section class="slide" aria-label="Title">
+  <div class="inner">
+    <p class="kicker">Kusunga · M1.7 · 2026-11-10</p>
+    <h1>Settings and expiry</h1>
+    <p class="lead">All settings in one place, old history removed after a time you choose, and Kusunga starting when you log in.</p>
+    <p class="small">Use the arrow keys to move between slides · Print to save as PDF</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="Problem and users">
+  <div class="inner">
+    <p class="kicker">Problem and users</p>
+    <h2>History only goes when it is pushed out by newer copies</h2>
+    <div class="grid g2">
+      <div class="card"><h3>Who</h3><p>Anyone who uses Kusunga every day.</p></div>
+      <div class="card"><h3>The job they are doing</h3><p>Keeping recent copies handy without keeping last month's copies for ever, and having Kusunga ready after a restart.</p></div>
+      <div class="card warn"><h3>Today's pain</h3><p>A copy stays until 200 newer copies push it out, which can take weeks. Kusunga has to be opened by hand after every login. Settings are spread over three tabs.</p></div>
+      <div class="card ok"><h3>Success measure</h3><p>Nothing older than the chosen time is shown or kept. A shorter time always says how many items will go. The login switch always matches the OS.</p></div>
+    </div>
+    <p class="small">Plan item M1.7 (docs/PLAN.md). Resized from small to large: it changes how long personal data is kept and adds login items on two OSes. Details: docs/design/settings-and-expiry.md, docs/ui/settings-and-expiry.md.</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="Scope for this phase">
+  <div class="inner">
+    <p class="kicker">Scope for this phase</p>
+    <h2>Two new settings, and one Settings tab for all of them</h2>
+    <div class="grid g2">
+      <div class="card ok"><h3>In this phase</h3><ul>
+        <li>Auto-delete: Never, after 1 day, 7 days or 30 days. Snippets are never removed</li>
+        <li>Launch at login, off until you turn it on, starting in the menu bar or tray</li>
+        <li>A Settings tab with the history limit, the picker shortcut, auto-delete and launch at login</li>
+        <li>A link to Privacy for the ignore list and pause</li>
+      </ul></div>
+      <div class="card warn"><h3>Deferred (Later lines with triggers)</h3><ul>
+        <li>Auto-delete after 1 hour, trigger: ≥ 5 beta requests (Pause covers short moments)</li>
+        <li>Auto-delete per app, trigger: ≥ 5 beta requests</li>
+        <li>Export and import of settings: already planned in M1.8</li>
+      </ul></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" aria-label="How auto-delete works">
+  <div class="inner">
+    <p class="kicker">How it works</p>
+    <h2>Hidden at once, deleted soon after</h2>
+    <div class="flow">
+      <span class="step"><b>1</b> Expired items are left out of History and the picker straight away</span><span class="arrow">→</span>
+      <span class="step"><b>2</b> A clean-up deletes them at launch, every 15 minutes and on wake</span><span class="arrow">→</span>
+      <span class="step"><b>3</b> Deleted text is overwritten in the encrypted file</span>
+    </div>
+    <div class="grid g2">
+      <div class="card"><h3>Login on Mac</h3><p>The built-in macOS login item (macOS 13 and later). It works inside the sandbox and needs no helper app. If macOS asks you to allow it, Kusunga shows a button to the right System Settings page.</p></div>
+      <div class="card"><h3>Login on Windows</h3><p>The usual per-user start-up entry, with no admin rights. If you turn it off in Task Manager, Kusunga shows that.</p></div>
+    </div>
+    <p class="small">The OS holds the login setting, not Kusunga, so the switch can't drift from what really happens.</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="Data and privacy">
+  <div class="inner">
+    <p class="kicker">Data and privacy</p>
+    <h2>This item makes Kusunga keep data for less time</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Field</th><th>Purpose</th><th>Retention</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Auto-delete time</td><td>Remove history after the chosen time</td><td>Until you change it</td><td>In the encrypted file</td></tr>
+        <tr><td>Launch at login</td><td>Start Kusunga at login</td><td>Held by the OS</td><td>Not stored by Kusunga</td></tr>
+      </tbody>
+    </table></div>
+    <div class="card warn" style="margin-top:14px"><h3>Needs PM</h3><p>Lawful basis: likely n/a, because nothing leaves the device (as plan D7). DPIA screening: no new trigger. The default auto-delete time is decision D3.</p></div>
+  </div>
+</section>
+
+<section class="slide" aria-label="Security and risks">
+  <div class="inner">
+    <p class="kicker">Security and risks</p>
+    <h2>The main risks</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td>An upgrade deletes someone's existing history</td><td>Lost copies</td><td>Existing data starts on Never (D3 B). A shorter time always asks first, with a count</td></tr>
+        <tr><td>Someone at your unlocked computer picks a shorter time</td><td>History deleted</td><td>A confirm dialog with the count. The same as Clear history today</td></tr>
+        <tr><td>The computer clock is set wrong</td><td>Items go early (clock ahead) or stay longer (clock behind)</td><td>Both are visible and fix themselves when the clock is right</td></tr>
+        <tr><td>Windows code can't be run until CI billing is sorted (F5)</td><td>Windows bugs found late</td><td>Unit tests now. Windows QA before M1.9</td></tr>
+        <tr><td>macOS can't tell Kusunga it was started at login</td><td>The window opens at login</td><td>Fall back to today's behaviour. QA checks it</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<section class="slide" aria-label="Plan and how you'll check it">
+  <div class="inner">
+    <p class="kicker">Plan and how you'll check it</p>
+    <h2>Built in three steps</h2>
+    <div class="flow">
+      <span class="step"><b>1</b> Auto-delete setting and clean-up</span><span class="arrow">→</span>
+      <span class="step"><b>2</b> Launch at login on Mac, then Windows</span><span class="arrow">→</span>
+      <span class="step"><b>3</b> Settings tab</span>
+    </div>
+    <div class="card accent"><h3>How we will check it</h3><ul>
+      <li>Automated: tests for the clean-up clock (including a clock change and a wake), the upgrade default, the confirm count and the login bridges</li>
+      <li>QA on your Mac in the test profile: auto-delete removes old test items, the Settings tab, and the login switch</li>
+      <li>What only you can check: a real log-out and log-in, and any macOS "allow" prompt. Also VoiceOver</li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="slide" aria-label="Decisions needed">
+  <div class="inner">
+    <p class="kicker">Decisions needed</p>
+    <h2>5 decisions for you</h2>
+    <div class="grid g2">
+      <div class="card warn"><h3>1. Where do settings live?</h3><p>Options: A, a new Settings tab, with the limit and the picker shortcut moved there; or B, leave those in History and add a small Settings tab for the new ones</p><p><b>Recommendation:</b> A, so every setting is in one place</p></div>
+      <div class="card warn"><h3>2. Which time starts the clock?</h3><p>Options: A, the last time you copied the item; or B, the first time</p><p><b>Recommendation:</b> A, because something you keep copying is something you still use</p></div>
+      <div class="card warn"><h3>3. Default auto-delete</h3><p>Options: A, Never for everyone; B, 30 days for new installs and Never for existing history; or C, 7 days for new installs and Never for existing history</p><p><b>Recommendation:</b> B: private by default for new users, and nobody's history is deleted by an upgrade</p></div>
+      <div class="card warn"><h3>4. Login on macOS 12</h3><p>Options: A, raise the minimum to macOS 13; or B, show the switch disabled on macOS 12 with "Needs macOS 13 or later"</p><p><b>Recommendation:</b> B, which cuts nobody off now. Revisit at M1.9</p></div>
+      <div class="card warn"><h3>5. Open the window at login?</h3><p>Options: A, no, start in the menu bar or tray only; or B, open the window as today</p><p><b>Recommendation:</b> A, so a login start doesn't put a window in front of you</p></div>
+    </div>
+    <p class="small">Assumed yes unless you say otherwise: lawful basis n/a while nothing leaves the device (as plan D7); no ADR, because none of these choices is hard to reverse; M1.7 resized to large.</p>
+  </div>
+</section>
+
+
+
+</main>
+
+<nav class="bar" aria-label="Slide controls">
+  <span class="title" id="title">Kusunga M1.7</span>
+  <span id="count" aria-live="polite"></span>
+  <button type="button" id="prev" aria-label="Previous slide">←</button>
+  <button type="button" id="next" aria-label="Next slide">→</button>
+  <button type="button" id="theme" aria-label="Switch light or dark theme">◐</button>
+</nav>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var i = 0;
+  function fromHash() {
+    var n = parseInt(location.hash.slice(1), 10);
+    return isNaN(n) ? 0 : Math.min(Math.max(n - 1, 0), slides.length - 1);
+  }
+  function show(n) {
+    i = Math.min(Math.max(n, 0), slides.length - 1);
+    slides.forEach(function (s, k) { s.classList.toggle('active', k === i); });
+    document.getElementById('count').textContent = (i + 1) + ' / ' + slides.length;
+    document.getElementById('progress').style.width = ((i + 1) / slides.length * 100) + '%';
+    document.getElementById('title').textContent = slides[i].getAttribute('aria-label') || document.title;
+    if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', '#' + (i + 1));
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.target.closest && e.target.closest('input, textarea')) return;
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].indexOf(e.key) >= 0) { e.preventDefault(); show(i + 1); }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp'].indexOf(e.key) >= 0) { e.preventDefault(); show(i - 1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(slides.length - 1);
+  });
+  document.getElementById('prev').addEventListener('click', function () { show(i - 1); });
+  document.getElementById('next').addEventListener('click', function () { show(i + 1); });
+  document.getElementById('theme').addEventListener('click', function () {
+    var root = document.documentElement;
+    var dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = dark ? 'light' : 'dark';
+  });
+  window.addEventListener('hashchange', function () { show(fromHash()); });
+  show(fromHash());
+})();
+</script>
+</body>
+</html>
