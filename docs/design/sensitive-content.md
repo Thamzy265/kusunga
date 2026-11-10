@@ -59,7 +59,7 @@ Trivially small. A person copies at most a few times a minute. The list holds at
   - It is added to `HistoryStore.storedSettingKeys`.
   - It is stored in the encrypted file, so it survives a restart (decision D3).
 - **Schema v5**, expand only, inserts any new verified preset rows (decision D2). For example, on Mac: LastPass, Enpass, NordPass, Proton Pass, Dashlane. On Windows, the same names' exe files. The developer verifies each id from the installed app or a public listing, as in M1.5, and lists the unverified ones. `INSERT OR IGNORE` keeps a preset the user removed removed: a migration only adds ids that were never presets before.
-- **Rollback:** an older build sees schema v5 as "made by a newer version" (the existing incompatible banner) and the `.bak` copy from the migration stays. No row is changed or deleted.
+- **Rollback:** an older build sees schema v5 as "made by a newer version" (the existing incompatible banner), runs memory only and never changes the file. The M1.2 runner writes `kusunga.db.bak` before the migration, keeps it if a step fails, and deletes it once every step succeeds (M1.2 design, `sqlite_history_store.dart` `_migrate`), so there is no `.bak` after a successful v4 → v5 migration. No row is changed or deleted.
 
 ## How the source app is found
 
@@ -197,7 +197,7 @@ Not legal advice. Items marked "PM decides" need the PM's decision before the de
 
 1. Schema v5 (new presets only), then `PauseService` and its setting, then the native skip on Mac, then Windows, then the tray menu, then the Privacy tab and the banner.
 2. The pause defaults to off, and the list is the M1.5 list plus new presets, so there is no behaviour change until the user acts. The one exception is that copies from preset password managers stop being recorded at once, which is the AC.
-3. Rollback: revert the merge. Schema v5 stays, and the older build shows the incompatible banner and keeps the `.bak` copy.
+3. Rollback: revert the merge. Schema v5 stays, and the older build shows the incompatible banner, runs memory only and leaves the file unchanged. There is no `.bak` after a successful migration (see Data model).
 
 ## Later lines
 
