@@ -138,8 +138,9 @@ class HistoryService extends ChangeNotifier {
     try {
       ids = [for (final a in ignoredApps.list()) a.appId];
     } catch (_) {
+      // Never an empty list: the presets keep password managers out (R4).
       _log.log(LogCode.readFailed);
-      ids = const [];
+      ids = [for (final a in presetIgnoredApps) a.appId];
     }
     unawaited(setCaptureIgnored(ids));
     _subscription = _source.events.listen(

@@ -85,7 +85,14 @@ class ShortcutService extends ChangeNotifier {
   Future<void> start() async {
     _events = port.events.listen(_onEvent);
     _snippets.addListener(_syncTable);
-    _loadIgnored();
+    if (!_loadIgnored()) {
+      // Never an empty list to either native side: this system's presets
+      // keep password managers out until the list can be read (R4).
+      _apps = [
+        for (final p in presetIgnoredApps)
+          if (appIdIsForWindows(p.appId) == isWindows) p,
+      ];
+    }
     await _sendIgnored();
     _syncTable();
     if (!available) return;
@@ -94,14 +101,17 @@ class ShortcutService extends ChangeNotifier {
     _notify();
   }
 
-  void _loadIgnored() {
+  /// False if the list could not be read; [_apps] is then unchanged.
+  bool _loadIgnored() {
     try {
       _apps = [
         for (final a in _ignored.list())
           if (appIdIsForWindows(a.appId) == isWindows) a,
       ];
+      return true;
     } catch (_) {
       _log.log(LogCode.readFailed);
+      return false;
     }
   }
 
