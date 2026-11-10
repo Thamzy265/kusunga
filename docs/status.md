@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-10 — M1.6 Sensitive-content protection — design ready for PM
+- Changed: Design note docs/design/sensitive-content.md, ADR 0005 (proposed: capture skips decided in native code before reading; the source app never leaves native code), UI spec docs/ui/sensitive-content.md, deck docs/slides/sensitive-content.html, on feat/sensitive-content. Recommended option A. Scope: ignore list stops capture (shared with typed shortcuts), new verified password-manager presets (schema v5), Pause history 15 min / 1 h / until resumed from the tray and a new Privacy tab, a History banner and tray tooltip while paused. Five Later lines proposed.
+- Gates: design waiting for PM approval · developer not briefed · tester, reviewer, QA not started · PM merge n/a yet
+- Open findings: none
+- Decisions: open for PM: D1 one list or two; D2 banking app presets (recommend password managers only, AC wording change); D3 pause survives restart; D4 Privacy tab; D5 Mac source marker; lawful basis (likely n/a); DPIA screening: no new trigger
+- Blockers: PM — deck approval and D1-D5; VoiceOver on the M1.5 switch, status and chips; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-10 — M1.6 Sensitive-content protection — started
 - Changed: PM said "Yes, start M1.6". Size: large — personal data (which apps the user copies from, a capture-pause state) and changes to clipboard capture on Mac and Windows. Branch feat/sensitive-content from main 5170b08. Lead is writing the design note, privacy section, UI spec and deck; the developer is not briefed until the PM approves the deck.
 - Gates: design in progress · developer not briefed · tester, reviewer, QA not started · PM merge n/a yet
