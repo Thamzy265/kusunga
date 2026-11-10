@@ -491,6 +491,14 @@ void main() {
         expect(rejected([lead * 1000000 + base, 'qa']), isTrue);
         final small = fastest([lead * 100000 + base, 'qa']);
         final large = fastest([lead * 1000000 + base, 'qa']);
+        // A loose absolute bound too (fastest of three 1 MB runs), so a
+        // linear but very slow check still fails; the ratio above guards
+        // growth under load.
+        expect(
+          large,
+          lessThan(2000000),
+          reason: 'lead ${lead.codeUnitAt(0)}: 1 MB took $large µs at best',
+        );
         expect(
           large / small,
           lessThan(40),
