@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-10 — M1.6 Sensitive-content protection — PM: Mac free for QA
+- Changed: QA briefed on feat/sensitive-content at 66e8f53, test profile qa only.
+- Gates: developer pass · tester pass · reviewer approve with notes · QA running · PM merge waiting
+- Open findings: none
+- Decisions: PM said: "Mac is free" (2026-11-10), in answer to "Can QA use your Mac now to run Kusunga in the test profile?"
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — the banner for a failed Privacy-tab pause; the read-error pause behaviour; VoiceOver on the M1.5 switch, status and chips; M1.4 items
+
 ## 2026-11-10 — M1.6 Sensitive-content protection — reviewer: T1 and T2 closed, approval stands at 66e8f53
 - Changed: Reviewer checked faffbc5..66e8f53 (bd5042a T1, 66e8f53 T2; test-only). Format 0 changed, analyze clean, both files "+104: All tests passed!". T1 traced against pause_service.dart: exactly 3 native calls, sharing really exercised. T2: absolute bound restores the "quickly" guard. Full check.sh not re-run by the reviewer (test-only; tester reports 2916 passed, 10 skipped at 66e8f53).
 - Gates: developer pass · tester pass · reviewer approve with notes (stands at 66e8f53) · QA waiting for PM's OK to use the Mac · PM merge waiting
