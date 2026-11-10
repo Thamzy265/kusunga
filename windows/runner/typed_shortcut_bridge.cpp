@@ -16,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include "app_id.h"
 #include "clipboard_bridge.h"
 #include "picker_policy.h"
 
@@ -65,26 +66,9 @@ std::string Utf8Of(const std::wstring& wide) {
   return out;
 }
 
-// The full path of a process's executable, or empty.
-std::wstring ImagePathOf(DWORD pid) {
-  HANDLE process =
-      ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
-  if (!process) return std::wstring();
-  wchar_t path[MAX_PATH] = {0};
-  DWORD size = MAX_PATH;
-  const BOOL ok = ::QueryFullProcessImageNameW(process, 0, path, &size);
-  ::CloseHandle(process);
-  return ok ? std::wstring(path, size) : std::wstring();
-}
-
-// "C:\...\1Password.exe" -> "1password.exe" (the app id, lower case).
-std::string AppIdOf(const std::wstring& path) {
-  const size_t slash = path.find_last_of(L"\\/");
-  std::wstring name = slash == std::wstring::npos ? path : path.substr(slash + 1);
-  std::transform(name.begin(), name.end(), name.begin(),
-                 [](wchar_t c) { return static_cast<wchar_t>(::towlower(c)); });
-  return Utf8Of(name);
-}
+// The process path and app id rule, shared with the clipboard watcher.
+using kusunga::AppIdOf;
+using kusunga::ImagePathOf;
 
 // The integrity level (RID) of a process, or 0 if it cannot be read. As in
 // picker_bridge.cpp: "access denied" means a higher (administrator) level.

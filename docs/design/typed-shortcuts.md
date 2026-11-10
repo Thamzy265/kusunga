@@ -271,7 +271,7 @@ Not legal advice. Items marked "PM decides" need the PM's decision before the de
   3. Replacement.
   4. The switch, the status and the ignore list.
 - No feature flag is needed past MVP, because the switch is off by default (if D3 is A).
-- **Rollback:** revert the merge. A v3 build that opens a v4 file runs memory-only with the "incompatible" banner and never changes the file (M1.2 C1). To roll back data too, the `.bak` from the migration is kept until the next successful start. QA confirms by opening a v4 file with the v3 build and checking that the banner shows and the file is unchanged.
+- **Rollback:** revert the merge. A v3 build that opens a v4 file runs memory-only with the "incompatible" banner and never changes the file (M1.2 C1). The M1.2 runner deletes the `.bak` once the migration succeeds, so it is kept only when a step fails (corrected 2026-11-10, M1.6 tester O4). QA confirms by opening a v4 file with the v3 build and checking that the banner shows and the file is unchanged.
 - **Windows:** the developer can only compile and unit test the Windows runner in CI, which needs GitHub billing. Until then, Windows is built but not run (F5).
 
 ## Later lines

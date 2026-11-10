@@ -9,7 +9,10 @@ import FlutterMacOS
 ///    starts polling every 250 ms; cancelling stops it.
 ///  - method `com.wnasoni.kusunga/clipboard`: `accessBehavior`, and
 ///    `writeOwn {text}` (a copied snippet: written with its change count
-///    recorded, so the watcher skips it; answers a bool).
+///    recorded, so the watcher skips it; answers a bool),
+///    `setCaptureIgnored {appIds}` and `setCapturePause {until}` (M1.6: the
+///    ignore list, and 0, -1 or an end time in ms; the watcher checks both
+///    before reading a copy, ADR 0005; each answers true).
 ///  - method `com.wnasoni.kusunga/lifecycle`: Dart calls `quit`;
 ///    native calls `flush` and waits for the answer before quitting.
 final class ClipboardBridge: NSObject, FlutterStreamHandler {
@@ -33,6 +36,15 @@ final class ClipboardBridge: NSObject, FlutterStreamHandler {
         guard let args = call.arguments as? [String: Any], let text = args["text"] as? String
         else { return result(false) }
         result(NSPasteboardWriter(ownChanges: OwnClipboardChanges.shared).writeText(text))
+      } else if call.method == "setCaptureIgnored" {
+        let args = call.arguments as? [String: Any]
+        CaptureGate.shared.setIgnored((args?["appIds"] as? [String]) ?? [])
+        result(true)
+      } else if call.method == "setCapturePause" {
+        let args = call.arguments as? [String: Any]
+        guard let until = (args?["until"] as? NSNumber)?.int64Value else { return result(false) }
+        CaptureGate.shared.setPause(until)
+        result(true)
       } else {
         result(FlutterMethodNotImplemented)
       }
@@ -68,8 +80,11 @@ final class ClipboardBridge: NSObject, FlutterStreamHandler {
   {
     let poller = ClipboardPoller(
       pasteboard: NSPasteboard.general,
-      mayRetry: { ClipboardBridge.accessBehavior() != "ask" && ClipboardBridge.accessBehavior() != "deny" },
-      ownChanges: OwnClipboardChanges.shared
+      mayRetry: { ClipboardPoller.readsAreSilent(ClipboardBridge.accessBehavior()) },
+      mayReadMarker: { ClipboardPoller.readsAreSilent(ClipboardBridge.accessBehavior()) },
+      ownChanges: OwnClipboardChanges.shared,
+      gate: CaptureGate.shared,
+      frontApp: { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
     ) { events($0) }
     poller.prime()
     self.poller = poller

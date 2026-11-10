@@ -639,6 +639,7 @@ void main() {
     await tapTab(tester, 'main-tab-snippets');
     await wheel(tester, SnippetsScreen, 900);
     await tapTab(tester, 'main-tab-snippets');
+    await press(tester); // the Privacy tab (M1.6)
     await press(tester); // New snippet
     await press(tester); // into the list
     final id = focusedSnippetId();
@@ -800,6 +801,7 @@ void main() {
       fillSnippets(1);
       await show(tester);
       await tapTab(tester, 'main-tab-snippets');
+      await press(tester); // the Privacy tab (M1.6)
       await press(tester); // New snippet
       await press(tester); // the row
       expect(focusedSnippetId(), service.snippets.items.single.id);

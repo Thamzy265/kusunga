@@ -27,13 +27,22 @@ class TrayManagerPort with TrayListener implements TrayPort {
 
   @override
   Future<void> setMenu(List<TrayMenuEntry> entries) =>
-      trayManager.setContextMenu(
-        Menu(
-          items: [
-            for (final e in entries) MenuItem(key: e.key, label: e.label),
-          ],
-        ),
-      );
+      trayManager.setContextMenu(_menu(entries));
+
+  // tray_manager 0.5.3 draws submenus on both systems (NSMenu setSubmenu on
+  // the Mac, MF_POPUP on Windows) and finds a clicked item inside them.
+  static Menu _menu(List<TrayMenuEntry> entries) => Menu(
+    items: [
+      for (final e in entries)
+        e.children == null
+            ? MenuItem(key: e.key, label: e.label)
+            : MenuItem.submenu(
+                key: e.key,
+                label: e.label,
+                submenu: _menu(e.children!),
+              ),
+    ],
+  );
 
   // tray_manager 0.5.3 only stores the menu in setContextMenu; the menu is
   // shown by popUpContextMenu, so a click on the icon must ask for it.

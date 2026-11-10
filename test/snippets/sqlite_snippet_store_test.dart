@@ -126,7 +126,7 @@ void main() {
       expect(version(), 2);
 
       final v3 = SqliteHistoryStore.open(path: path, keyHex: _key);
-      expect(version(), 4);
+      expect(version(), kMigrations.last.version);
       final after = v3.list();
       expect(after.length, before.length);
       for (var i = 0; i < before.length; i++) {

@@ -9,6 +9,7 @@
 // escape because the check counts "optimal string alignment" edits (two edits
 // on the same letters count as 3-4), and a 3-way split ("-Kusunga" "Data"
 // "Profile") is not read together.
+import 'dart:collection';
 import 'dart:io';
 import 'dart:math';
 
@@ -467,7 +468,20 @@ void main() {
 
     test('a megabyte of spaces or dashes in front of the switch: rejected, '
         'quickly, without a crash', () {
-      final sw = Stopwatch()..start();
+      // "Quickly" is checked as growth, not wall time, so machine load can't
+      // fail it: ten times the lead may cost about ten times as much
+      // (linear), never about a hundred times (quadratic). Each size takes
+      // its fastest of three runs, which drops pauses from other work.
+      int fastest(List<String> args) {
+        var best = 1 << 62;
+        for (var run = 0; run < 3; run++) {
+          final sw = Stopwatch()..start();
+          rejected(args);
+          best = min(best, sw.elapsedMicroseconds);
+        }
+        return max(best, 1);
+      }
+
       for (final lead in [' ', '\t', '"', '-', '\u00a0', '\u2013']) {
         expect(
           rejected([lead * 1000000 + base]),
@@ -475,8 +489,22 @@ void main() {
           reason: 'lead ${lead.codeUnitAt(0)}',
         );
         expect(rejected([lead * 1000000 + base, 'qa']), isTrue);
+        final small = fastest([lead * 100000 + base, 'qa']);
+        final large = fastest([lead * 1000000 + base, 'qa']);
+        // A loose absolute bound too (fastest of three 1 MB runs), so a
+        // linear but very slow check still fails; the ratio above guards
+        // growth under load.
+        expect(
+          large,
+          lessThan(2000000),
+          reason: 'lead ${lead.codeUnitAt(0)}: 1 MB took $large µs at best',
+        );
+        expect(
+          large / small,
+          lessThan(40),
+          reason: 'lead ${lead.codeUnitAt(0)}: $small µs, then $large µs',
+        );
       }
-      expect(sw.elapsedMilliseconds, lessThan(5000));
     });
 
     test('many near-miss arguments in a row stay linear', () {
@@ -489,12 +517,10 @@ void main() {
     });
 
     test('Release and Profile builds do no work at all on any of them', () {
-      final sw = Stopwatch()..start();
-      expect(
-        dataProfileFrom([for (var i = 0; i < 200000; i++) base], debug: false),
-        isA<NoDataProfile>(),
-      );
-      expect(sw.elapsedMilliseconds, lessThan(50));
+      // Measured as work done, not wall time: not one argument is read.
+      final args = _CountingList([for (var i = 0; i < 200000; i++) base]);
+      expect(dataProfileFrom(args, debug: false), isA<NoDataProfile>());
+      expect(args.reads, 0);
     });
   });
 
@@ -627,4 +653,29 @@ class _SpyKeys implements KeyStore {
     calls.add('write');
     return inner.write(keyHex);
   }
+}
+
+/// A list that counts every look at it: its length or an element.
+class _CountingList extends ListBase<String> {
+  _CountingList(this._inner);
+  final List<String> _inner;
+  var reads = 0;
+
+  @override
+  int get length {
+    reads++;
+    return _inner.length;
+  }
+
+  @override
+  set length(int value) => _inner.length = value;
+
+  @override
+  String operator [](int index) {
+    reads++;
+    return _inner[index];
+  }
+
+  @override
+  void operator []=(int index, String value) => _inner[index] = value;
 }

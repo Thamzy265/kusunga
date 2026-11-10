@@ -111,6 +111,11 @@ void main() {
       // M1.5: "Starting…" after 300 ms and "Finding apps…" after 300 ms.
       // Widget Timers, started from the widget's own callbacks.
       'lib/shortcuts/ui/typed_shortcuts_section.dart',
+      // M1.6: "Finding apps…" after 300 ms moved here with the list editor.
+      'lib/shortcuts/ui/ignored_apps_editor.dart',
+      // M1.6: the pause's 15 s tick, started once by main() in the root
+      // zone (startTicking); tick() only reads the clock and the setting.
+      'lib/history/pause_service.dart',
     };
     final seen = <String>{};
     for (final e in Directory('lib').listSync(recursive: true)) {

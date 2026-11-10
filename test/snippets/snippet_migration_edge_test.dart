@@ -255,7 +255,7 @@ void main() {
 
       final good = await open();
       expect(good.notices, isEmpty);
-      expect(version(), 4);
+      expect(version(), kMigrations.last.version);
       expect(allRows('clip_items'), rows);
       expect(files(), ['kusunga.db'], reason: 'the backup goes on success');
       good.store.close();
@@ -285,7 +285,7 @@ void main() {
 
       final good = await open();
       expect(good.notices, isEmpty);
-      expect(version(), 4);
+      expect(version(), kMigrations.last.version);
       expect(allRows('clip_items'), rows);
       expect(files(), ['kusunga.db']);
       good.store.close();
@@ -297,7 +297,7 @@ void main() {
       File('$path.bak').writeAsBytesSync(List.filled(5000, 7));
       final opened = await open();
       expect(opened.notices, isEmpty);
-      expect(version(), 4);
+      expect(version(), kMigrations.last.version);
       expect(files(), ['kusunga.db']);
       opened.store.close();
     });
@@ -381,14 +381,15 @@ void main() {
 
     test('a file one version ahead of this build is left alone as well, and '
         'the old data is still all there for the newer build', () async {
-      await makeNewerFile(version: 5);
+      await makeNewerFile(version: kMigrations.last.version + 1);
       final before = sha(path);
       final opened = await open();
       expect(opened.notices, {HistoryNotice.incompatible});
       opened.store.close();
       expect(sha(path), before);
       // The newer build (here: this one, once the version is put back).
-      final db = raw()..execute('PRAGMA user_version = 4');
+      final db = raw()
+        ..execute('PRAGMA user_version = ${kMigrations.last.version}');
       db.close();
       final back = await open();
       expect(back.notices, isEmpty);

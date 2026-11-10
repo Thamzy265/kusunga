@@ -23,6 +23,10 @@ class Migration {
 /// nullable `snippets.shortcut` column with its unique index, the
 /// `ignored_apps` table seeded with the preset password managers of both
 /// systems, and the `typed_shortcuts_on` setting, off (expand only).
+/// Version 5 (M1.6, `docs/design/sensitive-content.md`, "Data") adds the
+/// newly verified password-manager presets with INSERT OR IGNORE: only ids
+/// that were never presets before, so a preset the user removed stays
+/// removed (expand only; the `history_paused_until` setting needs no row).
 const kMigrations = <Migration>[
   Migration(
     version: 1,
@@ -95,6 +99,27 @@ INSERT INTO ignored_apps (app_id, display_name, preset) VALUES
   ('keepassxc.exe', 'KeePassXC', 1),
   ('keepass.exe', 'KeePass', 1)''',
       "INSERT INTO settings (key, value) VALUES ('typed_shortcuts_on', 0)",
+    ],
+  ),
+  Migration(
+    version: 5,
+    statements: [
+      // Literals, not built from `presetIgnoredAppsV5`: a shipped migration
+      // never changes (a test checks the two lists are the same).
+      '''
+INSERT OR IGNORE INTO ignored_apps (app_id, display_name, preset) VALUES
+  ('com.lastpass.lastpassmacdesktop', 'LastPass', 1),
+  ('in.sinew.Enpass-Desktop', 'Enpass', 1),
+  ('com.nordsec.nordpass', 'NordPass', 1),
+  ('me.proton.pass.electron', 'Proton Pass', 1),
+  ('com.dashlane.dashlanephonefinal', 'Dashlane', 1),
+  ('com.keepersecurity.passwordmanager', 'Keeper', 1),
+  ('com.callpod.keepermac.lite', 'Keeper (App Store)', 1),
+  ('lastpass.exe', 'LastPass', 1),
+  ('enpass.exe', 'Enpass', 1),
+  ('nordpass.exe', 'NordPass', 1),
+  ('protonpass.exe', 'Proton Pass', 1),
+  ('keeperpasswordmanager.exe', 'Keeper', 1)''',
     ],
   ),
 ];

@@ -30,7 +30,10 @@ void main() {
       'setting', () {
     SqliteHistoryStore.open(path: path, keyHex: _key).close();
     final db = raw();
-    expect(db.select('PRAGMA user_version').single.values.single, 4);
+    expect(
+      db.select('PRAGMA user_version').single.values.single,
+      kMigrations.last.version,
+    );
     expect(
       db.select('PRAGMA table_info(snippets)').map((r) => r['name']),
       contains('shortcut'),

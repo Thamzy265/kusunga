@@ -3,6 +3,7 @@ import 'dart:ui' show SemanticsRole;
 
 import 'package:flutter/material.dart';
 
+import '../../privacy/ui/privacy_screen.dart';
 import '../../snippets/snippet_service.dart';
 import '../../snippets/ui/snippet_editor.dart';
 import '../../snippets/ui/snippets_screen.dart';
@@ -12,8 +13,8 @@ import '../../ui/tab_strip.dart';
 import '../history_service.dart';
 import 'history_screen.dart';
 
-/// The main window: the History and Snippets tabs (M1.4), each shown once the
-/// history has opened. If opening takes more than 300 ms a spinner with
+/// The main window: the History and Snippets tabs (M1.4) and the Privacy tab
+/// (M1.6), each shown once the history has opened. If opening takes more than 300 ms a spinner with
 /// "Opening your history…" (or "…snippets…") shows; a fast open never
 /// flashes it.
 class HistoryHost extends StatefulWidget {
@@ -25,9 +26,20 @@ class HistoryHost extends StatefulWidget {
     this.snippetsTopSlot,
     this.dataProfile,
     this.dataProfileRejected = false,
+    this.ignoredAppsSlot,
   });
 
+  /// Opens the Privacy tab with the focus on its "Ignored apps" heading
+  /// ("Edit ignored apps" in the Snippets tab). [context] is inside the
+  /// window.
+  static void showIgnoredApps(BuildContext context) =>
+      context.findAncestorStateOfType<_HistoryHostState>()?._showIgnoredApps();
+
   final Future<HistoryService> history;
+
+  /// The ignored-apps list editor for the Privacy tab (typed shortcuts,
+  /// M1.5, moved there in M1.6). Without it the tab has Pause history only.
+  final Widget? ignoredAppsSlot;
 
   /// The history if it is already open, so there is no empty first frame.
   final HistoryService? initial;
@@ -56,12 +68,24 @@ class _HistoryHostState extends State<HistoryHost> {
   var _slow = false;
   Timer? _timer;
 
-  /// 0 History (selected at start), 1 Snippets.
+  /// 0 History (selected at start), 1 Snippets, 2 Privacy.
   var _tab = 0;
   final _tabNodes = [
     FocusNode(debugLabel: 'History tab'),
     FocusNode(debugLabel: 'Snippets tab'),
+    FocusNode(debugLabel: 'Privacy tab'),
   ];
+  final _ignoredHeading = FocusNode(debugLabel: 'Ignored apps heading');
+
+  void _showIgnoredApps() {
+    setState(() => _tab = 2);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _ignoredHeading.context != null) {
+        _ignoredHeading.requestFocus();
+      }
+    });
+  }
+
   final _snippetsKey = GlobalKey<SnippetsScreenState>();
 
   @override
@@ -83,6 +107,7 @@ class _HistoryHostState extends State<HistoryHost> {
     for (final n in _tabNodes) {
       n.dispose();
     }
+    _ignoredHeading.dispose();
     super.dispose();
   }
 
@@ -96,9 +121,9 @@ class _HistoryHostState extends State<HistoryHost> {
                 const CircularProgressIndicator(),
                 SizedBox(height: KusungaTokens.space3),
                 Text(
-                  _tab == 0
-                      ? 'Opening your history…'
-                      : 'Opening your snippets…',
+                  _tab == 1
+                      ? 'Opening your snippets…'
+                      : 'Opening your history…',
                   style: KusungaTokens.body.copyWith(color: t.text),
                 ),
               ],
@@ -197,8 +222,12 @@ class _HistoryHostState extends State<HistoryHost> {
         runSpacing: KusungaTokens.space2,
         children: [
           TabStrip(
-            labels: const ['History', 'Snippets'],
-            identifiers: const ['main-tab-history', 'main-tab-snippets'],
+            labels: const ['History', 'Snippets', 'Privacy'],
+            identifiers: const [
+              'main-tab-history',
+              'main-tab-snippets',
+              'main-tab-privacy',
+            ],
             selected: _tab,
             focusNodes: _tabNodes,
             onSelect: (i) => setState(() => _tab = i),
@@ -240,6 +269,22 @@ class _HistoryHostState extends State<HistoryHost> {
               dataProfileRejected: widget.dataProfileRejected,
               topSlot: widget.snippetsTopSlot,
             ),
+          ),
+          _panel(
+            2,
+            'Privacy',
+            PrivacyScreen(
+              pause: service.pause,
+              ignoredHeadingFocus: _ignoredHeading,
+              ignoredApps: widget.ignoredAppsSlot,
+            ),
+          ),
+          // Pausing and resuming are announced from any tab (and from the
+          // tray), once each.
+          Positioned(
+            left: 0,
+            top: 0,
+            child: PauseAnnouncer(pause: service.pause),
           ),
         ],
       );

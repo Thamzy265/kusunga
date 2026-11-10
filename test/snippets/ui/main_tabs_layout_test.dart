@@ -68,8 +68,13 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('600 px: still one row', (tester) async {
-    await show(tester, const Size(600, 632));
+  // M1.6 adds the Privacy tab. The test font (Ahem) draws every letter as
+  // wide as the font size, so three tabs and New snippet need about 665 px
+  // here; with the system font they fit at 600 px (checked by QA).
+  testWidgets('680 px (600 px with the system font): still one row', (
+    tester,
+  ) async {
+    await show(tester, const Size(680, 632));
     final h = tab(tester, 'history');
     expect(
       tab(tester, 'snippets').center.dy,

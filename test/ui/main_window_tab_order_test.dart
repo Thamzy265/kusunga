@@ -182,9 +182,8 @@ void main() {
   }
 
   group('Snippets, list wheel-scrolled to the bottom (QA-M14-5)', () {
-    testWidgets('Tab from the Snippets tab goes to New snippet', (
-      tester,
-    ) async {
+    testWidgets('Tab from the Snippets tab goes to the Privacy tab (M1.6), '
+        'then New snippet', (tester) async {
       fillSnippets(30);
       await show(tester);
       await tapTab(tester, 'main-tab-snippets');
@@ -192,6 +191,8 @@ void main() {
       await tapTab(tester, 'main-tab-snippets');
       expect(focusedHook(), 'main-tab-snippets');
 
+      await press(tester);
+      expect(focusedHook(), 'main-tab-privacy');
       await press(tester);
 
       expect(focusedHook(), 'snippet-new');
@@ -208,6 +209,7 @@ void main() {
       final firstInView = snippetRowsFullyInView(tester).first;
       final before = tester.getRect(hook('snippet-row-$firstInView'));
 
+      await press(tester); // the Privacy tab (M1.6)
       await press(tester);
       await press(tester);
 
@@ -273,8 +275,10 @@ void main() {
   });
 
   group('History, list wheel-scrolled down (checked for QA-M14-5)', () {
-    testWidgets('Tab from the History tab goes to the Snippets tab, then to '
-        'the limit field, scrolled into view', (tester) async {
+    testWidgets('Tab from the History tab goes to the Snippets tab, the '
+        'Privacy tab (M1.6), then to the limit field, scrolled into view', (
+      tester,
+    ) async {
       fillHistory(60);
       await show(tester);
       await wheel(tester, HistoryScreen, 20000);
@@ -283,6 +287,8 @@ void main() {
 
       await press(tester);
       expect(focusedHook(), 'main-tab-snippets');
+      await press(tester);
+      expect(focusedHook(), 'main-tab-privacy');
       await press(tester);
       expect(focusedWidget<LimitField>(), isNotNull, reason: focusedHook());
       expectFocusInView(tester, 'Tab to the limit field');
@@ -341,6 +347,7 @@ void main() {
         await tapTab(tester, 'main-tab-snippets');
         await wheel(tester, SnippetsScreen, 900);
         await tapTab(tester, 'main-tab-snippets');
+        await press(tester); // the Privacy tab (M1.6)
         await press(tester); // New snippet
         await press(tester); // the first row fully in view
         await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
@@ -412,7 +419,7 @@ void main() {
       var guard = 0;
       while (focusedWidget<HistoryRow>()?.focusNode !=
               FocusManager.instance.primaryFocus &&
-          guard++ < 12) {
+          guard++ < 13) {
         await press(tester);
       }
       expect(focusedWidget<HistoryRow>(), isNotNull);
@@ -433,7 +440,12 @@ void main() {
       expectFocusInView(tester, step);
     }
 
-    for (final size in [const Size(520, 400), const Size(800, 632)]) {
+    // 440 px high, not 400 (M1.6): in the test font (every letter as wide
+    // as the font size) the three tabs wrap to two rows at 520 px and 200%
+    // text, and a 400 px window then leaves the list less room than one
+    // 200% row, so no row could be fully in view. With the system font the
+    // tabs stay on one row at 520 px.
+    for (final size in [const Size(520, 440), const Size(800, 632)]) {
       final w = '${size.width.toInt()} px';
 
       testWidgets('$w, arrow keys in use: the same row keeps the focus, in '
@@ -568,6 +580,7 @@ void main() {
       await tapTab(tester, 'main-tab-snippets');
       await wheel(tester, SnippetsScreen, 1300);
       await tapTab(tester, 'main-tab-snippets');
+      await press(tester); // the Privacy tab (M1.6)
       await press(tester); // New snippet
       await press(tester); // the first row fully in view
       await press(tester); // its Copy button

@@ -13,6 +13,7 @@
 #include <optional>
 #include <string>
 
+#include "capture_gate.h"
 #include "clipboard_policy.h"
 
 // Connects the Windows clipboard watcher and the quit flow to Dart.
@@ -27,7 +28,13 @@
 //  - method "com.wnasoni.kusunga/clipboard": "accessBehavior"
 //    always answers "unsupported" (a Mac-only setting); "writeOwn" {text}
 //    writes a copied snippet with its sequence number recorded, so the
-//    watcher skips it (PM decision D1), and answers a bool.
+//    watcher skips it (PM decision D1), and answers a bool;
+//    "setCaptureIgnored" {appIds} and "setCapturePause" {until} (M1.6: the
+//    ignore list, and 0, -1 or an end time in ms) set what the watcher checks
+//    before reading a copy (ADR 0005), and answer true. A copy from an
+//    ignored app sends {type: "ignoredApp"}; when the list is not empty and
+//    the source can't be found, {type: "sourceUnknown"} comes before the
+//    copy's own event. Neither names the app.
 //  - method "com.wnasoni.kusunga/lifecycle": Dart calls "quit";
 //    native calls "flush" and waits for the answer when Windows ends the
 //    session (WM_ENDSESSION).
@@ -76,6 +83,7 @@ class ClipboardBridge {
   UINT format_can_include_ = 0;
   UINT format_viewer_ignore_ = 0;
   UINT format_own_ = 0;
+  kusunga::CaptureGate gate_;
 };
 
 #endif  // RUNNER_CLIPBOARD_BRIDGE_H_
