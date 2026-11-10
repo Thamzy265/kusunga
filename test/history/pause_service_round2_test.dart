@@ -5,7 +5,10 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kusunga/history/history_service.dart';
+import 'package:kusunga/history/memory_history_store.dart';
 import 'package:kusunga/history/pause_service.dart';
+import 'package:kusunga/log/app_log.dart';
 
 import '../support/fakes.dart';
 
@@ -36,6 +39,14 @@ class _Native {
       await pumpEventQueue();
     }
   }
+}
+
+/// A store whose settings can't be read, like a locked database.
+class _UnreadableSettings extends FlakyStore {
+  _UnreadableSettings() : super(MemoryHistoryStore());
+
+  @override
+  String? readSetting(String key) => throw StateError('database locked');
 }
 
 class _H {
@@ -135,5 +146,125 @@ void main() {
       await h.service.tick();
       expect(h.native.received, [h.service.pausedUntil]);
     });
+  });
+
+  group('R2: a launch or timer send that stays out of step is shown', () {
+    late int now;
+    late bool nativeOk;
+    late List<int> sent;
+    late Map<String, String> settings;
+    late FakeLog log;
+    String? Function(String) read = (k) => null;
+
+    PauseService make() {
+      final p = PauseService(
+        setNativePause: (until) async {
+          if (!nativeOk) return false;
+          sent.add(until);
+          return true;
+        },
+        readSetting: (k) => read(k),
+        writeSetting: (k, v) {
+          settings[k] = v;
+          return true;
+        },
+        log: log,
+        persists: true,
+        clock: () => now,
+      );
+      addTearDown(p.dispose);
+      return p;
+    }
+
+    setUp(() {
+      now = 1_762_790_400_000;
+      nativeOk = true;
+      sent = [];
+      settings = {};
+      log = FakeLog();
+      read = (k) => settings[k];
+    });
+
+    test('load fails, the retry fails: the apply error shows, and later '
+        'ticks keep retrying until native has the pause', () async {
+      settings[historyPausedSetting] = '-1';
+      nativeOk = false;
+      final p = make()..load();
+      await pumpEventQueue();
+      expect(p.error, isNull, reason: 'not yet: the retry comes first');
+      await p.tick(); // the retry fails too
+      expect(p.error, PauseError.apply);
+      await p.tick();
+      await p.tick();
+      expect(p.error, PauseError.apply);
+      nativeOk = true;
+      await p.tick();
+      expect(sent, [-1], reason: 'retried on a later tick, and it worked');
+      await p.tick();
+      expect(sent, [-1], reason: 'in step now: no more calls');
+      expect(p.isPaused, isTrue);
+    });
+
+    test('load fails once, the retry works: no error', () async {
+      settings[historyPausedSetting] = '-1';
+      nativeOk = false;
+      final p = make()..load();
+      await pumpEventQueue();
+      nativeOk = true;
+      await p.tick();
+      expect(sent, [-1]);
+      expect(p.error, isNull);
+    });
+
+    test('a timer end that native misses twice shows the apply error and '
+        'is retried on later ticks', () async {
+      final p = make()..load();
+      await pumpEventQueue();
+      await p.pause(PauseLength.quarterHour);
+      sent.clear();
+      nativeOk = false;
+      now += 20 * _min;
+      await p.tick(); // the timer end: fails
+      await p.tick(); // the retry: fails
+      expect(p.error, PauseError.apply);
+      await p.tick();
+      nativeOk = true;
+      await p.tick();
+      expect(sent, [0]);
+    });
+
+    test('a settings read error at launch stays paused until resume, shows '
+        'the apply error, and tells native -1', () async {
+      read = (_) => throw StateError('database locked');
+      final p = make()..load();
+      await pumpEventQueue();
+      expect(p.untilResumed, isTrue);
+      expect(p.isPaused, isTrue);
+      expect(p.error, PauseError.apply);
+      expect(sent, [-1]);
+      expect(settings, isEmpty, reason: 'an unread value is not overwritten');
+      // Resume works as usual and clears the error.
+      expect(await p.resume(), isTrue);
+      expect(p.error, isNull);
+      expect(p.isPaused, isFalse);
+    });
+  });
+
+  test('R2 through HistoryService: a settings read error at start pauses '
+      'until resume and shows the apply error', () async {
+    final source = FakeClipboardSource();
+    final log = FakeLog();
+    final h = HistoryService(
+      store: _UnreadableSettings(),
+      source: source,
+      log: log,
+    );
+    addTearDown(h.dispose);
+    h.start();
+    await pumpEventQueue();
+    expect(h.pause.untilResumed, isTrue);
+    expect(h.pause.error, PauseError.apply);
+    expect(source.sentPause, -1);
+    expect(log.codes, contains(LogCode.readFailed));
   });
 }

@@ -73,7 +73,9 @@ class HistoryService extends ChangeNotifier {
     );
     pause = PauseService(
       setNativePause: _source.setCapturePause,
-      readSetting: setting,
+      // A read error reaches the pause as an error, not as "no setting":
+      // it must not quietly undo "until I resume" (R2).
+      readSetting: _readPauseSetting,
       writeSetting: saveSetting,
       log: _log,
       persists: _persists,
@@ -342,6 +344,18 @@ class HistoryService extends ChangeNotifier {
       return _store.readSetting(key);
     } catch (_) {
       return null;
+    }
+  }
+
+  /// The pause setting for [PauseService]: like [setting], but a read
+  /// error is logged and thrown, not answered as "no setting" (R2).
+  String? _readPauseSetting(String key) {
+    if (_closed) return null;
+    try {
+      return _store.readSetting(key);
+    } catch (_) {
+      _log.log(LogCode.readFailed);
+      rethrow;
     }
   }
 

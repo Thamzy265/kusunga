@@ -98,6 +98,11 @@ class PauseService extends ChangeNotifier {
   var _outOfStep = false;
   var _retried = false;
 
+  /// A send the user did not ask for (at launch, a timer end or cut, or the
+  /// re-send after a race) failed: retried on every tick until it works,
+  /// and shown as [PauseError.apply] once the first retry fails too (R2).
+  var _keepRetrying = false;
+
   /// The last value native code accepted; null when unknown (a call
   /// failed, or none was made yet).
   int? _nativeHas;
@@ -133,17 +138,35 @@ class PauseService extends ChangeNotifier {
   /// or the setting could not be saved).
   bool get willLast => persists && !_saveFailed;
 
-  /// The user's last pause or resume failed. Kept until their next pause or
-  /// resume, even when a tick puts native code back in step.
+  /// The user's last pause or resume failed, or native code could not be
+  /// given the pause at launch or on a timer (R2). Kept until their next
+  /// pause or resume, even when a tick puts native code back in step.
   PauseError? get error => _error;
 
   /// Reads the setting and sends it to native code. Called before the
   /// watcher starts: the native call is sent before [load] returns, so it
   /// reaches native code ahead of the event channel's listen (D3 A).
+  ///
+  /// A setting that can't be read (a database error, not a missing or
+  /// garbled value) may hide "until I resume", so history stays paused
+  /// until the user resumes, with the apply error showing (R2). The
+  /// unread value is not overwritten.
   void load() {
-    final raw = int.tryParse(_read(historyPausedSetting) ?? '') ?? 0;
-    _until = raw < -1 ? 0 : raw;
-    _settle(fromTimer: false, log: false);
+    String? stored;
+    var unreadable = false;
+    try {
+      stored = _read(historyPausedSetting);
+    } catch (_) {
+      unreadable = true;
+    }
+    if (unreadable) {
+      _until = -1;
+      _error = PauseError.apply;
+    } else {
+      final raw = int.tryParse(stored ?? '') ?? 0;
+      _until = raw < -1 ? 0 : raw;
+      _settle(fromTimer: false, log: false);
+    }
     unawaited(_sendState());
   }
 
@@ -204,14 +227,19 @@ class PauseService extends ChangeNotifier {
 
   /// Dart's state as it is now. Sent synchronously when nothing waits.
   Future<void> _sendState() async {
-    if (!await _send(() => _until)) _outOfStep = true;
+    if (!await _send(() => _until)) _backgroundFailed();
   }
 
   /// After a user's pause or resume: a tick that ran while it waited may
   /// have sent an older value after it (R1). Native code gets Dart's state
   /// again once every waiting call is done, unless it already has it.
   Future<void> _resync() async {
-    if (!await _send(() => _until, ifNeeded: true)) _outOfStep = true;
+    if (!await _send(() => _until, ifNeeded: true)) _backgroundFailed();
+  }
+
+  void _backgroundFailed() {
+    _outOfStep = true;
+    _keepRetrying = true;
   }
 
   /// Pauses history for [length]. False if native code could not be told,
@@ -269,26 +297,31 @@ class PauseService extends ChangeNotifier {
   void _nativeInStep() {
     _outOfStep = false;
     _retried = false;
+    _keepRetrying = false;
   }
 
   /// The 15 s tick (and becoming active): ends or cuts a timed pause, and
-  /// retries a failed native call once.
+  /// retries a failed native call: once after the user's own pause or
+  /// resume failed, and on every tick after a send they did not ask for
+  /// failed (R2).
   Future<void> tick() async {
     if (_disposed) return;
     final changed = _settle(fromTimer: true);
     if (changed) {
       if (await _send(() => _until)) {
-        if (_outOfStep && !_retried) _nativeInStep();
+        _nativeInStep();
       } else {
-        _outOfStep = true;
+        _backgroundFailed();
       }
       _notify();
       return;
     }
-    if (_outOfStep && !_retried) {
+    if (_outOfStep && (_keepRetrying || !_retried)) {
       _retried = true;
       if (await _send(() => _until)) {
-        _outOfStep = false;
+        _nativeInStep();
+      } else if (_keepRetrying) {
+        _error ??= PauseError.apply;
       }
     }
     _notify();
