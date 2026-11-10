@@ -215,7 +215,10 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
         ),
       ]);
     }
-    if (error == PauseError.apply && !paused) {
+    // Also while paused (N1): after a launch send that failed, or a
+    // settings read error, native code may not be paused although this
+    // says it is. The note then sits under the paused line and Resume.
+    if (error == PauseError.apply) {
       children.add(_note(t, _applyFailed, 'pause-error'));
     }
     if (error == PauseError.resume && paused) {

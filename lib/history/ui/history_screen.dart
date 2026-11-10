@@ -1121,7 +1121,8 @@ class _Banner extends StatelessWidget {
 
 /// "History paused until 14:30. New copies aren't kept." with Resume (M1.6
 /// UI spec), shown while paused; or, after a pause that failed, "Couldn't
-/// apply the pause. Try again." The banner tokens of `_Banner`.
+/// apply the pause. Try again." The banner tokens of `_Banner`. While
+/// paused, that error shows inside this banner, under its text (N1).
 class PausedBanner extends StatelessWidget {
   const PausedBanner({super.key, required this.pause});
 
@@ -1149,14 +1150,7 @@ class PausedBanner extends StatelessWidget {
                 color: t.bannerWarnBg,
                 borderRadius: BorderRadius.circular(KusungaTokens.radius2),
               ),
-              child: Semantics(
-                identifier: 'history-pause-failed',
-                liveRegion: true,
-                child: Text(
-                  "Couldn't apply the pause. Try again.",
-                  style: KusungaTokens.body.copyWith(color: t.bannerWarnText),
-                ),
-              ),
+              child: _applyFailed(t),
             ),
           );
         }
@@ -1176,47 +1170,57 @@ class PausedBanner extends StatelessWidget {
               borderRadius: BorderRadius.circular(KusungaTokens.radius2),
             ),
             // Text and Resume on one row when they fit; at narrow widths
-            // the text wraps and Resume moves below it.
-            child: Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: KusungaTokens.space2,
+            // the text wraps and Resume moves below it. A failed apply
+            // goes under them, in the same banner (N1).
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: KusungaTokens.space2,
                   children: [
-                    ExcludeSemantics(
-                      child: Icon(
-                        Icons.pause,
-                        size: 16,
-                        color: t.bannerWarnText,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ExcludeSemantics(
+                          child: Icon(
+                            Icons.pause,
+                            size: 16,
+                            color: t.bannerWarnText,
+                          ),
+                        ),
+                        SizedBox(width: KusungaTokens.space2),
+                        Flexible(
+                          child: Text(
+                            text,
+                            style: KusungaTokens.body.copyWith(
+                              color: t.bannerWarnText,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(width: KusungaTokens.space2),
-                    Flexible(
-                      child: Text(
-                        text,
-                        style: KusungaTokens.body.copyWith(
-                          color: t.bannerWarnText,
+                    Semantics(
+                      identifier: 'history-paused-resume',
+                      label: 'Resume history',
+                      button: true,
+                      excludeSemantics: true,
+                      onTap: () => unawaited(pause.resume()),
+                      child: TextButton(
+                        onPressed: () => unawaited(pause.resume()),
+                        child: Text(
+                          'Resume',
+                          style: TextStyle(color: t.bannerWarnText),
                         ),
                       ),
                     ),
                   ],
                 ),
-                Semantics(
-                  identifier: 'history-paused-resume',
-                  label: 'Resume history',
-                  button: true,
-                  excludeSemantics: true,
-                  onTap: () => unawaited(pause.resume()),
-                  child: TextButton(
-                    onPressed: () => unawaited(pause.resume()),
-                    child: Text(
-                      'Resume',
-                      style: TextStyle(color: t.bannerWarnText),
-                    ),
-                  ),
-                ),
+                if (pause.error == PauseError.apply) ...[
+                  SizedBox(height: KusungaTokens.space1),
+                  _applyFailed(t),
+                ],
               ],
             ),
           ),
@@ -1224,6 +1228,15 @@ class PausedBanner extends StatelessWidget {
       },
     );
   }
+
+  Widget _applyFailed(KusungaTokens t) => Semantics(
+    identifier: 'history-pause-failed',
+    liveRegion: true,
+    child: Text(
+      "Couldn't apply the pause. Try again.",
+      style: KusungaTokens.body.copyWith(color: t.bannerWarnText),
+    ),
+  );
 }
 
 class _SetupCard extends StatelessWidget {
