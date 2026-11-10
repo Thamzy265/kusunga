@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-10 — M1.6 Sensitive-content protection — reviewer verdict: approve
+- Changed: Reviewer re-reviewed HEAD c75f8da: approve. check.sh 2900 passed, 10 skipped (working tree, which may include the tester's two uncommitted round-4 files). Fail-on-old-code shown for N2 and N1. Queue review: no stale send, starvation bounded by user clicks, a late answer is resolved by the next send, dispose is safe, the R1 resync holds, and load is still sent before listen. The rewritten timing tests still guard what they did; the Release test is stronger. 0 code, design, security or privacy findings.
+- Gates: developer pass · tester round 4 running · reviewer approve · QA not started · PM merge waiting
+- Open findings: none
+- Decisions: none. Reviewer note for QA: try a pause while a macOS "Ask" paste alert is up (it may hold the main thread for more than 2 s; the safe direction)
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — the banner for a failed Privacy-tab pause; the read-error pause behaviour; VoiceOver on the M1.5 switch, status and chips; M1.4 items
+
 ## 2026-11-10 — M1.6 Sensitive-content protection — developer fix round 3
 - Changed: Developer fixed the pause-chain timeout (0289920: a native call with no answer in 2 s counts as failed (option b); an explicit job queue where a user call goes ahead of a waiting background send; at most one waiting background send; a late answer is ignored and native counts as unknown) and the hidden apply error (52c8597: "Couldn't apply the pause. Try again." also shows while paused, under the paused line in the Privacy tab and inside the paused History banner). Flaky timing tests fixed in test-only commits: c47696f (counts list reads), a43227f (growth ratio from 100k to 1M), c75f8da (picker work counted; the 50 ms target kept on the fastest of three runs, because it is the design's latency target). HEAD c75f8da, 5 new commits on the tester's a9fb684, no history rewritten. The tester's rewritten repros pass unchanged. Results: check.sh 2900 passed, 10 skipped; test_mac_capture.sh 40/0; test_mac_shortcuts.sh 165/0; release 153/0; test_windows_policy.sh 8/8; flutter build macos --debug built. One sentence added to the design note's failure plan.
 - Gates: developer pass · tester re-check to come · reviewer re-check to come · QA not started · PM merge waiting
