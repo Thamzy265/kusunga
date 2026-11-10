@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-10 — M1.6 Sensitive-content protection — developer fix round 4 (P1)
+- Changed: Developer commit faffbc5 (lib/history/pause_service.dart only): dispose drops every queued native call (caller gets false), accepts no new call, and a call already running finishes without changing state or notifying listeners. Failing run at 90963b1: tester's "dispose with calls running and queued..." Expected <1> Actual <3>; passes after the fix. check.sh 2916 passed, 10 skipped, format 0 changed, analyze clean. test_mac_capture.sh 40/0, test_mac_shortcuts.sh 165/0, test_mac_shortcuts_release.sh 153/0, test_windows_policy.sh 8/8.
+- Gates: developer pass · tester pass (round 4) · reviewer re-check of faffbc5 requested · QA not started · PM merge waiting
+- Open findings: P1 fixed, pending reviewer re-check
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — the banner for a failed Privacy-tab pause; the read-error pause behaviour; VoiceOver on the M1.5 switch, status and chips; M1.4 items
+
 ## 2026-11-10 — M1.6 Sensitive-content protection — tester round 4 (fix round 3)
 - Changed: Tester added 15 Dart tests in 90963b1 (test/history/pause_service_timeout_edge_test.dart, 8; test/privacy/apply_error_while_paused_edge_test.dart, 7): late answers after the timeout ignored, a late-applied user pause put right by the next tick, a user pause behind a stuck background call waits at most one timeout, 20 ticks behind a stuck call add at most one send, the waiting send reads state when it starts; one banner only, the error shown once and cleared by the next good pause or resume, no re-announcement on ticks, focus order tabs → banner Resume → rows, 360 px at 200% and 300% text without overflow. Timing rewrites (c47696f, a43227f, c75f8da) still guard what they did; the Release-build test is stricter; the megabyte-lead test no longer catches a linear but very slow build (the old 5 s budget did). Five runs of both files under 8 CPU burners: no failures. check.sh: format 0 changed, analyze clean, 2915 passed / 1 failed (P1) / 10 skipped. test_mac_capture.sh 40/0, test_mac_shortcuts.sh 165/0, test_mac_shortcuts_release.sh 153/0, test_windows_policy.sh 8/8. Abuse cases 6/6, UI states 8/8. E2E n/a — launching the app is not allowed for the tester.
 - Gates: developer fix for P1 · tester round 4 done · reviewer re-check after P1 · QA not started · PM merge waiting
