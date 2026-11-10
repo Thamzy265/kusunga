@@ -168,7 +168,9 @@ final class ClipboardPoller {
 
     // Then the pause, on every try against the wall clock right before any
     // read or send: a pause started while this copy waits for its text
-    // stops it (B1).
+    // stops it (B1). It is asked here, not only in gate.check, because
+    // that check runs once per copy; so from here gate.check never answers
+    // .paused.
     if let gate = gate, gate.isPausedNow() {
       waiting = false
       held = nil

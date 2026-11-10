@@ -254,6 +254,8 @@ class ShortcutService extends ChangeNotifier {
     final ids = [for (final a in _apps) a.appId];
     final capture = _setCaptureIgnored;
     if (capture != null) {
+      // The injected call may throw (HistoryService's never does): typed
+      // shortcuts must still get the list.
       unawaited(capture(ids).catchError((Object _) => false));
     }
     return port.setIgnored(ids);

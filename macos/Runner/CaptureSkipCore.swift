@@ -52,6 +52,12 @@ final class CaptureGate {
   /// The pause first, against the wall clock now, then the source app.
   /// [source] is asked only when the list is not empty and history is not
   /// paused. An unknown source is captured as today.
+  ///
+  /// From the watcher the `.paused` answer never comes: `ClipboardPoller`
+  /// asks [isPausedNow] itself first, on every try, because a pause started
+  /// while a copy waits for its text must stop it before any read (B1),
+  /// while this check runs once per copy. The pause stays here so the gate
+  /// keeps the full order of ADR 0005 on its own, as its unit tests check.
   func check(source: () -> String?) -> CaptureSkip? {
     if CaptureGate.isPaused(until: pausedUntil, nowMs: now()) { return .paused }
     if ignored.isEmpty { return nil }
