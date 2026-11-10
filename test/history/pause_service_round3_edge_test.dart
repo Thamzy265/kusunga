@@ -184,18 +184,57 @@ void main() {
     );
   });
 
-  group('R1: a native call that never answers', () {
-    test('the user can still pause within a few seconds (a stuck call must '
-        'not freeze the Pause button for good)', () async {
+  group('R1: a native call that never answers (lead decision: a call that '
+      'does not answer within the timeout counts as a failure)', () {
+    // Fake time: testWidgets' clock moves only with pump(duration).
+    testWidgets('a user pause completes with false, sets the apply error and '
+        'pauses nothing; once native answers again a new pause works and '
+        'clears the error', (tester) async {
+      final h = _H();
+      h.native.auto = false; // every call hangs, the launch send included
+      h.service.load();
+      bool? result;
+      unawaited(h.service.pause(PauseLength.hour).then((v) => result = v));
+      await tester.pump(const Duration(seconds: 5));
+      expect(result, isFalse, reason: 'the pause must not wait for ever');
+      expect(h.service.error, PauseError.apply);
+      expect(h.service.isPaused, isFalse);
+      expect(h.settings[historyPausedSetting], isNull);
+
+      // Native answers again: every call now works at once.
+      h.native.auto = true;
+      h.native.answer = true;
+      bool? second;
+      unawaited(
+        h.service.pause(PauseLength.quarterHour).then((v) => second = v),
+      );
+      await tester.pump(const Duration(seconds: 5));
+      expect(second, isTrue);
+      expect(h.service.pausedUntil, h.now + 15 * _min);
+      expect(h.native.has, h.service.pausedUntil);
+      expect(h.service.error, isNull, reason: 'a user pause clears it');
+    });
+
+    testWidgets('ticks while native is stuck queue at most one background '
+        'send', (tester) async {
       final h = _H();
       h.native.auto = false;
-      h.service.load(); // this call never answers
-      final p = h.service.pause(PauseLength.hour);
-      final result = await p.timeout(
-        const Duration(seconds: 3),
-        onTimeout: () => false,
-      );
-      expect(result, isTrue);
+      h.service.load();
+      await tester.pump();
+      final before = h.native.received.length;
+      for (var i = 0; i < 10; i++) {
+        unawaited(h.service.tick());
+      }
+      await tester.pump();
+      // Within one timeout window nothing more than the launch send has
+      // been sent, and at most one more is waiting behind it.
+      expect(h.native.received.length - before, lessThanOrEqualTo(1));
+      await tester.pump(const Duration(seconds: 30));
+      h.native.auto = true;
+      h.native.pending.clear();
+      await h.service.tick();
+      await tester.pump(const Duration(seconds: 5));
+      expect(h.native.has, h.service.pausedUntil);
     });
   });
 
