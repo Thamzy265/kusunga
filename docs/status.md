@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-10 — M1.6 Sensitive-content protection — QA session 1 blocked: screen locked
+- Changed: QA built the debug app and launched it in the qa profile (log: dataProfileActive, permissionSnapshot 7, shortcutTableSize 2; no dialog). The screen was locked (CGSSessionScreenIsLocked 1, idle about 1,300 s), so screenshots failed and the "Test profile: qa" label could not be confirmed; QA clicked and typed nothing and stopped the qa instance with kill on its own pid. 0/2 criteria checked. No evidence committed; docs/qa/m1.md unchanged. The qa profile was migrated to schema v5; its settings were not changed. Lead checked: no Kusunga or log stream process left.
+- Gates: developer pass · tester pass · reviewer approve with notes · QA blocked (screen locked) · PM merge waiting
+- Open findings: none
+- Decisions: none. QA: R5 (pause while a macOS "Ask" paste alert is up) cannot be reached without a System Settings change, so it will be NOT RUN unless the PM changes that setting themselves.
+- Blockers: Developer none · Tester none · Reviewer none · QA — screen locked, needs the PM to unlock the Mac · Marketer none · Lead none · PM — unlock the Mac; the banner for a failed Privacy-tab pause; the read-error pause behaviour; VoiceOver on the M1.5 switch, status and chips; M1.4 items
+
 ## 2026-11-10 — M1.6 Sensitive-content protection — PM: Mac free for QA
 - Changed: QA briefed on feat/sensitive-content at 66e8f53, test profile qa only.
 - Gates: developer pass · tester pass · reviewer approve with notes · QA running · PM merge waiting
