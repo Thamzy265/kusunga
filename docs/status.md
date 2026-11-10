@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-10 — M1.6 Sensitive-content protection — tester re-check of fix round 1
+- Changed: Tester judged the developer's one-line change to the B1 repro correct (the first look's empty read is legitimate; it still fails on the old watcher). Added a stronger held-text Swift test (fails on the 284f5d9 watcher with "a held copy was sent after a pause") and 7 Dart tests for O2, O5 and O6 (6e2bd97, 5add2b7). B1 to B4 repros pass. check.sh 2837 passing, 0 failing, 10 skipped; test_mac_capture.sh 36/0; test_mac_shortcuts.sh 165/0; release 153/0; test_windows_policy.sh all 7 pass. The tester's note that CaptureGateEdgeTests.swift is not in the RunnerTests target is out of date: the lead checked project.pbxproj, which has 4 entries for it (added by the developer in fix round 1).
+- Gates: developer fixes needed (R1 to R8) · tester pass · reviewer block · QA not started · PM merge waiting
+- Open findings: R1 Medium; R2 to R5 Low; R6 to R8 cleanup (see the reviewer entry)
+- Decisions: none
+- Blockers: Developer R1 to R8 · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — the banner for a failed Privacy-tab pause; VoiceOver on the M1.5 switch, status and chips; M1.4 items
+
 ## 2026-11-10 — M1.6 Sensitive-content protection — reviewer verdict: block
 - Changed: Reviewer (opus, branch mode) reviewed HEAD 3828b74, with the tester's uncommitted edit to CaptureGateEdgeTests.swift in the run. check.sh 2830 passed, 10 skipped; test_mac_capture.sh 36/0; test_windows_policy.sh all 7 pass. Security review: 0 vulnerabilities. Privacy: no PII in logs, events, stored rows or gate fields. Windows code read for compile errors and API misuse, with none found (not compiled). Later lines ok. Lead fixed R9 on the branch (the plan said "ADR 0005 (proposed)").
 - Gates: developer fixes needed · tester re-check running · reviewer block · QA not started · PM merge waiting
