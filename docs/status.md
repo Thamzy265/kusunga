@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-10 — M1.6 Sensitive-content protection — reviewer: T1 and T2 closed, approval stands at 66e8f53
+- Changed: Reviewer checked faffbc5..66e8f53 (bd5042a T1, 66e8f53 T2; test-only). Format 0 changed, analyze clean, both files "+104: All tests passed!". T1 traced against pause_service.dart: exactly 3 native calls, sharing really exercised. T2: absolute bound restores the "quickly" guard. Full check.sh not re-run by the reviewer (test-only; tester reports 2916 passed, 10 skipped at 66e8f53).
+- Gates: developer pass · tester pass · reviewer approve with notes (stands at 66e8f53) · QA waiting for PM's OK to use the Mac · PM merge waiting
+- Open findings: none
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — OK for QA to use the Mac; the banner for a failed Privacy-tab pause; the read-error pause behaviour; VoiceOver on the M1.5 switch, status and chips; M1.4 items
+
 ## 2026-11-10 — M1.6 Sensitive-content protection — tester fixes T1 and T2 (tests only)
 - Changed: T1 (pause_service_timeout_edge_test.dart): the launch send fails first, the next call hangs, 20 ticks wait behind it, and exactly one shared send goes out after the timeout (3 native calls). Mutation check: with the sharing branch removed, Expected 3 Actual 22; restored. T2 (data_profile_slips_test.dart): the growth ratio stays, plus fastest-of-three 1 MB run under 2 s for each of the six lead characters; 5/5 runs under 8 CPU burners passed. check.sh 2916 passed, 0 failed, 10 skipped.
 - Gates: developer pass · tester pass · reviewer approve with notes; confirmation of the T1/T2 commits requested · QA waiting for PM's OK to use the Mac · PM merge waiting
