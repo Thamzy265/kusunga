@@ -111,6 +111,10 @@ class HistoryService extends ChangeNotifier {
   var _closed = false;
   var _disposed = false;
 
+  /// Goes up with each [setCaptureIgnored] call; a retry is sent only while
+  /// its call is still the newest (R3).
+  var _ignoredSerial = 0;
+
   /// Newest first, with copies that are waiting to be saved on top.
   List<ClipItem> get items => _items;
   int get limit => _store.limit;
@@ -151,7 +155,12 @@ class HistoryService extends ChangeNotifier {
   /// A call that fails is tried once more; if that fails too, the code
   /// `captureIgnoredSendFailed` is logged (never an app id) and the watcher
   /// keeps its last list until the next change (O2).
+  ///
+  /// A newer call takes over from an older one: the older one's retry is
+  /// dropped (answering false, with nothing logged), so an older list never
+  /// reaches the watcher after a newer one (R3).
   Future<bool> setCaptureIgnored(List<String> appIds) async {
+    final serial = ++_ignoredSerial;
     Future<bool> once() async {
       try {
         return await _source.setCaptureIgnored(appIds);
@@ -160,7 +169,10 @@ class HistoryService extends ChangeNotifier {
       }
     }
 
-    if (await once() || await once()) return true;
+    if (await once()) return true;
+    if (serial != _ignoredSerial) return false;
+    if (await once()) return true;
+    if (serial != _ignoredSerial) return false;
     _log.log(LogCode.captureIgnoredSendFailed);
     return false;
   }
