@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-10 — M1.6 Sensitive-content protection — started
+- Changed: PM said "Yes, start M1.6". Size: large — personal data (which apps the user copies from, a capture-pause state) and changes to clipboard capture on Mac and Windows. Branch feat/sensitive-content from main 5170b08. Lead is writing the design note, privacy section, UI spec and deck; the developer is not briefed until the PM approves the deck.
+- Gates: design in progress · developer not briefed · tester, reviewer, QA not started · PM merge n/a yet
+- Open findings: none
+- Decisions: PM (2026-11-10): "Yes, start M1.6"
+- Blockers: PM — VoiceOver on the M1.5 switch, status and chips; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-09 — M1.5 Typed shortcuts — merged to main and pushed
 - Changed: feat/typed-shortcuts merged into main locally with `git merge --no-ff` (merge commit aa801d1). On merged main: ./tool/check.sh format, analyze and +2624 ~10 all tests passed; test_mac_shortcuts.sh 165, 0 failures; test_mac_shortcuts_release.sh 153, 0 failures; test_windows_policy.sh all passed. M1.5 ticked in docs/PLAN.md. main pushed to origin/main. The feat/typed-shortcuts branch is not pushed and not deleted.
 - Gates: developer done · tester pass (round 7) · reviewer approve with notes · QA pass (session 2; card by widget tests, PM 2026-11-09; light-appearance ring by widget tests under the standing approval) · PM merge approved
