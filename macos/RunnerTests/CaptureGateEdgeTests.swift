@@ -214,4 +214,30 @@ final class CaptureGateEdgeTests: XCTestCase {
     poller.tick()
     XCTAssertEqual(types, ["text"])
   }
+
+  /// Stronger B1 check: a retry tick that has read the text and holds it for
+  /// the confirming tick must drop it if the pause started in between, and the
+  /// held text must never be sent later, even after Resume.
+  func testAPauseStartedWhileATextIsHeldDropsItForGood() {
+    let pb = GatePasteboard()
+    let g = gate()
+    let poller = make(pb, g)
+    pb.copy(nil)
+    poller.tick()  // first look: nothing to read yet
+    pb.text = "held text"
+    poller.tick()  // retry tick reads it and holds it for confirmation
+    let readsBeforePause = pb.textReads
+    XCTAssertEqual(events.count, 0)
+    g.setPause(-1)
+    poller.tick()  // the confirming tick must not send it
+    g.setPause(0)
+    poller.tick()
+    poller.tick()
+    XCTAssertEqual(events.count, 0, "a held copy was sent after a pause")
+    XCTAssertEqual(pb.textReads, readsBeforePause)
+    pb.copy("next")
+    poller.tick()
+    XCTAssertEqual(types, ["text"])
+    XCTAssertEqual(events[0]["text"] as? String, "next")
+  }
 }
