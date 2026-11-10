@@ -9,6 +9,7 @@
 // escape because the check counts "optimal string alignment" edits (two edits
 // on the same letters count as 3-4), and a 3-way split ("-Kusunga" "Data"
 // "Profile") is not read together.
+import 'dart:collection';
 import 'dart:io';
 import 'dart:math';
 
@@ -489,12 +490,10 @@ void main() {
     });
 
     test('Release and Profile builds do no work at all on any of them', () {
-      final sw = Stopwatch()..start();
-      expect(
-        dataProfileFrom([for (var i = 0; i < 200000; i++) base], debug: false),
-        isA<NoDataProfile>(),
-      );
-      expect(sw.elapsedMilliseconds, lessThan(50));
+      // Measured as work done, not wall time: not one argument is read.
+      final args = _CountingList([for (var i = 0; i < 200000; i++) base]);
+      expect(dataProfileFrom(args, debug: false), isA<NoDataProfile>());
+      expect(args.reads, 0);
     });
   });
 
@@ -627,4 +626,29 @@ class _SpyKeys implements KeyStore {
     calls.add('write');
     return inner.write(keyHex);
   }
+}
+
+/// A list that counts every look at it: its length or an element.
+class _CountingList extends ListBase<String> {
+  _CountingList(this._inner);
+  final List<String> _inner;
+  var reads = 0;
+
+  @override
+  int get length {
+    reads++;
+    return _inner.length;
+  }
+
+  @override
+  set length(int value) => _inner.length = value;
+
+  @override
+  String operator [](int index) {
+    reads++;
+    return _inner[index];
+  }
+
+  @override
+  void operator []=(int index, String value) => _inner[index] = value;
 }
