@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-10 — M1.6 Sensitive-content protection — QA session 3: tray menu pass, AC1 and AC2 pass
+- Changed: QA commit aee8825 (docs/qa/m1.md "M1.6 session 3 (tray menu)", AC2 row updated, 10 screenshots m1.6-s3-*.png). PM allowance used through two pid-bound helper commands (status item of the qa pid only; menu clicks only in windows owned by that pid); no permission prompt refused it; helper restored to Kusunga/TextEdit only afterwards. PASS: menu while not paused (Open picker, Open Kusunga, Pause history ▸ For 15 minutes / For 1 hour / Until I resume, Quit); tray "Until I resume" → "Resume history" in the menu, tooltip, paused icon, banner, Privacy tab, TextEdit copy not kept, log capturePaused -1; "Resume history" → copy kept; tray "For 15 minutes" → tooltip and banner "until 20:12", then resumed; tray pause survives a restart; log codes only. Video qa-artifacts/m1.6/m1.6-s3-tray-pause-resume.mp4 (git-ignored); restart video not recorded (ffmpeg hung), covered by screenshot and log. qa profile cleaned: Typed shortcuts Off, QA's TextEdit document closed, qa Kusunga quit, not paused. Lead spot-checked the tray screenshots: menu only, no PM data. Lead checked: no Kusunga, ffmpeg or log stream left.
+- Gates: developer pass · tester pass · reviewer approve with notes · QA pass (AC1, AC2; VoiceOver, R5, 200% text, light mode, real password manager and Windows not run) · PM merge waiting
+- Open findings: none
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — merge approval; optional R5; VoiceOver; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items
+
 ## 2026-11-10 — M1.6 Sensitive-content protection — PM allows QA to click Kusunga's menu-bar icon
 - Changed: QA session 3 briefed for the tray menu check only.
 - Gates: developer pass · tester pass · reviewer approve with notes · QA session 3 running (tray menu) · PM merge waiting
