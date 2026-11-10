@@ -28,6 +28,6 @@ xcrun swiftc -module-name Kusunga -enable-testing -parse-as-library \
   -Xlinker -rpath -Xlinker "$platform/Developer/usr/lib" \
   -framework XCTest \
   macos/Runner/CaptureSkipCore.swift macos/Runner/ClipboardWatcher.swift \
-  macos/RunnerTests/CaptureGateTests.swift \
+  macos/RunnerTests/CaptureGateTests.swift macos/RunnerTests/CaptureGateEdgeTests.swift \
   -o "$bundle/Contents/MacOS/CaptureGateTests"
 xcrun xctest "$bundle"
