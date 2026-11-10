@@ -34,9 +34,8 @@ class ShortcutService extends ChangeNotifier {
     required this.isWindows,
     required this.available,
     this._onCopied,
-    Future<bool> Function(List<String> appIds)? setCaptureIgnored,
-  }) : _ignored = ignoredApps,
-       _setCaptureIgnored = setCaptureIgnored;
+    this._setCaptureIgnored,
+  }) : _ignored = ignoredApps;
 
   final TypedShortcutsPort port;
   final SnippetService _snippets;

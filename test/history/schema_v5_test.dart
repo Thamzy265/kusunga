@@ -153,6 +153,6 @@ void main() {
       ],
       [for (final p in presetIgnoredAppsV5) (p.appId, p.displayName, 1)],
     );
-    db.dispose();
+    db.close();
   });
 }
