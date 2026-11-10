@@ -28,6 +28,8 @@
 		A1B2C3D4E5F60718293A4B30 /* PasteFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B20 /* PasteFlow.swift */; };
 		B65D7F5C4D78FE13B3E10CB7 /* TypedShortcutBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55D7F5C4D78FE13B3E10CB7 /* TypedShortcutBridge.swift */; };
 		B660666754054761027207F9 /* TypedShortcutCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B560666754054761027207F9 /* TypedShortcutCore.swift */; };
+		C6A1E0000000000000000001 /* CaptureSkipCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5A1E0000000000000000001 /* CaptureSkipCore.swift */; };
+		C6A1E0000000000000000002 /* CaptureGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5A1E0000000000000000002 /* CaptureGateTests.swift */; };
 		331C80D8294CF71000263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C80D7294CF71000263BE5 /* RunnerTests.swift */; };
 		A1B2C3D4E5F60718293A4B34 /* PickerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B24 /* PickerTests.swift */; };
 		B69B74DFA606C519A6464B60 /* TypedShortcutCoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B59B74DFA606C519A6464B60 /* TypedShortcutCoreTests.swift */; };
@@ -82,6 +84,8 @@
 		A1B2C3D4E5F60718293A4B20 /* PasteFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteFlow.swift; sourceTree = "<group>"; };
 		B55D7F5C4D78FE13B3E10CB7 /* TypedShortcutBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypedShortcutBridge.swift; sourceTree = "<group>"; };
 		B560666754054761027207F9 /* TypedShortcutCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypedShortcutCore.swift; sourceTree = "<group>"; };
+		C5A1E0000000000000000001 /* CaptureSkipCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSkipCore.swift; sourceTree = "<group>"; };
+		C5A1E0000000000000000002 /* CaptureGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureGateTests.swift; sourceTree = "<group>"; };
 		331C80D5294CF71000263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		331C80D7294CF71000263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B24 /* PickerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickerTests.swift; sourceTree = "<group>"; };
@@ -137,6 +141,7 @@
 				B59B74DFA606C519A6464B60 /* TypedShortcutCoreTests.swift */,
 				E7E57ED001A2B3C4D5E6F702 /* PickerEdgeTests.swift */,
 				E7E57ED002A2B3C4D5E6F702 /* DiagEdgeTests.swift */,
+				C5A1E0000000000000000002 /* CaptureGateTests.swift */,
 			);
 			path = RunnerTests;
 			sourceTree = "<group>";
@@ -209,6 +214,7 @@
 				A1B2C3D4E5F60718293A4B20 /* PasteFlow.swift */,
 				B55D7F5C4D78FE13B3E10CB7 /* TypedShortcutBridge.swift */,
 				B560666754054761027207F9 /* TypedShortcutCore.swift */,
+				C5A1E0000000000000000001 /* CaptureSkipCore.swift */,
 				33CC11122044BFA00003C045 /* MainFlutterWindow.swift */,
 				33E51913231747F40026EE4D /* DebugProfile.entitlements */,
 				33E51914231749380026EE4D /* Release.entitlements */,
@@ -393,6 +399,7 @@
 				B69B74DFA606C519A6464B60 /* TypedShortcutCoreTests.swift in Sources */,
 				E7E57ED001A2B3C4D5E6F701 /* PickerEdgeTests.swift in Sources */,
 				E7E57ED002A2B3C4D5E6F701 /* DiagEdgeTests.swift in Sources */,
+				C6A1E0000000000000000002 /* CaptureGateTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -412,6 +419,7 @@
 				A1B2C3D4E5F60718293A4B30 /* PasteFlow.swift in Sources */,
 				B65D7F5C4D78FE13B3E10CB7 /* TypedShortcutBridge.swift in Sources */,
 				B660666754054761027207F9 /* TypedShortcutCore.swift in Sources */,
+				C6A1E0000000000000000001 /* CaptureSkipCore.swift in Sources */,
 				335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

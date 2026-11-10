@@ -6,11 +6,21 @@ protocol PasteboardReading: AnyObject {
   var typeIdentifiers: [String] { get }
   /// Reads the plain text. Only called after the type check has passed.
   func plainString() -> String?
+  /// Reads the `org.nspasteboard.source` marker (a bundle id, never the
+  /// copy's text). Only called when that type is present.
+  func sourceMarker() -> String?
+}
+
+extension PasteboardReading {
+  func sourceMarker() -> String? { nil }
 }
 
 extension NSPasteboard: PasteboardReading {
   var typeIdentifiers: [String] { (types ?? []).map { $0.rawValue } }
   func plainString() -> String? { string(forType: .string) }
+  func sourceMarker() -> String? {
+    string(forType: NSPasteboard.PasteboardType(CaptureGate.sourceMarkerType))
+  }
 }
 
 enum ClipboardPolicy {
@@ -60,13 +70,19 @@ final class OwnClipboardChanges {
 }
 
 /// Looks at the pasteboard when its change count moves. Reading the change
-/// count does not read any content. On a change it checks the types first and
-/// reads the text only if the copy is not marked secret.
+/// count does not read any content. On a change it checks, in this order and
+/// before reading any text (ADR 0005): the secret markers, the pause, then the
+/// source app against the ignore list.
 final class ClipboardPoller {
   private let pasteboard: PasteboardReading
   private let emit: ([String: Any]) -> Void
   private var lastCount: Int
   private let ownChanges: OwnClipboardChanges?
+  /// The pause and the ignore list (M1.6). Without one, nothing is skipped
+  /// for those reasons.
+  private let gate: CaptureGate?
+  /// The front app's bundle id, read at the time of the poll.
+  private let frontApp: () -> String?
 
   /// False when the user has not chosen "Allow" for pasteboard access (ask or
   /// deny): every read can raise a system alert, so a copy is read once only.
@@ -75,11 +91,15 @@ final class ClipboardPoller {
   init(
     pasteboard: PasteboardReading, mayRetry: @escaping () -> Bool = { true },
     ownChanges: OwnClipboardChanges? = nil,
+    gate: CaptureGate? = nil,
+    frontApp: @escaping () -> String? = { nil },
     emit: @escaping ([String: Any]) -> Void
   ) {
     self.pasteboard = pasteboard
     self.mayRetry = mayRetry
     self.ownChanges = ownChanges
+    self.gate = gate
+    self.frontApp = frontApp
     self.emit = emit
     self.lastCount = pasteboard.changeCount
   }
@@ -98,6 +118,9 @@ final class ClipboardPoller {
   private var waiting = false
   private var ticksLeft = 0
   private var isRetry = false
+  /// The pause and the source have been checked for this copy. The source
+  /// is worked out once, at the first look, when the copy was just made.
+  private var gateChecked = false
   /// Text read on a retry tick, held until the next tick confirms that the
   /// types and the change count did not move (so a secret marker that arrives
   /// just after the text is still seen before anything is sent).
@@ -116,6 +139,7 @@ final class ClipboardPoller {
       waiting = true
       ticksLeft = ClipboardPoller.maxTicksToWait
       isRetry = false
+      gateChecked = false
       held = nil
     }
     guard waiting else { return }
@@ -127,6 +151,23 @@ final class ClipboardPoller {
       held = nil
       emit(["type": "concealed"])
       return
+    }
+
+    // Then the pause and the ignore list, once per copy. The source app id
+    // stays inside this check.
+    if !gateChecked, let gate = gate {
+      gateChecked = true
+      let skip = gate.check(source: { [pasteboard, frontApp] in
+        CaptureGate.sourceApp(
+          types: types, marker: { pasteboard.sourceMarker() }, front: frontApp)
+      })
+      if let skip = skip {
+        waiting = false
+        held = nil
+        // Paused copies send nothing; Dart logged the pause itself.
+        if skip == .ignoredApp { emit(["type": "ignoredApp"]) }
+        return
+      }
     }
 
     if let held = held {
