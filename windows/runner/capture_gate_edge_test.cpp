@@ -9,6 +9,7 @@
 #include <limits>
 #include <string>
 
+#include "app_id.h"
 #include "capture_gate.h"
 
 using namespace kusunga;
@@ -187,6 +188,67 @@ int main() {
     CHECK(DecideCapture(kPlain, gate, now, std::ref(src)).outcome ==
           CaptureOutcome::kRead);
     CHECK(src.calls == 0);
+  }
+
+
+  // R6 edges. A paused secret-marked copy: the clipboard is never opened, so
+  // nothing can be sent for it (not even "concealed").
+  {
+    CaptureGate gate;
+    gate.SetPause(-1);
+    int opens = 0;
+    CHECK(OpenUnlessPaused(gate, now, [&] { opens++; return true; },
+                           [](int) {}) == OpenStep::kPaused);
+    CHECK(opens == 0);
+    gate.SetPause(kMax);
+    CHECK(OpenUnlessPaused(gate, kMax - 1, [&] { opens++; return true; },
+                           [](int) {}) == OpenStep::kPaused);
+    CHECK(opens == 0);
+  }
+  // A pause that starts while the open is being retried: the clipboard is
+  // open by then, but the decision still skips a plain copy, and a secret
+  // copy is still secret.
+  {
+    CaptureGate gate;
+    int opens = 0;
+    const OpenStep step = OpenUnlessPaused(
+        gate, now,
+        [&] {
+          if (++opens == 1) {
+            gate.SetPause(-1);  // the user pauses during the retry
+            return false;
+          }
+          return true;
+        },
+        [](int) {});
+    CHECK(step == OpenStep::kOpened);
+    Lookup src{"notepad.exe"};
+    CHECK(DecideCapture(kPlain, gate, now, std::ref(src)).outcome ==
+          CaptureOutcome::kPaused);
+    CHECK(src.calls == 0);
+    CHECK(DecideCapture(kNoHistory, gate, now, std::ref(src)).outcome ==
+          CaptureOutcome::kSecret);
+  }
+  // Locked while not paused is still "locked" (the pause does not hide it).
+  {
+    CaptureGate gate;
+    int opens = 0;
+    CHECK(OpenUnlessPaused(gate, now, [&] { opens++; return false; },
+                           [](int) {}) == OpenStep::kLocked);
+    CHECK(opens == kOpenAttempts);
+  }
+
+  // R7: the shared exe-name rule.
+  CHECK(ExeFileNameLower(L"\\\\server\\share\\KeePass.EXE") == L"keepass.exe");
+  CHECK(ExeFileNameLower(L"C:\\a\\b\\") .empty());
+  CHECK(ExeFileNameLower(L"\\") .empty());
+  CHECK(ExeFileNameLower(L"/") .empty());
+  // A name with a trailing space is kept as it is: it never equals a list id.
+  CHECK(ExeFileNameLower(L"C:\\a\\keepass.exe ") == L"keepass.exe ");
+  {
+    const std::wstring long_name(5000, L'A');
+    CHECK(ExeFileNameLower(L"C:\\" + long_name + L".EXE") ==
+          std::wstring(5000, L'a') + L".exe");
   }
 
   if (failures == 0) std::printf("all capture gate edge checks passed\n");

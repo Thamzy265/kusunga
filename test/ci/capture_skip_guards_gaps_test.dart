@@ -30,10 +30,12 @@ const _swiftFiles = [
 ];
 const _cppFiles = [
   'windows/runner/capture_gate.h',
+  'windows/runner/app_id.h',
   'windows/runner/clipboard_bridge.cpp',
 ];
 
 void main() {
+  roundThreeGuards();
   group('every event is a literal map or a known builder', () {
     test('Mac: every emit( call site is emit([...]) with a literal map', () {
       final src = _code('macos/Runner/ClipboardWatcher.swift');
@@ -237,6 +239,46 @@ void main() {
         isTrue,
       );
       expect(RegExp(r'_write\(').allMatches(src), hasLength(1));
+    });
+  });
+}
+
+// Round 3 (R7): app_id.h now holds the exe-name lookup, so it is under the
+// same rules as the gate: no state, nothing written out.
+void roundThreeGuards() {
+  group('app_id.h (R7)', () {
+    test('keeps no state: no static or global variable', () {
+      final src = _code('windows/runner/app_id.h');
+      expect(RegExp(r'\bstatic\s+(?!inline|constexpr)').hasMatch(src), isFalse);
+      expect(RegExp(r'\bthread_local\b').hasMatch(src), isFalse);
+      expect(
+        RegExp(
+          r'^\s*(?:std::\w+(?:<[^>]*>)?|int|bool)\s+\w+_?\s*(?:=|;)',
+          multiLine: true,
+        ).hasMatch(
+          src
+              .split('\n')
+              .where((l) => !l.startsWith('  ') && !l.startsWith('\t'))
+              .join('\n'),
+        ),
+        isFalse,
+      );
+    });
+
+    test('is included by the two bridges and nothing else', () {
+      final users = [
+        for (final f in Directory('windows/runner').listSync())
+          if (f is File &&
+              (f.path.endsWith('.cpp') || f.path.endsWith('.h')) &&
+              _read(f.path).contains('#include "app_id.h"'))
+            f.path.split('/').last,
+      ]..sort();
+      expect(users, [
+        'app_id_test.cpp',
+        'capture_gate_edge_test.cpp',
+        'clipboard_bridge.cpp',
+        'typed_shortcut_bridge.cpp',
+      ]);
     });
   });
 }

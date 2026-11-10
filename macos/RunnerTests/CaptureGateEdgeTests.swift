@@ -240,4 +240,34 @@ final class CaptureGateEdgeTests: XCTestCase {
     XCTAssertEqual(types, ["text"])
     XCTAssertEqual(events[0]["text"] as? String, "next")
   }
+
+  /// R5: without "Allow" the marker is not read on any tick of a waiting
+  /// copy, and a secret marker is still seen first.
+  func testWithoutAllowTheMarkerIsNeverReadEvenAcrossRetriesAndSecretStillWins() {
+    let pb = GatePasteboard()
+    let g = gate()
+    g.setIgnored(["com.example.vault"])
+    let poller = ClipboardPoller(
+      pasteboard: pb, mayRetry: { true }, mayReadMarker: { false }, gate: g,
+      frontApp: { [unowned self] in self.front }
+    ) { [unowned self] in self.events.append($0) }
+    pb.copy(nil, marker: "com.example.vault")
+    poller.tick()
+    pb.text = "late"
+    poller.tick()
+    poller.tick()
+    XCTAssertEqual(pb.markerReads, 0)
+    XCTAssertEqual(types, ["text"])
+
+    pb.copy(nil, marker: "com.example.vault")
+    poller.tick()
+    pb.typeIdentifiers = [
+      "public.utf8-plain-text", CaptureGate.sourceMarkerType,
+      "org.nspasteboard.ConcealedType",
+    ]
+    pb.text = "hunter2"
+    poller.tick()
+    XCTAssertEqual(types, ["text", "concealed"])
+    XCTAssertEqual(pb.markerReads, 0)
+  }
 }
