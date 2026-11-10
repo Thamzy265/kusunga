@@ -334,11 +334,14 @@ void ClipboardBridge::OnClipboardUpdate() {
   // Kusunga's own change (a snippet): not read, not reported.
   if (own_ && own_->Consume(sequence)) return;
 
-  // Another app may hold the clipboard open: retry, then skip this copy.
-  const bool opened = kusunga::OpenWithRetry(
+  // While paused, nothing is opened (R6). Otherwise another app may hold
+  // the clipboard open: retry, then skip this copy.
+  const kusunga::OpenStep step = kusunga::OpenUnlessPaused(
+      gate_, WallClockMs(),
       [this] { return ::OpenClipboard(window_) != FALSE; },
       [](int ms) { ::Sleep(static_cast<DWORD>(ms)); });
-  if (!opened) {
+  if (step == kusunga::OpenStep::kPaused) return;  // Dart logged the pause
+  if (step == kusunga::OpenStep::kLocked) {
     auto e = Event("error");
     e[EncodableValue("code")] = EncodableValue("locked");
     Emit(std::move(e));

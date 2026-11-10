@@ -156,6 +156,38 @@ int main() {
           CaptureOutcome::kRead);
   }
 
+  // R6: while paused, a copy is skipped before the clipboard is opened:
+  // no open, no wait, no "locked".
+  {
+    CaptureGate gate;
+    gate.SetPause(-1);
+    int opens = 0, sleeps = 0;
+    CHECK(OpenUnlessPaused(gate, now, [&] { opens++; return false; },
+                           [&](int) { sleeps++; }) == OpenStep::kPaused);
+    CHECK(opens == 0);
+    CHECK(sleeps == 0);
+    gate.SetPause(now + 1);
+    CHECK(OpenUnlessPaused(gate, now, [&] { opens++; return true; },
+                           [&](int) { sleeps++; }) == OpenStep::kPaused);
+    CHECK(opens == 0);
+  }
+  // Not paused (or the pause just ended): opened as before, with the retry.
+  {
+    CaptureGate gate;
+    gate.SetPause(now);  // ends now: over
+    int opens = 0, sleeps = 0;
+    CHECK(OpenUnlessPaused(gate, now, [&] { return ++opens == 2; },
+                           [&](int) { sleeps++; }) == OpenStep::kOpened);
+    CHECK(opens == 2);
+    CHECK(sleeps == 1);
+    opens = 0;
+    sleeps = 0;
+    CHECK(OpenUnlessPaused(gate, now, [&] { opens++; return false; },
+                           [&](int) { sleeps++; }) == OpenStep::kLocked);
+    CHECK(opens == kOpenAttempts);
+    CHECK(sleeps == kOpenAttempts - 1);
+  }
+
   if (failures == 0) std::printf("all capture gate checks passed\n");
   return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

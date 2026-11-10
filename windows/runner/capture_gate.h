@@ -100,6 +100,23 @@ CaptureDecision DecideCapture(const ClipboardFlags& flags,
   return {CaptureOutcome::kRead, false};
 }
 
+enum class OpenStep {
+  kPaused,  // history is paused: the clipboard was not opened
+  kLocked,  // another app held it open through every attempt
+  kOpened,  // open now; the caller closes it
+};
+
+// Before the clipboard is opened (R6): while paused, a copy is skipped at
+// once, so it never opens the clipboard, waits on it or reports "locked".
+// Otherwise it is opened with OpenWithRetry, and DecideCapture still checks
+// the secret markers first, then the pause again, then the source app.
+template <typename OpenFn, typename SleepFn>
+OpenStep OpenUnlessPaused(const CaptureGate& gate, int64_t now_ms, OpenFn open,
+                          SleepFn sleep_ms) {
+  if (IsPausedAt(gate.paused_until(), now_ms)) return OpenStep::kPaused;
+  return OpenWithRetry(open, sleep_ms) ? OpenStep::kOpened : OpenStep::kLocked;
+}
+
 }  // namespace kusunga
 
 #endif  // RUNNER_CAPTURE_GATE_H_
