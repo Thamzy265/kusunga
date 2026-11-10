@@ -173,15 +173,19 @@ class TrayService {
     final menuChanged = _shown?.$1 != state.$1 || _menuLacksPause();
     if (_shown == state && !menuChanged) return;
     final was = _shown;
-    _shown = state;
+    // Marked shown only once every step worked: a step that throws leaves
+    // the tray "unknown", so the next change sets all of it again (B2).
+    _shown = null;
     try {
       if (was?.$1 != state.$1) {
         await port.setIcon(state.$1 ? pausedIconPath : iconPath);
       }
       if (was?.$2 != state.$2) await port.setToolTip(state.$2);
-      if (menuChanged) await port.setMenu(_menu(state.$1));
+      if (menuChanged || was == null) await port.setMenu(_menu(state.$1));
       _menuHasPause = _pause != null;
+      _shown = state;
     } catch (error) {
+      _menuHasPause = false;
       debugPrint('Kusunga: tray update failed: $error');
     }
   }
