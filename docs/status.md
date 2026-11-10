@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-10 — M1.6 Sensitive-content protection — PM allows QA to click Kusunga's menu-bar icon
+- Changed: QA session 3 briefed for the tray menu check only.
+- Gates: developer pass · tester pass · reviewer approve with notes · QA session 3 running (tray menu) · PM merge waiting
+- Open findings: none
+- Decisions: PM said: "Let QA click it" (2026-11-10), in answer to "Who checks the tray menu?" with the option "QA clicks it: you allow QA to click Kusunga's own menu-bar icon, and only that icon". Scope: clicks on the qa Kusunga's own status item and its menu items only, M1.6 QA, this session.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — optional R5; VoiceOver; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items
+
 ## 2026-11-10 — M1.6 Sensitive-content protection — QA session 2: AC1 pass, AC2 partial (tray menu not run)
 - Changed: QA commit 13874cd on the branch (docs/qa/m1.md "M1.6 session 2" + 17 screenshots in docs/qa/m1/screens/m1.6-s2-*.png). qa profile, label read before every step; no dialog. AC1 PASS: preset list incl. "Keeper (App Store)", TextEdit added → copy skipped (captureSkippedIgnoredApp), remove/Undo/remove, Restore preset list. AC2 PARTIAL: pause for 15 min / 1 h / until resumed from the Privacy tab, tooltip, paused icon, copies while paused not kept, resume, History banner (Resume before the list), pause survives a restart, a real 15-min pause ended on its own (captureResumed 1 at 18:23:56). NOT RUN: the tray menu itself (submenu, "Resume history") — it opens only on a real click on the status item; the request to widen QA's click guard was denied, so QA did not click it. Also not run: R5 (needs a System Settings change), a real password manager, empty list, 200% text, light mode, VoiceOver, Windows; the restart video was lost when the screen locked at about 18:24. Log check PASS: only codes and numbers, no app names or copied text. Keyboard order, 600 px and 360 px PASS. Videos (git-ignored): qa-artifacts/m1.6/m1.6-s2-ignored-app-copy-skipped.mp4, m1.6-s2-pause-resume.mp4. Lead spot-checked the History and restart screenshots: qa profile items only.
 - Gates: developer pass · tester pass · reviewer approve with notes · QA partial — tray menu needs the PM (PM check 1) · PM merge waiting
