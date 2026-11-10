@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-10 — M1.6 Sensitive-content protection — design approved by PM
+- Changed: PM approved the M1.6 deck (docs/slides/sensitive-content.html) with every recommendation. ADR 0005 accepted. Design note and UI spec marked approved; the plan's M1.6 AC now says "preset with common password managers"; 5 Later lines added. Developer to be briefed (opus — personal data, capture changes on two platforms, several modules).
+- Gates: design approved · developer to be briefed · tester, reviewer, QA not started · PM merge n/a yet
+- Open findings: none
+- Decisions: PM (2026-11-10): "Approve as recommended". This approves: option A, capture skips decided in native code before reading, the source app never leaves native code (ADR 0005); D1 A, one ignore list for history and typed shortcuts; D2 A, password-manager presets only, banking apps a Later line, AC wording changed; D3 A, a pause survives a restart; D4 A, a Privacy tab holds pause and the list; D5 A, on Mac the pasteboard source marker counts first, otherwise the front app; lawful basis n/a while nothing leaves the device (as plan D7); DPIA screening: no new trigger
+- Blockers: PM — VoiceOver on the M1.5 switch, status and chips; M1.4 items (VoiceOver, paste-access revoke, slip kinds, GitHub billing or local results, leftover qa-m13 link item)
+
 ## 2026-11-10 — M1.6 Sensitive-content protection — design ready for PM
 - Changed: Design note docs/design/sensitive-content.md, ADR 0005 (proposed: capture skips decided in native code before reading; the source app never leaves native code), UI spec docs/ui/sensitive-content.md, deck docs/slides/sensitive-content.html, on feat/sensitive-content. Recommended option A. Scope: ignore list stops capture (shared with typed shortcuts), new verified password-manager presets (schema v5), Pause history 15 min / 1 h / until resumed from the tray and a new Privacy tab, a History banner and tray tooltip while paused. Five Later lines proposed.
 - Gates: design waiting for PM approval · developer not briefed · tester, reviewer, QA not started · PM merge n/a yet
