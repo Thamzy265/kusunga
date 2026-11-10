@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-10 — M1.6 Sensitive-content protection — merged to main (done)
+- Changed: feat/sensitive-content merged into main with --no-ff as 685eccf (50 commits). Checks on merged main: check.sh 2916 passed, 10 skipped ("All tests passed!"); test_mac_capture.sh 40/0; test_mac_shortcuts.sh 165/0; test_mac_shortcuts_release.sh 153/0; test_windows_policy.sh all 8 programs passed. M1.6 ticked in docs/PLAN.md. Not pushed.
+- Gates: developer pass · tester pass · reviewer approve with notes · QA pass · PM merge approved
+- Open findings: none
+- Decisions: PM said: "Approve the merge" (2026-11-10), in answer to "Approve merging M1.6 into main on this Mac (no push)?". Later the PM said: "am going to sleep, carry on" (2026-11-10). No push: push needs the PM's approval at the time.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — push of main; VoiceOver (M1.6 PM check 3, M1.5 switch, status and chips); optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5 (Windows CI billing)
+
 ## 2026-11-10 — M1.6 Sensitive-content protection — QA session 3: tray menu pass, AC1 and AC2 pass
 - Changed: QA commit aee8825 (docs/qa/m1.md "M1.6 session 3 (tray menu)", AC2 row updated, 10 screenshots m1.6-s3-*.png). PM allowance used through two pid-bound helper commands (status item of the qa pid only; menu clicks only in windows owned by that pid); no permission prompt refused it; helper restored to Kusunga/TextEdit only afterwards. PASS: menu while not paused (Open picker, Open Kusunga, Pause history ▸ For 15 minutes / For 1 hour / Until I resume, Quit); tray "Until I resume" → "Resume history" in the menu, tooltip, paused icon, banner, Privacy tab, TextEdit copy not kept, log capturePaused -1; "Resume history" → copy kept; tray "For 15 minutes" → tooltip and banner "until 20:12", then resumed; tray pause survives a restart; log codes only. Video qa-artifacts/m1.6/m1.6-s3-tray-pause-resume.mp4 (git-ignored); restart video not recorded (ffmpeg hung), covered by screenshot and log. qa profile cleaned: Typed shortcuts Off, QA's TextEdit document closed, qa Kusunga quit, not paused. Lead spot-checked the tray screenshots: menu only, no PM data. Lead checked: no Kusunga, ffmpeg or log stream left.
 - Gates: developer pass · tester pass · reviewer approve with notes · QA pass (AC1, AC2; VoiceOver, R5, 200% text, light mode, real password manager and Windows not run) · PM merge waiting

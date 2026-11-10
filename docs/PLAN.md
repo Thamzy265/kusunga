@@ -70,7 +70,7 @@ Everything stays on the device. No account, no server.
   - AC: shortcuts do not fire in password fields or in apps on the ignore list.
   - AC: a single switch turns typed shortcuts off.
   - Design: `docs/design/typed-shortcuts.md`, ADR 0004, UI spec `docs/ui/typed-shortcuts.md`, deck `docs/slides/typed-shortcuts.html` (approved 2026-11-08).
-- [ ] **M1.6 Sensitive-content protection** — large (personal data).
+- [x] **M1.6 Sensitive-content protection** — large (personal data).
   - (Secret-marker skip moved to M1.2.)
   - AC: an app ignore list (preset with common password managers) stops capture from those apps. (Banking apps moved to a Later line, PM 2026-11-10, D2.)
   - AC: "Pause history" for 15 min / 1 h / until resumed, from the tray/menu bar.
