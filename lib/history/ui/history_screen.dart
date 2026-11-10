@@ -1120,7 +1120,8 @@ class _Banner extends StatelessWidget {
 }
 
 /// "History paused until 14:30. New copies aren't kept." with Resume (M1.6
-/// UI spec). Shown only while paused; the banner tokens of `_Banner`.
+/// UI spec), shown while paused; or, after a pause that failed, "Couldn't
+/// apply the pause. Try again." The banner tokens of `_Banner`.
 class PausedBanner extends StatelessWidget {
   const PausedBanner({super.key, required this.pause});
 
@@ -1131,8 +1132,34 @@ class PausedBanner extends StatelessWidget {
     return ListenableBuilder(
       listenable: pause,
       builder: (context, _) {
-        if (!pause.isPaused) return const SizedBox.shrink();
         final t = KusungaTokens.of(context);
+        if (!pause.isPaused) {
+          // A pause that failed (from the tray, or anywhere): the warning
+          // banner until the user's next pause or resume (PM decision
+          // 2026-11-10, UI spec "Tray menu / Error").
+          if (pause.error != PauseError.apply) return const SizedBox.shrink();
+          return Padding(
+            padding: EdgeInsets.only(bottom: KusungaTokens.space2),
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: KusungaTokens.space3,
+                vertical: KusungaTokens.space2,
+              ),
+              decoration: BoxDecoration(
+                color: t.bannerWarnBg,
+                borderRadius: BorderRadius.circular(KusungaTokens.radius2),
+              ),
+              child: Semantics(
+                identifier: 'history-pause-failed',
+                liveRegion: true,
+                child: Text(
+                  "Couldn't apply the pause. Try again.",
+                  style: KusungaTokens.body.copyWith(color: t.bannerWarnText),
+                ),
+              ),
+            ),
+          );
+        }
         final end = pauseEndText(context, pause);
         final text = end == null
             ? "History paused. New copies aren't kept."
