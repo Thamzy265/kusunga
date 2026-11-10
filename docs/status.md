@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-10 — M1.6 Sensitive-content protection — reviewer verdict: approve with notes (faffbc5)
+- Changed: Reviewer re-reviewed c75f8da..faffbc5 (tester 90963b1, developer faffbc5): approve with notes. check.sh 2916 passed, 10 skipped, format 0 changed, analyze clean. Fail-on-old-code: the dispose test fails with the c75f8da pause_service.dart (Expected <1> Actual <3>) and passes at faffbc5. Fix check: no caller left waiting, no listener or timer after dispose, no double complete, user path unchanged before dispose. Side effect noted, not a finding: a user pause that is the running call at quit is applied in native but not saved or shown in Dart; it ends at quit and errs toward privacy. Tester's 90963b1 tests sound, except T1. 0 code, design, security or privacy findings in the fix.
+- Gates: developer pass · tester pass · reviewer approve with notes · QA not started (waiting for PM's OK to use the Mac) · PM merge waiting
+- Open findings: T1 cleanup — pause_service_timeout_edge_test "20 ticks behind a stuck call add at most one call" passes with 0 sends, so it never exercises the sharing (covered elsewhere by pause_service_timeout_test.dart). T2 Low (test quality) — data_profile_slips_test "a megabyte of spaces or dashes..." no longer catches a uniformly slow linear parse; add a loose bound, e.g. fastest 1 MB run under 2 s. Lead: both go to the tester to fix (test-only), not skipped.
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — OK for QA to use the Mac; the banner for a failed Privacy-tab pause; the read-error pause behaviour; VoiceOver on the M1.5 switch, status and chips; M1.4 items
+
 ## 2026-11-10 — M1.6 Sensitive-content protection — developer fix round 4 (P1)
 - Changed: Developer commit faffbc5 (lib/history/pause_service.dart only): dispose drops every queued native call (caller gets false), accepts no new call, and a call already running finishes without changing state or notifying listeners. Failing run at 90963b1: tester's "dispose with calls running and queued..." Expected <1> Actual <3>; passes after the fix. check.sh 2916 passed, 10 skipped, format 0 changed, analyze clean. test_mac_capture.sh 40/0, test_mac_shortcuts.sh 165/0, test_mac_shortcuts_release.sh 153/0, test_windows_policy.sh 8/8.
 - Gates: developer pass · tester pass (round 4) · reviewer re-check of faffbc5 requested · QA not started · PM merge waiting
