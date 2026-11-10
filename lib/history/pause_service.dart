@@ -237,6 +237,7 @@ class PauseService extends ChangeNotifier {
   /// background send that has not started (so a pause or resume waits at
   /// most one [nativeTimeout] behind a stuck background call).
   Future<bool> _sendUser(int until) {
+    if (_disposed) return Future.value(false);
     final job = _NativeJob(() => until, ifNeeded: () => false);
     final at = _backgroundWaiting == null
         ? _waiting.length
@@ -251,6 +252,7 @@ class PauseService extends ChangeNotifier {
   /// never pile up sends behind a stuck call. With [ifNeeded] (and no other
   /// request without it), nothing is sent when native already has it.
   Future<bool> _sendBackground({bool ifNeeded = false}) {
+    if (_disposed) return Future.value(false);
     final waiting = _backgroundWaiting;
     if (waiting != null) {
       if (!ifNeeded) waiting.force = true;
@@ -273,7 +275,7 @@ class PauseService extends ChangeNotifier {
   /// Runs the waiting calls one by one. The first one starts synchronously
   /// when nothing is running, so [load]'s call leaves before it returns.
   void _pump() {
-    if (_running || _waiting.isEmpty) return;
+    if (_disposed || _running || _waiting.isEmpty) return;
     _running = true;
     final job = _waiting.removeAt(0);
     unawaited(_run(job));
@@ -285,7 +287,8 @@ class PauseService extends ChangeNotifier {
     var ok = true;
     if (!(skipIfSame && _nativeHas == until)) {
       ok = await _call(until);
-      _nativeHas = ok ? until : null;
+      // After dispose the answer changes nothing (P1).
+      if (!_disposed) _nativeHas = ok ? until : null;
     }
     _running = false;
     job.done.complete(ok);
@@ -296,14 +299,16 @@ class PauseService extends ChangeNotifier {
 
   /// Dart's state as it is now. Sent synchronously when nothing waits.
   Future<void> _sendState() async {
-    if (!await _sendBackground()) _backgroundFailed();
+    if (!await _sendBackground() && !_disposed) _backgroundFailed();
   }
 
   /// After a user's pause or resume: a tick that ran while it waited may
   /// have sent an older value after it (R1). Native code gets Dart's state
   /// again once every waiting call is done, unless it already has it.
   Future<void> _resync() async {
-    if (!await _sendBackground(ifNeeded: true)) _backgroundFailed();
+    if (!await _sendBackground(ifNeeded: true) && !_disposed) {
+      _backgroundFailed();
+    }
   }
 
   void _backgroundFailed() {
@@ -316,7 +321,9 @@ class PauseService extends ChangeNotifier {
   Future<bool> pause(PauseLength length) async {
     final minutes = length.minutes;
     final until = minutes == null ? -1 : _clock() + minutes * 60 * 1000;
-    if (!await _sendUser(until)) {
+    final ok = await _sendUser(until);
+    if (_disposed) return false;
+    if (!ok) {
       _failed(PauseError.apply);
       return false;
     }
@@ -333,7 +340,9 @@ class PauseService extends ChangeNotifier {
   /// Resumes history. False if native code could not be told, and then it
   /// stays paused ("Couldn't resume. Try again.").
   Future<bool> resume() async {
-    if (!await _sendUser(0)) {
+    final ok = await _sendUser(0);
+    if (_disposed) return false;
+    if (!ok) {
       _failed(PauseError.resume);
       return false;
     }
@@ -378,7 +387,9 @@ class PauseService extends ChangeNotifier {
     _ticks.value++;
     final changed = _settle(fromTimer: true);
     if (changed) {
-      if (await _sendBackground()) {
+      final ok = await _sendBackground();
+      if (_disposed) return;
+      if (ok) {
         _nativeInStep();
       } else {
         _backgroundFailed();
@@ -388,7 +399,9 @@ class PauseService extends ChangeNotifier {
     }
     if (_outOfStep && (_keepRetrying || !_retried)) {
       _retried = true;
-      if (await _sendBackground()) {
+      final ok = await _sendBackground();
+      if (_disposed) return;
+      if (ok) {
         _nativeInStep();
       } else if (_keepRetrying) {
         _error ??= PauseError.apply;
@@ -442,6 +455,14 @@ class PauseService extends ChangeNotifier {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    // No queued call starts and none is accepted from now on (P1); their
+    // callers get false and change nothing. A running call may finish.
+    final queued = List.of(_waiting);
+    _waiting.clear();
+    _backgroundWaiting = null;
+    for (final job in queued) {
+      job.done.complete(false);
+    }
     _timer?.cancel();
     _timer = null;
     _lifecycle?.dispose();
