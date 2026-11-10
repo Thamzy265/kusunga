@@ -50,6 +50,8 @@ const _designCodes = {
   'capturePaused',
   'captureResumed',
   'captureSourceUnknown',
+  // Fix round O2: the list could not reach the watcher after one retry.
+  'captureIgnoredSendFailed',
 };
 
 void main() {

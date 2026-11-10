@@ -119,4 +119,45 @@ void main() {
     expect(source.sentIgnored, ['keepass.exe']);
     h.dispose();
   });
+
+  group('a failed setCaptureIgnored (O2)', () {
+    test('is tried once more; when that works nothing is logged', () async {
+      final h = start();
+      await pumpEventQueue();
+      source.calls.clear();
+      log.codes.clear();
+      source.ignoredAnswers.addAll([false, true]);
+      expect(await h.setCaptureIgnored(['keepass.exe']), isTrue);
+      expect(source.calls, ['setCaptureIgnored', 'setCaptureIgnored']);
+      expect(source.sentIgnored, ['keepass.exe']);
+      expect(log.codes, isEmpty);
+      h.dispose();
+    });
+
+    test(
+      'fails twice: one code-only log line, no app id, no third try',
+      () async {
+        final h = start();
+        await pumpEventQueue();
+        source.calls.clear();
+        log.codes.clear();
+        log.details.clear();
+        source.ignoredAnswers.addAll([false, false]);
+        expect(await h.setCaptureIgnored(['keepass.exe']), isFalse);
+        expect(source.calls, ['setCaptureIgnored', 'setCaptureIgnored']);
+        expect(log.codes, [LogCode.captureIgnoredSendFailed]);
+        expect(log.details, [null]);
+        h.dispose();
+      },
+    );
+
+    test('the one at start is retried too', () async {
+      source.ignoredAnswers.addAll([false, false]);
+      final h = start();
+      await pumpEventQueue();
+      expect(source.calls.where((c) => c == 'setCaptureIgnored').length, 2);
+      expect(log.codes, contains(LogCode.captureIgnoredSendFailed));
+      h.dispose();
+    });
+  });
 }

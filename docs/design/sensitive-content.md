@@ -134,7 +134,7 @@ No outbound calls. Local failures:
 
 ## Observability
 
-- New log codes: `captureSkippedIgnoredApp`, `capturePaused` (with the chosen length only: 15, 60 or until resumed), `captureResumed` (user or timer), `captureSourceUnknown` (Windows only, counted, no name).
+- New log codes: `captureSkippedIgnoredApp`, `capturePaused` (with the chosen length only: 15, 60 or until resumed), `captureResumed` (user or timer), `captureSourceUnknown` (Windows only, counted, no name), `captureIgnoredSendFailed` (the ignore list could not be sent to the clipboard watcher after one retry; no app ids).
 - Nothing names an app or holds text.
 - The number to watch in beta: how often `captureSourceUnknown` appears.
 

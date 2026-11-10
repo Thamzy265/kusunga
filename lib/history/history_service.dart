@@ -145,12 +145,22 @@ class HistoryService extends ChangeNotifier {
 
   /// Sends the ignore list to the native watcher (M1.6): at start, and each
   /// time the list changes (typed shortcuts get the same list).
+  ///
+  /// A call that fails is tried once more; if that fails too, the code
+  /// `captureIgnoredSendFailed` is logged (never an app id) and the watcher
+  /// keeps its last list until the next change (O2).
   Future<bool> setCaptureIgnored(List<String> appIds) async {
-    try {
-      return await _source.setCaptureIgnored(appIds);
-    } catch (_) {
-      return false;
+    Future<bool> once() async {
+      try {
+        return await _source.setCaptureIgnored(appIds);
+      } catch (_) {
+        return false;
+      }
     }
+
+    if (await once() || await once()) return true;
+    _log.log(LogCode.captureIgnoredSendFailed);
+    return false;
   }
 
   Future<void> recheckPasteAccess() async {

@@ -82,10 +82,13 @@ enum LogCode {
   // before it was read; history was paused (detail: 15 or 60 minutes, or -1
   // until resumed) or resumed (detail: 0 the user, 1 the timer); on Windows
   // the source app of a copy could not be found, so it was captured as today.
+  // captureIgnoredSendFailed: the ignore list could not be sent to the
+  // clipboard watcher, also on the one retry (never an app id).
   captureSkippedIgnoredApp,
   capturePaused,
   captureResumed,
   captureSourceUnknown,
+  captureIgnoredSendFailed,
 }
 
 abstract interface class ErrorLog {

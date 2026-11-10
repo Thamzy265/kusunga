@@ -86,9 +86,13 @@ class FakeClipboardSource implements ClipboardSource {
     return true;
   }
 
+  /// What the next setCaptureIgnored calls answer, in order; then true.
+  final ignoredAnswers = <bool>[];
+
   @override
   Future<bool> setCaptureIgnored(List<String> appIds) async {
     calls.add('setCaptureIgnored');
+    if (ignoredAnswers.isNotEmpty && !ignoredAnswers.removeAt(0)) return false;
     sentIgnored = List.of(appIds);
     return true;
   }
