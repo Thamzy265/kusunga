@@ -118,9 +118,10 @@ class ExpiryService extends ChangeNotifier {
   /// Listeners hear from a run only when it changed something: items
   /// deleted, the warning shown or gone, or the setting read at last
   /// (reviewer F11).
-  void cleanUp() {
+  void cleanUp() => _run(reloaded: _reloadIfUnknown());
+
+  void _run({required bool reloaded}) {
     if (_disposed) return;
-    final reloaded = _reloadIfUnknown();
     final wasFailing = failing;
     _lastRun = _clock();
     final cut = cutoff;
@@ -157,8 +158,10 @@ class ExpiryService extends ChangeNotifier {
         lastRun == null ||
         now < lastRun ||
         now - lastRun >= cleanUpEvery.inMilliseconds;
-    // A setting that could be read only now applies at once.
-    if (_reloadIfUnknown() || jumped || due) cleanUp();
+    // A setting that could be read only now applies at once, and the run
+    // tells the listeners (reviewer RN1).
+    final reloaded = _reloadIfUnknown();
+    if (reloaded || jumped || due) _run(reloaded: reloaded);
   }
 
   bool _isShorter(int newDays) =>

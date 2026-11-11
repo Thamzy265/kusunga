@@ -632,6 +632,35 @@ void main() {
       service.dispose();
     });
 
+    // Reviewer RN1: the minute check reads the setting at last, with
+    // nothing to delete; the Settings menu and the list still hear of it.
+    testWidgets('a setting read at last by the minute check, with nothing to '
+        'delete: listeners hear it, and the item leaves at its cut-off', (
+      tester,
+    ) async {
+      final inner = _SometimesUnreadable()
+        ..writeSetting(historyExpirySetting, '1')
+        ..insertOrBump('a', ClipKind.text, now - day + 10 * minute);
+      store = FlakyStore(inner);
+      service = build();
+      service.expiry.startTicking(listenToLifecycle: false);
+      var heard = 0;
+      service.expiry.addListener(() => heard++);
+      inner.fail = false;
+      now += minute;
+      await tester.pump(const Duration(minutes: 1)); // the minute check
+      expect(service.expiry.days, 1);
+      expect(heard, greaterThan(0), reason: 'the menu would still say Never');
+      expect(texts(), ['a']);
+      for (var i = 0; i < 10; i++) {
+        now += minute;
+        await tester.pump(const Duration(minutes: 1));
+      }
+      expect(texts(), isEmpty, reason: 'a expired 9 minutes later');
+      expect(store.inner.count, 1, reason: 'no clean-up was due yet');
+      service.dispose();
+    });
+
     testWidgets('the minute check runs the clean-up after 15 minutes', (
       tester,
     ) async {
