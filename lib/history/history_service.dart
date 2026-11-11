@@ -89,6 +89,9 @@ class HistoryService extends ChangeNotifier {
       store: () => _store,
       log: _log,
       onChanged: _onExpiryChanged,
+      onCleanUp: (cutoff) {
+        if (!_closed && _dropExpiredWaiting(cutoff)) _refresh();
+      },
       clock: _clock,
     );
   }
@@ -266,7 +269,20 @@ class HistoryService extends ChangeNotifier {
     }
   }
 
+  /// Drops copies still waiting to be saved that were copied before
+  /// [cutoff]: an expired copy is never written (reviewer F6). True when
+  /// any went.
+  bool _dropExpiredWaiting(int? cutoff) {
+    if (cutoff == null || _waiting.isEmpty) return false;
+    final before = _waiting.length;
+    _waiting.removeWhere((w) => w.time < cutoff);
+    if (_waiting.length == before) return false;
+    if (_waiting.isEmpty) _banners.remove(HistoryBanner.writeError);
+    return true;
+  }
+
   void _flushWaiting() {
+    _dropExpiredWaiting(expiry.cutoff);
     while (_waiting.isNotEmpty) {
       final result = _trySave(_waiting.first);
       if (result == _Save.retryLater) return;
@@ -568,7 +584,8 @@ class HistoryService extends ChangeNotifier {
     _subscription = null;
     try {
       // One last try to save copies that are still waiting, so a quit does
-      // not lose them.
+      // not lose them (but never one that has expired).
+      _dropExpiredWaiting(expiry.cutoff);
       for (final w in List.of(_waiting)) {
         if (_trySave(w) != _Save.retryLater) _waiting.remove(w);
       }

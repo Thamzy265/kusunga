@@ -324,6 +324,51 @@ void main() {
       expect(heard, greaterThan(0), reason: 'the warning goes');
     });
 
+    // Reviewer F6: a copy that could not be saved yet and has expired
+    // meanwhile is never written.
+    List<String> saved() => store.inner.list().map((i) => i.preview).toList();
+
+    test('an expired copy waiting to be saved is dropped at the clean-up '
+        'and never written', () {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      service = build();
+      store.failWrites = true;
+      source.copy('secret');
+      expect(service.banners, contains(HistoryBanner.writeError));
+      now += day + 1;
+      store.failWrites = false;
+      service.expiry.cleanUp();
+      expect(texts(), isEmpty);
+      expect(service.banners, isNot(contains(HistoryBanner.writeError)));
+      source.copy('next');
+      expect(saved(), ['next']);
+    });
+
+    test('a save between clean-ups skips an expired waiting copy', () {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      service = build();
+      store.failWrites = true;
+      source.copy('secret');
+      source.copy('kept');
+      now += day - 1;
+      source.copy('newer'); // still waiting: writes fail
+      now += 2; // 'secret' and 'kept' have expired, 'newer' has not
+      store.failWrites = false;
+      source.copy('last');
+      expect(saved(), ['last', 'newer']);
+    });
+
+    test('quitting does not write an expired waiting copy', () async {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      service = build();
+      store.failWrites = true;
+      source.copy('secret');
+      now += day + 1;
+      store.failWrites = false;
+      await service.close();
+      expect(saved(), isEmpty);
+    });
+
     test('a failed run keeps items hidden, logs, and retries next run', () {
       store.inner.writeSetting(historyExpirySetting, '1');
       seed({'old': 2, 'new': 0});

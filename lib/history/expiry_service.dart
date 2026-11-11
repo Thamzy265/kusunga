@@ -30,6 +30,7 @@ class ExpiryService extends ChangeNotifier {
     required this._store,
     required this._log,
     required this._onChanged,
+    this._onCleanUp,
     int Function()? clock,
   }) : _clock = clock ?? (() => DateTime.now().millisecondsSinceEpoch);
 
@@ -46,6 +47,11 @@ class ExpiryService extends ChangeNotifier {
   /// or went, a new time, the minute check starting): the history
   /// refreshes (the read filter) and updates its warning banner.
   final void Function() _onChanged;
+
+  /// Called at each run with its cut-off, before the delete: the history
+  /// drops copies still waiting to be saved that have expired, so they are
+  /// never written (reviewer F6).
+  final void Function(int cutoff)? _onCleanUp;
   final int Function() _clock;
 
   var _days = 0;
@@ -120,6 +126,7 @@ class ExpiryService extends ChangeNotifier {
     final cut = cutoff;
     var n = 0;
     if (cut != null) {
+      _onCleanUp?.call(cut);
       try {
         n = _store().deleteOlderThan(cut);
         if (n > 0) _log.log(LogCode.historyExpired, n);
