@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-11 — M1.7 Settings and expiry — PM away overnight
+- Changed: none in code. Developer fixing RN1 and RN2.
+- Gates: developer fixing RN1, RN2 · tester pass · reviewer approve with notes · QA — · PM merge —
+- Open findings: 2 Low (RN1, RN2)
+- Decisions: PM said: "am going to sleep, you can proceed" (2026-11-11). Lead reads this as: continue the gates (developer, reviewer re-check, QA in the qa profile). No merge, push or risk acceptance without the PM. QA will not turn on a real login item, log out, or change System Settings; those steps wait for the PM.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — push of main; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-11 — M1.7 Settings and expiry — reviewer re-check: approve with notes
 - Changed: Reviewer re-reviewed 4ae5516..99d578d. F1–F9, F11, F12 fixed (each fix's tests fail on the old lib, checked in a scratch worktree); F10 no change needed (PM "Where it was"). F4 deviation (unknown setting shows Never, read again at each check) accepted provided RN1 is fixed; F5 in HistoryService accepted; LoginItemService refreshing on resume and show accepted. Shared close_at_zero and section_heading: no regression. Checks: first check.sh run had 1 speed-test failure (data_profile_slips_test 2M chars, 3292 ms vs 3000 ms; not changed on this branch; slow machine); passes alone and on the full rerun (3246 passed, 10 skipped); native suites all pass.
 - Findings: RN1 Low — once a thrown setting read is finally read at the minute check, listeners aren't told if nothing is deleted, so the menu stays on Never and the expiry refresh timer isn't armed (from F11). RN2 Low — a clean-up that deletes nothing no longer re-arms the history's expiry timer, so after a wake an expiring item can stay visible up to 15 min (from F11); two older asserts were edited to fit. Both display only; paste is blocked. Reviewer recommends fixing both before merge.
