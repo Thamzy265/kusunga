@@ -169,7 +169,8 @@ class LoginItemService extends ChangeNotifier {
 
   /// The note under the switch (UI spec, "Copy"), or null. After a failed
   /// change it says so while the switch is not where the user asked, or the
-  /// OS could not be read.
+  /// OS could not be read. While the next change runs, no failure note
+  /// shows; a note about the OS state (approval, Task Manager) stays.
   String? get note {
     final failedTo = _failedTo;
     if (failedTo != null &&
@@ -181,7 +182,9 @@ class LoginItemService extends ChangeNotifier {
       LoginItemState.on || LoginItemState.off => null,
       LoginItemState.needsApproval =>
         'Allow Kusunga in System Settings › General › Login Items.',
-      LoginItemState.failed => _cantTurnOn,
+      // While a change runs it starts clean: no earlier failure shows, as
+      // it could name the wrong direction (tester finding N1).
+      LoginItemState.failed => busy ? null : _cantTurnOn,
       LoginItemState.unsupported => 'Needs macOS 13 or later.',
       LoginItemState.turnedOffInTaskManager => 'Turned off in Task Manager.',
     };

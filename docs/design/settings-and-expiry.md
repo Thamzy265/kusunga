@@ -103,7 +103,8 @@ About 1.2× M1.6's Dart work and less native work: one Dart service, one migrati
   - a failed turn-on: off, note "Couldn't turn this on. Try again.";
   - a failed turn-off while the item is still on: on, note "Couldn't turn this off. Try again.";
   - if that read fails too, the switch stays where it was, with the same note, so it never shows off while the OS may have it on;
-  - if the OS already has the position the user asked for, no failure note.
+  - if the OS already has the position the user asked for, no failure note;
+  - the next change starts clean: while it runs, no earlier failure note shows (tester finding N1).
 - **Time limit:** every login-item call has the M1.6 native-call limit: no answer within 2 s counts as failed and a late answer is ignored (tester finding B4). With the read after a failure, the switch is usable again after at most 4 s.
 - The channel gets two calls, `loginItemStatus` and `setLoginItem(bool)`. They carry no path or user data.
 

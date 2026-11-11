@@ -524,6 +524,57 @@ void main() {
       expect(service.isOn, isFalse);
       expect(service.note, isNull);
     });
+
+    // Tester finding N1: while a retry runs, an earlier failure note is not
+    // shown (it would name the wrong direction); a note about what the OS
+    // has stays.
+    test('while a change runs no earlier failure note shows, in either '
+        'direction', () async {
+      for (final (reads, retry) in [
+        (LoginItemState.failed, false), // after a failed turn-off
+        (LoginItemState.off, true), // after a failed turn-on
+        (LoginItemState.failed, true), // a read that failed, no change
+      ]) {
+        await startAt(retry ? LoginItemState.off : LoginItemState.on);
+        port.reads = LoginItemAnswer(reads);
+        if (reads == LoginItemState.failed && retry) {
+          await service.refresh();
+        } else {
+          await service.set(retry);
+        }
+        expect(service.note, isNotNull, reason: '$reads $retry');
+        final held = port.hold();
+        final change = service.set(retry);
+        expect(service.busy, isTrue);
+        expect(service.isOn, retry);
+        expect(service.note, isNull, reason: '$reads $retry');
+        held.complete(
+          LoginItemAnswer(retry ? LoginItemState.on : LoginItemState.off),
+        );
+        await change;
+        expect(service.note, isNull);
+        port.reads = null;
+      }
+    });
+
+    test('while a change runs a note about the OS state stays', () async {
+      for (final (state, note) in [
+        (
+          LoginItemState.needsApproval,
+          'Allow Kusunga in System Settings › General › Login Items.',
+        ),
+        (LoginItemState.turnedOffInTaskManager, 'Turned off in Task Manager.'),
+      ]) {
+        port.next = LoginItemAnswer(state);
+        await service.refresh();
+        final held = port.hold();
+        final change = service.set(!service.isOn);
+        expect(service.busy, isTrue);
+        expect(service.note, note);
+        held.complete(const LoginItemAnswer(LoginItemState.off));
+        await change;
+      }
+    });
   });
 
   test('Windows passes --login at a login start: it is not taken for a '
