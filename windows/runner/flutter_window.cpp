@@ -4,8 +4,9 @@
 
 #include "flutter/generated_plugin_registrant.h"
 
-FlutterWindow::FlutterWindow(const flutter::DartProject& project)
-    : project_(project) {}
+FlutterWindow::FlutterWindow(const flutter::DartProject& project,
+                             bool start_hidden)
+    : project_(project), start_hidden_(start_hidden) {}
 
 FlutterWindow::~FlutterWindow() {}
 
@@ -31,10 +32,13 @@ bool FlutterWindow::OnCreate() {
       flutter_controller_->engine()->messenger(), GetHandle(), &own_changes_);
   typed_shortcut_bridge_ = std::make_unique<TypedShortcutBridge>(
       flutter_controller_->engine()->messenger(), GetHandle(), &own_changes_);
+  login_item_bridge_ = std::make_unique<LoginItemBridge>(
+      flutter_controller_->engine()->messenger());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
-    this->Show();
+    // A login start (--login, M1.7 D5 A) stays in the tray.
+    if (!start_hidden_) this->Show();
   });
 
   // Flutter can complete the first frame before the "show window" callback is
@@ -46,6 +50,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  login_item_bridge_ = nullptr;
   typed_shortcut_bridge_ = nullptr;
   picker_bridge_ = nullptr;
   clipboard_bridge_ = nullptr;

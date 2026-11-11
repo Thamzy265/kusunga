@@ -9,6 +9,7 @@ project(runner LANGUAGES CXX)
 add_executable(${BINARY_NAME} WIN32
   "clipboard_bridge.cpp"
   "flutter_window.cpp"
+  "login_item_bridge.cpp"
   "main.cpp"
   "picker_bridge.cpp"
   "typed_shortcut_bridge.cpp"

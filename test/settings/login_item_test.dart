@@ -4,6 +4,7 @@
 // source of truth: nothing is stored by Kusunga.
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kusunga/history/data_profile.dart';
 import 'package:kusunga/log/app_log.dart';
 import 'package:kusunga/settings/login_item.dart';
 
@@ -229,5 +230,16 @@ void main() {
         expect(service.isOn, isFalse);
       },
     );
+  });
+
+  test('Windows passes --login at a login start: it is not taken for a '
+      'misspelled test profile switch (debug builds)', () {
+    expect(dataProfileFrom(['--login'], debug: true), isA<NoDataProfile>());
+    final both = dataProfileFrom([
+      '--login',
+      '-KusungaDataProfile',
+      'qa',
+    ], debug: true);
+    expect(both, isA<ActiveDataProfile>());
   });
 }
