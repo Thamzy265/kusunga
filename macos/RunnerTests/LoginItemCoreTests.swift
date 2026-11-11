@@ -205,3 +205,116 @@ final class LoginLaunchTests: XCTestCase {
       LoginLaunch.showsWindowAtLaunch(eventID: LoginLaunch.openApplication, propData: nil))
   }
 }
+
+// M1.7 tester: more edge cases for the controller and the login-launch
+// check. Same fake SMAppService: nothing registers a real login item.
+final class LoginItemControllerEdgeTests: XCTestCase {
+  func testReadingNeverChangesAnything() {
+    let service = FakeService()
+    for s in [LoginItemStatus.enabled, .notRegistered, .requiresApproval, .notFound] {
+      service.status = s
+      let c = LoginItemController(service: service)
+      XCTAssertEqual(c.status(), LoginItemAnswer(state: s, error: nil))
+    }
+    XCTAssertEqual(service.calls, [])
+  }
+
+  func testTurningOnTwiceRegistersOnce() {
+    let service = FakeService()
+    let c = LoginItemController(service: service)
+    XCTAssertEqual(c.set(true).state, .enabled)
+    XCTAssertEqual(c.set(true).state, .enabled)
+    XCTAssertEqual(service.calls, ["register"])
+  }
+
+  func testTurningOnWhileApprovalIsPendingDoesNotRegisterAgain() {
+    let service = FakeService()
+    service.status = .requiresApproval
+    let c = LoginItemController(service: service)
+    XCTAssertEqual(c.set(true), LoginItemAnswer(state: .requiresApproval, error: nil))
+    XCTAssertEqual(service.calls, [])
+  }
+
+  func testTurningOffWhileApprovalIsPendingUnregisters() {
+    let service = FakeService()
+    service.status = .requiresApproval
+    let c = LoginItemController(service: service)
+    XCTAssertEqual(c.set(false), LoginItemAnswer(state: .notRegistered, error: nil))
+    XCTAssertEqual(service.calls, ["unregister"])
+  }
+
+  func testTurningOffTwiceUnregistersOnce() {
+    let service = FakeService()
+    service.status = .enabled
+    let c = LoginItemController(service: service)
+    XCTAssertEqual(c.set(false).state, .notRegistered)
+    XCTAssertEqual(c.set(false).state, .notRegistered)
+    XCTAssertEqual(service.calls, ["unregister"])
+  }
+
+  func testAnyOSErrorNumberPassesThroughAsANumberOnly() {
+    for code in [0, 1, -1, 22, 1000, Int.max, Int.min] {
+      let service = FakeService()
+      service.registerError = FakeError(code: code)
+      let answer = LoginItemController(service: service).set(true)
+      XCTAssertEqual(answer.state, .error)
+      XCTAssertEqual(answer.error, code)
+      let reply = answer.reply
+      XCTAssertEqual(Set(reply.keys), ["state", "error"])
+      XCTAssertTrue(reply["error"] is Int)
+    }
+  }
+
+  func testAThrowingRegisterThatLeavesItNotFoundIsAnErrorWithTheNumber() {
+    let service = FakeService()
+    service.registerError = FakeError(code: 7)
+    service.statusOnThrow = .notFound
+    XCTAssertEqual(
+      LoginItemController(service: service).set(true),
+      LoginItemAnswer(state: .error, error: 7))
+  }
+
+  func testNoAnswerEverCarriesAPathOrUserData() {
+    let service = FakeService()
+    let c = LoginItemController(service: service)
+    let answers = [
+      c.status(), c.set(true), c.set(false),
+      LoginItemController(service: nil).status(),
+      LoginItemAnswer(state: .error, error: 5),
+    ]
+    for a in answers {
+      XCTAssertTrue(Set(a.reply.keys).isSubset(of: ["state", "error"]))
+      let state = a.reply["state"] as? String ?? ""
+      XCTAssertNil(state.rangeOfCharacter(from: CharacterSet(charactersIn: "/\\: ")))
+    }
+  }
+
+  func testMacOS12NeverReportsAnError() {
+    let c = LoginItemController(service: nil)
+    XCTAssertNil(c.status().error)
+    XCTAssertNil(c.set(true).error)
+  }
+}
+
+final class LoginLaunchEdgeTests: XCTestCase {
+  func testALoginMarkOnAnyOtherEventIsNotALoginLaunch() {
+    // The mark only counts on the launch's "open application" event.
+    for event in [UInt32(kAEOpenDocuments), UInt32(kAEReopenApplication), UInt32(kAEQuitApplication), 0, UInt32.max] {
+      XCTAssertFalse(
+        LoginLaunch.isLoginLaunch(eventID: event, propData: LoginLaunch.launchedAsLogInItem))
+      XCTAssertTrue(
+        LoginLaunch.showsWindowAtLaunch(eventID: event, propData: LoginLaunch.launchedAsLogInItem))
+    }
+  }
+
+  func testAMarkWithoutAnEventIsNotALoginLaunch() {
+    XCTAssertFalse(LoginLaunch.isLoginLaunch(eventID: nil, propData: LoginLaunch.launchedAsLogInItem))
+  }
+
+  func testOtherLaunchKindsOpenTheWindow() {
+    for kind in [UInt32(keyAELaunchedAsServiceItem), 0, UInt32.max] {
+      XCTAssertTrue(
+        LoginLaunch.showsWindowAtLaunch(eventID: LoginLaunch.openApplication, propData: kind))
+    }
+  }
+}
