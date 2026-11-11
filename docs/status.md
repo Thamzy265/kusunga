@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-11 — M1.7 Settings and expiry — RN1 and RN2 fixed
+- Changed: Developer fixed RN1 (22b646c: the minute check passes its reload to the clean-up run, so listeners hear it) and RN2 (34c60de: an unchanged run re-arms the history expiry timer through a cheap callback, reading the store only when the list must change). The two asserts edited in bc8ec16 restored; reviewer's probes pass unchanged. HEAD 34c60de. check.sh 3248 passed, 10 skipped; test_mac_capture 40/0; test_mac_shortcuts 165/0; test_mac_shortcuts_release 153/0; test_mac_login_item 30/0; test_windows_policy passed.
+- Gates: developer pass · tester pass · reviewer re-check of RN1, RN2 started · QA — · PM merge —
+- Open findings: RN1, RN2 fixed, waiting for the reviewer
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — push of main; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-11 — M1.7 Settings and expiry — PM away overnight
 - Changed: none in code. Developer fixing RN1 and RN2.
 - Gates: developer fixing RN1, RN2 · tester pass · reviewer approve with notes · QA — · PM merge —
