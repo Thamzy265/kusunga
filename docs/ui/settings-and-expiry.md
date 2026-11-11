@@ -60,7 +60,7 @@ flowchart LR
 | Screen / component | Default | Hover | Focus | Disabled | Loading | Empty | Error | Success | Long content | Offline | Permission denied |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | Settings tab | Sections "General" and "History" | Tab `surfaceHover` | Focus ring; Ctrl+Tab cycles tabs | n/a | n/a | n/a | n/a | n/a | Scrolls vertically | n/a — no network | n/a |
-| Launch at login switch | Off (AC2) | `surfaceHover` | Focus ring | macOS 12: off and disabled, note "Needs macOS 13 or later." (D4 B) | While the OS call runs: the switch keeps its new position, with no spinner (the call is fast); input is ignored until it returns | n/a | Failed: switch back off, note "Couldn't turn this on. Try again." · Mac needs approval: switch on, note "Allow Kusunga in System Settings › General › Login Items." + button "Open Login Items" · Windows disabled in Task Manager: switch off, note "Turned off in Task Manager." | Switch on; announced "Launch at login on" / "off" | n/a | n/a | Mac approval state as Error |
+| Launch at login switch | Off (AC2) | `surfaceHover` | Focus ring | macOS 12: off and disabled, note "Needs macOS 13 or later." (D4 B) | While the OS call runs: the switch keeps its new position, with no spinner (the call is fast); input is ignored until it returns. A login-item call with no answer within 2 s counts as failed (the M1.6 native-call limit); after a failed change the read of the OS state is part of the same call, so input is ignored for at most 4 s | n/a | After any failed change Kusunga reads the OS state again and the switch shows what it says · Failed turn-on: switch back off, note "Couldn't turn this on. Try again." · Failed turn-off while the OS still has it on: switch stays on, note "Couldn't turn this off. Try again." (if that read fails too, the switch stays where it was, with the same note) · Mac needs approval: switch on, note "Allow Kusunga in System Settings › General › Login Items." + button "Open Login Items" · Windows disabled in Task Manager: switch off, note "Turned off in Task Manager." | Switch on; announced "Launch at login on" / "off" | n/a | n/a | Mac approval state as Error |
 | Picker shortcut row | As M1.3, moved | As M1.3 | As M1.3 | As M1.3 | As M1.3 | n/a | As M1.3 | As M1.3 | n/a | n/a | n/a |
 | Keep field | As M1.2, moved, including its confirm dialog | As M1.2 | As M1.2 | As M1.2 | As M1.2 | n/a | As M1.2 | As M1.2 | n/a | n/a | n/a |
 | Auto-delete menu | New installs "After 30 days"; existing data "Never" (D3 B) | `surfaceHover` | Focus ring; arrow keys move in the open menu | n/a | n/a | n/a | Save failed: the menu goes back to the old value, "Couldn't save. Try again." below | Longer or Never: saved, no toast · shorter with 0 items to go: saved, no dialog · shorter with items to go: confirm dialog | n/a | n/a | n/a |
@@ -104,7 +104,7 @@ flowchart LR
 - Launch at login:
   - label "Launch at login";
   - help "Start Kusunga in the menu bar when you log in." (Windows: "Start Kusunga in the tray when you sign in.");
-  - notes "Needs macOS 13 or later.", "Couldn't turn this on. Try again.", "Allow Kusunga in System Settings › General › Login Items.", "Turned off in Task Manager.";
+  - notes "Needs macOS 13 or later.", "Couldn't turn this on. Try again.", "Couldn't turn this off. Try again.", "Allow Kusunga in System Settings › General › Login Items.", "Turned off in Task Manager.";
   - button "Open Login Items".
 - Auto-delete:
   - label "Auto-delete";

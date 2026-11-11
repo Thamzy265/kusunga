@@ -99,6 +99,12 @@ About 1.2× M1.6's Dart work and less native work: one Dart service, one migrati
   - Windows: the `--login` argument.
   - Mac: `SMAppService` passes no argument. Kusunga checks the launch Apple event's `keyAELaunchedAsLogInItem`. If it can't be told reliably, the window opens as today. The developer reports which, and QA checks it.
 - **Re-read the state** when the Settings tab opens and when Kusunga becomes active, so a change made in System Settings shows up.
+- **After a failed change** (a `register()` or `unregister()` error, a Windows registry error such as access denied, or no answer), Kusunga reads the status again as part of the same change, and the switch shows what the OS says (R4, tester finding B3):
+  - a failed turn-on: off, note "Couldn't turn this on. Try again.";
+  - a failed turn-off while the item is still on: on, note "Couldn't turn this off. Try again.";
+  - if that read fails too, the switch stays where it was, with the same note, so it never shows off while the OS may have it on;
+  - if the OS already has the position the user asked for, no failure note.
+- **Time limit:** every login-item call has the M1.6 native-call limit: no answer within 2 s counts as failed and a late answer is ignored (tester finding B4). With the read after a failure, the switch is usable again after at most 4 s.
 - The channel gets two calls, `loginItemStatus` and `setLoginItem(bool)`. They carry no path or user data.
 
 ## Settings tab (D1)
