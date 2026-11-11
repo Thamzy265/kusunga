@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-11 — M1.7 Settings and expiry — developer fixes for tester round 1
+- Changed: Developer (opus, xhigh) fixed B3 (9a54252: read the OS again after a failed change; "Couldn't turn this off. Try again."), B4 (0dc004a: 2 s limit on every login-item call, late answers ignored), B1 (aa0a712: a good save resets the failure count), B2 (2fd8c63: dialog counts every item older than the new time), stale ids (9e5591f: textOf/copy honour the cutoff); docs e95d476 (UI spec and design note). Tester's tests not edited; the 4 repros pass. check.sh 3188 passed, 10 skipped; test_mac_capture 40; test_mac_shortcuts 165; test_mac_shortcuts_release 153; test_mac_login_item 30; test_windows_policy passed. Run one after another.
+- Deviations reported: when a turn-off fails and the read after it also fails, the switch stays on with "Couldn't turn this off. Try again." (follows R4); the failure note shows only while the switch is not where the user asked or the read failed.
+- Gates: developer pass · tester re-check started · reviewer — · QA — · PM merge —
+- Open findings: B1–B4 fixed, waiting for the tester's re-check
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — the developer's three spec-gap choices; push of main; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-11 — M1.7 Settings and expiry — tester round 1: 4 bugs
 - Changed: Tester added about 150 tests (6 Dart files, 12 Swift tests in LoginItemCoreTests.swift, windows/runner/login_item_policy_edge_test.cpp) on feat/settings-expiry; no production code changed. New Dart tests fail on b6c66f5. check.sh 3153 passed, 4 failed (the repros below), 10 skipped; test_mac_capture 40/0; test_mac_shortcuts 165/0; test_mac_shortcuts_release 153/0; test_mac_login_item 30/0; test_windows_policy passed. Abuse cases 5/5; UI states 18/18 automatable rows. Gaps for QA: real SMAppService, registry and login start; VoiceOver; 300% text overflow at 320 px (beyond spec, not counted).
 - Findings: B1 Low — choosing Never does not clear the "Couldn't remove old items" banner. B2 Low — the dialog count leaves out expired items not yet cleaned up, so the toast can say more items were deleted than the dialog said. B3 Medium — a failed turn-off shows the switch off while the OS may still have it on (R4), with "Couldn't turn this on" wording. B4 Low/Medium — the login-item channel has no timeout, so a native call that never answers locks the switch until restart. Also noted: textOf/copy still return an expired, not yet cleaned-up item by a stale id.
