@@ -54,6 +54,10 @@ class _WindowRootState extends State<WindowRoot> {
   late WindowMode _mode;
   FocusNode? _focusBefore;
 
+  /// The picker shortcut's Change button in Settings, which "Change in
+  /// Settings" in the History banner focuses (M1.7 F9).
+  final _changeShortcut = FocusNode(debugLabel: 'Change picker shortcut');
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +68,7 @@ class _WindowRootState extends State<WindowRoot> {
   @override
   void dispose() {
     widget.picker.removeListener(_onChange);
+    _changeShortcut.dispose();
     super.dispose();
   }
 
@@ -107,7 +112,9 @@ class _WindowRootState extends State<WindowRoot> {
           pickerShortcutSlot: PickerSettingsSection(
             controller: picker,
             parts: PickerSettingsParts.shortcut,
+            changeFocus: _changeShortcut,
           ),
+          pickerShortcutFocus: _changeShortcut,
           loginItem: widget.loginItem,
           snippetsTopSlot: _shortcutsSection(),
           ignoredAppsSlot: _ignoredAppsEditor(),

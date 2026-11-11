@@ -67,6 +67,7 @@ flowchart LR
 | Confirm dialog (shorter time) | "Delete items after 1 day? 143 older items will be deleted. Snippets aren't affected." [Cancel] [Delete] | Button hover | Focus on Cancel first | Count unreadable: "Couldn't count the items. Try again.", only Cancel works (as the limit dialog) | n/a | Count 0 at open: no dialog | Delete failed: dialog closes, toast "Couldn't delete. Try again.", old setting kept | Toast "143 items deleted" | Count follows live changes, as the limit dialog | n/a | n/a |
 | Clean-up keeps failing (3 runs) | — | — | — | — | — | — | Warning banner in History (`_Banner`, `bannerWarnBg`): "Couldn't remove old items. Kusunga will try again." | Banner goes away after the next good run | — | — | — |
 | "Ignored apps and pause are in Privacy" link | Text button | Underline | Focus ring | n/a | n/a | n/a | n/a | Opens the Privacy tab, focus on "Pause history" heading | n/a | n/a | n/a |
+| "Change in Settings" (History, in the banner "Kusunga's shortcut … is used by another app. Choose another.") — PM decision 2026-11-11 | Text button in the banner, `bannerWarnText` | Button hover | Focus ring (3:1 on `bannerWarnBg`) | n/a | n/a | n/a | n/a | Opens the Settings tab, focus on the picker shortcut's Change | Moves below the banner text when they don't fit on one row | n/a | n/a |
 | Started at login (D5 A) | No window; the menu-bar or tray icon only | n/a | n/a | n/a | n/a | n/a | Mac can't tell it was a login start: the window opens as today | n/a | n/a | n/a | n/a |
 
 ## Breakpoints
@@ -89,6 +90,7 @@ flowchart LR
 - **Accessible names:**
   - "Launch at login", a switch with an on/off state;
   - "Auto-delete history", whose value is the chosen option;
+  - "Change in Settings", a button in the History banner for a taken shortcut;
   - each note is read with its control, as its description.
 - **Announcements (polite):**
   - "Launch at login on" and "Launch at login off";
@@ -117,6 +119,7 @@ flowchart LR
   - toasts "{n} items deleted" and "Couldn't delete. Try again."
 - Banner: "Couldn't remove old items. Kusunga will try again."
 - Link: "Ignored apps and pause are in Privacy".
+- History banner for a taken picker shortcut: button "Change in Settings" (opens the Settings tab with the focus on Change).
 
 No deceptive patterns: the most private login choice is the default, a deletion always says how many items it removes, and turning anything off is as easy as turning it on.
 

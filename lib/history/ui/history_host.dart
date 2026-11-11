@@ -31,6 +31,7 @@ class HistoryHost extends StatefulWidget {
     this.dataProfileRejected = false,
     this.ignoredAppsSlot,
     this.pickerShortcutSlot,
+    this.pickerShortcutFocus,
     this.loginItem,
   });
 
@@ -39,6 +40,13 @@ class HistoryHost extends StatefulWidget {
   /// window.
   static void showIgnoredApps(BuildContext context) =>
       context.findAncestorStateOfType<_HistoryHostState>()?._showIgnoredApps();
+
+  /// Opens the Settings tab with the focus on the picker shortcut's Change
+  /// ("Change in Settings" in the History banner, M1.7 F9). [context] is
+  /// inside the window.
+  static void showPickerShortcut(BuildContext context) => context
+      .findAncestorStateOfType<_HistoryHostState>()
+      ?._showPickerShortcut();
 
   final Future<HistoryService> history;
 
@@ -56,6 +64,9 @@ class HistoryHost extends StatefulWidget {
   /// The picker shortcut row for the Settings tab (M1.7, moved from
   /// History).
   final Widget? pickerShortcutSlot;
+
+  /// The focus node of the Change button in [pickerShortcutSlot].
+  final FocusNode? pickerShortcutFocus;
 
   /// Launch at login for the Settings tab (desktop). Read again from the OS
   /// each time the tab opens.
@@ -106,6 +117,16 @@ class _HistoryHostState extends State<HistoryHost> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _pauseHeading.context != null) {
         _pauseHeading.requestFocus();
+      }
+    });
+  }
+
+  void _showPickerShortcut() {
+    _select(3);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final change = widget.pickerShortcutFocus;
+      if (mounted && change != null && change.context != null) {
+        change.requestFocus();
       }
     });
   }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../history/ui/history_host.dart';
 import '../../theme/tokens.dart';
 import '../../ui/focus_order.dart';
 import '../picker_controller.dart';
@@ -31,10 +32,15 @@ class PickerSettingsSection extends StatefulWidget {
     super.key,
     required this.controller,
     this.parts = PickerSettingsParts.all,
+    this.changeFocus,
   });
 
   final PickerController controller;
   final PickerSettingsParts parts;
+
+  /// The Change button's focus node, so "Change in Settings" in the History
+  /// banner can put the focus on it (M1.7 F9).
+  final FocusNode? changeFocus;
 
   bool get _notices => parts != PickerSettingsParts.shortcut;
   bool get _shortcut => parts != PickerSettingsParts.notices;
@@ -169,7 +175,14 @@ class _PickerSettingsSectionState extends State<PickerSettingsSection>
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (widget._notices && banner != null) _Banner(text: banner),
+            if (widget._notices && banner != null)
+              _Banner(
+                text: banner,
+                // Only where Change is in another tab (History, M1.7 F9).
+                onChange: widget.parts == PickerSettingsParts.notices
+                    ? () => HistoryHost.showPickerShortcut(context)
+                    : null,
+              ),
             if (widget._notices && _c.isMac && _c.permissionCardVisible)
               _PermissionCard(controller: _c),
             if (widget._shortcut) ...[
@@ -190,6 +203,7 @@ class _PickerSettingsSectionState extends State<PickerSettingsSection>
                       Semantics(
                         identifier: 'shortcut-change',
                         child: OutlinedButton(
+                          focusNode: widget.changeFocus,
                           onPressed: _startRecording,
                           child: const Text(
                             'Change',
@@ -296,13 +310,25 @@ class _RecorderState extends State<_Recorder> {
 }
 
 class _Banner extends StatelessWidget {
-  const _Banner({required this.text});
+  const _Banner({required this.text, this.onChange});
 
   final String text;
+
+  /// "Change in Settings" (M1.7 F9, PM decision 2026-11-11): opens the
+  /// Settings tab with the focus on Change. Null: no button.
+  final VoidCallback? onChange;
 
   @override
   Widget build(BuildContext context) {
     final t = KusungaTokens.of(context);
+    final message = Semantics(
+      liveRegion: true,
+      child: Text(
+        text,
+        style: KusungaTokens.body.copyWith(color: t.bannerWarnText),
+      ),
+    );
+    final onChange = this.onChange;
     return Padding(
       padding: EdgeInsets.only(bottom: KusungaTokens.space2),
       child: Container(
@@ -311,13 +337,28 @@ class _Banner extends StatelessWidget {
           color: t.bannerWarnBg,
           borderRadius: BorderRadius.circular(KusungaTokens.radius2),
         ),
-        child: Semantics(
-          liveRegion: true,
-          child: Text(
-            text,
-            style: KusungaTokens.body.copyWith(color: t.bannerWarnText),
-          ),
-        ),
+        // Text and the button on one row when they fit; at narrow widths
+        // the button moves below the text, as Resume in the paused banner.
+        child: onChange == null
+            ? message
+            : Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: KusungaTokens.space2,
+                children: [
+                  message,
+                  Semantics(
+                    identifier: 'shortcut-banner-change',
+                    child: TextButton(
+                      onPressed: onChange,
+                      child: Text(
+                        'Change in Settings',
+                        style: TextStyle(color: t.bannerWarnText),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
