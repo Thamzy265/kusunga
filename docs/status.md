@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-11 — M1.7 Settings and expiry — tester re-check: B1–B4 closed, 1 new Low
+- Changed: Tester added 28 tests (test/settings/login_item_recheck_test.dart 18, test/history/expiry_stale_id_test.dart 14 on both stores); no production code changed. B1, B2, B3, B4 and the stale-id gap closed. check.sh 3219 passed, 1 failed (the N1 repro), 10 skipped; test_mac_capture 40/0; test_mac_shortcuts 165/0; test_mac_shortcuts_release 153/0; test_mac_login_item 30/0; test_windows_policy passed.
+- Findings: N1 Low (cosmetic) — after a failed turn-off with an unreadable OS, a retry shows "Couldn't turn this on. Try again." while the turn-off call runs; it corrects itself when the call returns.
+- Gates: developer fixing N1 · tester open (1 Low) · reviewer — · QA — · PM merge —
+- Open findings: 1 Low (N1)
+- Decisions: none. Lead: the fix goes back to the same developer (opus, xhigh); a further failed round goes to the PM as a blocker under the escalation rule.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — the "both calls fail" switch behaviour; push of main; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-11 — M1.7 Settings and expiry — PM keeps the developer's three spec-gap choices
 - Changed: none in code. Tester re-check of the round 1 fixes is running.
 - Gates: developer pass · tester re-check running · reviewer — · QA — · PM merge —
