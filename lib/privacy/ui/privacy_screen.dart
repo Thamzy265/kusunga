@@ -6,6 +6,7 @@ import 'package:flutter/semantics.dart';
 
 import '../../history/pause_service.dart';
 import '../../theme/tokens.dart';
+import '../../ui/section_heading.dart';
 
 // Copy from the UI spec (`docs/ui/sensitive-content.md`, "Copy").
 const _pauseHeading = 'Pause history';
@@ -135,17 +136,6 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
     ),
   );
 
-  Widget _heading(KusungaTokens t, String text) => Semantics(
-    header: true,
-    child: Text(
-      text,
-      style: KusungaTokens.body.copyWith(
-        color: t.text,
-        fontWeight: FontWeight.w600,
-      ),
-    ),
-  );
-
   Widget _pauseSection(KusungaTokens t) {
     final paused = _pause.isPaused;
     final error = _pause.error;
@@ -157,7 +147,7 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
         canRequestFocus: widget.pauseHeadingFocus != null,
         child: Semantics(
           identifier: 'privacy-pause-heading',
-          child: _heading(t, _pauseHeading),
+          child: const SectionHeading(_pauseHeading),
         ),
       ),
       SizedBox(height: KusungaTokens.space1),
@@ -255,7 +245,7 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
         skipTraversal: true,
         child: Semantics(
           identifier: 'privacy-ignored-apps-heading',
-          child: _heading(t, _ignoredHeading),
+          child: const SectionHeading(_ignoredHeading),
         ),
       ),
       SizedBox(height: KusungaTokens.space1),

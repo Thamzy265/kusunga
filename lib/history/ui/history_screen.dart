@@ -8,6 +8,7 @@ import '../../clipboard/clipboard_source.dart';
 import '../../privacy/ui/privacy_screen.dart' show pauseEndText;
 import '../../snippets/ui/snippet_editor.dart';
 import '../../theme/tokens.dart';
+import '../../ui/close_at_zero.dart';
 import '../../ui/focus_order.dart';
 import '../clip_item.dart';
 import '../history_service.dart';
@@ -629,31 +630,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
   // can arrive meanwhile), so they always say what confirming deletes
   // (BUG-W1).
   Future<void> _confirmClear() async {
-    var shown = _service.items.length;
     final confirmed = await showDialog<bool>(
       context: context,
       // At a count of 0 (items deleted elsewhere) the dialog closes by
       // itself, as Cancel would (PM decision 2026-11-08, "Close or
       // relabel"). The count is the list in memory, never a store read, so
       // a failed read or save cannot close it.
-      builder: (context) => _CloseWhenEmpty(
-        service: _service,
-        child: AlertDialog(
+      builder: (context) => CloseAtZero(
+        listenable: _service,
+        count: () => _service.items.length,
+        builder: (context, count) => AlertDialog(
           title: const Text('Clear all history?'),
-          content: ListenableBuilder(
-            listenable: _service,
-            builder: (context, _) {
-              // While it closes at 0 it keeps the last count it showed.
-              final count = _service.items.isEmpty
-                  ? shown
-                  : shown = _service.items.length;
-              return Text(
-                // "all 1 item" reads oddly: one item is "the 1 item" (lead,
-                // 2026-11-06, QA-M14-7).
-                '${count == 1 ? 'This deletes the 1 item.' : 'This deletes all $count items.'} '
-                'Snippets are not affected.',
-              );
-            },
+          content: Text(
+            // "all 1 item" reads oddly: one item is "the 1 item" (lead,
+            // 2026-11-06, QA-M14-7).
+            '${count == 1 ? 'This deletes the 1 item.' : 'This deletes all $count items.'} '
+            'Snippets are not affected.',
           ),
           actions: [
             TextButton(
@@ -854,52 +846,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
     );
   }
-}
-
-/// Closes the dialog it is in, with the same result as Cancel, when the
-/// history becomes empty while it is open (PM decision 2026-11-08). It
-/// listens only while the dialog is there, so nothing is left listening if
-/// the dialog goes another way.
-class _CloseWhenEmpty extends StatefulWidget {
-  const _CloseWhenEmpty({required this.service, required this.child});
-
-  final HistoryService service;
-  final Widget child;
-
-  @override
-  State<_CloseWhenEmpty> createState() => _CloseWhenEmptyState();
-}
-
-class _CloseWhenEmptyState extends State<_CloseWhenEmpty> {
-  var _closing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.service.addListener(_check);
-  }
-
-  @override
-  void dispose() {
-    widget.service.removeListener(_check);
-    super.dispose();
-  }
-
-  void _check() {
-    if (_closing || !mounted || widget.service.items.isNotEmpty) return;
-    final route = ModalRoute.of(context);
-    if (route == null) return;
-    _closing = true;
-    final navigator = Navigator.of(context);
-    if (route.isCurrent) {
-      navigator.pop(false);
-    } else {
-      navigator.removeRoute(route, false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => widget.child;
 }
 
 /// The title and the ⋯ menu. The Keep field moved to the Settings tab

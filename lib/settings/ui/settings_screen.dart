@@ -8,7 +8,9 @@ import '../../history/history_service.dart';
 import '../../history/history_store.dart';
 import '../../history/ui/limit_field.dart';
 import '../../theme/tokens.dart';
+import '../../ui/close_at_zero.dart';
 import '../../ui/focus_order.dart';
+import '../../ui/section_heading.dart';
 import '../login_item.dart';
 
 // Copy from the UI spec (`docs/ui/settings-and-expiry.md`, "Copy").
@@ -166,7 +168,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _heading(t, _general),
+                  const SectionHeading(_general),
                   SizedBox(height: KusungaTokens.space2),
                   if (login != null) ...[
                     _loginSection(t, login),
@@ -174,7 +176,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                   ?widget.pickerShortcut,
                   SizedBox(height: KusungaTokens.space5),
-                  _heading(t, _history),
+                  const SectionHeading(_history),
                   SizedBox(height: KusungaTokens.space2),
                   LimitField(
                     service: _service,
@@ -204,17 +206,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
-
-  Widget _heading(KusungaTokens t, String text) => Semantics(
-    header: true,
-    child: Text(
-      text,
-      style: KusungaTokens.body.copyWith(
-        color: t.text,
-        fontWeight: FontWeight.w600,
-      ),
-    ),
-  );
 
   Widget _caption(KusungaTokens t, String text, {bool live = false}) => Padding(
     padding: EdgeInsets.only(top: KusungaTokens.space1),
@@ -378,83 +369,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
 /// Cancel, the count follows live changes, and while it cannot be read only
 /// Cancel works. At a count of 0 (items went meanwhile) it closes by
 /// itself, as Cancel would, like the Clear history dialog (PM decision
-/// 2026-11-08): then nothing is deleted and the user can choose again.
-class _ExpiryDialog extends StatefulWidget {
+/// 2026-11-08, [CloseAtZero]): then nothing is deleted and the user can
+/// choose again.
+class _ExpiryDialog extends StatelessWidget {
   const _ExpiryDialog({required this.service, required this.days});
 
   final HistoryService service;
   final int days;
 
   @override
-  State<_ExpiryDialog> createState() => _ExpiryDialogState();
-}
-
-class _ExpiryDialogState extends State<_ExpiryDialog> {
-  int? _count;
-  var _closing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _count = widget.service.expiry.countRemovedBy(widget.days);
-    widget.service.addListener(_recount);
-    widget.service.expiry.addListener(_recount);
-  }
-
-  @override
-  void dispose() {
-    widget.service.removeListener(_recount);
-    widget.service.expiry.removeListener(_recount);
-    super.dispose();
-  }
-
-  void _recount() {
-    if (!mounted || _closing) return;
-    final count = widget.service.expiry.countRemovedBy(widget.days);
-    if (count == 0) {
-      _closing = true;
-      final route = ModalRoute.of(context);
-      final navigator = Navigator.of(context);
-      if (route == null) return;
-      if (route.isCurrent) {
-        navigator.pop(false);
-      } else {
-        navigator.removeRoute(route, false);
-      }
-      return;
-    }
-    setState(() => _count = count);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final count = _count;
     final t = KusungaTokens.of(context);
-    return AlertDialog(
-      content: Text(
-        count == null
-            ? _countFailed
-            : 'Delete items after ${_expiryLength(widget.days)}? $count older '
-                  "${count == 1 ? 'item' : 'items'} will be deleted. Snippets "
-                  "aren't affected.",
-      ),
-      actions: [
-        TextButton(
-          autofocus: true,
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
+    return CloseAtZero(
+      listenable: Listenable.merge([service, service.expiry]),
+      count: () => service.expiry.countRemovedBy(days),
+      builder: (context, count) => AlertDialog(
+        content: Text(
+          count == null
+              ? _countFailed
+              : 'Delete items after ${_expiryLength(days)}? $count older '
+                    "${count == 1 ? 'item' : 'items'} will be deleted. "
+                    "Snippets aren't affected.",
         ),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: t.danger,
-            foregroundColor: t.surface,
+        actions: [
+          TextButton(
+            autofocus: true,
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
           ),
-          onPressed: count == null
-              ? null
-              : () => Navigator.of(context).pop(true),
-          child: const Text('Delete'),
-        ),
-      ],
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: t.danger,
+              foregroundColor: t.surface,
+            ),
+            onPressed: count == null
+                ? null
+                : () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
   }
 }
