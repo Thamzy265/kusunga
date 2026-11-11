@@ -85,6 +85,74 @@ void main() {
       expect(service.expiry.days, 0);
       expect(log.codes, contains(LogCode.readFailed));
     });
+
+    // Reviewer F4: a read that throws is "unknown", not the user's Never for
+    // the whole session. It is read again at each check and clean-up.
+    int readFailures() =>
+        log.codes.where((c) => c == LogCode.readFailed).length;
+
+    test('a read that throws is read again at the next check; once it '
+        'reads, the chosen time applies at once', () {
+      final inner = _SometimesUnreadable()
+        ..writeSetting(historyExpirySetting, '1');
+      store = FlakyStore(inner);
+      seed({'old': 2, 'new': 0});
+      service = build();
+      expect(service.expiry.days, 0);
+      expect(texts(), ['new', 'old']);
+      expect(readFailures(), 1);
+      now += minute;
+      service.expiry.check();
+      expect(service.expiry.days, 0);
+      expect(readFailures(), 1, reason: 'logged once while it keeps failing');
+      inner.fail = false;
+      now += minute;
+      service.expiry.check();
+      expect(service.expiry.days, 1);
+      expect(texts(), ['new']);
+      expect(store.inner.count, 1, reason: 'the clean-up ran at once');
+      expect(readFailures(), 1);
+    });
+
+    test('the clean-up reads it again too', () {
+      final inner = _SometimesUnreadable()
+        ..writeSetting(historyExpirySetting, '7');
+      store = FlakyStore(inner);
+      seed({'old': 8});
+      service = build();
+      expect(store.inner.count, 1);
+      inner.fail = false;
+      service.expiry.cleanUp();
+      expect(service.expiry.days, 7);
+      expect(store.inner.count, 0);
+    });
+
+    test('a time chosen while it was unknown is kept; it is not read '
+        'again', () {
+      final inner = _SometimesUnreadable()
+        ..writeSetting(historyExpirySetting, '30');
+      store = FlakyStore(inner);
+      service = build();
+      expect(service.expiry.setDays(7), 0);
+      inner
+        ..fail = false
+        ..writeSetting(historyExpirySetting, '30');
+      now += minute;
+      service.expiry.check();
+      expect(service.expiry.days, 7);
+    });
+
+    test('a crafted value still means Never and is not read again', () {
+      store.inner.writeSetting(historyExpirySetting, '2');
+      service = build();
+      expect(readFailures(), 1);
+      store.inner.writeSetting(historyExpirySetting, '1');
+      now += minute;
+      service.expiry.check();
+      service.expiry.cleanUp();
+      expect(service.expiry.days, 0);
+      expect(readFailures(), 1);
+    });
   });
 
   group('read filter (R1)', () {
@@ -538,6 +606,17 @@ class _ThrowingReadStore extends MemoryHistoryStore {
   @override
   String? readSetting(String key) {
     if (key == historyExpirySetting) throw StateError('locked');
+    return super.readSetting(key);
+  }
+}
+
+/// The auto-delete setting can't be read while [fail] is set.
+class _SometimesUnreadable extends MemoryHistoryStore {
+  bool fail = true;
+
+  @override
+  String? readSetting(String key) {
+    if (fail && key == historyExpirySetting) throw StateError('locked');
     return super.readSetting(key);
   }
 }

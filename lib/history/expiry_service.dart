@@ -23,8 +23,8 @@ int? expiryCutoff(int days, int nowMs) =>
 ///
 /// Logs codes only: `historyExpired` (how many items went),
 /// `historyExpiryFailed`, `settingSaveFailed`, and `readFailed` for a
-/// setting that is missing, unreadable or not 0, 1, 7 or 30 (treated as
-/// Never).
+/// setting that is missing or not 0, 1, 7 or 30 (treated as Never), or
+/// that can't be read (unknown until it can, see [load]).
 class ExpiryService extends ChangeNotifier {
   ExpiryService({
     required this._store,
@@ -48,6 +48,10 @@ class ExpiryService extends ChangeNotifier {
   final int Function() _clock;
 
   var _days = 0;
+
+  /// The setting could not be read (the store threw): unknown, not the
+  /// user's Never. Read again at each check and clean-up (reviewer F4).
+  var _unknown = false;
   var _failures = 0;
   int? _lastRun;
   int? _lastCheck;
@@ -67,14 +71,20 @@ class ExpiryService extends ChangeNotifier {
   /// True while the minute check runs (after [startTicking]).
   bool get ticking => _timer != null;
 
-  /// Reads the setting. Anything but 0, 1, 7 or 30 counts as Never.
+  /// Reads the setting. A missing value or anything but 0, 1, 7 or 30
+  /// counts as Never. A read that throws leaves it unknown: nothing is
+  /// hidden or deleted meanwhile, and it is read again at the next check or
+  /// clean-up; `readFailed` is logged once until a read works.
   void load() {
     String? raw;
     try {
       raw = _store().readSetting(historyExpirySetting);
     } catch (_) {
-      raw = null;
+      if (!_unknown) _log.log(LogCode.readFailed);
+      _unknown = true;
+      return;
     }
+    _unknown = false;
     final days = int.tryParse(raw ?? '');
     if (raw == null ||
         days == null ||
@@ -87,10 +97,20 @@ class ExpiryService extends ChangeNotifier {
     }
   }
 
+  /// Reads the setting again while it is unknown. True when that changed
+  /// the time, so the history must refresh.
+  bool _reloadIfUnknown() {
+    if (!_unknown) return false;
+    final before = _days;
+    load();
+    return _days != before;
+  }
+
   /// Deletes every expired item in one write transaction. A failure is
   /// logged and retried on the next run; the items stay hidden meanwhile.
   void cleanUp() {
     if (_disposed) return;
+    _reloadIfUnknown();
     _lastRun = _clock();
     final cut = cutoff;
     if (cut != null) {
@@ -124,7 +144,8 @@ class ExpiryService extends ChangeNotifier {
         lastRun == null ||
         now < lastRun ||
         now - lastRun >= cleanUpEvery.inMilliseconds;
-    if (jumped || due) cleanUp();
+    // A setting that could be read only now applies at once.
+    if (_reloadIfUnknown() || jumped || due) cleanUp();
   }
 
   bool _isShorter(int newDays) =>
@@ -166,6 +187,7 @@ class ExpiryService extends ChangeNotifier {
       return null;
     }
     _days = newDays;
+    _unknown = false; // the user's own choice is now the setting
     if (n > 0) _log.log(LogCode.historyExpired, n);
     _failures = 0;
     if (deleteBefore != null) _lastRun = _clock();
