@@ -283,6 +283,28 @@ void main() {
       expect(find.text("Couldn't turn this on. Try again."), findsOneWidget);
     });
 
+    testWidgets('turning off fails while the OS still has it on: the switch '
+        'stays on, with the note as its description (B3)', (tester) async {
+      final handle = tester.ensureSemantics();
+      port.next = const LoginItemAnswer(LoginItemState.on);
+      await show(tester);
+      await openSettings(tester);
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+      port
+        ..next = const LoginItemAnswer(LoginItemState.failed, error: 5)
+        ..reads = const LoginItemAnswer(LoginItemState.on);
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+      expect(port.setCalls, [false]);
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+      expect(find.text("Couldn't turn this off. Try again."), findsOneWidget);
+      final node = tester
+          .getSemantics(hook('settings-launch-at-login'))
+          .getSemanticsData();
+      expect(node.hint, "Couldn't turn this off. Try again.");
+      handle.dispose();
+    });
+
     testWidgets('needs approval: on, the note and Open Login Items', (
       tester,
     ) async {

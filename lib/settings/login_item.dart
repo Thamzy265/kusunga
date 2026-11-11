@@ -109,7 +109,9 @@ class ChannelLoginItemPort implements LoginItemPort {
 /// Launch at login, as the Settings tab shows it. Off until the first read
 /// (AC2). The state is read again when the Settings tab opens and when
 /// Kusunga becomes active ([startListening]), so a change made in System
-/// Settings or Task Manager shows up.
+/// Settings or Task Manager shows up, and straight after a change that
+/// failed, so the switch shows what the OS still has (R4, tester finding
+/// B3).
 ///
 /// Logs codes only, for the user's own changes: `loginItemOn`,
 /// `loginItemOff`, `loginItemFailed` (with the OS error number) and
@@ -122,6 +124,10 @@ class LoginItemService extends ChangeNotifier {
 
   var _state = LoginItemState.off;
   bool? _pending;
+
+  /// The position the user asked for when that change failed: kept until
+  /// a read answers a state of its own, or the next change.
+  bool? _failedTo;
   var _announceSerial = 0;
   String? _announcement;
   AppLifecycleListener? _lifecycle;
@@ -135,20 +141,39 @@ class LoginItemService extends ChangeNotifier {
   /// The switch position. While a change runs, the new position.
   bool get isOn =>
       _pending ??
-      (_state == LoginItemState.on || _state == LoginItemState.needsApproval);
+      switch (_state) {
+        LoginItemState.on || LoginItemState.needsApproval => true,
+        // A turn-off failed and the OS could not be read either: the switch
+        // stays where it was (on), never off while the OS may have it on.
+        LoginItemState.failed => _failedTo == false,
+        _ => false,
+      };
 
   /// False on macOS 12 (the switch is disabled).
   bool get enabled => _state != LoginItemState.unsupported;
 
-  /// The note under the switch (UI spec, "Copy"), or null.
-  String? get note => switch (_state) {
-    LoginItemState.on || LoginItemState.off => null,
-    LoginItemState.needsApproval =>
-      'Allow Kusunga in System Settings › General › Login Items.',
-    LoginItemState.failed => "Couldn't turn this on. Try again.",
-    LoginItemState.unsupported => 'Needs macOS 13 or later.',
-    LoginItemState.turnedOffInTaskManager => 'Turned off in Task Manager.',
-  };
+  /// The note under the switch (UI spec, "Copy"), or null. After a failed
+  /// change it says so while the switch is not where the user asked, or the
+  /// OS could not be read.
+  String? get note {
+    final failedTo = _failedTo;
+    if (failedTo != null &&
+        _state != LoginItemState.unsupported &&
+        (_state == LoginItemState.failed || isOn != failedTo)) {
+      return failedTo ? _cantTurnOn : _cantTurnOff;
+    }
+    return switch (_state) {
+      LoginItemState.on || LoginItemState.off => null,
+      LoginItemState.needsApproval =>
+        'Allow Kusunga in System Settings › General › Login Items.',
+      LoginItemState.failed => _cantTurnOn,
+      LoginItemState.unsupported => 'Needs macOS 13 or later.',
+      LoginItemState.turnedOffInTaskManager => 'Turned off in Task Manager.',
+    };
+  }
+
+  static const _cantTurnOn = "Couldn't turn this on. Try again.";
+  static const _cantTurnOff = "Couldn't turn this off. Try again.";
 
   /// The "Open Login Items" button shows (Mac, needs approval).
   bool get showOpenLoginItems => _state == LoginItemState.needsApproval;
@@ -158,25 +183,37 @@ class LoginItemService extends ChangeNotifier {
   String? get announcement => _announcement;
   int get announceSerial => _announceSerial;
 
-  /// Reads the OS state. Ignored while a change runs.
+  /// Reads the OS state. Ignored while a change runs. A read that fails
+  /// keeps the note of a failed change; any other answer clears it.
   Future<void> refresh() async {
     if (_disposed || busy) return;
     final answer = await _port.status();
     if (_disposed || busy) return;
     _state = answer.state;
+    if (answer.state != LoginItemState.failed) _failedTo = null;
     notifyListeners();
   }
 
   /// Turns launch at login on or off. Ignored while another call runs and
-  /// on macOS 12.
+  /// on macOS 12. A change that fails is followed by a read, still counted
+  /// as part of the change (input stays ignored), and the switch shows what
+  /// that read says.
   Future<void> set(bool on) async {
     if (_disposed || busy || !enabled) return;
     _pending = on;
+    _failedTo = null;
     notifyListeners();
     final answer = await _port.set(on);
-    _pending = null;
     if (_disposed) return;
-    _state = answer.state;
+    var state = answer.state;
+    if (state == LoginItemState.failed) {
+      _log.log(LogCode.loginItemFailed, answer.error);
+      state = (await _port.status()).state;
+      if (_disposed) return;
+      _failedTo = on;
+    }
+    _pending = null;
+    _state = state;
     switch (answer.state) {
       case LoginItemState.on:
         _log.log(LogCode.loginItemOn);
@@ -184,10 +221,10 @@ class LoginItemService extends ChangeNotifier {
         _log.log(LogCode.loginItemOff);
       case LoginItemState.needsApproval:
         _log.log(LogCode.loginItemNeedsApproval);
-      case LoginItemState.failed:
-        _log.log(LogCode.loginItemFailed, answer.error);
-      case LoginItemState.unsupported || LoginItemState.turnedOffInTaskManager:
-        break;
+      case LoginItemState.failed ||
+          LoginItemState.unsupported ||
+          LoginItemState.turnedOffInTaskManager:
+        break; // a failure is logged before the read
     }
     _announcement = isOn ? 'Launch at login on' : 'Launch at login off';
     _announceSerial++;

@@ -232,6 +232,192 @@ void main() {
     );
   });
 
+  // Tester finding B3 (R4, "truthful state"): after a failed change the
+  // service reads the OS again and shows what it says.
+  group('a failed change reads the OS again (B3)', () {
+    late FakeLoginItemPort port;
+    late FakeLog log;
+    late LoginItemService service;
+
+    const cantOn = "Couldn't turn this on. Try again.";
+    const cantOff = "Couldn't turn this off. Try again.";
+
+    setUp(() async {
+      port = FakeLoginItemPort();
+      log = FakeLog();
+      service = LoginItemService(port: port, log: log);
+    });
+    tearDown(() => service.dispose());
+
+    /// The OS has [state]; a change answers failed with error 13.
+    Future<void> startAt(LoginItemState state) async {
+      port.next = LoginItemAnswer(state);
+      await service.refresh();
+      port
+        ..statusCalls = 0
+        ..next = const LoginItemAnswer(LoginItemState.failed, error: 13);
+    }
+
+    test('a successful change is not read again', () async {
+      port.next = const LoginItemAnswer(LoginItemState.on);
+      await service.set(true);
+      port.next = const LoginItemAnswer(LoginItemState.off);
+      await service.set(false);
+      expect(port.statusCalls, 0);
+    });
+
+    test('turn off fails, the OS still has it on: on, with "Couldn\'t turn '
+        'this off"; logged once with the error of the change', () async {
+      await startAt(LoginItemState.on);
+      port.reads = const LoginItemAnswer(LoginItemState.on);
+      await service.set(false);
+      expect(port.statusCalls, 1);
+      expect(service.state, LoginItemState.on);
+      expect(service.isOn, isTrue);
+      expect(service.note, cantOff);
+      expect(service.busy, isFalse);
+      expect(log.codes, [LogCode.loginItemFailed]);
+      expect(log.details, [13]);
+      expect(service.announcement, 'Launch at login on');
+    });
+
+    test('turn off fails, the OS has it off after all: off, no note', () async {
+      await startAt(LoginItemState.on);
+      port.reads = const LoginItemAnswer(LoginItemState.off);
+      await service.set(false);
+      expect(service.isOn, isFalse);
+      expect(service.note, isNull);
+      expect(service.announcement, 'Launch at login off');
+    });
+
+    test('turn off fails and the read fails too: the switch stays on '
+        '(never off while the OS may have it on)', () async {
+      await startAt(LoginItemState.on);
+      port.reads = const LoginItemAnswer(LoginItemState.failed);
+      await service.set(false);
+      expect(service.state, LoginItemState.failed);
+      expect(service.isOn, isTrue);
+      expect(service.note, cantOff);
+    });
+
+    test('turn off fails from "needs approval": on, "Couldn\'t turn this '
+        'off", and Open Login Items stays', () async {
+      await startAt(LoginItemState.needsApproval);
+      port.reads = const LoginItemAnswer(LoginItemState.needsApproval);
+      await service.set(false);
+      expect(service.isOn, isTrue);
+      expect(service.note, cantOff);
+      expect(service.showOpenLoginItems, isTrue);
+    });
+
+    test('Windows: turn off fails, Task Manager has it off: off, with '
+        '"Turned off in Task Manager."', () async {
+      await startAt(LoginItemState.on);
+      port.reads = const LoginItemAnswer(LoginItemState.turnedOffInTaskManager);
+      await service.set(false);
+      expect(service.isOn, isFalse);
+      expect(service.note, 'Turned off in Task Manager.');
+    });
+
+    test('turn on fails, the OS has it off: off, with "Couldn\'t turn this '
+        'on"', () async {
+      await startAt(LoginItemState.off);
+      port.reads = const LoginItemAnswer(LoginItemState.off);
+      await service.set(true);
+      expect(service.state, LoginItemState.off);
+      expect(service.isOn, isFalse);
+      expect(service.note, cantOn);
+      expect(service.announcement, 'Launch at login off');
+    });
+
+    test('turn on fails but the OS has it on: on, no note', () async {
+      await startAt(LoginItemState.off);
+      port.reads = const LoginItemAnswer(LoginItemState.on);
+      await service.set(true);
+      expect(service.isOn, isTrue);
+      expect(service.note, isNull);
+    });
+
+    test('turn on fails and the OS needs approval: on, the approval note '
+        'and Open Login Items', () async {
+      await startAt(LoginItemState.off);
+      port.reads = const LoginItemAnswer(LoginItemState.needsApproval);
+      await service.set(true);
+      expect(service.isOn, isTrue);
+      expect(
+        service.note,
+        'Allow Kusunga in System Settings › General › Login Items.',
+      );
+      expect(service.showOpenLoginItems, isTrue);
+    });
+
+    test('the read is part of the change: input is ignored until it '
+        'answers, and the switch keeps its new position', () async {
+      await startAt(LoginItemState.on);
+      final change = service.set(false);
+      final read = port.hold(); // the read after the failed change
+      await Future<void>.delayed(Duration.zero);
+      expect(port.statusCalls, 1);
+      expect(service.busy, isTrue);
+      expect(service.isOn, isFalse);
+      await service.set(true); // ignored
+      await service.refresh(); // ignored
+      expect(port.setCalls, [false]);
+      expect(port.statusCalls, 1);
+      read.complete(const LoginItemAnswer(LoginItemState.on));
+      await change;
+      expect(service.busy, isFalse);
+      expect(service.isOn, isTrue);
+      expect(service.note, cantOff);
+    });
+
+    test('disposed while the read runs: nothing changes after', () async {
+      await startAt(LoginItemState.on);
+      final change = service.set(false);
+      final read = port.hold();
+      await Future<void>.delayed(Duration.zero);
+      var notified = 0;
+      service.addListener(() => notified++);
+      service.dispose();
+      read.complete(const LoginItemAnswer(LoginItemState.on));
+      await change;
+      expect(notified, 0);
+      expect(log.codes, [LogCode.loginItemFailed]);
+    });
+
+    test('a later read with a real state clears the failure note; a later '
+        'read that fails keeps it', () async {
+      await startAt(LoginItemState.on);
+      port.reads = const LoginItemAnswer(LoginItemState.on);
+      await service.set(false);
+      port.reads = const LoginItemAnswer(LoginItemState.failed);
+      await service.refresh();
+      expect(service.isOn, isTrue);
+      expect(service.note, cantOff);
+      port.reads = const LoginItemAnswer(LoginItemState.on);
+      await service.refresh();
+      expect(service.isOn, isTrue);
+      expect(service.note, isNull);
+      port.reads = const LoginItemAnswer(LoginItemState.failed);
+      await service.refresh();
+      expect(service.isOn, isFalse, reason: 'an unreadable state shows off');
+      expect(service.note, cantOn);
+    });
+
+    test('the next change starts without the old failure', () async {
+      await startAt(LoginItemState.on);
+      port.reads = const LoginItemAnswer(LoginItemState.on);
+      await service.set(false);
+      expect(service.note, cantOff);
+      port
+        ..reads = null
+        ..next = const LoginItemAnswer(LoginItemState.off);
+      await service.set(false);
+      expect(service.isOn, isFalse);
+      expect(service.note, isNull);
+    });
+  });
+
   test('Windows passes --login at a login start: it is not taken for a '
       'misspelled test profile switch (debug builds)', () {
     expect(dataProfileFrom(['--login'], debug: true), isA<NoDataProfile>());

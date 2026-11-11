@@ -201,6 +201,10 @@ class FlakyStore implements HistoryStore {
 /// A login-item port (M1.7) that answers [next], or waits on [hold].
 class FakeLoginItemPort implements LoginItemPort {
   LoginItemAnswer next = const LoginItemAnswer(LoginItemState.off);
+
+  /// When set, reads answer this instead of [next]: what the OS still has
+  /// after a change that failed.
+  LoginItemAnswer? reads;
   int statusCalls = 0;
   final setCalls = <bool>[];
   int openCalls = 0;
@@ -209,16 +213,16 @@ class FakeLoginItemPort implements LoginItemPort {
   /// The next call waits until the returned completer completes.
   Completer<LoginItemAnswer> hold() => _held = Completer<LoginItemAnswer>();
 
-  Future<LoginItemAnswer> _answer() {
+  Future<LoginItemAnswer> _answer([LoginItemAnswer? answer]) {
     final held = _held;
     _held = null;
-    return held?.future ?? Future.value(next);
+    return held?.future ?? Future.value(answer ?? next);
   }
 
   @override
   Future<LoginItemAnswer> status() {
     statusCalls++;
-    return _answer();
+    return _answer(reads);
   }
 
   @override
