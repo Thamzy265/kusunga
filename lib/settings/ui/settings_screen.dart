@@ -68,6 +68,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _messenger = GlobalKey<ScaffoldMessengerState>();
   final _menuFocus = FocusNode(debugLabel: 'Auto-delete');
+  final _loginFocus = FocusNode(debugLabel: 'Launch at login');
   var _saveError = false;
 
   HistoryService get _service => widget.service;
@@ -93,6 +94,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _service.expiry.removeListener(_changed);
     widget.loginItem?.removeListener(_changed);
     _menuFocus.dispose();
+    _loginFocus.dispose();
     super.dispose();
   }
 
@@ -246,14 +248,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 identifier: 'settings-launch-at-login',
                 label: _loginLabel,
                 hint: note,
-                child: Switch(
-                  value: login.isOn,
-                  hoverColor: t.surfaceHover,
-                  focusColor: t.surfaceHover,
-                  // Ignored while the OS call runs, and on macOS 12.
-                  onChanged: login.enabled
-                      ? (on) => unawaited(login.set(on))
-                      : null,
+                child: _FocusRing(
+                  ringKey: const ValueKey('settings-launch-at-login-ring'),
+                  node: _loginFocus,
+                  radius: 24,
+                  child: Switch(
+                    focusNode: _loginFocus,
+                    value: login.isOn,
+                    hoverColor: t.surfaceHover,
+                    focusColor: t.surfaceHover,
+                    // Ignored while the OS call runs, and on macOS 12.
+                    onChanged: login.enabled
+                        ? (on) => unawaited(login.set(on))
+                        : null,
+                  ),
                 ),
               ),
             ),
@@ -303,27 +311,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
         identifier: 'settings-auto-delete',
         label: _autoDeleteName,
         hint: _saveError ? _saveFailed : null,
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: KusungaTokens.space3),
-          decoration: BoxDecoration(
-            border: Border.all(color: t.border),
-            borderRadius: BorderRadius.circular(KusungaTokens.radius2),
-          ),
-          child: DropdownButton<int>(
-            key: const Key('auto-delete-menu'),
-            focusNode: _menuFocus,
-            value: days,
-            isExpanded: expand,
-            underline: const SizedBox.shrink(),
-            focusColor: t.surfaceHover,
-            borderRadius: BorderRadius.circular(KusungaTokens.radius2),
-            style: KusungaTokens.body.copyWith(color: t.text),
-            dropdownColor: t.surface,
-            items: [
-              for (final d in historyExpiryChoices)
-                DropdownMenuItem(value: d, child: Text(expiryOption(d))),
-            ],
-            onChanged: (d) => unawaited(_choose(d)),
+        child: _FocusRing(
+          ringKey: const ValueKey('settings-auto-delete-ring'),
+          node: _menuFocus,
+          radius: KusungaTokens.radius2,
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: KusungaTokens.space3),
+            decoration: BoxDecoration(
+              border: Border.all(color: t.border),
+              borderRadius: BorderRadius.circular(KusungaTokens.radius2),
+            ),
+            child: DropdownButton<int>(
+              key: const Key('auto-delete-menu'),
+              focusNode: _menuFocus,
+              value: days,
+              isExpanded: expand,
+              underline: const SizedBox.shrink(),
+              focusColor: t.surfaceHover,
+              borderRadius: BorderRadius.circular(KusungaTokens.radius2),
+              style: KusungaTokens.body.copyWith(color: t.text),
+              dropdownColor: t.surface,
+              items: [
+                for (final d in historyExpiryChoices)
+                  DropdownMenuItem(value: d, child: Text(expiryOption(d))),
+              ],
+              onChanged: (d) => unawaited(_choose(d)),
+            ),
           ),
         ),
       ),
@@ -442,6 +455,80 @@ class _ExpiryDialogState extends State<_ExpiryDialog> {
           child: const Text('Delete'),
         ),
       ],
+    );
+  }
+}
+
+/// Keyboard focus on a switch or a menu: the 2 px `focus` ring of the
+/// buttons, rows and tabs, drawn outside [child] so it sits on the
+/// background (3:1 there, reviewer F1). Material's own focus tint on these
+/// controls is about 1.1:1. Shown, like the buttons' ring, only for keyboard
+/// focus.
+class _FocusRing extends StatefulWidget {
+  const _FocusRing({
+    required this.ringKey,
+    required this.node,
+    required this.radius,
+    required this.child,
+  });
+
+  /// On the box that draws the ring (a test hook).
+  final Key ringKey;
+  final FocusNode node;
+  final double radius;
+  final Widget child;
+
+  @override
+  State<_FocusRing> createState() => _FocusRingState();
+}
+
+class _FocusRingState extends State<_FocusRing> {
+  @override
+  void initState() {
+    super.initState();
+    widget.node.addListener(_changed);
+    FocusManager.instance.addHighlightModeListener(_modeChanged);
+  }
+
+  @override
+  void didUpdateWidget(_FocusRing old) {
+    super.didUpdateWidget(old);
+    if (old.node != widget.node) {
+      old.node.removeListener(_changed);
+      widget.node.addListener(_changed);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.node.removeListener(_changed);
+    FocusManager.instance.removeHighlightModeListener(_modeChanged);
+    super.dispose();
+  }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
+  void _modeChanged(FocusHighlightMode _) => _changed();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = KusungaTokens.of(context);
+    final show =
+        widget.node.hasFocus &&
+        FocusManager.instance.highlightMode == FocusHighlightMode.traditional;
+    return DecoratedBox(
+      key: widget.ringKey,
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: show ? t.focus : Colors.transparent,
+          width: 2,
+          strokeAlign: BorderSide.strokeAlignOutside,
+        ),
+        borderRadius: BorderRadius.circular(widget.radius),
+      ),
+      child: widget.child,
     );
   }
 }

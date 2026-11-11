@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +10,7 @@ import 'package:kusunga/history/memory_history_store.dart';
 import 'package:kusunga/history/ui/history_host.dart';
 import 'package:kusunga/picker/picker_controller.dart';
 import 'package:kusunga/picker/ui/picker_settings_section.dart';
+import 'package:kusunga/settings/login_item.dart';
 import 'package:kusunga/snippets/snippet.dart';
 import 'package:kusunga/theme/tokens.dart';
 
@@ -474,6 +477,34 @@ void main() {
       );
       expect(change, findsOneWidget, reason: 'the Change button is shown');
       await expectRing(tester, change, t, 'shortcut Change');
+    });
+  }
+
+  // M1.7 reviewer F1: the Settings tab's switch and menu had only a faint
+  // tint (about 1.1:1) for focus. Added by the developer.
+  for (final brightness in Brightness.values) {
+    testWidgets('${brightness.name}: the Launch at login switch and the '
+        'Auto-delete menu show the ring', (tester) async {
+      final login = LoginItemService(port: FakeLoginItemPort(), log: FakeLog());
+      addTearDown(login.dispose);
+      final opened = Completer<HistoryService>();
+      final t = await show(
+        tester,
+        brightness,
+        home: HistoryHost(history: opened.future, loginItem: login),
+      );
+      opened.complete(service);
+      await tester.pump();
+      await tester.tap(mainTab('main-tab-settings'));
+      await tester.pumpAndSettle();
+      final switchRing = find.byKey(
+        const ValueKey('settings-launch-at-login-ring'),
+      );
+      final menuRing = find.byKey(const ValueKey('settings-auto-delete-ring'));
+      expect(switchRing, findsOneWidget);
+      expect(menuRing, findsOneWidget);
+      await expectRing(tester, switchRing, t, 'Launch at login');
+      await expectRing(tester, menuRing, t, 'Auto-delete');
     });
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/memory_history_store.dart';
 import 'package:kusunga/history/ui/history_host.dart';
+import 'package:kusunga/settings/login_item.dart';
 import 'package:kusunga/snippets/memory_snippet_store.dart';
 import 'package:kusunga/snippets/snippet.dart';
 import 'package:kusunga/theme/tokens.dart';
@@ -27,6 +28,7 @@ void main() {
     WidgetTester tester,
     Brightness brightness, {
     Size size = const Size(800, 632),
+    LoginItemService? loginItem,
   }) async {
     service = HistoryService(
       store: MemoryHistoryStore(),
@@ -46,7 +48,7 @@ void main() {
           data: MediaQuery.of(context).copyWith(disableAnimations: true),
           child: child!,
         ),
-        home: HistoryHost(history: Future.value(service)),
+        home: HistoryHost(history: Future.value(service), loginItem: loginItem),
       ),
     );
     await tester.pump();
@@ -121,6 +123,14 @@ void main() {
         reason: '$what: ring on $bg is ${ratio.toStringAsFixed(2)}:1',
       );
     }
+  }
+
+  /// A ring drawn by a box around a control that has no button shape of
+  /// its own (the Settings switch and menu, reviewer F1).
+  BorderSide boxSideOf(WidgetTester tester, Finder ring) {
+    final box = tester.widget<DecoratedBox>(ring);
+    final border = (box.decoration as BoxDecoration).border;
+    return border is Border ? border.top : BorderSide.none;
   }
 
   void expectNoRing(WidgetTester tester, Finder control, KusungaTokens t) {
@@ -267,6 +277,53 @@ void main() {
             .color!;
         expect(contrast(fill, toast), greaterThanOrEqualTo(3));
         expect(contrast(text, fill), greaterThanOrEqualTo(4.5));
+      });
+
+      testWidgets('Settings tab: the Launch at login switch and the '
+          'Auto-delete menu (reviewer F1)', (tester) async {
+        final login = LoginItemService(
+          port: FakeLoginItemPort(),
+          log: FakeLog(),
+        );
+        addTearDown(login.dispose);
+        final t = await show(tester, brightness, loginItem: login);
+        await tester.tap(hook('main-tab-settings'));
+        await tester.pump();
+        await tester.pump();
+        for (final (ringKey, control, what) in [
+          (
+            'settings-launch-at-login-ring',
+            find.byType(Switch),
+            'Launch at login',
+          ),
+          (
+            'settings-auto-delete-ring',
+            find.byKey(const Key('auto-delete-menu')),
+            'Auto-delete',
+          ),
+        ]) {
+          final ring = find.byKey(ValueKey(ringKey));
+          expect(ring, findsOneWidget, reason: '$what: a ring box');
+          expect(
+            boxSideOf(tester, ring).color,
+            isNot(t.focus),
+            reason: '$what: no ring without the focus',
+          );
+          await tabTo(tester, control);
+          final side = boxSideOf(tester, ring);
+          expect(side.color, t.focus, reason: '$what: color.focus');
+          expect(side.width, greaterThanOrEqualTo(2), reason: '$what: 2 px');
+          expect(
+            side.strokeAlign,
+            BorderSide.strokeAlignOutside,
+            reason: '$what: outside the control, on the background',
+          );
+          expect(
+            contrast(side.color, t.surface),
+            greaterThanOrEqualTo(3),
+            reason: '$what: 3:1 on the background',
+          );
+        }
       });
 
       testWidgets('History tab: row buttons and More options', (tester) async {
