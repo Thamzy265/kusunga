@@ -408,6 +408,19 @@ void main() {
       expect(service.note, cantOff);
     });
 
+    // PM decision 2026-11-11 ("Where it was", F10): when the change and the
+    // read both fail, each direction stays where it was, with its note.
+    test('turn on fails and the read fails too: the switch stays off, with '
+        '"Couldn\'t turn this on" (the twin of the turn-off case)', () async {
+      await startAt(LoginItemState.off);
+      port.reads = const LoginItemAnswer(LoginItemState.failed);
+      await service.set(true);
+      expect(service.state, LoginItemState.failed);
+      expect(service.isOn, isFalse);
+      expect(service.note, cantOn);
+      expect(service.busy, isFalse);
+    });
+
     test('turn off fails from "needs approval": on, "Couldn\'t turn this '
         'off", and Open Login Items stays', () async {
       await startAt(LoginItemState.needsApproval);
