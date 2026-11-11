@@ -63,7 +63,7 @@ About 1.2× M1.6's Dart work and less native work: one Dart service, one migrati
 | `history_expiry_days` (new, schema v6) | 0 = never, 1, 7, 30 | See D3 | Integer like the other settings |
 
 - Launch at login is **not stored**. The OS is the source of truth: `SMAppService.mainApp.status` on Mac, the `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` value `Kusunga` on Windows.
-- Migration v6 adds the key with `INSERT OR IGNORE`. The value depends on D3. Rollback: the key is ignored by older builds (they don't read it), so no down step is needed beyond deleting the row.
+- Migration v6 adds the key with `INSERT OR IGNORE`. The value depends on D3. Older builds do not ignore it: a build from before M1.7 (schema 5) that opens a v6 file sees a newer schema, shows the "newer or different version" banner and runs memory-only, leaving the file untouched (the M1.1 rule). See "Rollout and rollback".
 
 ## Auto-delete
 
@@ -106,7 +106,7 @@ About 1.2× M1.6's Dart work and less native work: one Dart service, one migrati
   - if the OS already has the position the user asked for, no failure note;
   - the next change starts clean: while it runs, no earlier failure note shows (tester finding N1).
 - **Time limit:** every login-item call has the M1.6 native-call limit: no answer within 2 s counts as failed and a late answer is ignored (tester finding B4). With the read after a failure, the switch is usable again after at most 4 s.
-- The channel gets two calls, `loginItemStatus` and `setLoginItem(bool)`. They carry no path or user data.
+- The channel gets three calls: `loginItemStatus`, `setLoginItem(bool)` and, on the Mac, `openLoginItemsSettings`. They carry no path or user data.
 
 ## Settings tab (D1)
 
@@ -182,7 +182,7 @@ Assumed unless the PM says otherwise: lawful basis n/a (nothing leaves the devic
 ## Rollout and rollback
 
 - **Rollout:** ships with the normal build; migration v6 runs at launch.
-- **Rollback:** revert the merge. Older builds ignore `history_expiry_days`. A login item registered by M1.7 stays registered after a rollback, so the rollback note tells the user to switch it off in System Settings or Task Manager first.
+- **Rollback:** a build from before M1.7 can't open a file that migration v6 has run on: it shows the "newer or different version" banner and runs memory-only (the file is left untouched). So a rollback reverts the feature but keeps migration v6, so the file stays readable; it is not a plain return to an older build. A login item registered by M1.7 stays registered after a rollback, so the rollback note tells the user to switch it off in System Settings or Task Manager first.
 
 ## Later lines (added to docs/PLAN.md 2026-11-11)
 
