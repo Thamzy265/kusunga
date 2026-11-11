@@ -138,6 +138,23 @@ class FlakyStore implements HistoryStore {
   @override
   List<ClipItem> list() => inner.list();
   @override
+  List<ClipItem> listSince(int sinceMs) => inner.listSince(sinceMs);
+  @override
+  int countOlderThan(int cutoffMs, {int? notBefore}) =>
+      inner.countOlderThan(cutoffMs, notBefore: notBefore);
+  @override
+  int deleteOlderThan(int cutoffMs) {
+    _maybeFail();
+    return inner.deleteOlderThan(cutoffMs);
+  }
+
+  @override
+  int setExpiryDays(int days, {int? deleteBefore}) {
+    _maybeFail();
+    return inner.setExpiryDays(days, deleteBefore: deleteBefore);
+  }
+
+  @override
   String? contentOf(int id) => inner.contentOf(id);
   @override
   int insertOrBump(String content, ClipKind kind, int nowMs) {

@@ -4,6 +4,9 @@ import 'clip_item.dart';
 /// days since an item was last copied. Any other value counts as never.
 const historyExpirySetting = 'history_expiry_days';
 
+/// The only auto-delete values, in days; 0 is never.
+const historyExpiryChoices = [0, 1, 7, 30];
+
 /// Where clipboard history is kept. Calls are synchronous: the database is
 /// local, and one copy is one small transaction.
 abstract interface class HistoryStore {
@@ -32,6 +35,24 @@ abstract interface class HistoryStore {
 
   /// Newest first.
   List<ClipItem> list();
+
+  /// Newest first, only items last copied at or after [sinceMs] (M1.7 read
+  /// filter: an expired item is never shown, even before the clean-up).
+  List<ClipItem> listSince(int sinceMs);
+
+  /// How many items were last copied before [cutoffMs] (and, with
+  /// [notBefore], at or after it).
+  int countOlderThan(int cutoffMs, {int? notBefore});
+
+  /// Removes every item last copied before [cutoffMs], in one transaction,
+  /// and returns how many went. Snippets are never touched.
+  int deleteOlderThan(int cutoffMs);
+
+  /// Saves the auto-delete setting ([historyExpiryChoices]) and, with
+  /// [deleteBefore], removes the items last copied before it, all in one
+  /// transaction: if either fails, neither happens. Returns how many items
+  /// went. Throws [ArgumentError] for any other number of days.
+  int setExpiryDays(int days, {int? deleteBefore});
 
   /// The whole text of an item, or null if it is gone.
   String? contentOf(int id);
@@ -95,5 +116,11 @@ void checkSetting(String key, String value) {
   checkSettingKey(key);
   if (value.isEmpty || value.length > HistoryStore.maxSettingLength) {
     throw ArgumentError.value(value.length, 'value.length');
+  }
+}
+
+void checkExpiryDays(int days) {
+  if (!historyExpiryChoices.contains(days)) {
+    throw ArgumentError.value(days, 'days');
   }
 }

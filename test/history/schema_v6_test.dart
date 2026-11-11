@@ -144,8 +144,23 @@ void main() {
     expect(HistoryStore.storedSettingKeys, contains(historyExpirySetting));
   });
 
-  test('memory only: a new store, so it starts at 30 days like a new file', () {
+  test('memory only: Never (0); nothing in it outlives the session', () {
     final m = MemoryHistoryStore();
-    expect(m.readSetting(historyExpirySetting), '30');
+    expect(m.readSetting(historyExpirySetting), '0');
+  });
+
+  test('auto-delete never touches snippets (R2)', () {
+    final s = SqliteHistoryStore.open(path: path, keyHex: _key);
+    s.snippetStore().insert(
+      name: 'Old snippet',
+      content: 'kept',
+      type: SnippetType.other,
+      nowMs: 1,
+    );
+    s.insertOrBump('old copy', ClipKind.text, 1);
+    expect(s.deleteOlderThan(1 << 50), 1);
+    expect(s.setExpiryDays(1, deleteBefore: 1 << 50), 0);
+    expect(s.snippetStore().list().single.name, 'Old snippet');
+    s.close();
   });
 }

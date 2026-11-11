@@ -28,6 +28,35 @@ class MemoryHistoryStore implements HistoryStore {
   ];
 
   @override
+  List<ClipItem> listSince(int sinceMs) => [
+    for (final i in list())
+      if (i.lastCopiedAt >= sinceMs) i,
+  ];
+
+  @override
+  int countOlderThan(int cutoffMs, {int? notBefore}) => _items
+      .where(
+        (e) =>
+            e.record.lastCopiedAt < cutoffMs &&
+            (notBefore == null || e.record.lastCopiedAt >= notBefore),
+      )
+      .length;
+
+  @override
+  int deleteOlderThan(int cutoffMs) {
+    final before = _items.length;
+    _items.removeWhere((e) => e.record.lastCopiedAt < cutoffMs);
+    return before - _items.length;
+  }
+
+  @override
+  int setExpiryDays(int days, {int? deleteBefore}) {
+    checkExpiryDays(days);
+    _settings[historyExpirySetting] = '$days';
+    return deleteBefore == null ? 0 : deleteOlderThan(deleteBefore);
+  }
+
+  @override
   String? contentOf(int id) {
     for (final e in _items) {
       if (e.id == id) return e.record.content;
@@ -102,9 +131,10 @@ class MemoryHistoryStore implements HistoryStore {
     return true;
   }
 
-  /// A memory-only session starts like a new file (schema version 6, D3 B):
-  /// auto-delete after 30 days. Nothing here survives a quit.
-  final _settings = <String, String>{historyExpirySetting: '30'};
+  /// Auto-delete starts at Never in a memory-only session: it is usually an
+  /// existing user whose keychain can't be reached, and nothing here
+  /// outlives the session anyway.
+  final _settings = <String, String>{historyExpirySetting: '0'};
 
   @override
   String? readSetting(String key) {

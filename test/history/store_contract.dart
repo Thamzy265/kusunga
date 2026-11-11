@@ -245,5 +245,73 @@ void runStoreContract(String name, HistoryStore Function() create) {
       );
       expect(store.count, 1);
     });
+
+    // M1.7 auto-delete (docs/design/settings-and-expiry.md, "Auto-delete").
+    group('auto-delete', () {
+      void seed() {
+        store.insertOrBump('old', ClipKind.text, 100);
+        store.insertOrBump('middle', ClipKind.text, 200);
+        store.insertOrBump('new', ClipKind.text, 300);
+      }
+
+      test('listSince leaves out items last copied before the cutoff (R1); '
+          'the cutoff itself is kept', () {
+        seed();
+        expect(store.listSince(200).map((i) => i.preview), ['new', 'middle']);
+        expect(store.listSince(0).length, 3);
+        expect(store.listSince(301), isEmpty);
+      });
+
+      test('copying an old item again keeps it (D2 A: last copy counts)', () {
+        seed();
+        store.insertOrBump('old', ClipKind.text, 400);
+        expect(store.listSince(250).map((i) => i.preview), ['old', 'new']);
+      });
+
+      test('countOlderThan counts only items before the cutoff, from an '
+          'optional lower bound', () {
+        seed();
+        expect(store.countOlderThan(250), 2);
+        expect(store.countOlderThan(250, notBefore: 150), 1);
+        expect(store.countOlderThan(100), 0);
+      });
+
+      test('deleteOlderThan removes them and says how many', () {
+        seed();
+        expect(store.deleteOlderThan(250), 2);
+        expect(store.list().map((i) => i.preview), ['new']);
+        expect(store.deleteOlderThan(250), 0);
+      });
+
+      test('setExpiryDays saves the setting and deletes in one step', () {
+        seed();
+        expect(store.setExpiryDays(7, deleteBefore: 150), 1);
+        expect(store.readSetting(historyExpirySetting), '7');
+        expect(store.list().map((i) => i.preview), ['new', 'middle']);
+      });
+
+      test('setExpiryDays without a cutoff deletes nothing', () {
+        seed();
+        expect(store.setExpiryDays(0), 0);
+        expect(store.readSetting(historyExpirySetting), '0');
+        expect(store.count, 3);
+      });
+
+      test('setExpiryDays accepts only 0, 1, 7 and 30', () {
+        for (final bad in [-1, 2, 14, 31, 365]) {
+          expect(() => store.setExpiryDays(bad), throwsArgumentError);
+        }
+        expect(store.readSetting(historyExpirySetting), isNot('2'));
+      });
+
+      test('the limit still applies after a delete', () {
+        store.setLimit(10);
+        for (var i = 0; i < 12; i++) {
+          store.insertOrBump('item $i', ClipKind.text, 1000 + i);
+        }
+        expect(store.deleteOlderThan(1005), 3);
+        expect(store.count, 7);
+      });
+    });
   });
 }
