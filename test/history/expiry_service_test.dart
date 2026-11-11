@@ -1,6 +1,7 @@
 // M1.7 auto-delete (docs/design/settings-and-expiry.md, "Auto-delete" and
 // "Failure plan"): the read filter, the clean-up and its clock, a shorter
 // time, and the warning after 3 failed runs. The clock is injected.
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/clip_item.dart';
 import 'package:kusunga/history/expiry_service.dart';
@@ -180,8 +181,10 @@ void main() {
       service = build();
       expect(texts(), ['a']);
       now += day + 1;
-      service.expiry.cleanUp();
-      expect(texts(), isEmpty);
+      service.expiry.cleanUp(); // fails: nothing deleted, nothing refreshed
+      source.copy('b'); // the next refresh
+      expect(texts(), ['b']);
+      expect(store.inner.count, 1);
     });
 
     // An id kept from before the item expired (a row on screen, the picker)
@@ -287,7 +290,38 @@ void main() {
       now -= 30 * day; // back: b looks newer than now
       service.expiry.cleanUp();
       expect(store.inner.count, 1);
-      expect(texts(), ['b']);
+      source.copy('c'); // the next refresh
+      expect(texts(), ['c', 'b']);
+    });
+
+    // Reviewer F11: listeners hear from a clean-up only when something
+    // changed.
+    test('a run that changes nothing notifies no one; one that deletes, or '
+        'whose warning comes or goes, does', () {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      seed({'new': 0});
+      service = build();
+      var heard = 0;
+      service.addListener(() => heard++);
+      service.expiry.addListener(() => heard++);
+      service.expiry.cleanUp();
+      expect(heard, 0, reason: 'nothing deleted, no warning change');
+      now += day + 1;
+      service.expiry.cleanUp();
+      expect(heard, greaterThan(0), reason: 'an item was deleted');
+      heard = 0;
+      store.failWrites = true;
+      service.expiry.cleanUp();
+      service.expiry.cleanUp();
+      expect(heard, 0, reason: '2 failures: no warning yet');
+      service.expiry.cleanUp();
+      expect(heard, greaterThan(0), reason: 'the warning shows');
+      heard = 0;
+      service.expiry.cleanUp();
+      expect(heard, 0, reason: 'still failing: no change');
+      store.failWrites = false;
+      service.expiry.cleanUp();
+      expect(heard, greaterThan(0), reason: 'the warning goes');
     });
 
     test('a failed run keeps items hidden, logs, and retries next run', () {
@@ -568,6 +602,27 @@ void main() {
       now += minute;
       await tester.pump(const Duration(minutes: 1));
       expect(store.inner.count, 0);
+      service.dispose();
+    });
+
+    // Reviewer F11: one handler for becoming active, not onShow and
+    // onResume both.
+    testWidgets('coming back from hidden runs one clean-up, not two', (
+      tester,
+    ) async {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      service = build();
+      service.expiry.startTicking();
+      store.failWrites = true; // each run logs historyExpiryFailed
+      int runs() =>
+          log.codes.where((c) => c == LogCode.historyExpiryFailed).length;
+      final b = tester.binding;
+      b.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      b.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      expect(runs(), 0);
+      b.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      b.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      expect(runs(), 1);
       service.dispose();
     });
 

@@ -149,7 +149,8 @@ class HistoryService extends ChangeNotifier {
     // Auto-delete first (after the migration, which ran at open): nothing
     // expired is ever shown, and the clean-up runs at launch.
     expiry.load();
-    expiry.cleanUp(); // refreshes the list
+    expiry.cleanUp();
+    _refresh(); // the first list
     pause.load();
     List<String> ids;
     try {

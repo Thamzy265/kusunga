@@ -42,8 +42,9 @@ class ExpiryService extends ChangeNotifier {
   final HistoryStore Function() _store;
   final ErrorLog _log;
 
-  /// Called after every run and every change: the history refreshes (the
-  /// read filter) and updates its warning banner.
+  /// Called after a change (a run that deleted items or whose warning came
+  /// or went, a new time, the minute check starting): the history
+  /// refreshes (the read filter) and updates its warning banner.
   final void Function() _onChanged;
   final int Function() _clock;
 
@@ -108,14 +109,19 @@ class ExpiryService extends ChangeNotifier {
 
   /// Deletes every expired item in one write transaction. A failure is
   /// logged and retried on the next run; the items stay hidden meanwhile.
+  /// Listeners hear from a run only when it changed something: items
+  /// deleted, the warning shown or gone, or the setting read at last
+  /// (reviewer F11).
   void cleanUp() {
     if (_disposed) return;
-    _reloadIfUnknown();
+    final reloaded = _reloadIfUnknown();
+    final wasFailing = failing;
     _lastRun = _clock();
     final cut = cutoff;
+    var n = 0;
     if (cut != null) {
       try {
-        final n = _store().deleteOlderThan(cut);
+        n = _store().deleteOlderThan(cut);
         if (n > 0) _log.log(LogCode.historyExpired, n);
         _failures = 0;
       } catch (_) {
@@ -125,7 +131,7 @@ class ExpiryService extends ChangeNotifier {
     } else {
       _failures = 0;
     }
-    _changed();
+    if (reloaded || n > 0 || failing != wasFailing) _changed();
   }
 
   /// The minute check: runs the clean-up when 15 minutes have passed since
@@ -196,7 +202,8 @@ class ExpiryService extends ChangeNotifier {
   }
 
   /// Starts the minute check, and with [listenToLifecycle] also runs the
-  /// clean-up when Kusunga becomes active or is shown again. The history
+  /// clean-up when Kusunga becomes active (once: coming back from hidden
+  /// passes through "shown" first, reviewer F11). The history
   /// refreshes at once, so it arms its timer for the next item to expire
   /// (it only does while ticking; reviewer F2: the launch refresh in
   /// `HistoryService.start` comes before this).
@@ -205,7 +212,7 @@ class ExpiryService extends ChangeNotifier {
     _lastCheck = _clock();
     _timer = Timer.periodic(checkEvery, (_) => check());
     if (listenToLifecycle) {
-      _lifecycle = AppLifecycleListener(onResume: cleanUp, onShow: cleanUp);
+      _lifecycle = AppLifecycleListener(onResume: cleanUp);
     }
     _onChanged();
   }
