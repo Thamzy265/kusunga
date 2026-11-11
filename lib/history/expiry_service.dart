@@ -130,19 +130,17 @@ class ExpiryService extends ChangeNotifier {
   bool _isShorter(int newDays) =>
       newDays != 0 && (_days == 0 || newDays < _days);
 
-  /// How many items choosing [newDays] would delete now: the ones still
-  /// shown that are older than the new time. 0 for a longer time or Never.
-  /// Null when the count cannot be read: never 0 for "unknown".
+  /// How many items choosing [newDays] would delete now: every item older
+  /// than the new time, also an expired one the clean-up has not removed
+  /// yet, so the dialog's count is what [setDays] deletes and what its
+  /// toast says (tester finding B2). 0 for a longer time or Never. Null
+  /// when the count cannot be read: never 0 for "unknown".
   int? countRemovedBy(int newDays) {
     checkExpiryDays(newDays);
     if (_disposed) return null;
     if (!_isShorter(newDays)) return 0;
-    final now = _clock();
     try {
-      return _store().countOlderThan(
-        expiryCutoff(newDays, now)!,
-        notBefore: expiryCutoff(_days, now),
-      );
+      return _store().countOlderThan(expiryCutoff(newDays, _clock())!);
     } catch (_) {
       return null;
     }

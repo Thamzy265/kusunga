@@ -270,6 +270,18 @@ void main() {
       expect(service.expiry.countRemovedBy(0), 0);
     });
 
+    // Tester finding B2: the dialog's count is what Delete removes.
+    test('countRemovedBy also counts expired items the clean-up has not '
+        'removed yet, so it equals what setDays deletes', () {
+      store.inner.writeSetting(historyExpirySetting, '7');
+      service = build();
+      seed({'waiting': 9, 'shown': 3, 'keep': 0});
+      expect(service.expiry.countRemovedBy(1), 2);
+      expect(service.expiry.countRemovedBy(7), 0, reason: 'not shorter');
+      expect(service.expiry.setDays(1), 2);
+      expect(store.inner.count, 1);
+    });
+
     test('from Never, every older item counts', () {
       seed({'a': 2, 'b': 400});
       service = build();

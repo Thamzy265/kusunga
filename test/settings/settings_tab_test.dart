@@ -476,6 +476,23 @@ void main() {
       expect(find.text('After 7 days'), findsOneWidget);
     });
 
+    testWidgets('the dialog and the toast give the same number when an '
+        'expired item is still waiting for the clean-up (B2)', (tester) async {
+      store.inner.writeSetting(historyExpirySetting, '30');
+      await show(tester); // the clean-up at launch has run
+      seed({'waiting': 40, 'shown': 3, 'keep': 0});
+      await openSettings(tester);
+      await pick(tester, 'After 1 day');
+      expect(
+        find.textContaining('Delete items after 1 day? 2 older items'),
+        findsOneWidget,
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.pump();
+      expect(find.text('2 items deleted'), findsOneWidget);
+      expect(store.inner.count, 1);
+    });
+
     testWidgets('one item: singular wording', (tester) async {
       seed({'a': 8});
       await show(tester);
