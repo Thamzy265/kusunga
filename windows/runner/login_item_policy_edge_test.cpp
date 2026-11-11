@@ -116,7 +116,7 @@ int main() {
   CHECK(!IsLoginLaunch({"--login=true"}));
   CHECK(!IsLoginLaunch({""}));
   CHECK(IsLoginLaunch({"--login", "--login"}));
-  CHECK(IsLoginLaunch({"-KusungaDataProfile", "qa", "--login"}));
+  CHECK(IsLoginLaunch({"--other-flag", "qa", "--login"}));
 
   // StartupApproved: only the first byte counts; its parity decides.
   for (int b = 0; b < 256; b++) {
