@@ -2,9 +2,12 @@
 // login"): the channel contract with LoginItemBridge.swift and
 // login_item_bridge.cpp, and the service the Settings tab shows. The OS is the
 // source of truth: nothing is stored by Kusunga.
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/data_profile.dart';
+import 'package:kusunga/history/pause_service.dart';
 import 'package:kusunga/log/app_log.dart';
 import 'package:kusunga/settings/login_item.dart';
 
@@ -87,6 +90,111 @@ void main() {
         expect(a.state, LoginItemState.failed, reason: '$reply');
         expect(a.error, isNull, reason: '$reply');
       }
+    });
+  });
+
+  // Tester finding B4: a native call with no answer within the M1.6 limit
+  // (2 s) has failed, so the switch is never stuck.
+  group('a native side that does not answer (B4)', () {
+    tearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+    void hang({Object? Function(MethodCall call)? except}) =>
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          final answer = except?.call(call);
+          if (answer != null) return answer;
+          return Completer<Object?>().future;
+        });
+
+    test('the limit is the native-call limit of M1.6, 2 seconds', () {
+      expect(ChannelLoginItemPort.timeout, PauseService.nativeTimeout);
+      expect(ChannelLoginItemPort.timeout, const Duration(seconds: 2));
+    });
+
+    testWidgets('loginItemStatus and setLoginItem fail at 2 s, not before', (
+      tester,
+    ) async {
+      hang();
+      final port = ChannelLoginItemPort(channel: channel);
+      for (final call in [port.status, () => port.set(true)]) {
+        LoginItemAnswer? got;
+        unawaited(call().then((a) => got = a));
+        await tester.pump(const Duration(milliseconds: 1999));
+        expect(got, isNull);
+        await tester.pump(const Duration(milliseconds: 1));
+        expect(got?.state, LoginItemState.failed);
+        expect(got?.error, isNull);
+      }
+    });
+
+    testWidgets('a late answer after the limit is ignored', (tester) async {
+      final reply = Completer<Object?>();
+      messenger.setMockMethodCallHandler(channel, (call) => reply.future);
+      LoginItemAnswer? got;
+      unawaited(
+        ChannelLoginItemPort(channel: channel).set(true).then((a) => got = a),
+      );
+      await tester.pump(const Duration(seconds: 2));
+      expect(got?.state, LoginItemState.failed);
+      reply.complete({'state': 'enabled'});
+      await tester.pump();
+      expect(got?.state, LoginItemState.failed);
+    });
+
+    testWidgets('openLoginItemsSettings returns at 2 s without throwing', (
+      tester,
+    ) async {
+      hang();
+      var done = false;
+      unawaited(
+        ChannelLoginItemPort(
+          channel: channel,
+        ).openSettings().then((_) => done = true),
+      );
+      await tester.pump(const Duration(milliseconds: 1999));
+      expect(done, isFalse);
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(done, isTrue);
+    });
+
+    testWidgets('turning on with no answer: failed at 2 s, read again, '
+        'usable at 4 s, off with "Couldn\'t turn this on"', (tester) async {
+      hang();
+      final log = FakeLog();
+      final s = LoginItemService(
+        port: ChannelLoginItemPort(channel: channel),
+        log: log,
+      );
+      unawaited(s.set(true));
+      await tester.pump(const Duration(seconds: 2));
+      expect(log.codes, [LogCode.loginItemFailed]);
+      expect(log.details, [null]);
+      expect(s.busy, isTrue, reason: 'the read after it is still running');
+      await tester.pump(const Duration(seconds: 2));
+      expect(s.busy, isFalse);
+      expect(s.isOn, isFalse);
+      expect(s.note, "Couldn't turn this on. Try again.");
+      s.dispose();
+    });
+
+    testWidgets('turning off with no answer while the OS has it on: on, '
+        'with "Couldn\'t turn this off"', (tester) async {
+      hang(
+        except: (call) =>
+            call.method == 'loginItemStatus' ? {'state': 'enabled'} : null,
+      );
+      final s = LoginItemService(
+        port: ChannelLoginItemPort(channel: channel),
+        log: FakeLog(),
+      );
+      await s.refresh();
+      expect(s.isOn, isTrue);
+      unawaited(s.set(false));
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump();
+      expect(s.busy, isFalse);
+      expect(s.isOn, isTrue);
+      expect(s.note, "Couldn't turn this off. Try again.");
+      s.dispose();
     });
   });
 

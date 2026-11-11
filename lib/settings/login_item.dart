@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import '../history/pause_service.dart';
 import '../log/app_log.dart';
 
 /// What the OS says about Kusunga's login item (M1.7,
@@ -49,7 +50,8 @@ abstract interface class LoginItemPort {
 }
 
 /// Method channel `com.wnasoni.kusunga/login_item` (LoginItemBridge.swift,
-/// login_item_bridge.cpp). No path and no user data cross it:
+/// login_item_bridge.cpp). No path and no user data cross it, and a call
+/// with no answer within [timeout] counts as failed:
 ///  - `loginItemStatus` (no arguments) and `setLoginItem` (a bool) answer
 ///    `{state, error?}`: state is `enabled`, `notRegistered`,
 ///    `requiresApproval`, `notFound`, `error`, `unsupported` or
@@ -61,6 +63,11 @@ class ChannelLoginItemPort implements LoginItemPort {
           channel ?? const MethodChannel('com.wnasoni.kusunga/login_item');
 
   final MethodChannel _channel;
+
+  /// A call with no answer by then has failed: the native-call limit of
+  /// M1.6 ([PauseService.nativeTimeout], tester finding B4). A late answer
+  /// is ignored.
+  static const timeout = PauseService.nativeTimeout;
 
   static const _states = {
     'enabled': LoginItemState.on,
@@ -75,7 +82,9 @@ class ChannelLoginItemPort implements LoginItemPort {
   Future<LoginItemAnswer> _call(String method, [Object? arguments]) async {
     const failed = LoginItemAnswer(LoginItemState.failed);
     try {
-      final reply = await _channel.invokeMethod<Object?>(method, arguments);
+      final reply = await _channel
+          .invokeMethod<Object?>(method, arguments)
+          .timeout(timeout);
       if (reply is! Map) return failed;
       final state = _states[reply['state']];
       final error = reply['error'];
@@ -84,6 +93,8 @@ class ChannelLoginItemPort implements LoginItemPort {
     } on MissingPluginException {
       return failed;
     } on PlatformException {
+      return failed;
+    } on TimeoutException {
       return failed;
     }
   }
@@ -97,11 +108,15 @@ class ChannelLoginItemPort implements LoginItemPort {
   @override
   Future<void> openSettings() async {
     try {
-      await _channel.invokeMethod<Object?>('openLoginItemsSettings');
+      await _channel
+          .invokeMethod<Object?>('openLoginItemsSettings')
+          .timeout(timeout);
     } on MissingPluginException {
       // Nothing to open.
     } on PlatformException {
       // Nothing to open.
+    } on TimeoutException {
+      // Nothing more to do.
     }
   }
 }
