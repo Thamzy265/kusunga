@@ -102,7 +102,9 @@ class MemoryHistoryStore implements HistoryStore {
     return true;
   }
 
-  final _settings = <String, String>{};
+  /// A memory-only session starts like a new file (schema version 6, D3 B):
+  /// auto-delete after 30 days. Nothing here survives a quit.
+  final _settings = <String, String>{historyExpirySetting: '30'};
 
   @override
   String? readSetting(String key) {

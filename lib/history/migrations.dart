@@ -4,11 +4,17 @@ class Migration {
   const Migration({
     required this.version,
     required this.statements,
+    this.freshStatements,
     this.onRun,
   });
 
   final int version;
   final List<String> statements;
+
+  /// Run instead of [statements] when the file is new (user_version 0, so
+  /// every migration runs in this one open). Null: [statements] in both
+  /// cases. Lets a default differ between a new file and an upgrade.
+  final List<String>? freshStatements;
 
   /// Test hook: called just before the statements run.
   final void Function()? onRun;
@@ -27,6 +33,11 @@ class Migration {
 /// newly verified password-manager presets with INSERT OR IGNORE: only ids
 /// that were never presets before, so a preset the user removed stays
 /// removed (expand only; the `history_paused_until` setting needs no row).
+/// Version 6 (M1.7, `docs/design/settings-and-expiry.md`, "Data", PM
+/// decision D3 B) adds the `history_expiry_days` setting with INSERT OR
+/// IGNORE: 30 days in a new file, 0 (Never) in a file upgraded from an
+/// earlier version, so an upgrade never deletes anyone's history (expand
+/// only; older builds never read the key).
 const kMigrations = <Migration>[
   Migration(
     version: 1,
@@ -120,6 +131,17 @@ INSERT OR IGNORE INTO ignored_apps (app_id, display_name, preset) VALUES
   ('nordpass.exe', 'NordPass', 1),
   ('protonpass.exe', 'Proton Pass', 1),
   ('keeperpasswordmanager.exe', 'Keeper', 1)''',
+    ],
+  ),
+  Migration(
+    version: 6,
+    statements: [
+      "INSERT OR IGNORE INTO settings (key, value) "
+          "VALUES ('history_expiry_days', 0)",
+    ],
+    freshStatements: [
+      "INSERT OR IGNORE INTO settings (key, value) "
+          "VALUES ('history_expiry_days', 30)",
     ],
   ),
 ];

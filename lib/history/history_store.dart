@@ -1,5 +1,9 @@
 import 'clip_item.dart';
 
+/// Auto-delete (M1.7, schema version 6): "0" never, or "1", "7" or "30"
+/// days since an item was last copied. Any other value counts as never.
+const historyExpirySetting = 'history_expiry_days';
+
 /// Where clipboard history is kept. Calls are synchronous: the database is
 /// local, and one copy is one small transaction.
 abstract interface class HistoryStore {
@@ -11,12 +15,14 @@ abstract interface class HistoryStore {
   /// mode (schema version 2), and the typed-shortcuts switch, "0" or "1"
   /// (version 4), and the history pause, "0", "-1" or an end time in ms
   /// (M1.6, `history_paused_until`; the user's choice to stop recording,
-  /// kept in the encrypted file like the rest).
+  /// kept in the encrypted file like the rest), and auto-delete (M1.7,
+  /// version 6, [historyExpirySetting]).
   static const storedSettingKeys = {
     'picker_shortcut',
     'paste_mode',
     'typed_shortcuts_on',
     'history_paused_until',
+    historyExpirySetting,
   };
   static const maxSettingLength = 64;
 

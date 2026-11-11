@@ -147,7 +147,8 @@ class SqliteHistoryStore implements HistoryStore {
       m.onRun?.call();
       db.execute('BEGIN IMMEDIATE');
       try {
-        for (final sql in m.statements) {
+        final fresh = from == 0 ? m.freshStatements : null;
+        for (final sql in fresh ?? m.statements) {
           db.execute(sql);
         }
         db.execute('PRAGMA user_version = ${m.version}');
