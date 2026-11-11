@@ -76,7 +76,7 @@ Everything stays on the device. No account, no server.
   - AC: "Pause history" for 15 min / 1 h / until resumed, from the tray/menu bar.
   - Design: `docs/design/sensitive-content.md`, ADR 0005 (accepted 2026-11-10), UI spec `docs/ui/sensitive-content.md`, deck `docs/slides/sensitive-content.html` (approved 2026-11-10).
 - [ ] **M1.7 Settings and expiry** — large (resized by lead 2026-11-10: changes how long personal data is kept; login items on two OSes).
-  - Design: `docs/design/settings-and-expiry.md`, UI spec `docs/ui/settings-and-expiry.md`, deck `docs/slides/settings-and-expiry.html` (waiting for PM approval, D1–D5).
+  - Design: `docs/design/settings-and-expiry.md`, UI spec `docs/ui/settings-and-expiry.md`, deck `docs/slides/settings-and-expiry.html` (approved 2026-11-11: D1 A, D2 A, D3 B, D4 B, D5 A).
   - AC: history limit, auto-delete after a set time (never / 1 day / 7 days / 30 days), shortcut, launch at login, ignore list.
   - AC: the most private choice is the default where there is one (e.g. launch at login off until the user turns it on).
 - [ ] **M1.8 Your data: export and delete** — small.
@@ -159,3 +159,5 @@ Needs its own design note and deck. Mobile cannot record clipboard history in th
 - Safari-extension companion apps in the ignore-list presets (LastPass for Safari `com.lastpass.lastpassforsafari`, NordPass `com.nordpass.safari.app.password.manager`, Proton Pass for Safari `me.proton.pass.catalyst`, Keeper `com.keepersecurity.safari.keeperfill`) — verified on the App Store but copies rarely come from these container apps; the extensions copy from the browser, which secret markers and Pause cover — trigger: ≥ 3 beta reports of a copy from one of them kept in history — noted 2026-11-10 by developer
 - Windows ignore-list match by MSIX package family for Keeper and Proton Pass — their current Windows builds are MSIX packages whose running exe name could not be confirmed (presets use the older `keeperpasswordmanager.exe` and `protonpass.exe`) — trigger: the first Windows QA run of M1.6 shows a copy from either app kept, or ≥ 1 beta report of it — noted 2026-11-10 by developer
 - A native wake-from-sleep hook for the pause UI — the banner, tray tooltip and menu refresh on a 15 s Dart tick (which resumes on wake) and when Kusunga becomes active; capture itself is exact because native code checks the wall clock on every copy — trigger: QA measures the banner or tooltip showing an ended pause more than 15 s after wake — noted 2026-11-10 by developer
+- Auto-delete after 1 hour — Pause covers short private moments — trigger: ≥ 5 beta requests — noted 2026-11-10 by lead
+- Auto-delete per app — one global time covers personal use — trigger: ≥ 5 beta requests — noted 2026-11-10 by lead

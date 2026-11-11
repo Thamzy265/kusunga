@@ -1,8 +1,8 @@
 # M1.7 Settings and expiry — UI spec
 
-Date: 2026-11-10 — Design note: `docs/design/settings-and-expiry.md` — Status: draft, waiting for the PM (D1–D5)
+Date: 2026-11-10 — Design note: `docs/design/settings-and-expiry.md` — Status: approved by PM 2026-11-11
 
-Written for the recommended options (D1 A, D2 A, D3 B, D4 B, D5 A). If the PM picks other options, this spec changes before the developer starts.
+Built on the PM's decisions of 2026-11-11: D1 A, D2 A, D3 B, D4 B, D5 A (the recommended options).
 
 ## User and task
 

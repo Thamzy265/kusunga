@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-11 — M1.7 Settings and expiry — deck approved, build starts
+- Changed: Design note and UI spec marked approved; decisions recorded in docs/PLAN.md; two Later lines added (auto-delete after 1 hour; auto-delete per app). Branch feat/settings-expiry created from main. Developer briefed on opus (personal-data retention, a schema change and several modules).
+- Gates: developer started · tester — · reviewer — · QA — · PM merge —
+- Open findings: none
+- Decisions: PM said: "Approve as recommended" (2026-11-11), in answer to "Approve the M1.7 deck with the recommended options?". This decides D1 A (a new Settings tab, Keep and the picker shortcut moved there), D2 A (last copied time starts the clock), D3 B (30 days for new installs, Never for existing data), D4 B (macOS 12: switch disabled, "Needs macOS 13 or later"), D5 A (login start in the menu bar or tray only). The assumptions in the deck stand: lawful basis n/a, no ADR, size large.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — push of main; VoiceOver (M1.6 PM check 3, M1.5 items); optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-10 — M1.7 Settings and expiry — design drafted, waiting for the PM
 - Changed: Lead resized M1.7 from small to large (personal-data retention; login items on Mac and Windows; controls move across tabs). Wrote docs/design/settings-and-expiry.md, docs/ui/settings-and-expiry.md and docs/slides/settings-and-expiry.html. Facts from a scout lookup of main: clip_items has created_at and last_copied_at; secure_delete is on; rollback journal, not WAL; snippets in their own table; no launch-at-login code; macOS target 12.0. No branch and no developer brief yet.
 - Gates: developer not started (waiting for deck approval) · tester — · reviewer — · QA — · PM merge —

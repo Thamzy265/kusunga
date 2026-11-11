@@ -1,6 +1,6 @@
 # M1.7 Settings and expiry — design note
 
-Date: 2026-11-10 — Author: lead — Status: draft, waiting for the PM (decisions D1–D5)
+Date: 2026-11-10 — Author: lead — Status: approved by PM 2026-11-11 (D1 A, D2 A, D3 B, D4 B, D5 A)
 
 UI spec: `docs/ui/settings-and-expiry.md` — Deck: `docs/slides/settings-and-expiry.html`
 
@@ -177,7 +177,7 @@ Assumed unless the PM says otherwise: lawful basis n/a (nothing leaves the devic
 - **Rollout:** ships with the normal build; migration v6 runs at launch.
 - **Rollback:** revert the merge. Older builds ignore `history_expiry_days`. A login item registered by M1.7 stays registered after a rollback, so the rollback note tells the user to switch it off in System Settings or Task Manager first.
 
-## Later lines (proposed)
+## Later lines (added to docs/PLAN.md 2026-11-11)
 
 - Auto-delete after 1 hour — Pause covers short private moments — trigger: ≥ 5 beta requests — noted 2026-11-10 by lead
 - Auto-delete per app — one global time covers personal use — trigger: ≥ 5 beta requests — noted 2026-11-10 by lead
