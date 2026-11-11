@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-11 — M1.7 Settings and expiry — developer fixes for reviewer round 1
+- Changed: Developer fixed F1 (a008460, 2 px focus ring on the switch and the menu, widget and pixel tests light and dark), F2 (026c3ec), F3 (36c1db9), F4 (2a7366e), F5 (4e34294), F6 (5b1aeb5), F7 (395dc7c), F8 (03d7017), F9 (04682c9, "Change in Settings"), F10 (99d578d, docs and a turn-on twin test; no code change needed), F11 (bc8ec16), F12 (3c5245e, shared CloseAtZero and SectionHeading). HEAD 99d578d. check.sh 3246 passed, 10 skipped; test_mac_capture 40/0; test_mac_shortcuts 165/0; test_mac_shortcuts_release 153/0; test_mac_login_item 30/0; test_windows_policy passed. Lead corrected the same Ctrl+Tab line in the M1.6 spec docs/ui/sensitive-content.md on main.
+- Deviations reported: F4 — while the setting can't be read, nothing is hidden or deleted and the menu shows Never; it is read again at each check and clean-up, and a time the user saves meanwhile becomes the setting. F5 fixed in HistoryService.countRemovedBy. F11 changed two of the developer's own tests to trigger a refresh by a copy. LoginItemService still refreshes on both resume and show.
+- Gates: developer pass · tester pass · reviewer re-check started · QA — · PM merge —
+- Open findings: F1–F12 fixed, waiting for the reviewer's re-check
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — push of main; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-11 — M1.7 Settings and expiry — PM decisions on the review round
 - Changed: Developer dispatched for F1–F9, F11, F12 with the decisions below.
 - Gates: developer fixing · tester pass · reviewer block (F1) · QA — · PM merge —
