@@ -59,11 +59,11 @@ void main() {
     expect(kMigrations.last.version, 6);
     final v6 = kMigrations.last;
     expect(v6.statements, [
-      "INSERT OR IGNORE INTO settings (key, value) "
+      'INSERT OR IGNORE INTO settings (key, value) '
           "VALUES ('history_expiry_days', 0)",
     ]);
     expect(v6.freshStatements, [
-      "INSERT OR IGNORE INTO settings (key, value) "
+      'INSERT OR IGNORE INTO settings (key, value) '
           "VALUES ('history_expiry_days', 30)",
     ]);
   });

@@ -136,11 +136,11 @@ INSERT OR IGNORE INTO ignored_apps (app_id, display_name, preset) VALUES
   Migration(
     version: 6,
     statements: [
-      "INSERT OR IGNORE INTO settings (key, value) "
+      'INSERT OR IGNORE INTO settings (key, value) '
           "VALUES ('history_expiry_days', 0)",
     ],
     freshStatements: [
-      "INSERT OR IGNORE INTO settings (key, value) "
+      'INSERT OR IGNORE INTO settings (key, value) '
           "VALUES ('history_expiry_days', 30)",
     ],
   ),
