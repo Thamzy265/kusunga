@@ -151,6 +151,8 @@ class ExpiryService extends ChangeNotifier {
   /// Saves [newDays]. A shorter time also deletes the expired items, in the
   /// same transaction. Returns how many items went, or null when nothing
   /// was saved (the old setting stays; `settingSaveFailed` is logged).
+  /// A good save starts the failure count again, so Never (nothing left to
+  /// clean up) removes the warning (tester finding B1).
   /// Throws [ArgumentError] for anything but 0, 1, 7 or 30.
   int? setDays(int newDays) {
     checkExpiryDays(newDays);
@@ -167,10 +169,8 @@ class ExpiryService extends ChangeNotifier {
     }
     _days = newDays;
     if (n > 0) _log.log(LogCode.historyExpired, n);
-    if (deleteBefore != null) {
-      _failures = 0;
-      _lastRun = _clock();
-    }
+    _failures = 0;
+    if (deleteBefore != null) _lastRun = _clock();
     _changed();
     return n;
   }

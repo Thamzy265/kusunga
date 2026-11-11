@@ -342,6 +342,32 @@ void main() {
       service.expiry.setDays(1);
       expect(service.banners, isNot(contains(HistoryBanner.expiryFailed)));
     });
+
+    // Tester finding B1: any good save starts the failure count again, not
+    // only one that deletes.
+    for (final (from, to) in [(1, 7), (7, 30), (1, 0)]) {
+      test('a good save from $from to $to days (nothing deleted) also clears '
+          'the warning and starts the count again', () {
+        store.inner.writeSetting(historyExpirySetting, '$from');
+        store.failWrites = true;
+        service = build();
+        service.expiry.cleanUp();
+        service.expiry.cleanUp();
+        expect(service.expiry.failing, isTrue);
+        store.failWrites = false;
+        expect(service.expiry.setDays(to), 0);
+        expect(service.expiry.failing, isFalse);
+        expect(service.banners, isNot(contains(HistoryBanner.expiryFailed)));
+        if (to == 0) return;
+        // Two more failed runs are not yet 3 in a row.
+        store.failWrites = true;
+        service.expiry.cleanUp();
+        service.expiry.cleanUp();
+        expect(service.banners, isNot(contains(HistoryBanner.expiryFailed)));
+        service.expiry.cleanUp();
+        expect(service.banners, contains(HistoryBanner.expiryFailed));
+      });
+    }
   });
 
   group('timers (only while ticking)', () {
