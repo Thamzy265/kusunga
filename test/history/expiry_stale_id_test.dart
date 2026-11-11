@@ -5,7 +5,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/clip_item.dart';
-import 'package:kusunga/history/history_opener.dart';
 import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/history_store.dart';
 import 'package:kusunga/history/memory_history_store.dart';
