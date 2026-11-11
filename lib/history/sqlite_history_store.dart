@@ -255,10 +255,11 @@ class SqliteHistoryStore implements HistoryStore {
   }
 
   @override
-  String? contentOf(int id) {
-    final rows = _db.select('SELECT content FROM clip_items WHERE id = ?', [
-      id,
-    ]);
+  String? contentOf(int id, {int? notBefore}) {
+    final rows = _db.select(
+      'SELECT content FROM clip_items WHERE id = ? AND last_copied_at >= ?',
+      [id, notBefore ?? _minInt],
+    );
     return rows.isEmpty ? null : rows.single['content'] as String;
   }
 

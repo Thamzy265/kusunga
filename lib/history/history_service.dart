@@ -376,7 +376,8 @@ class HistoryService extends ChangeNotifier {
   }
 
   /// Puts the whole text of an item on the clipboard. Returns false if that
-  /// failed. The watcher then sees the copy and moves the item to the top.
+  /// failed, or the item is gone or expired. The watcher then sees the copy
+  /// and moves the item to the top.
   Future<bool> copy(int id) async {
     if (_closed) return false;
     try {
@@ -390,7 +391,8 @@ class HistoryService extends ChangeNotifier {
   }
 
   /// The whole text of an item (also one still waiting to be saved), or null
-  /// if it is gone.
+  /// if it is gone or expired (R1: the read filter holds for an id kept
+  /// from before, too).
   String? textOf(int id) {
     if (_closed) return null;
     try {
@@ -438,13 +440,15 @@ class HistoryService extends ChangeNotifier {
   }
 
   String? _contentOf(int id) {
+    final cutoff = expiry.cutoff;
     if (id < 0) {
       for (final w in _waiting) {
-        if (w.id == id) return w.text;
+        if (w.id != id) continue;
+        return cutoff == null || w.time >= cutoff ? w.text : null;
       }
       return null;
     }
-    return _store.contentOf(id);
+    return _store.contentOf(id, notBefore: cutoff);
   }
 
   /// Removes one item and returns it so Undo can put it back.

@@ -57,9 +57,11 @@ class MemoryHistoryStore implements HistoryStore {
   }
 
   @override
-  String? contentOf(int id) {
+  String? contentOf(int id, {int? notBefore}) {
     for (final e in _items) {
-      if (e.id == id) return e.record.content;
+      if (e.id != id) continue;
+      final kept = notBefore == null || e.record.lastCopiedAt >= notBefore;
+      return kept ? e.record.content : null;
     }
     return null;
   }

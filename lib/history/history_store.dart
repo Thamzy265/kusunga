@@ -54,8 +54,10 @@ abstract interface class HistoryStore {
   /// went. Throws [ArgumentError] for any other number of days.
   int setExpiryDays(int days, {int? deleteBefore});
 
-  /// The whole text of an item, or null if it is gone.
-  String? contentOf(int id);
+  /// The whole text of an item, or null if it is gone (or, with
+  /// [notBefore], last copied before it: the M1.7 read filter, so an id
+  /// kept from before the item expired gives nothing).
+  String? contentOf(int id, {int? notBefore});
 
   /// Saves [content], or moves it to the top if it is already there, then
   /// trims to [limit]. All of it is one transaction. Returns the item id.

@@ -21,6 +21,7 @@ void main() {
   late FlakyStore store;
   late FakeLog log;
   late HistoryService service;
+  late List<String> written;
   var now = 0;
 
   HistoryService build({Set<HistoryNotice> notices = const {}}) =>
@@ -30,10 +31,11 @@ void main() {
         source: source,
         log: log,
         clock: () => now,
-        writeClipboard: (_) async {},
+        writeClipboard: (text) async => written.add(text),
       )..start();
 
   setUp(() {
+    written = [];
     now = 100 * day;
     source = FakeClipboardSource();
     store = FlakyStore(MemoryHistoryStore());
@@ -112,6 +114,49 @@ void main() {
       now += day + 1;
       service.expiry.cleanUp();
       expect(texts(), isEmpty);
+    });
+
+    // An id kept from before the item expired (a row on screen, the picker)
+    // must not reach its text once the cut-off has passed it.
+    test('textOf and copy give nothing for an item that expired but is not '
+        'cleaned up yet; up to the cut-off they still work', () async {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      service = build();
+      source.copy('secret');
+      final id = service.items.single.id;
+      expect(id, isPositive);
+      now += day; // exactly 1 day: still shown
+      expect(service.textOf(id), 'secret');
+      expect(await service.copy(id), isTrue);
+      expect(written, ['secret']);
+      now += 1; // expired; no clean-up has run
+      expect(service.textOf(id), isNull);
+      expect(await service.copy(id), isFalse);
+      expect(written, ['secret']);
+      expect(store.inner.count, 1, reason: 'hidden, not deleted');
+    });
+
+    test('a copy waiting to be saved honours the cut-off too', () async {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      service = build();
+      store.failWrites = true;
+      source.copy('waiting');
+      final id = service.items.single.id;
+      expect(id, isNegative);
+      now += day;
+      expect(service.textOf(id), 'waiting');
+      now += 1;
+      expect(service.textOf(id), isNull);
+      expect(await service.copy(id), isFalse);
+      expect(written, isEmpty);
+    });
+
+    test('Never: textOf and copy of an old item still work', () async {
+      seed({'old': 400});
+      service = build();
+      final id = service.items.single.id;
+      expect(service.textOf(id), 'old');
+      expect(await service.copy(id), isTrue);
     });
   });
 

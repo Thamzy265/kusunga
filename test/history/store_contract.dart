@@ -262,6 +262,18 @@ void runStoreContract(String name, HistoryStore Function() create) {
         expect(store.listSince(301), isEmpty);
       });
 
+      test('contentOf with notBefore gives nothing for an item last copied '
+          'before it (R1: a stale id); the cutoff itself is kept', () {
+        seed();
+        final ids = {for (final i in store.list()) i.preview: i.id};
+        expect(store.contentOf(ids['old']!, notBefore: 101), isNull);
+        expect(store.contentOf(ids['middle']!, notBefore: 200), 'middle');
+        expect(store.contentOf(ids['new']!, notBefore: 200), 'new');
+        expect(store.contentOf(ids['old']!), 'old');
+        expect(store.contentOf(999999, notBefore: 0), isNull);
+        expect(store.count, 3, reason: 'hidden, not deleted');
+      });
+
       test('copying an old item again keeps it (D2 A: last copy counts)', () {
         seed();
         store.insertOrBump('old', ClipKind.text, 400);

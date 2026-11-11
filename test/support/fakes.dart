@@ -156,7 +156,8 @@ class FlakyStore implements HistoryStore {
   }
 
   @override
-  String? contentOf(int id) => inner.contentOf(id);
+  String? contentOf(int id, {int? notBefore}) =>
+      inner.contentOf(id, notBefore: notBefore);
   @override
   int insertOrBump(String content, ClipKind kind, int nowMs) {
     _maybeFail();
