@@ -13,6 +13,7 @@ import 'package:kusunga/snippets/memory_snippet_store.dart';
 import 'package:kusunga/theme/tokens.dart';
 
 import '../support/fakes.dart';
+import '../support/main_tabs.dart';
 
 /// BUG-D1: the History list must never take the focus while a route is on
 /// top of it. The first row asks for the focus (autofocus) every time a row
@@ -77,12 +78,14 @@ void main() {
 
   /// Types [limit] into the field and presses Enter, as the user does.
   Future<void> enterLimit(WidgetTester tester, int limit) async {
+    await showKeepField(tester);
     await tester.enterText(field(), '$limit');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
   }
 
   Future<void> openClear(WidgetTester tester) async {
+    await showHistoryTab(tester);
     await tester.tap(find.byTooltip('More options'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Clear history'));
@@ -332,6 +335,7 @@ void main() {
         'focus): after Escape the field has the focus again', (tester) async {
       copies(12);
       await show(tester);
+      await showKeepField(tester);
       await tester.enterText(field(), '10');
       await key(tester, LogicalKeyboardKey.tab);
       expect(find.byType(AlertDialog), findsOneWidget);
@@ -350,7 +354,11 @@ void main() {
       source.access = PasteAccess.needsSetup;
       await tester.runAsync(() => service.recheckPasteAccess());
       await tester.pumpAndSettle();
-      expect(find.text('Allow Kusunga to read what you copy'), findsOneWidget);
+      // The card is in the History tab, behind Settings and the dialog.
+      expect(
+        find.text('Allow Kusunga to read what you copy', skipOffstage: false),
+        findsOneWidget,
+      );
       expect(focused(), 'Cancel');
       await key(tester, LogicalKeyboardKey.escape);
       expect(find.byType(AlertDialog), findsNothing);
@@ -440,6 +448,7 @@ void main() {
       expect(FocusManager.instance.primaryFocus, same(byTab), reason: 'dialog');
       expect(byTab.hasPrimaryFocus, isTrue);
       await enterLimit(tester, 200);
+      await showHistoryTab(tester);
       await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
       await key(tester, LogicalKeyboardKey.escape);
@@ -453,11 +462,13 @@ void main() {
       copies(4);
       await show(tester);
       await enterLimit(tester, 200);
+      await showHistoryTab(tester);
       await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
       await key(tester, LogicalKeyboardKey.escape);
       expect(find.text('Clear history'), findsNothing);
       expect(focused(), 'more-button', reason: 'Escape');
+      await showHistoryTab(tester);
       await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
       await tester.tapAt(const Offset(5, 600));

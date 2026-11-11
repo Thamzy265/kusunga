@@ -19,6 +19,7 @@ import 'package:kusunga/snippets/memory_snippet_store.dart';
 import 'package:kusunga/theme/tokens.dart';
 
 import '../support/fakes.dart';
+import '../support/main_tabs.dart';
 
 /// Tester round 17 on 578ee22 (D2, D3, D4): a closed dialog or menu gives the
 /// focus back to its opener; nothing behind a modal takes it. Breaking the
@@ -103,6 +104,7 @@ void main() {
   }
 
   Future<void> openClearByMouse(WidgetTester tester) async {
+    await showHistoryTab(tester);
     await tester.tap(find.byTooltip('More options'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Clear history'));
@@ -112,8 +114,10 @@ void main() {
   /// Enter in the Keep field first (the field unfocuses itself, leaving the
   /// History scope without a focused child), then Clear by mouse.
   Future<void> openClearAfterEnterInField(WidgetTester tester) async {
+    await showKeepField(tester);
     await tester.tap(field());
     await tester.pump();
+    await showKeepField(tester);
     await tester.enterText(field(), '200');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
@@ -138,8 +142,10 @@ void main() {
   }
 
   Future<void> openKeep(WidgetTester tester, int to) async {
+    await showKeepField(tester);
     await tester.tap(field());
     await tester.pump();
+    await showKeepField(tester);
     await tester.enterText(field(), '$to');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
@@ -155,8 +161,10 @@ void main() {
   /// Opens the Keep dialog by typing [to] and leaving the field with Tab
   /// (the commit on focus loss).
   Future<void> openKeepByTabOut(WidgetTester tester, int to) async {
+    await showKeepField(tester);
     await tester.tap(field());
     await tester.pump();
+    await showKeepField(tester);
     await tester.enterText(field(), '$to');
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pumpAndSettle();
@@ -165,8 +173,10 @@ void main() {
   /// Opens the Keep dialog by typing [to] and clicking elsewhere (the commit
   /// on focus loss by mouse).
   Future<void> openKeepByBlur(WidgetTester tester, int to) async {
+    await showKeepField(tester);
     await tester.tap(field());
     await tester.pump();
+    await showKeepField(tester);
     await tester.enterText(field(), '$to');
     FocusManager.instance.primaryFocus?.unfocus();
     await tester.pumpAndSettle();
@@ -350,6 +360,7 @@ void main() {
       copies(5);
       await show(tester);
       for (final how in ['Escape', 'click outside']) {
+        await showHistoryTab(tester);
         await tester.tap(find.byTooltip('More options'));
         await tester.pumpAndSettle();
         expect(find.text('Clear history'), findsOneWidget);
@@ -368,6 +379,7 @@ void main() {
         'row changes: back on More options, no row steals it', (tester) async {
       copies(5);
       await show(tester);
+      await showHistoryTab(tester);
       await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
       for (var i = 0; i < 4; i++) {
@@ -515,6 +527,7 @@ void main() {
           ?.findAncestorWidgetOfExactType<HistoryRow>()
           ?.item
           .id;
+      await showHistoryTab(tester);
       await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
       service.delete(focusedId!);
@@ -575,10 +588,8 @@ void main() {
       handle.dispose();
     });
 
-    testWidgets('the Tab order of the header is unchanged: History tab, '
-        'Snippets tab, the Keep field, More options, then the rows', (
-      tester,
-    ) async {
+    testWidgets('the Tab order of the header: the tabs, More options, then '
+        'the rows (the Keep field moved to Settings in M1.7)', (tester) async {
       copies(3);
       await show(tester);
       final order = <String>[];
@@ -602,7 +613,8 @@ void main() {
         }
         order.add(id ?? where());
       }
-      expect(order, containsAllInOrder(['more-button', 'field']));
+      expect(order, containsAllInOrder(['more-button', 'main-tab-settings']));
+      expect(order, isNot(contains('field')));
       expect(order.where((e) => e == 'more-button'), hasLength(1));
     });
   });
@@ -701,6 +713,7 @@ void main() {
     ) async {
       copies(5);
       await show(tester);
+      await showHistoryTab(tester);
       await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);

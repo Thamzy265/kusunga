@@ -3,11 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/memory_history_store.dart';
-import 'package:kusunga/history/ui/history_screen.dart';
+import 'package:kusunga/history/ui/history_host.dart';
 import 'package:kusunga/log/app_log.dart';
 import 'package:kusunga/theme/tokens.dart';
 
 import '../../support/fakes.dart';
+import '../../support/main_tabs.dart';
 
 /// Cmd+Z on the Mac, Ctrl+Z on Windows.
 Future<void> undoKey(WidgetTester t, TargetPlatform platform) async {
@@ -36,7 +37,7 @@ void main() {
     await t.pumpWidget(
       MaterialApp(
         theme: KusungaTokens.themeData(Brightness.light),
-        home: HistoryScreen(service: service),
+        home: HistoryHost(history: Future.value(service), initial: service),
       ),
     );
     await t.pump();
@@ -46,7 +47,9 @@ void main() {
   String fieldText(WidgetTester t) =>
       t.widget<TextField>(field()).controller!.text;
 
+  /// The Keep field is in the Settings tab (M1.7, D1 A).
   Future<void> typeInField(WidgetTester t) async {
+    await showKeepField(t);
     await t.tap(field());
     await t.pump(const Duration(milliseconds: 600));
     await t.enterText(field(), '300');

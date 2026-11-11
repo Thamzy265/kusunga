@@ -15,6 +15,7 @@ import '../picker/fake_picker_port.dart';
 import '../snippets/snippet_service_test.dart' show FlakySnippetStore;
 import '../support/fakes.dart';
 import '../theme/tokens_test.dart' show contrast;
+import '../support/main_tabs.dart';
 
 /// Tester probes for QA-M14-4 (c0dbfe0), on what is really drawn: the 2 px
 /// `color.focus` ring is painted on all four sides of every control on both
@@ -242,6 +243,8 @@ void main() {
         );
         final dismiss = find.widgetWithIcon(IconButton, Icons.close);
         await expectRing(tester, dismiss, t, 'banner Dismiss');
+        // The limit field is in the Settings tab since M1.7.
+        await showKeepField(tester);
         final field = find.byType(TextField).first;
         await expectRing(tester, field, t, 'limit field');
       });

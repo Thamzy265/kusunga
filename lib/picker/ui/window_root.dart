@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../history/history_service.dart';
 import '../../history/ui/history_host.dart';
+import '../../settings/login_item.dart';
 import '../../shortcuts/shortcut_service.dart';
 import '../../shortcuts/ui/ignored_apps_editor.dart';
 import '../../shortcuts/ui/typed_shortcuts_section.dart';
@@ -26,10 +27,14 @@ class WindowRoot extends StatefulWidget {
     this.dataProfile,
     this.dataProfileRejected = false,
     this.shortcuts,
+    this.loginItem,
   });
 
   final Future<HistoryService> history;
   final PickerController picker;
+
+  /// Launch at login for the Settings tab (M1.7).
+  final LoginItemService? loginItem;
 
   /// Typed shortcuts (M1.5), once the history has opened. Without it the
   /// Snippets tab has no "Typed shortcuts" section.
@@ -95,7 +100,15 @@ class _WindowRootState extends State<WindowRoot> {
         final screen = HistoryHost(
           history: widget.history,
           initial: picker.history,
-          topSlot: PickerSettingsSection(controller: picker),
+          topSlot: PickerSettingsSection(
+            controller: picker,
+            parts: PickerSettingsParts.notices,
+          ),
+          pickerShortcutSlot: PickerSettingsSection(
+            controller: picker,
+            parts: PickerSettingsParts.shortcut,
+          ),
+          loginItem: widget.loginItem,
           snippetsTopSlot: _shortcutsSection(),
           ignoredAppsSlot: _ignoredAppsEditor(),
           dataProfile: widget.dataProfile,

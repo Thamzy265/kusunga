@@ -13,7 +13,6 @@ import '../clip_item.dart';
 import '../history_service.dart';
 import '../pause_service.dart';
 import 'history_row.dart';
-import 'limit_field.dart';
 
 /// The home view: what Kusunga has saved, with Copy, Delete (with Undo),
 /// Clear history and the limit. Spec: `docs/ui/clipboard-history.md`.
@@ -697,58 +696,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (nodes.isNotEmpty) nodes.first.requestFocus();
   }
 
-  /// [removed] is the count when the dialog opens; the text then follows
-  /// the live count. At a known 0 it says no items will be deleted and the
-  /// button is "Set limit", which only sets the limit (PM decision
-  /// 2026-11-08). While the count cannot be read (null) the dialog shows no
-  /// number and only Cancel works (reviewer W2).
-  Future<bool> _confirmLower(int newLimit, int? removed) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => ListenableBuilder(
-        listenable: _service,
-        builder: (context, _) {
-          // One read per change, so the text and the button always agree.
-          final removed = _service.countRemovedBy(newLimit);
-          return AlertDialog(
-            content: Text(switch (removed) {
-              null => "Couldn't count the items. Try again.",
-              0 =>
-                'Keep only the newest $newLimit items? No items will be '
-                    'deleted.',
-              _ =>
-                'Keep only the newest $newLimit items? '
-                    '$removed older ${removed == 1 ? 'item' : 'items'} '
-                    'will be deleted.',
-            }),
-            actions: [
-              TextButton(
-                autofocus: true,
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: KusungaTokens.of(context).danger,
-                  foregroundColor: KusungaTokens.of(context).surface,
-                ),
-                onPressed: removed == null
-                    ? null
-                    : () => Navigator.of(context).pop(true),
-                child: Text(switch (removed) {
-                  null => 'Delete',
-                  0 => 'Set limit',
-                  _ => 'Delete $removed ${removed == 1 ? 'item' : 'items'}',
-                }),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-    return ok == true;
-  }
-
   @override
   Widget build(BuildContext context) {
     final t = KusungaTokens.of(context);
@@ -806,15 +753,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                       CrossAxisAlignment.stretch,
                                   children: [
                                     _Header(
-                                      service: _service,
                                       count: items.length,
                                       moreWrap: _moreWrap,
                                       onClear: _confirmClear,
                                       onMenuCancelled: _focusMore,
-                                      confirmLower: _confirmLower,
-                                      onSaveFailed: () => _toast(
-                                        "Couldn't save that number. Try again.",
-                                      ),
                                     ),
                                     SizedBox(height: KusungaTokens.space3),
                                     // M1.6: while paused, before the list
@@ -960,20 +902,17 @@ class _CloseWhenEmptyState extends State<_CloseWhenEmpty> {
   Widget build(BuildContext context) => widget.child;
 }
 
+/// The title and the ⋯ menu. The Keep field moved to the Settings tab
+/// (M1.7, D1 A).
 class _Header extends StatelessWidget {
   const _Header({
-    required this.service,
     required this.count,
     required this.moreWrap,
     required this.onClear,
     required this.onMenuCancelled,
-    required this.confirmLower,
-    required this.onSaveFailed,
   });
 
-  final HistoryService service;
   final int count;
-  final VoidCallback onSaveFailed;
   final VoidCallback onClear;
 
   /// The menu closed without a choice.
@@ -981,7 +920,6 @@ class _Header extends StatelessWidget {
 
   /// A node placed above the "More options" button (see `_focusMore`).
   final FocusNode moreWrap;
-  final Future<bool> Function(int newLimit, int? removed) confirmLower;
 
   @override
   Widget build(BuildContext context) {
@@ -998,11 +936,6 @@ class _Header extends StatelessWidget {
       spacing: KusungaTokens.space2,
       runSpacing: KusungaTokens.space2,
       children: [
-        LimitField(
-          service: service,
-          confirmLower: confirmLower,
-          onSaveFailed: onSaveFailed,
-        ),
         Focus(
           focusNode: moreWrap,
           canRequestFocus: false,

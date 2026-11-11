@@ -56,6 +56,7 @@ class PrivacyScreen extends StatefulWidget {
     super.key,
     required this.pause,
     required this.ignoredHeadingFocus,
+    this.pauseHeadingFocus,
     this.ignoredApps,
   });
 
@@ -63,6 +64,10 @@ class PrivacyScreen extends StatefulWidget {
 
   /// "Edit ignored apps" moves the focus here (UI spec, states matrix).
   final FocusNode ignoredHeadingFocus;
+
+  /// The Settings tab's link "Ignored apps and pause are in Privacy" moves
+  /// the focus here (M1.7 UI spec, states matrix).
+  final FocusNode? pauseHeadingFocus;
 
   /// The list editor. Without it there is no Ignored apps section.
   final Widget? ignoredApps;
@@ -145,7 +150,16 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
     final paused = _pause.isPaused;
     final error = _pause.error;
     final children = <Widget>[
-      _heading(t, _pauseHeading),
+      // Takes the focus only when the Settings link sends it here.
+      Focus(
+        focusNode: widget.pauseHeadingFocus,
+        skipTraversal: true,
+        canRequestFocus: widget.pauseHeadingFocus != null,
+        child: Semantics(
+          identifier: 'privacy-pause-heading',
+          child: _heading(t, _pauseHeading),
+        ),
+      ),
       SizedBox(height: KusungaTokens.space1),
     ];
     if (paused) {

@@ -144,6 +144,7 @@ void main() {
         );
         expectNoRing(tester, button, t);
         await tab(tester); // the Privacy tab (M1.6)
+        await tab(tester); // the Settings tab (M1.7)
         await tab(tester);
         expect(hasFocus(tester, button), isTrue, reason: 'after the tab');
         expectRing(tester, button, t, [t.surface], 'New snippet');

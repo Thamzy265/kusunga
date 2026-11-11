@@ -377,10 +377,16 @@ void main() {
 
       expect(withRole(SemanticsRole.tabBar), hasLength(1));
       var tabs = withRole(SemanticsRole.tab);
-      // M1.6 adds the Privacy tab.
-      expect(tabs.map((t) => t.label), ['History', 'Snippets', 'Privacy']);
+      // M1.6 adds the Privacy tab, M1.7 the Settings tab.
+      expect(tabs.map((t) => t.label), [
+        'History',
+        'Snippets',
+        'Privacy',
+        'Settings',
+      ]);
       expect(tabs.map((t) => t.flagsCollection.isSelected == Tristate.isTrue), [
         true,
+        false,
         false,
         false,
       ]);
@@ -395,6 +401,7 @@ void main() {
       expect(tabs.map((t) => t.flagsCollection.isSelected == Tristate.isTrue), [
         false,
         true,
+        false,
         false,
       ]);
       panels = withRole(SemanticsRole.tabPanel);
@@ -425,9 +432,9 @@ void main() {
       await tester.pump();
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft); // wraps
       await tester.pump();
-      // To the last tab: Privacy since M1.6.
+      // To the last tab: Settings since M1.7.
       expect(
-        tester.widget<Semantics>(hook('main-tab-privacy')).properties.selected,
+        tester.widget<Semantics>(hook('main-tab-settings')).properties.selected,
         isTrue,
       );
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight); // wraps back

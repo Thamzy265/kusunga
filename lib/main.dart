@@ -17,6 +17,7 @@ import 'log/app_log.dart';
 import 'log/unified_log.dart';
 import 'picker/channel_picker_port.dart';
 import 'picker/picker_controller.dart';
+import 'settings/login_item.dart';
 import 'shortcuts/channel_typed_shortcuts_port.dart';
 import 'shortcuts/shortcut_service.dart';
 import 'tray/tray_manager_port.dart';
@@ -85,8 +86,15 @@ Future<void> main(List<String> args) async {
           return service;
         })
       : null;
+  // Launch at login (M1.7): the OS holds the state; read again when the
+  // Settings tab opens and when Kusunga becomes active.
+  final loginItem = isDesktop
+      ? (LoginItemService(port: ChannelLoginItemPort(), log: deferredLog)
+          ..startListening())
+      : null;
   runApp(
     KusungaApp(
+      loginItem: loginItem,
       history: history,
       picker: picker,
       shortcuts: shortcuts,
@@ -128,6 +136,9 @@ Future<void> main(List<String> args) async {
   // Pause / Resume once the history has opened.
   history.then<void>((h) {
     h.pause.startTicking();
+    // M1.7: the auto-delete check (every 15 minutes, after a wake, and on
+    // becoming active); the launch clean-up already ran in start().
+    h.expiry.startTicking();
     tray.attachPause(h.pause);
   }, onError: (Object _) {});
 }

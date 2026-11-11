@@ -10,6 +10,7 @@ import 'package:kusunga/picker/picker_port.dart';
 
 import '../../support/fakes.dart';
 import '../fake_picker_port.dart';
+import '../../support/main_tabs.dart';
 
 void main() {
   late FakePickerPort port;
@@ -47,8 +48,12 @@ void main() {
   ) async {
     await pumpApp(tester);
     expect(find.text('History'), findsNWidgets(2)); // tab and heading
-    expect(find.text('Picker shortcut: ⇧⌘V'), findsOneWidget);
+    // The shortcut row is in the Settings tab since M1.7 (D1 A).
+    expect(find.text('Picker shortcut: ⇧⌘V'), findsNothing);
     expect(find.text('Search history…'), findsNothing);
+    await tester.tap(mainTab('main-tab-settings'));
+    await tester.pump();
+    expect(find.text('Picker shortcut: ⇧⌘V'), findsOneWidget);
     controller.dispose();
   });
 

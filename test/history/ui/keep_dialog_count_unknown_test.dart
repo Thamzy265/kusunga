@@ -10,6 +10,7 @@ import 'package:kusunga/snippets/memory_snippet_store.dart';
 import 'package:kusunga/theme/tokens.dart';
 
 import '../../support/fakes.dart';
+import '../../support/main_tabs.dart';
 
 /// Reviewer W2: when the count of items to delete cannot be read, the Keep
 /// dialog never shows a number it could not read (it showed "Delete 0
@@ -59,6 +60,7 @@ void main() {
       of: find.byType(LimitField),
       matching: find.byType(TextField),
     );
+    await showKeepField(tester);
     await tester.enterText(field, '$n');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();

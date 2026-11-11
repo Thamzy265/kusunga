@@ -16,6 +16,7 @@ import 'package:kusunga/snippets/memory_snippet_store.dart';
 import 'package:kusunga/theme/tokens.dart';
 
 import '../support/fakes.dart';
+import '../support/main_tabs.dart';
 
 /// Tester round 16 on 61c8cf3 (BUG-D1): no widget behind a modal may take the
 /// focus. The first History row's autofocus is now guarded; this file tries
@@ -90,6 +91,7 @@ void main() {
       expect(where(), 'dialog', reason: '$step: the focus is in ${where()}');
 
   Future<void> openClearByMouse(WidgetTester tester) async {
+    await showHistoryTab(tester);
     await tester.tap(find.byTooltip('More options'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Clear history'));
@@ -99,8 +101,10 @@ void main() {
   /// Enter in the Keep field first (the field unfocuses itself, leaving the
   /// History scope without a focused child), then Clear by mouse.
   Future<void> openClearAfterEnterInField(WidgetTester tester) async {
+    await showKeepField(tester);
     await tester.tap(field());
     await tester.pump();
+    await showKeepField(tester);
     await tester.enterText(field(), '200');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
@@ -125,8 +129,10 @@ void main() {
   }
 
   Future<void> openKeep(WidgetTester tester, int to) async {
+    await showKeepField(tester);
     await tester.tap(field());
     await tester.pump();
+    await showKeepField(tester);
     await tester.enterText(field(), '$to');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
@@ -375,6 +381,7 @@ void main() {
     ) async {
       copies(5);
       await show(tester);
+      await showHistoryTab(tester);
       await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
       expect(find.text('Clear history'), findsOneWidget);
@@ -480,8 +487,9 @@ void main() {
         source.access = PasteAccess.needsSetup;
         await tester.runAsync(() => service.recheckPasteAccess());
         await settle(tester);
+        // The card is in the History tab, behind Settings and the dialog.
         expect(
-          find.text('Allow Kusunga to read what you copy'),
+          find.text('Allow Kusunga to read what you copy', skipOffstage: false),
           findsOneWidget,
         );
         expectInDialog('the setup card appeared');
@@ -508,10 +516,9 @@ void main() {
           'takes the focus when it appears', (tester) async {
         copies(3);
         await show(tester);
-        await tester.tap(field());
-        await tester.pump();
-        await tester.enterText(field(), '200');
-        await tester.testTextInput.receiveAction(TextInputAction.done);
+        // Nothing focused in History. (Before M1.7 an Enter in the Keep
+        // field did this; the field is in the Settings tab now.)
+        FocusManager.instance.primaryFocus?.unfocus();
         await settle(tester);
         source.access = PasteAccess.needsSetup;
         await tester.runAsync(() => service.recheckPasteAccess());
@@ -591,14 +598,13 @@ void main() {
       expect(FocusManager.instance.primaryFocus, before);
     });
 
-    testWidgets('nothing focused (Enter in the Keep field), a copy arrives, '
-        'no dialog: the newest row takes the focus as before', (tester) async {
+    testWidgets('nothing focused in History, a copy arrives, no dialog: the '
+        'newest row takes the focus as before', (tester) async {
       copies(5);
       await show(tester);
-      await tester.tap(field());
-      await tester.pump();
-      await tester.enterText(field(), '200');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      // Before M1.7 an Enter in the Keep field left nothing focused; the
+      // field is in the Settings tab now.
+      FocusManager.instance.primaryFocus?.unfocus();
       await settle(tester);
       source.copy('new');
       await settle(tester);

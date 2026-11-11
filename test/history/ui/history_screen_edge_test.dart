@@ -13,6 +13,7 @@ import 'package:kusunga/history/history_store.dart';
 import 'package:kusunga/history/memory_history_store.dart';
 import 'package:kusunga/history/ui/history_row.dart';
 import 'package:kusunga/history/ui/history_screen.dart';
+import 'package:kusunga/settings/ui/settings_screen.dart';
 import 'package:kusunga/log/app_log.dart';
 import 'package:kusunga/theme/tokens.dart';
 
@@ -44,6 +45,7 @@ void main() {
     HistoryService s, {
     Brightness brightness = Brightness.light,
     double textScale = 1,
+    bool settings = false,
   }) => MaterialApp(
     theme: KusungaTokens.themeData(brightness),
     builder: (context, child) => MediaQuery(
@@ -52,7 +54,9 @@ void main() {
       ).copyWith(textScaler: TextScaler.linear(textScale)),
       child: child!,
     ),
-    home: HistoryScreen(service: s, now: () => now),
+    home: settings
+        ? SettingsScreen(service: s, onShowPrivacy: () {})
+        : HistoryScreen(service: s, now: () => now),
   );
 
   Future<void> show(
@@ -425,6 +429,18 @@ void main() {
   });
 
   group('Keep N items: typed input', () {
+    // The Keep field is in the Settings tab since M1.7 (D1 A).
+    Future<void> show(
+      WidgetTester tester, [
+      HistoryService? s,
+      double textScale = 1,
+    ]) async {
+      await tester.pumpWidget(
+        app(s ?? service, textScale: textScale, settings: true),
+      );
+      await tester.pump();
+    }
+
     Future<void> type(WidgetTester tester, String text) async {
       await tester.enterText(field(), text);
       await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -491,8 +507,9 @@ void main() {
       await type(tester, '5000');
       expect(find.text('Enter a number from 10 to 5,000.'), findsNothing);
       expect(service.limit, 5000);
+      // The count line ("0 of 5000 items") is in History; Settings has
+      // only the field (M1.7).
       await tester.pump(const Duration(seconds: 3));
-      expect(find.text('0 of 5000 items'), findsOneWidget);
 
       await type(tester, '10');
       expect(service.limit, 10);

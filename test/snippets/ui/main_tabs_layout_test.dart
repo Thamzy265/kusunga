@@ -47,9 +47,12 @@ void main() {
   Rect newButton(WidgetTester tester) =>
       tester.getRect(find.bySemanticsIdentifier('snippet-new'));
 
-  testWidgets('800 px: History, Snippets and New snippet on one row; each '
+  // M1.7 adds the Settings tab: with the test font (Ahem) four tabs and New
+  // snippet need about 830 px; with a real font they fit at 600 px
+  // (test/ui/m16_real_font_layout_test.dart).
+  testWidgets('880 px: History, Snippets and New snippet on one row; each '
       'tab only as wide as its label', (tester) async {
-    await show(tester, const Size(800, 632));
+    await show(tester, const Size(880, 632));
     final h = tab(tester, 'history');
     final s = tab(tester, 'snippets');
     final n = newButton(tester);
@@ -68,13 +71,14 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  // M1.6 adds the Privacy tab. The test font (Ahem) draws every letter as
-  // wide as the font size, so three tabs and New snippet need about 665 px
-  // here; with the system font they fit at 600 px (checked by QA).
-  testWidgets('680 px (600 px with the system font): still one row', (
+  // M1.6 adds the Privacy tab and M1.7 the Settings tab. The test font
+  // (Ahem) draws every letter as wide as the font size, so four tabs and New
+  // snippet need about 830 px here; with a real font they fit at 600 px
+  // (test/ui/m16_real_font_layout_test.dart).
+  testWidgets('840 px (600 px with a real font): still one row', (
     tester,
   ) async {
-    await show(tester, const Size(680, 632));
+    await show(tester, const Size(840, 632));
     final h = tab(tester, 'history');
     expect(
       tab(tester, 'snippets').center.dy,

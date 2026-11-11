@@ -11,6 +11,7 @@ import 'package:kusunga/picker/picker_controller.dart';
 
 import '../../support/fakes.dart';
 import '../fake_picker_port.dart';
+import '../../support/main_tabs.dart';
 
 void main() {
   late FakePickerPort port;
@@ -125,6 +126,7 @@ void main() {
     // Regression lock: typing "5" on the way to "500" and being interrupted by
     // the picker must not set the limit to 5 (below the 10 minimum) or to 5.
     await pumpApp(tester);
+    await showKeepField(tester); // in Settings since M1.7
     final field = find.byKey(const Key('limit-field'));
     await tester.tap(field);
     await tester.pump();

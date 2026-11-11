@@ -640,6 +640,7 @@ void main() {
     await wheel(tester, SnippetsScreen, 900);
     await tapTab(tester, 'main-tab-snippets');
     await press(tester); // the Privacy tab (M1.6)
+    await press(tester); // the Settings tab (M1.7)
     await press(tester); // New snippet
     await press(tester); // into the list
     final id = focusedSnippetId();
@@ -737,8 +738,12 @@ void main() {
       await show(tester);
       await tapTab(tester, 'main-tab-snippets');
       await wheel(tester, SnippetsScreen, 900);
-      final row = find.byType(SnippetRow).at(3);
-      final id = (tester.widget(row) as SnippetRow).item.id;
+      // A row fully in view (the header is taller with four tabs, M1.7).
+      final inView = snippetsInView(tester).toList();
+      final id = inView[inView.length > 3 ? 3 : 0];
+      final row = find.byWidgetPredicate(
+        (w) => w is SnippetRow && w.item.id == id,
+      );
       await tester.tap(row);
       await tester.pump();
       expect(focusedSnippetId(), id);
@@ -802,6 +807,7 @@ void main() {
       await show(tester);
       await tapTab(tester, 'main-tab-snippets');
       await press(tester); // the Privacy tab (M1.6)
+      await press(tester); // the Settings tab (M1.7)
       await press(tester); // New snippet
       await press(tester); // the row
       expect(focusedSnippetId(), service.snippets.items.single.id);
@@ -863,14 +869,16 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('manage mode with the picker settings: Tab visits the '
-        'header, then the Keep field, the picker settings, then the rows, '
-        'in that order', (tester) async {
+    testWidgets('manage mode with the picker settings: in History, Tab '
+        'visits the header, More options, then the rows; the picker '
+        'shortcut is in Settings (M1.7), after the Settings tab', (
+      tester,
+    ) async {
       fillHistory(30);
       await pumpApp(tester);
       // The first history row has the focus at the start. Shift+Tab walks
-      // back up through the panel's top (Keep, More options, the picker
-      // settings) to the header's tabs.
+      // back up through the panel's top (More options) to the header's
+      // tabs.
       final seen = <String?>[];
       for (var i = 0; i < 14; i++) {
         await press(tester, shift: true);
@@ -878,16 +886,19 @@ void main() {
         expectFocusInView(tester, 'Shift+Tab $i');
       }
       expect(seen, contains('main-tab-snippets'), reason: '$seen');
-      expect(seen, contains('shortcut-change'), reason: '$seen');
-      expect(
-        seen.indexOf('shortcut-change'),
-        lessThan(seen.indexOf('main-tab-snippets')),
-        reason: 'the picker settings come before the header going up: $seen',
-      );
+      expect(seen, isNot(contains('shortcut-change')), reason: '$seen');
       for (var i = 0; i < 14; i++) {
         await press(tester);
         expectFocusInView(tester, 'Tab back $i');
       }
+      await tapTab(tester, 'main-tab-settings');
+      final settings = <String?>[];
+      for (var i = 0; i < 6; i++) {
+        await press(tester);
+        settings.add(focusedHook());
+        expectFocusInView(tester, 'Settings Tab $i');
+      }
+      expect(settings, contains('shortcut-change'), reason: '$settings');
       expect(tester.takeException(), isNull);
     });
   });

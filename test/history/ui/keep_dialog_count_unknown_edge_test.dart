@@ -12,6 +12,7 @@ import 'package:kusunga/snippets/memory_snippet_store.dart';
 import 'package:kusunga/theme/tokens.dart';
 
 import '../../support/fakes.dart';
+import '../../support/main_tabs.dart';
 
 /// Tester round 14 on a0ba96d (reviewer W2): an unreadable count is null,
 /// never 0. Breaking it: reads failing and recovering while open, the
@@ -61,6 +62,7 @@ void main() {
   );
 
   Future<void> setKeep(WidgetTester tester, int n) async {
+    await showKeepField(tester);
     await tester.enterText(limitField(), '$n');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
@@ -104,6 +106,7 @@ void main() {
     expect(deleteLabel(tester), 'Delete 2 items');
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
+    await showHistoryTab(tester);
     await tester.tap(find.byTooltip('More options'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Clear history'));
@@ -348,6 +351,7 @@ void main() {
       copies(12);
       await show(tester);
       store.failCount = true;
+      await showKeepField(tester);
       await tester.tap(limitField());
       await tester.pump();
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
@@ -367,6 +371,7 @@ void main() {
       copies(12);
       await show(tester);
       store.failCount = true;
+      await showKeepField(tester);
       await tester.enterText(limitField(), '10');
       await tester.pump();
       FocusManager.instance.primaryFocus?.unfocus();
@@ -384,6 +389,7 @@ void main() {
       make();
       copies(12);
       await show(tester);
+      await showKeepField(tester);
       await tester.enterText(limitField(), '10');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       FocusManager.instance.primaryFocus?.unfocus();
@@ -440,6 +446,7 @@ void main() {
       await show(tester);
       store.countCalls = 0;
       for (final v in ['9', '5001', 'abc', '']) {
+        await showKeepField(tester);
         await tester.enterText(limitField(), v);
         await tester.testTextInput.receiveAction(TextInputAction.done);
         await tester.pumpAndSettle();
@@ -454,6 +461,7 @@ void main() {
 
   group('Clear history with failing stores', () {
     Future<void> openClear(WidgetTester tester) async {
+      await showHistoryTab(tester);
       await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Clear history'));
@@ -525,14 +533,17 @@ void main() {
           }
         }
       }
-      // The two callers (the limit field and the dialog) and the service's own
-      // call into the store: anything new must be checked for null.
+      // The two callers (the limit field and the dialog, both in
+      // limit_field.dart since M1.7), the service's own call into the store,
+      // and the auto-delete menu and dialog (M1.7, ExpiryService's int?,
+      // null shown as "Couldn't count the items"): anything new must be
+      // checked for null.
       expect(
         callers.map((c) => c.replaceAll('\\', '/').split(':').first).toSet(),
         {
           'lib/history/history_service.dart',
-          'lib/history/ui/history_screen.dart',
           'lib/history/ui/limit_field.dart',
+          'lib/settings/ui/settings_screen.dart',
         },
         reason: 'a new caller of countRemovedBy: $callers',
       );
