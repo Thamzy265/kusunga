@@ -542,10 +542,18 @@ class HistoryService extends ChangeNotifier {
   /// when that cannot be read (the store failed, or the history is closed).
   /// Never 0 for "unknown": the Keep dialog must not show a count it could
   /// not read (reviewer W2).
+  ///
+  /// Only items that are shown count: expired ones the clean-up has not
+  /// removed yet are the oldest, so the trim takes them too, but they were
+  /// never the user's to see (M1.7 reviewer F5).
   int? countRemovedBy(int newLimit) {
     if (_closed) return null;
     try {
-      return _store.countRemovedBy(newLimit);
+      final all = _store.countRemovedBy(newLimit);
+      final cutoff = expiry.cutoff;
+      if (cutoff == null || all == 0) return all;
+      final shown = _store.count - _store.countOlderThan(cutoff);
+      return shown > newLimit ? shown - newLimit : 0;
     } catch (_) {
       return null;
     }

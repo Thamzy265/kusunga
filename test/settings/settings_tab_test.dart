@@ -193,6 +193,36 @@ void main() {
       expect(store.inner.count, 10);
     });
 
+    // Reviewer F5: expired items the clean-up has not removed yet are not
+    // shown, so the Keep dialog does not count them.
+    testWidgets('the Keep dialog counts only items that are shown, not '
+        'expired ones waiting for the clean-up', (tester) async {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      await show(tester); // the clean-up at launch has run
+      for (var i = 0; i < 2; i++) {
+        store.inner.insertOrBump('expired $i', ClipKind.text, now - 2 * day);
+      }
+      for (var i = 0; i < 11; i++) {
+        store.inner.insertOrBump('item $i', ClipKind.text, now + i);
+      }
+      expect(service.countRemovedBy(10), 1);
+      expect(service.countRemovedBy(11), 0);
+      await openSettings(tester);
+      await tester.enterText(find.byKey(const Key('limit-field')), '10');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'Keep only the newest 10 items? 1 older item will be deleted.',
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Delete 1 item'));
+      await tester.pumpAndSettle();
+      expect(service.items.length, 10);
+      expect(store.inner.count, 10, reason: 'the expired ones went too');
+    });
+
     testWidgets('no sideways overflow at 360 px and 200% text', (tester) async {
       port.next = const LoginItemAnswer(LoginItemState.needsApproval);
       await show(tester, size: const Size(360, 640), textScale: 2);
