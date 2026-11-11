@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-11 — M1.7 Settings and expiry — N1 fixed, review starts
+- Changed: Developer fixed N1 in 4ae5516: while a change runs, no earlier failure note shows; notes about the OS state (needs approval, Task Manager) stay. UI spec and design note updated. Tester's repro passes unedited. check.sh 3222 passed, 10 skipped; test_mac_capture 40/0; test_mac_shortcuts 165/0; test_mac_shortcuts_release 153/0; test_mac_login_item 30/0; test_windows_policy passed (run one after another).
+- Gates: developer pass · tester pass (B1–B4 and N1 closed) · reviewer started (Mode: branch) · QA — · PM merge —
+- Open findings: none
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — the "both calls fail" switch behaviour; push of main; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-11 — M1.7 Settings and expiry — tester re-check: B1–B4 closed, 1 new Low
 - Changed: Tester added 28 tests (test/settings/login_item_recheck_test.dart 18, test/history/expiry_stale_id_test.dart 14 on both stores); no production code changed. B1, B2, B3, B4 and the stale-id gap closed. check.sh 3219 passed, 1 failed (the N1 repro), 10 skipped; test_mac_capture 40/0; test_mac_shortcuts 165/0; test_mac_shortcuts_release 153/0; test_mac_login_item 30/0; test_windows_policy passed.
 - Findings: N1 Low (cosmetic) — after a failed turn-off with an unreadable OS, a retry shows "Couldn't turn this on. Try again." while the turn-off call runs; it corrects itself when the call returns.
