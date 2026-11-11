@@ -330,7 +330,10 @@ class HistoryService extends ChangeNotifier {
   /// expiry check runs (the app, not a test that never starts it).
   Timer? _expiryRefresh;
 
-  void _scheduleExpiryRefresh(int? cutoff) {
+  /// After a failed read the next refresh waits at least one minute check,
+  /// so a store that can't be read is not tried (and logged) every second
+  /// (reviewer F3).
+  void _scheduleExpiryRefresh(int? cutoff, {bool afterFailure = false}) {
     _expiryRefresh?.cancel();
     _expiryRefresh = null;
     if (cutoff == null || !expiry.ticking || _items.isEmpty || _closed) return;
@@ -340,14 +343,16 @@ class HistoryService extends ChangeNotifier {
     }
     // Shown while lastCopiedAt >= cutoff; the cut-off moves with the clock.
     final wait = oldest - cutoff + 1;
+    final least = afterFailure ? ExpiryService.checkEvery.inMilliseconds : 1000;
     _expiryRefresh = Timer(
-      Duration(milliseconds: wait < 1000 ? 1000 : wait),
+      Duration(milliseconds: wait < least ? least : wait),
       _refresh,
     );
   }
 
   void _refresh() {
     final cutoff = expiry.cutoff;
+    var failed = false;
     try {
       final waitingTexts = {for (final w in _waiting) w.text};
       final saved = [
@@ -370,8 +375,16 @@ class HistoryService extends ChangeNotifier {
       ];
     } catch (_) {
       _log.log(LogCode.readFailed);
+      failed = true;
+      // The list in memory still loses what has expired (R1, reviewer F3).
+      if (cutoff != null) {
+        _items = [
+          for (final i in _items)
+            if (i.lastCopiedAt >= cutoff) i,
+        ];
+      }
     }
-    _scheduleExpiryRefresh(cutoff);
+    _scheduleExpiryRefresh(cutoff, afterFailure: failed);
     _notify();
   }
 

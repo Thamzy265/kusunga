@@ -126,6 +126,9 @@ class FlakyStore implements HistoryStore {
   final HistoryStore inner;
   bool failWrites = false;
   bool failClear = false;
+
+  /// The history lists can't be read (a locked or damaged file).
+  bool failReads = false;
   int closes = 0;
 
   void _maybeFail() {
@@ -137,9 +140,17 @@ class FlakyStore implements HistoryStore {
   @override
   int get count => inner.count;
   @override
-  List<ClipItem> list() => inner.list();
+  List<ClipItem> list() {
+    if (failReads) throw const FileSystemException('locked');
+    return inner.list();
+  }
+
   @override
-  List<ClipItem> listSince(int sinceMs) => inner.listSince(sinceMs);
+  List<ClipItem> listSince(int sinceMs) {
+    if (failReads) throw const FileSystemException('locked');
+    return inner.listSince(sinceMs);
+  }
+
   @override
   int countOlderThan(int cutoffMs, {int? notBefore}) =>
       inner.countOlderThan(cutoffMs, notBefore: notBefore);

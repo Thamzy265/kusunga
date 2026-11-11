@@ -462,6 +462,29 @@ void main() {
       service.dispose();
     });
 
+    // Reviewer F3: a list that can't be read must not keep an expired item
+    // on screen, nor retry (and log) every second.
+    testWidgets('reads that fail: expired items still leave the list, and '
+        'the refresh is not retried every second', (tester) async {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      store.inner
+        ..insertOrBump('a', ClipKind.text, now - day + 30000)
+        ..insertOrBump('b', ClipKind.text, now - day + 45000)
+        ..insertOrBump('fresh', ClipKind.text, now);
+      service = build();
+      service.expiry.startTicking(listenToLifecycle: false);
+      expect(texts(), ['fresh', 'b', 'a']);
+      store.failReads = true;
+      for (var i = 0; i < 300; i++) {
+        now += 1000;
+        await tester.pump(const Duration(seconds: 1));
+      }
+      expect(texts(), ['fresh']);
+      final failures = log.codes.where((c) => c == LogCode.readFailed).length;
+      expect(failures, inInclusiveRange(1, 5));
+      service.dispose();
+    });
+
     testWidgets('the minute check runs the clean-up after 15 minutes', (
       tester,
     ) async {
