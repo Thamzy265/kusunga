@@ -174,7 +174,10 @@ class ExpiryService extends ChangeNotifier {
   }
 
   /// Starts the minute check, and with [listenToLifecycle] also runs the
-  /// clean-up when Kusunga becomes active or is shown again.
+  /// clean-up when Kusunga becomes active or is shown again. The history
+  /// refreshes at once, so it arms its timer for the next item to expire
+  /// (it only does while ticking; reviewer F2: the launch refresh in
+  /// `HistoryService.start` comes before this).
   void startTicking({bool listenToLifecycle = true}) {
     if (_disposed || _timer != null) return;
     _lastCheck = _clock();
@@ -182,6 +185,7 @@ class ExpiryService extends ChangeNotifier {
     if (listenToLifecycle) {
       _lifecycle = AppLifecycleListener(onResume: cleanUp, onShow: cleanUp);
     }
+    _onChanged();
   }
 
   void _changed() {

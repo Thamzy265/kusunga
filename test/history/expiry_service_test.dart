@@ -443,6 +443,25 @@ void main() {
       service.dispose();
     });
 
+    // Reviewer F2: in the app's order (start, then startTicking from
+    // main.dart) and with no clean-up in between, the item still leaves the
+    // list at its cut-off.
+    testWidgets('in the app\'s order the list refreshes when its oldest item '
+        'expires, with no clean-up run', (tester) async {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      store.inner.insertOrBump('a', ClipKind.text, now - day + 2 * minute);
+      service = build();
+      service.expiry.startTicking(listenToLifecycle: false);
+      expect(texts(), ['a']);
+      for (var i = 0; i < 121; i++) {
+        now += 1000;
+        await tester.pump(const Duration(seconds: 1));
+      }
+      expect(texts(), isEmpty);
+      expect(store.inner.count, 1, reason: 'hidden by the filter, no clean-up');
+      service.dispose();
+    });
+
     testWidgets('the minute check runs the clean-up after 15 minutes', (
       tester,
     ) async {
