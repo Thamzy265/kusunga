@@ -1076,6 +1076,8 @@ class _Banner extends StatelessWidget {
     HistoryBanner.writeError =>
       "Couldn't save the latest item. Kusunga will try again.",
     HistoryBanner.clearError => "Couldn't clear history. Try again.",
+    HistoryBanner.expiryFailed =>
+      "Couldn't remove old items. Kusunga will try again.",
   };
 
   @override

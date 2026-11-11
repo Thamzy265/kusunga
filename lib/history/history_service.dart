@@ -8,6 +8,7 @@ import '../clipboard/clipboard_source.dart';
 import '../log/app_log.dart';
 import 'clip_classifier.dart';
 import 'clip_item.dart';
+import 'expiry_service.dart';
 import '../shortcuts/ignored_apps.dart';
 import '../snippets/memory_snippet_store.dart';
 import '../snippets/snippet_service.dart';
@@ -24,6 +25,9 @@ enum HistoryBanner {
   backupFailed,
   writeError,
   clearError,
+
+  /// Auto-delete failed 3 runs in a row (M1.7); gone after a good run.
+  expiryFailed,
 }
 
 /// Takes what the clipboard watcher reports, keeps the history, and holds the
@@ -81,7 +85,17 @@ class HistoryService extends ChangeNotifier {
       persists: _persists,
       clock: _clock,
     );
+    expiry = ExpiryService(
+      store: () => _store,
+      log: _log,
+      onChanged: _onExpiryChanged,
+      clock: _clock,
+    );
   }
+
+  /// Auto-delete (M1.7), kept in the same settings table. Its cut-off is
+  /// the read filter of every list this service gives out (R1).
+  late final ExpiryService expiry;
 
   /// "Pause history" (M1.6), kept in the same settings table.
   late final PauseService pause;
@@ -132,7 +146,10 @@ class HistoryService extends ChangeNotifier {
   /// starts the watcher, so no copy slips in at launch while history is
   /// paused.
   void start() {
-    _refresh();
+    // Auto-delete first (after the migration, which ran at open): nothing
+    // expired is ever shown, and the clean-up runs at launch.
+    expiry.load();
+    expiry.cleanUp(); // refreshes the list
     pause.load();
     List<String> ids;
     try {
@@ -298,28 +315,63 @@ class HistoryService extends ChangeNotifier {
     return full != null && waitingTexts.contains(full);
   }
 
+  void _onExpiryChanged() {
+    if (_closed) return;
+    if (expiry.failing) {
+      _banners.add(HistoryBanner.expiryFailed);
+    } else {
+      _banners.remove(HistoryBanner.expiryFailed);
+    }
+    _refresh();
+  }
+
+  /// Refreshes the list when its oldest item expires, so it leaves History
+  /// and the picker on time, between clean-ups (R1). Only while the
+  /// expiry check runs (the app, not a test that never starts it).
+  Timer? _expiryRefresh;
+
+  void _scheduleExpiryRefresh(int? cutoff) {
+    _expiryRefresh?.cancel();
+    _expiryRefresh = null;
+    if (cutoff == null || !expiry.ticking || _items.isEmpty || _closed) return;
+    var oldest = _items.first.lastCopiedAt;
+    for (final i in _items) {
+      if (i.lastCopiedAt < oldest) oldest = i.lastCopiedAt;
+    }
+    // Shown while lastCopiedAt >= cutoff; the cut-off moves with the clock.
+    final wait = oldest - cutoff + 1;
+    _expiryRefresh = Timer(
+      Duration(milliseconds: wait < 1000 ? 1000 : wait),
+      _refresh,
+    );
+  }
+
   void _refresh() {
+    final cutoff = expiry.cutoff;
     try {
       final waitingTexts = {for (final w in _waiting) w.text};
       final saved = [
-        for (final i in _store.list())
+        for (final i
+            in cutoff == null ? _store.list() : _store.listSince(cutoff))
           if (!_isWaiting(i, waitingTexts)) i,
       ];
       _items = [
         for (final w in _waiting.reversed)
-          ClipItem(
-            id: w.id,
-            kind: w.kind,
-            preview: previewOf(w.text),
-            isTruncated: w.text.length > ClipItem.previewLength,
-            createdAt: w.time,
-            lastCopiedAt: w.time,
-          ),
+          if (cutoff == null || w.time >= cutoff)
+            ClipItem(
+              id: w.id,
+              kind: w.kind,
+              preview: previewOf(w.text),
+              isTruncated: w.text.length > ClipItem.previewLength,
+              createdAt: w.time,
+              lastCopiedAt: w.time,
+            ),
         ...saved,
       ];
     } catch (_) {
       _log.log(LogCode.readFailed);
     }
+    _scheduleExpiryRefresh(cutoff);
     _notify();
   }
 
@@ -492,6 +544,8 @@ class HistoryService extends ChangeNotifier {
     if (_closed) return;
     _closed = true;
     pause.dispose();
+    expiry.dispose();
+    _expiryRefresh?.cancel();
     await _subscription?.cancel();
     _subscription = null;
     try {
@@ -522,6 +576,8 @@ class HistoryService extends ChangeNotifier {
     _closed = true;
     snippets.dispose();
     pause.dispose();
+    expiry.dispose();
+    _expiryRefresh?.cancel();
     unawaited(_subscription?.cancel());
     super.dispose();
   }

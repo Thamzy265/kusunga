@@ -1,0 +1,381 @@
+// M1.7 auto-delete (docs/design/settings-and-expiry.md, "Auto-delete" and
+// "Failure plan"): the read filter, the clean-up and its clock, a shorter
+// time, and the warning after 3 failed runs. The clock is injected.
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kusunga/history/clip_item.dart';
+import 'package:kusunga/history/expiry_service.dart';
+import 'package:kusunga/history/history_opener.dart';
+import 'package:kusunga/history/history_service.dart';
+import 'package:kusunga/history/history_store.dart';
+import 'package:kusunga/history/memory_history_store.dart';
+import 'package:kusunga/history/pause_service.dart';
+import 'package:kusunga/log/app_log.dart';
+
+import '../support/fakes.dart';
+
+const day = Duration.millisecondsPerDay;
+const minute = Duration.millisecondsPerMinute;
+
+void main() {
+  late FakeClipboardSource source;
+  late FlakyStore store;
+  late FakeLog log;
+  late HistoryService service;
+  var now = 0;
+
+  HistoryService build({Set<HistoryNotice> notices = const {}}) =>
+      HistoryService(
+        store: store,
+        notices: notices,
+        source: source,
+        log: log,
+        clock: () => now,
+        writeClipboard: (_) async {},
+      )..start();
+
+  setUp(() {
+    now = 100 * day;
+    source = FakeClipboardSource();
+    store = FlakyStore(MemoryHistoryStore());
+    log = FakeLog();
+  });
+  tearDown(() => service.dispose());
+
+  List<String> texts() => service.items.map((i) => i.preview).toList();
+
+  // Oldest first: a store never saves an item older than its newest one.
+  void seed(Map<String, int> ageInDays) {
+    final byAge = ageInDays.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    for (final MapEntry(key: text, value: age) in byAge) {
+      store.inner.insertOrBump(text, ClipKind.text, now - age * day);
+    }
+  }
+
+  group('loading the setting', () {
+    test('a valid value is used', () {
+      store.inner.writeSetting(historyExpirySetting, '7');
+      service = build();
+      expect(service.expiry.days, 7);
+      expect(log.codes, isNot(contains(LogCode.readFailed)));
+    });
+
+    for (final bad in ['2', '-1', '365', 'abc', '30.0', '07']) {
+      test('"$bad" counts as Never, with a log code', () {
+        store.inner.writeSetting(historyExpirySetting, bad);
+        service = build();
+        expect(service.expiry.days, 0);
+        expect(log.codes, contains(LogCode.readFailed));
+      });
+    }
+
+    test('a missing row counts as Never, with a log code', () {
+      final empty = _NoSettingStore();
+      store = FlakyStore(empty);
+      service = build();
+      expect(service.expiry.days, 0);
+      expect(log.codes, contains(LogCode.readFailed));
+    });
+
+    test('a read error counts as Never, with a log code', () {
+      store = FlakyStore(_ThrowingReadStore());
+      service = build();
+      expect(service.expiry.days, 0);
+      expect(log.codes, contains(LogCode.readFailed));
+    });
+  });
+
+  group('read filter (R1)', () {
+    test('an item older than the chosen time is never shown, even before '
+        'the clean-up', () {
+      store.inner.writeSetting(historyExpirySetting, '7');
+      seed({'old': 8, 'edge': 7, 'new': 1});
+      store.failWrites = true; // the clean-up fails
+      service = build();
+      expect(texts(), ['new', 'edge']);
+      expect(store.inner.count, 3);
+    });
+
+    test('Never shows everything', () {
+      seed({'old': 400, 'new': 1});
+      service = build();
+      expect(service.expiry.days, 0);
+      expect(texts(), ['new', 'old']);
+    });
+
+    test('items that age out are hidden at the next refresh', () {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      store.failWrites = true;
+      seed({'a': 0});
+      service = build();
+      expect(texts(), ['a']);
+      now += day + 1;
+      service.expiry.cleanUp();
+      expect(texts(), isEmpty);
+    });
+  });
+
+  group('clean-up', () {
+    test('runs at launch, after the migration, and logs the count', () {
+      store.inner.writeSetting(historyExpirySetting, '30');
+      seed({'old': 31, 'older': 40, 'new': 2});
+      service = build();
+      expect(store.inner.count, 1);
+      expect(texts(), ['new']);
+      final i = log.codes.indexOf(LogCode.historyExpired);
+      expect(i, greaterThanOrEqualTo(0));
+      expect(log.details[i], 2);
+    });
+
+    test('nothing to delete: no log line', () {
+      store.inner.writeSetting(historyExpirySetting, '30');
+      seed({'new': 2});
+      service = build();
+      expect(log.codes, isNot(contains(LogCode.historyExpired)));
+    });
+
+    test('Never deletes nothing', () {
+      seed({'old': 1000});
+      service = build();
+      service.expiry.cleanUp();
+      expect(store.inner.count, 1);
+    });
+
+    test('still runs while history is paused', () async {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      service = build();
+      await service.pause.pause(PauseLength.untilResumed);
+      seed({'old': 2});
+      service.expiry.cleanUp();
+      expect(store.inner.count, 0);
+    });
+
+    test('the limit still applies too', () {
+      store.inner.writeSetting(historyExpirySetting, '30');
+      store.inner.setLimit(10);
+      service = build();
+      for (var i = 0; i < 12; i++) {
+        source.copy('item $i');
+        now += 1;
+      }
+      expect(store.inner.count, 10);
+    });
+
+    test('a clock set forward deletes early; set back keeps items, hidden '
+        'nothing extra', () {
+      store.inner.writeSetting(historyExpirySetting, '7');
+      seed({'a': 3});
+      service = build();
+      now += 5 * day; // forward: a is 8 days old now
+      service.expiry.cleanUp();
+      expect(store.inner.count, 0);
+
+      seed({'b': 3});
+      now -= 30 * day; // back: b looks newer than now
+      service.expiry.cleanUp();
+      expect(store.inner.count, 1);
+      expect(texts(), ['b']);
+    });
+
+    test('a failed run keeps items hidden, logs, and retries next run', () {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      seed({'old': 2, 'new': 0});
+      store.failWrites = true;
+      service = build();
+      expect(texts(), ['new']);
+      expect(log.codes, contains(LogCode.historyExpiryFailed));
+      store.failWrites = false;
+      service.expiry.cleanUp();
+      expect(store.inner.count, 1);
+    });
+
+    test('3 failed runs in a row show the banner; the next good run clears '
+        'it', () {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      seed({'old': 2});
+      store.failWrites = true;
+      service = build(); // run 1
+      service.expiry.cleanUp(); // run 2
+      expect(service.banners, isNot(contains(HistoryBanner.expiryFailed)));
+      service.expiry.cleanUp(); // run 3
+      expect(service.banners, contains(HistoryBanner.expiryFailed));
+      service.expiry.cleanUp();
+      expect(service.banners, contains(HistoryBanner.expiryFailed));
+      store.failWrites = false;
+      service.expiry.cleanUp();
+      expect(service.banners, isNot(contains(HistoryBanner.expiryFailed)));
+    });
+
+    test('a good run in between starts the count again', () {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      store.failWrites = true;
+      service = build(); // 1
+      service.expiry.cleanUp(); // 2
+      store.failWrites = false;
+      service.expiry.cleanUp(); // good
+      store.failWrites = true;
+      service.expiry.cleanUp(); // 1
+      service.expiry.cleanUp(); // 2
+      expect(service.banners, isNot(contains(HistoryBanner.expiryFailed)));
+    });
+  });
+
+  group('when the clean-up runs', () {
+    test('every 15 minutes on the minute check', () {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      service = build();
+      seed({'old': 2});
+      for (var i = 0; i < 14; i++) {
+        now += minute;
+        service.expiry.check();
+      }
+      expect(store.inner.count, 1);
+      now += minute;
+      service.expiry.check();
+      expect(store.inner.count, 0);
+    });
+
+    test('after a wake (the wall clock jumped past the check interval)', () {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      service = build();
+      now += minute;
+      service.expiry.check();
+      seed({'old': 2});
+      now += 3 * minute; // asleep
+      service.expiry.check();
+      expect(store.inner.count, 0);
+    });
+
+    test('after the clock was set back', () {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      service = build();
+      now += minute;
+      service.expiry.check();
+      seed({'old': 2});
+      now -= 10 * minute;
+      service.expiry.check();
+      expect(store.inner.count, 0);
+    });
+  });
+
+  group('choosing a time', () {
+    test('countRemovedBy: shorter counts the items it would newly delete; '
+        'longer or Never is 0', () {
+      store.inner.writeSetting(historyExpirySetting, '30');
+      seed({'a': 2, 'b': 8, 'c': 20});
+      service = build();
+      expect(service.expiry.countRemovedBy(1), 3);
+      expect(service.expiry.countRemovedBy(7), 2);
+      expect(service.expiry.countRemovedBy(30), 0);
+      expect(service.expiry.countRemovedBy(0), 0);
+    });
+
+    test('from Never, every older item counts', () {
+      seed({'a': 2, 'b': 400});
+      service = build();
+      expect(service.expiry.countRemovedBy(1), 2);
+    });
+
+    test('countRemovedBy is null when the count cannot be read', () {
+      store = FlakyStore(_ThrowingCountStore());
+      service = build();
+      expect(service.expiry.countRemovedBy(1), isNull);
+    });
+
+    test('a shorter time saves and deletes, and says how many', () {
+      store.inner.writeSetting(historyExpirySetting, '30');
+      seed({'a': 2, 'b': 8, 'keep': 0});
+      service = build();
+      expect(service.expiry.setDays(1), 2);
+      expect(service.expiry.days, 1);
+      expect(store.inner.readSetting(historyExpirySetting), '1');
+      expect(texts(), ['keep']);
+      expect(log.codes, contains(LogCode.historyExpired));
+    });
+
+    test('a longer time or Never saves and restores nothing', () {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      seed({'a': 2});
+      service = build();
+      expect(store.inner.count, 0);
+      seed({'b': 0});
+      expect(service.expiry.setDays(30), 0);
+      expect(service.expiry.setDays(0), 0);
+      expect(service.expiry.days, 0);
+      expect(texts(), ['b']);
+    });
+
+    test('a failed save keeps the old setting and logs settingSaveFailed', () {
+      store.inner.writeSetting(historyExpirySetting, '30');
+      seed({'a': 8});
+      service = build();
+      store.failWrites = true;
+      expect(service.expiry.setDays(7), isNull);
+      expect(service.expiry.days, 30);
+      expect(store.inner.readSetting(historyExpirySetting), '30');
+      expect(store.inner.count, 1);
+      expect(log.codes, contains(LogCode.settingSaveFailed));
+    });
+
+    test('only 0, 1, 7 and 30 are accepted', () {
+      service = build();
+      expect(() => service.expiry.setDays(2), throwsArgumentError);
+    });
+
+    test('memory only: applies in memory; the setting is not kept', () {
+      store = FlakyStore(MemoryHistoryStore());
+      seed({'a': 2});
+      service = build(notices: {HistoryNotice.memoryOnly});
+      expect(service.expiry.days, 0);
+      expect(service.expiry.setDays(1), 1);
+      expect(texts(), isEmpty);
+    });
+
+    test('a good save clears the clean-up warning', () {
+      store.inner.writeSetting(historyExpirySetting, '30');
+      store.failWrites = true;
+      service = build();
+      service.expiry.cleanUp();
+      service.expiry.cleanUp();
+      expect(service.banners, contains(HistoryBanner.expiryFailed));
+      store.failWrites = false;
+      service.expiry.setDays(1);
+      expect(service.banners, isNot(contains(HistoryBanner.expiryFailed)));
+    });
+  });
+
+  test('snippets are never removed (R2)', () {
+    store.inner.writeSetting(historyExpirySetting, '1');
+    service = build();
+    final before = service.snippets.items.length;
+    service.expiry.setDays(1);
+    service.expiry.cleanUp();
+    expect(service.snippets.items.length, before);
+  });
+
+  test('cutoffFor: now minus the days, null for Never', () {
+    expect(expiryCutoff(0, 10 * day), isNull);
+    expect(expiryCutoff(1, 10 * day), 9 * day);
+    expect(expiryCutoff(30, 100 * day), 70 * day);
+  });
+}
+
+class _NoSettingStore extends MemoryHistoryStore {
+  @override
+  String? readSetting(String key) =>
+      key == historyExpirySetting ? null : super.readSetting(key);
+}
+
+class _ThrowingReadStore extends MemoryHistoryStore {
+  @override
+  String? readSetting(String key) {
+    if (key == historyExpirySetting) throw StateError('locked');
+    return super.readSetting(key);
+  }
+}
+
+class _ThrowingCountStore extends MemoryHistoryStore {
+  @override
+  int countOlderThan(int cutoffMs, {int? notBefore}) =>
+      throw StateError('locked');
+}

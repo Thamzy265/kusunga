@@ -116,6 +116,10 @@ void main() {
       // M1.6: the pause's 15 s tick, started once by main() in the root
       // zone (startTicking); tick() only reads the clock and the setting.
       'lib/history/pause_service.dart',
+      // M1.7: the expiry check starts from main (the root zone); the
+      // history's expiry refresh is armed only while that check runs.
+      'lib/history/expiry_service.dart',
+      'lib/history/history_service.dart',
     };
     final seen = <String>{};
     for (final e in Directory('lib').listSync(recursive: true)) {

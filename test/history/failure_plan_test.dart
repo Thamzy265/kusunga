@@ -345,14 +345,23 @@ void main() {
         version: kMigrations.length + 1,
         statements: ['ALTER TABLE clip_items ADD COLUMN note TEXT'],
       );
-      final bad3 = Migration(version: 6, statements: ['NOT SQL']);
+      final bad3 = Migration(
+        version: kMigrations.length + 2,
+        statements: ['NOT SQL'],
+      );
       expect(
         () => SqliteHistoryStore.open(
           path: path,
           keyHex: _key,
           migrations: [...kMigrations, good2, bad3],
         ),
-        throwsA(isA<MigrationFailed>().having((e) => e.version, 'version', 6)),
+        throwsA(
+          isA<MigrationFailed>().having(
+            (e) => e.version,
+            'version',
+            kMigrations.length + 2,
+          ),
+        ),
       );
       final db = sqlite3.open(path);
       db.execute("PRAGMA hexkey = '$_key'");
