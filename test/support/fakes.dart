@@ -6,6 +6,7 @@ import 'package:kusunga/history/clip_item.dart';
 import 'package:kusunga/history/history_store.dart';
 import 'package:kusunga/history/key_store.dart';
 import 'package:kusunga/log/app_log.dart';
+import 'package:kusunga/settings/login_item.dart';
 
 class FakeKeyStore implements KeyStore {
   FakeKeyStore({this.stored});
@@ -195,4 +196,37 @@ class FlakyStore implements HistoryStore {
     closes++;
     inner.close();
   }
+}
+
+/// A login-item port (M1.7) that answers [next], or waits on [hold].
+class FakeLoginItemPort implements LoginItemPort {
+  LoginItemAnswer next = const LoginItemAnswer(LoginItemState.off);
+  int statusCalls = 0;
+  final setCalls = <bool>[];
+  int openCalls = 0;
+  Completer<LoginItemAnswer>? _held;
+
+  /// The next call waits until the returned completer completes.
+  Completer<LoginItemAnswer> hold() => _held = Completer<LoginItemAnswer>();
+
+  Future<LoginItemAnswer> _answer() {
+    final held = _held;
+    _held = null;
+    return held?.future ?? Future.value(next);
+  }
+
+  @override
+  Future<LoginItemAnswer> status() {
+    statusCalls++;
+    return _answer();
+  }
+
+  @override
+  Future<LoginItemAnswer> set(bool on) {
+    setCalls.add(on);
+    return _answer();
+  }
+
+  @override
+  Future<void> openSettings() async => openCalls++;
 }

@@ -89,6 +89,17 @@ enum LogCode {
   captureResumed,
   captureSourceUnknown,
   captureIgnoredSendFailed,
+
+  // M1.7 settings and expiry (design note, "Observability"): numbers only,
+  // never text, a path or an item id. historyExpired carries how many items
+  // auto-delete removed; loginItemFailed an OS error number.
+  historyExpired,
+  historyExpiryFailed,
+  settingSaveFailed,
+  loginItemOn,
+  loginItemOff,
+  loginItemFailed,
+  loginItemNeedsApproval,
 }
 
 abstract interface class ErrorLog {
