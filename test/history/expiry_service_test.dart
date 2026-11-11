@@ -181,10 +181,8 @@ void main() {
       service = build();
       expect(texts(), ['a']);
       now += day + 1;
-      service.expiry.cleanUp(); // fails: nothing deleted, nothing refreshed
-      source.copy('b'); // the next refresh
-      expect(texts(), ['b']);
-      expect(store.inner.count, 1);
+      service.expiry.cleanUp();
+      expect(texts(), isEmpty);
     });
 
     // An id kept from before the item expired (a row on screen, the picker)
@@ -290,8 +288,7 @@ void main() {
       now -= 30 * day; // back: b looks newer than now
       service.expiry.cleanUp();
       expect(store.inner.count, 1);
-      source.copy('c'); // the next refresh
-      expect(texts(), ['c', 'b']);
+      expect(texts(), ['b']);
     });
 
     // Reviewer F11: listeners hear from a clean-up only when something
@@ -657,6 +654,28 @@ void main() {
         await tester.pump(const Duration(minutes: 1));
       }
       expect(texts(), isEmpty, reason: 'a expired 9 minutes later');
+      expect(store.inner.count, 1, reason: 'no clean-up was due yet');
+      service.dispose();
+    });
+
+    // Reviewer RN2: the refresh timer runs on monotonic time, which stops
+    // while the computer sleeps; a clean-up that deletes nothing sets it
+    // again from the wall clock.
+    testWidgets('after the wall clock jumps (a sleep), an item still leaves '
+        'the list at its cut-off', (tester) async {
+      store.inner
+        ..writeSetting(historyExpirySetting, '1')
+        ..insertOrBump('a', ClipKind.text, now - day + 60 * minute);
+      service = build();
+      service.expiry.startTicking(listenToLifecycle: false);
+      now += 51 * minute; // asleep: the wall clock moves, the timers don't
+      await tester.pump(const Duration(minutes: 1)); // the jump: a clean-up
+      expect(texts(), ['a']);
+      for (var i = 0; i < 10; i++) {
+        now += minute;
+        await tester.pump(const Duration(minutes: 1));
+      }
+      expect(texts(), isEmpty, reason: 'a expired 9 minutes after waking');
       expect(store.inner.count, 1, reason: 'no clean-up was due yet');
       service.dispose();
     });

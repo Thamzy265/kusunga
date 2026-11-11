@@ -30,7 +30,7 @@ class ExpiryService extends ChangeNotifier {
     required this._store,
     required this._log,
     required this._onChanged,
-    this._onCleanUp,
+    this._onUnchangedRun,
     int Function()? clock,
   }) : _clock = clock ?? (() => DateTime.now().millisecondsSinceEpoch);
 
@@ -48,10 +48,13 @@ class ExpiryService extends ChangeNotifier {
   /// refreshes (the read filter) and updates its warning banner.
   final void Function() _onChanged;
 
-  /// Called at each run with its cut-off, before the delete: the history
-  /// drops copies still waiting to be saved that have expired, so they are
-  /// never written (reviewer F6).
-  final void Function(int cutoff)? _onCleanUp;
+  /// Called with the cut-off after a run that changed nothing for the
+  /// listeners (see [cleanUp]): the history checks its list in memory
+  /// (expired copies waiting to be saved, an item shown past the cut-off
+  /// after a failed delete, a clock set back) and sets its expiry timer
+  /// again from the wall clock, which may have jumped while the computer
+  /// slept (reviewer RN2). Cheap: no store read unless the list must change.
+  final void Function(int cutoff)? _onUnchangedRun;
   final int Function() _clock;
 
   var _days = 0;
@@ -117,7 +120,8 @@ class ExpiryService extends ChangeNotifier {
   /// logged and retried on the next run; the items stay hidden meanwhile.
   /// Listeners hear from a run only when it changed something: items
   /// deleted, the warning shown or gone, or the setting read at last
-  /// (reviewer F11).
+  /// (reviewer F11). Any other run calls the history's cheap check
+  /// ([_onUnchangedRun]).
   void cleanUp() => _run(reloaded: _reloadIfUnknown());
 
   void _run({required bool reloaded}) {
@@ -127,7 +131,6 @@ class ExpiryService extends ChangeNotifier {
     final cut = cutoff;
     var n = 0;
     if (cut != null) {
-      _onCleanUp?.call(cut);
       try {
         n = _store().deleteOlderThan(cut);
         if (n > 0) _log.log(LogCode.historyExpired, n);
@@ -139,7 +142,11 @@ class ExpiryService extends ChangeNotifier {
     } else {
       _failures = 0;
     }
-    if (reloaded || n > 0 || failing != wasFailing) _changed();
+    if (reloaded || n > 0 || failing != wasFailing) {
+      _changed();
+    } else if (cut != null) {
+      _onUnchangedRun?.call(cut);
+    }
   }
 
   /// The minute check: runs the clean-up when 15 minutes have passed since

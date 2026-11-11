@@ -89,9 +89,7 @@ class HistoryService extends ChangeNotifier {
       store: () => _store,
       log: _log,
       onChanged: _onExpiryChanged,
-      onCleanUp: (cutoff) {
-        if (!_closed && _dropExpiredWaiting(cutoff)) _refresh();
-      },
+      onUnchangedRun: _afterUnchangedExpiryRun,
       clock: _clock,
     );
   }
@@ -334,6 +332,8 @@ class HistoryService extends ChangeNotifier {
 
   void _onExpiryChanged() {
     if (_closed) return;
+    // An expired copy waiting to be saved is never written (F6).
+    _dropExpiredWaiting(expiry.cutoff);
     if (expiry.failing) {
       _banners.add(HistoryBanner.expiryFailed);
     } else {
@@ -341,6 +341,28 @@ class HistoryService extends ChangeNotifier {
     }
     _refresh();
   }
+
+  /// After an auto-delete run that changed nothing for the listeners: drops
+  /// expired copies waiting to be saved (F6), and reads the list again only
+  /// when it must change (one of them went, an item shown is past the
+  /// cut-off because its delete failed, or the clock was set back so hidden
+  /// items may show again). Otherwise only the expiry timer is set again
+  /// from the wall clock, which may have jumped during a sleep (RN2).
+  void _afterUnchangedExpiryRun(int cutoff) {
+    if (_closed) return;
+    final dropped = _dropExpiredWaiting(cutoff);
+    final listed = _listedCutoff;
+    if (dropped ||
+        (listed != null && cutoff < listed) ||
+        _items.any((i) => i.lastCopiedAt < cutoff)) {
+      _refresh();
+    } else {
+      _scheduleExpiryRefresh(cutoff);
+    }
+  }
+
+  /// The cut-off the list was last read with (null: Never, or not read).
+  int? _listedCutoff;
 
   /// Refreshes the list when its oldest item expires, so it leaves History
   /// and the picker on time, between clean-ups (R1). Only while the
@@ -369,6 +391,7 @@ class HistoryService extends ChangeNotifier {
 
   void _refresh() {
     final cutoff = expiry.cutoff;
+    _listedCutoff = cutoff;
     var failed = false;
     try {
       final waitingTexts = {for (final w in _waiting) w.text};
