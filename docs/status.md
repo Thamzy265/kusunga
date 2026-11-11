@@ -1,5 +1,14 @@
 # Status log
 
+## 2026-11-11 — M1.7 Settings and expiry — developer hand-off
+- Changed: feat/settings-expiry, 9 commits on b6c66f5, HEAD c0bc0cf, 70 files, +4537/−219. Schema v6 (`history_expiry_days`: 30 new, 0 on upgrade); ExpiryService (read filter, clean-up at launch, every 15 min, on wake/clock jump, on resume, after a shorter time; 3-failure banner); Settings tab (Launch at login, Picker shortcut, Keep, Auto-delete with confirm dialog, Privacy link); launch at login on Mac (SMAppService, macOS 12 unsupported) and Windows (HKCU Run `--login`, StartupApproved read only); a login start opens no window. Checks run one at a time: check.sh 3038 passed, 10 skipped; test_mac_capture 40/0; test_mac_shortcuts 165/0; test_mac_shortcuts_release 153/0; test_mac_login_item (new) 18/0; test_windows_policy 9 programs passed. An earlier run failed 3 speed tests while the native suites ran in parallel; they pass alone. The developer was cut off once by a usage limit and resumed after the PM said: "Try again".
+- Deviations reported: (1) third channel call `openLoginItemsSettings` (no arguments); (2) the shortcut-taken banner and the Mac permission card stay in History, only the shortcut row moved; (3) the auto-delete dialog closes as Cancel if its count drops to 0 while open (Clear history convention, PM 2026-11-08); (4) an invalid `history_expiry_days` is logged with the existing readFailed code; (5) a memory-only session starts at Never; (6) no new Ctrl+Tab, Settings joins the existing arrow-key cycling; (7) layout test widths raised to 880/840 px for the Ahem font, real-font test still checks 600 px; (8) commits 31fbe95 and cc97221 have two analyzer infos fixed in 65e115e.
+- Unverified: whether macOS marks an SMAppService login launch with keyAELaunchedAsLogInItem (needs a real log-out and log-in); a normal launch with the window now hidden in the xib (never launched); the Windows bridge never compiled (F5).
+- Gates: developer pass · tester started · reviewer — · QA — · PM merge —
+- Open findings: none
+- Decisions: none. For the PM: deviations 2, 3 and 5 answer spec gaps the developer raised.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — deviations 2, 3, 5 (questions); push of main; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-11 — M1.7 Settings and expiry — deck approved, build starts
 - Changed: Design note and UI spec marked approved; decisions recorded in docs/PLAN.md; two Later lines added (auto-delete after 1 hour; auto-delete per app). Branch feat/settings-expiry created from main. Developer briefed on opus (personal-data retention, a schema change and several modules).
 - Gates: developer started · tester — · reviewer — · QA — · PM merge —
