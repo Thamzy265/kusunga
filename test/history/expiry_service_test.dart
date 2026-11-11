@@ -344,6 +344,49 @@ void main() {
     });
   });
 
+  group('timers (only while ticking)', () {
+    testWidgets('the list refreshes when its oldest item expires, between '
+        'clean-ups (R1)', (tester) async {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      store.inner.insertOrBump('a', ClipKind.text, now - day + 30000);
+      store.failWrites = true; // only the read filter can hide it
+      service = build();
+      service.expiry.startTicking(listenToLifecycle: false);
+      service.expiry.cleanUp();
+      expect(texts(), ['a']);
+      now += 30001;
+      await tester.pump(const Duration(milliseconds: 30001));
+      expect(texts(), isEmpty);
+      service.dispose();
+    });
+
+    testWidgets('the minute check runs the clean-up after 15 minutes', (
+      tester,
+    ) async {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      service = build();
+      service.expiry.startTicking(listenToLifecycle: false);
+      seed({'old': 2});
+      for (var i = 0; i < 14; i++) {
+        now += minute;
+        await tester.pump(const Duration(minutes: 1));
+      }
+      expect(store.inner.count, 1);
+      now += minute;
+      await tester.pump(const Duration(minutes: 1));
+      expect(store.inner.count, 0);
+      service.dispose();
+    });
+
+    testWidgets('no timer before startTicking', (tester) async {
+      store.inner.writeSetting(historyExpirySetting, '1');
+      seed({'a': 0});
+      service = build();
+      expect(service.expiry.ticking, isFalse);
+      // A pending timer here would fail the test.
+    });
+  });
+
   test('snippets are never removed (R2)', () {
     store.inner.writeSetting(historyExpirySetting, '1');
     service = build();
