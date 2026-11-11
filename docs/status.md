@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-11 — M1.7 Settings and expiry — PM keeps the developer's three spec-gap choices
+- Changed: none in code. Tester re-check of the round 1 fixes is running.
+- Gates: developer pass · tester re-check running · reviewer — · QA — · PM merge —
+- Open findings: B1–B4 fixed, waiting for the tester's re-check
+- Decisions: PM said: "Keep all three" (2026-11-11), in answer to "Keep the developer's three choices for the spec gaps?". Scope: M1.7, feat/settings-expiry — (1) the shortcut-taken banner and the Mac permission card stay in the History tab, only the shortcut row moves to Settings; (2) the auto-delete dialog closes as Cancel if its count drops to 0 while open; (3) a memory-only session starts auto-delete at Never. Still open for the PM: when a turn-off fails and the read after it also fails, the switch stays on with "Couldn't turn this off. Try again.".
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — the "both calls fail" switch behaviour; push of main; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-11 — M1.7 Settings and expiry — developer fixes for tester round 1
 - Changed: Developer (opus, xhigh) fixed B3 (9a54252: read the OS again after a failed change; "Couldn't turn this off. Try again."), B4 (0dc004a: 2 s limit on every login-item call, late answers ignored), B1 (aa0a712: a good save resets the failure count), B2 (2fd8c63: dialog counts every item older than the new time), stale ids (9e5591f: textOf/copy honour the cutoff); docs e95d476 (UI spec and design note). Tester's tests not edited; the 4 repros pass. check.sh 3188 passed, 10 skipped; test_mac_capture 40; test_mac_shortcuts 165; test_mac_shortcuts_release 153; test_mac_login_item 30; test_windows_policy passed. Run one after another.
 - Deviations reported: when a turn-off fails and the read after it also fails, the switch stays on with "Couldn't turn this off. Try again." (follows R4); the failure note shows only while the switch is not where the user asked or the read failed.
