@@ -197,3 +197,60 @@ class _LimitFieldState extends State<LimitField> {
     );
   }
 }
+
+/// The Keep dialog (M1.2), with the Keep field in the Settings tab since
+/// M1.7. [removed] is the count when the dialog opens; the text then
+/// follows the live count. At a known 0 it says no items will be deleted
+/// and the button is "Set limit", which only sets the limit (PM decision
+/// 2026-11-08). While the count cannot be read (null) the dialog shows no
+/// number and only Cancel works (reviewer W2).
+Future<bool> confirmLowerLimit(
+  BuildContext context,
+  HistoryService service,
+  int newLimit,
+) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) => ListenableBuilder(
+      listenable: service,
+      builder: (context, _) {
+        // One read per change, so the text and the button always agree.
+        final removed = service.countRemovedBy(newLimit);
+        return AlertDialog(
+          content: Text(switch (removed) {
+            null => "Couldn't count the items. Try again.",
+            0 =>
+              'Keep only the newest $newLimit items? No items will be '
+                  'deleted.',
+            _ =>
+              'Keep only the newest $newLimit items? '
+                  '$removed older ${removed == 1 ? 'item' : 'items'} '
+                  'will be deleted.',
+          }),
+          actions: [
+            TextButton(
+              autofocus: true,
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: KusungaTokens.of(context).danger,
+                foregroundColor: KusungaTokens.of(context).surface,
+              ),
+              onPressed: removed == null
+                  ? null
+                  : () => Navigator.of(context).pop(true),
+              child: Text(switch (removed) {
+                null => 'Delete',
+                0 => 'Set limit',
+                _ => 'Delete $removed ${removed == 1 ? 'item' : 'items'}',
+              }),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+  return ok == true;
+}

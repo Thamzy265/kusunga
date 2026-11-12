@@ -4,6 +4,7 @@ import 'history/history_service.dart';
 import 'history/ui/history_host.dart';
 import 'picker/picker_controller.dart';
 import 'picker/ui/window_root.dart';
+import 'settings/login_item.dart';
 import 'shortcuts/shortcut_service.dart';
 import 'theme/tokens.dart';
 
@@ -15,7 +16,11 @@ class KusungaApp extends StatelessWidget {
     this.dataProfile,
     this.dataProfileRejected = false,
     this.shortcuts,
+    this.loginItem,
   });
+
+  /// Launch at login (M1.7, desktop).
+  final LoginItemService? loginItem;
 
   /// Typed shortcuts (M1.5), once the history has opened.
   final Future<ShortcutService>? shortcuts;
@@ -52,6 +57,7 @@ class KusungaApp extends StatelessWidget {
               dataProfile: dataProfile,
               dataProfileRejected: dataProfileRejected,
               shortcuts: shortcuts,
+              loginItem: loginItem,
             ),
     );
   }

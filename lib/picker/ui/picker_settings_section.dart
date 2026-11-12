@@ -3,18 +3,47 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../history/ui/history_host.dart';
 import '../../theme/tokens.dart';
 import '../../ui/focus_order.dart';
 import '../picker_controller.dart';
 import '../shortcut.dart';
 
+/// Which parts of [PickerSettingsSection] to show.
+enum PickerSettingsParts {
+  /// Everything (one place, as before M1.7).
+  all,
+
+  /// The banner when the shortcut is taken and (Mac) the permission card:
+  /// the History tab.
+  notices,
+
+  /// The "Picker shortcut" row with Change and its messages: the Settings
+  /// tab (M1.7, D1 A).
+  shortcut,
+}
+
 /// What the main window adds for the picker: the shortcut setting, the banner
 /// when the shortcut is taken, and (Mac) the card that asks for permission to
-/// paste. Spec: `docs/ui/history-picker.md`.
+/// paste. Spec: `docs/ui/history-picker.md`; since M1.7 the shortcut row is in
+/// the Settings tab and the notices stay in History ([parts]).
 class PickerSettingsSection extends StatefulWidget {
-  const PickerSettingsSection({super.key, required this.controller});
+  const PickerSettingsSection({
+    super.key,
+    required this.controller,
+    this.parts = PickerSettingsParts.all,
+    this.changeFocus,
+  });
 
   final PickerController controller;
+  final PickerSettingsParts parts;
+
+  /// The Change button's focus node, so "Change in Settings" in the History
+  /// banner can put the focus on it (M1.7 F9).
+  final FocusNode? changeFocus;
+
+  bool get _notices => parts != PickerSettingsParts.shortcut;
+  bool get _shortcut => parts != PickerSettingsParts.notices;
 
   @override
   State<PickerSettingsSection> createState() => _PickerSettingsSectionState();
@@ -47,7 +76,9 @@ class _PickerSettingsSectionState extends State<PickerSettingsSection>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // The permission may have been given in System Settings meanwhile.
-    if (state == AppLifecycleState.resumed) unawaited(_c.recheckPostAccess());
+    if (state == AppLifecycleState.resumed && widget._notices) {
+      unawaited(_c.recheckPostAccess());
+    }
     // The window lost focus: whoever is pressing keys is not talking to us.
     if (_recording && state != AppLifecycleState.resumed) _cancelRecording();
   }
@@ -144,60 +175,70 @@ class _PickerSettingsSectionState extends State<PickerSettingsSection>
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (banner != null) _Banner(text: banner),
-            if (_c.isMac && _c.permissionCardVisible)
+            if (widget._notices && banner != null)
+              _Banner(
+                text: banner,
+                // Only where Change is in another tab (History, M1.7 F9).
+                onChange: widget.parts == PickerSettingsParts.notices
+                    ? () => HistoryHost.showPickerShortcut(context)
+                    : null,
+              ),
+            if (widget._notices && _c.isMac && _c.permissionCardVisible)
               _PermissionCard(controller: _c),
-            Padding(
-              padding: EdgeInsets.only(bottom: KusungaTokens.space2),
-              child: Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: KusungaTokens.space3,
-                runSpacing: KusungaTokens.space2,
-                children: [
-                  Text(
-                    'Picker shortcut: ${_c.shortcut.display(isMac: _c.isMac)}',
-                    style: KusungaTokens.body.copyWith(color: t.text),
-                  ),
-                  if (_recording)
-                    _Recorder(onKey: _onRecordKey, onLost: _cancelRecording)
-                  else
-                    Semantics(
-                      identifier: 'shortcut-change',
-                      child: OutlinedButton(
-                        onPressed: _startRecording,
-                        child: const Text(
-                          'Change',
-                          semanticsLabel: 'Change picker shortcut',
+            if (widget._shortcut) ...[
+              Padding(
+                padding: EdgeInsets.only(bottom: KusungaTokens.space2),
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: KusungaTokens.space3,
+                  runSpacing: KusungaTokens.space2,
+                  children: [
+                    Text(
+                      'Picker shortcut: ${_c.shortcut.display(isMac: _c.isMac)}',
+                      style: KusungaTokens.body.copyWith(color: t.text),
+                    ),
+                    if (_recording)
+                      _Recorder(onKey: _onRecordKey, onLost: _cancelRecording)
+                    else
+                      Semantics(
+                        identifier: 'shortcut-change',
+                        child: OutlinedButton(
+                          focusNode: widget.changeFocus,
+                          onPressed: _startRecording,
+                          child: const Text(
+                            'Change',
+                            semanticsLabel: 'Change picker shortcut',
+                          ),
                         ),
                       ),
-                    ),
-                ],
-              ),
-            ),
-            if (_message == null && _c.shortcutSaveFailed)
-              Padding(
-                padding: EdgeInsets.only(bottom: KusungaTokens.space2),
-                child: Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    "Couldn't save the shortcut. Try again.",
-                    style: KusungaTokens.body.copyWith(color: t.danger),
-                  ),
+                  ],
                 ),
               ),
-            if (_message != null)
-              Padding(
-                padding: EdgeInsets.only(bottom: KusungaTokens.space2),
-                child: Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    _message!,
-                    style: KusungaTokens.body.copyWith(
-                      color: _messageIsError ? t.danger : t.text,
+              if (_message == null && _c.shortcutSaveFailed)
+                Padding(
+                  padding: EdgeInsets.only(bottom: KusungaTokens.space2),
+                  child: Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      "Couldn't save the shortcut. Try again.",
+                      style: KusungaTokens.body.copyWith(color: t.danger),
                     ),
                   ),
                 ),
-              ),
+              if (_message != null)
+                Padding(
+                  padding: EdgeInsets.only(bottom: KusungaTokens.space2),
+                  child: Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      _message!,
+                      style: KusungaTokens.body.copyWith(
+                        color: _messageIsError ? t.danger : t.text,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ],
         );
       },
@@ -269,13 +310,25 @@ class _RecorderState extends State<_Recorder> {
 }
 
 class _Banner extends StatelessWidget {
-  const _Banner({required this.text});
+  const _Banner({required this.text, this.onChange});
 
   final String text;
+
+  /// "Change in Settings" (M1.7 F9, PM decision 2026-11-11): opens the
+  /// Settings tab with the focus on Change. Null: no button.
+  final VoidCallback? onChange;
 
   @override
   Widget build(BuildContext context) {
     final t = KusungaTokens.of(context);
+    final message = Semantics(
+      liveRegion: true,
+      child: Text(
+        text,
+        style: KusungaTokens.body.copyWith(color: t.bannerWarnText),
+      ),
+    );
+    final onChange = this.onChange;
     return Padding(
       padding: EdgeInsets.only(bottom: KusungaTokens.space2),
       child: Container(
@@ -284,13 +337,28 @@ class _Banner extends StatelessWidget {
           color: t.bannerWarnBg,
           borderRadius: BorderRadius.circular(KusungaTokens.radius2),
         ),
-        child: Semantics(
-          liveRegion: true,
-          child: Text(
-            text,
-            style: KusungaTokens.body.copyWith(color: t.bannerWarnText),
-          ),
-        ),
+        // Text and the button on one row when they fit; at narrow widths
+        // the button moves below the text, as Resume in the paused banner.
+        child: onChange == null
+            ? message
+            : Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: KusungaTokens.space2,
+                children: [
+                  message,
+                  Semantics(
+                    identifier: 'shortcut-banner-change',
+                    child: TextButton(
+                      onPressed: onChange,
+                      child: Text(
+                        'Change in Settings',
+                        style: TextStyle(color: t.bannerWarnText),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }

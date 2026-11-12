@@ -183,7 +183,7 @@ void main() {
 
   group('Snippets, list wheel-scrolled to the bottom (QA-M14-5)', () {
     testWidgets('Tab from the Snippets tab goes to the Privacy tab (M1.6), '
-        'then New snippet', (tester) async {
+        'the Settings tab (M1.7), then New snippet', (tester) async {
       fillSnippets(30);
       await show(tester);
       await tapTab(tester, 'main-tab-snippets');
@@ -193,6 +193,8 @@ void main() {
 
       await press(tester);
       expect(focusedHook(), 'main-tab-privacy');
+      await press(tester);
+      expect(focusedHook(), 'main-tab-settings');
       await press(tester);
 
       expect(focusedHook(), 'snippet-new');
@@ -210,6 +212,8 @@ void main() {
       final before = tester.getRect(hook('snippet-row-$firstInView'));
 
       await press(tester); // the Privacy tab (M1.6)
+
+      await press(tester); // the Settings tab (M1.7)
       await press(tester);
       await press(tester);
 
@@ -276,7 +280,8 @@ void main() {
 
   group('History, list wheel-scrolled down (checked for QA-M14-5)', () {
     testWidgets('Tab from the History tab goes to the Snippets tab, the '
-        'Privacy tab (M1.6), then to the limit field, scrolled into view', (
+        'Privacy tab (M1.6), the Settings tab (M1.7), then to More options '
+        '(the Keep field moved to Settings), scrolled into view', (
       tester,
     ) async {
       fillHistory(60);
@@ -290,8 +295,15 @@ void main() {
       await press(tester);
       expect(focusedHook(), 'main-tab-privacy');
       await press(tester);
-      expect(focusedWidget<LimitField>(), isNotNull, reason: focusedHook());
-      expectFocusInView(tester, 'Tab to the limit field');
+      expect(focusedHook(), 'main-tab-settings');
+      await press(tester);
+      expect(focusedWidget<LimitField>(), isNull, reason: focusedHook());
+      expect(
+        focusedWidget<PopupMenuButton<Object?>>(),
+        isNotNull,
+        reason: focusedHook(),
+      );
+      expectFocusInView(tester, 'Tab to More options');
     });
 
     for (final (label, dy) in [
@@ -348,6 +360,7 @@ void main() {
         await wheel(tester, SnippetsScreen, 900);
         await tapTab(tester, 'main-tab-snippets');
         await press(tester); // the Privacy tab (M1.6)
+        await press(tester); // the Settings tab (M1.7)
         await press(tester); // New snippet
         await press(tester); // the first row fully in view
         await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
@@ -581,6 +594,7 @@ void main() {
       await wheel(tester, SnippetsScreen, 1300);
       await tapTab(tester, 'main-tab-snippets');
       await press(tester); // the Privacy tab (M1.6)
+      await press(tester); // the Settings tab (M1.7)
       await press(tester); // New snippet
       await press(tester); // the first row fully in view
       await press(tester); // its Copy button

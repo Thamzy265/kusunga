@@ -8,6 +8,7 @@ import '../clipboard/clipboard_source.dart';
 import '../log/app_log.dart';
 import 'clip_classifier.dart';
 import 'clip_item.dart';
+import 'expiry_service.dart';
 import '../shortcuts/ignored_apps.dart';
 import '../snippets/memory_snippet_store.dart';
 import '../snippets/snippet_service.dart';
@@ -24,6 +25,9 @@ enum HistoryBanner {
   backupFailed,
   writeError,
   clearError,
+
+  /// Auto-delete failed 3 runs in a row (M1.7); gone after a good run.
+  expiryFailed,
 }
 
 /// Takes what the clipboard watcher reports, keeps the history, and holds the
@@ -81,7 +85,18 @@ class HistoryService extends ChangeNotifier {
       persists: _persists,
       clock: _clock,
     );
+    expiry = ExpiryService(
+      store: () => _store,
+      log: _log,
+      onChanged: _onExpiryChanged,
+      onUnchangedRun: _afterUnchangedExpiryRun,
+      clock: _clock,
+    );
   }
+
+  /// Auto-delete (M1.7), kept in the same settings table. Its cut-off is
+  /// the read filter of every list this service gives out (R1).
+  late final ExpiryService expiry;
 
   /// "Pause history" (M1.6), kept in the same settings table.
   late final PauseService pause;
@@ -132,7 +147,11 @@ class HistoryService extends ChangeNotifier {
   /// starts the watcher, so no copy slips in at launch while history is
   /// paused.
   void start() {
-    _refresh();
+    // Auto-delete first (after the migration, which ran at open): nothing
+    // expired is ever shown, and the clean-up runs at launch.
+    expiry.load();
+    expiry.cleanUp();
+    _refresh(); // the first list
     pause.load();
     List<String> ids;
     try {
@@ -248,7 +267,20 @@ class HistoryService extends ChangeNotifier {
     }
   }
 
+  /// Drops copies still waiting to be saved that were copied before
+  /// [cutoff]: an expired copy is never written (reviewer F6). True when
+  /// any went.
+  bool _dropExpiredWaiting(int? cutoff) {
+    if (cutoff == null || _waiting.isEmpty) return false;
+    final before = _waiting.length;
+    _waiting.removeWhere((w) => w.time < cutoff);
+    if (_waiting.length == before) return false;
+    if (_waiting.isEmpty) _banners.remove(HistoryBanner.writeError);
+    return true;
+  }
+
   void _flushWaiting() {
+    _dropExpiredWaiting(expiry.cutoff);
     while (_waiting.isNotEmpty) {
       final result = _trySave(_waiting.first);
       if (result == _Save.retryLater) return;
@@ -298,33 +330,107 @@ class HistoryService extends ChangeNotifier {
     return full != null && waitingTexts.contains(full);
   }
 
+  void _onExpiryChanged() {
+    if (_closed) return;
+    // An expired copy waiting to be saved is never written (F6).
+    _dropExpiredWaiting(expiry.cutoff);
+    if (expiry.failing) {
+      _banners.add(HistoryBanner.expiryFailed);
+    } else {
+      _banners.remove(HistoryBanner.expiryFailed);
+    }
+    _refresh();
+  }
+
+  /// After an auto-delete run that changed nothing for the listeners: drops
+  /// expired copies waiting to be saved (F6), and reads the list again only
+  /// when it must change (one of them went, an item shown is past the
+  /// cut-off because its delete failed, or the clock was set back so hidden
+  /// items may show again). Otherwise only the expiry timer is set again
+  /// from the wall clock, which may have jumped during a sleep (RN2).
+  void _afterUnchangedExpiryRun(int cutoff) {
+    if (_closed) return;
+    final dropped = _dropExpiredWaiting(cutoff);
+    final listed = _listedCutoff;
+    if (dropped ||
+        (listed != null && cutoff < listed) ||
+        _items.any((i) => i.lastCopiedAt < cutoff)) {
+      _refresh();
+    } else {
+      _scheduleExpiryRefresh(cutoff);
+    }
+  }
+
+  /// The cut-off the list was last read with (null: Never, or not read).
+  int? _listedCutoff;
+
+  /// Refreshes the list when its oldest item expires, so it leaves History
+  /// and the picker on time, between clean-ups (R1). Only while the
+  /// expiry check runs (the app, not a test that never starts it).
+  Timer? _expiryRefresh;
+
+  /// After a failed read the next refresh waits at least one minute check,
+  /// so a store that can't be read is not tried (and logged) every second
+  /// (reviewer F3).
+  void _scheduleExpiryRefresh(int? cutoff, {bool afterFailure = false}) {
+    _expiryRefresh?.cancel();
+    _expiryRefresh = null;
+    if (cutoff == null || !expiry.ticking || _items.isEmpty || _closed) return;
+    var oldest = _items.first.lastCopiedAt;
+    for (final i in _items) {
+      if (i.lastCopiedAt < oldest) oldest = i.lastCopiedAt;
+    }
+    // Shown while lastCopiedAt >= cutoff; the cut-off moves with the clock.
+    final wait = oldest - cutoff + 1;
+    final least = afterFailure ? ExpiryService.checkEvery.inMilliseconds : 1000;
+    _expiryRefresh = Timer(
+      Duration(milliseconds: wait < least ? least : wait),
+      _refresh,
+    );
+  }
+
   void _refresh() {
+    final cutoff = expiry.cutoff;
+    _listedCutoff = cutoff;
+    var failed = false;
     try {
       final waitingTexts = {for (final w in _waiting) w.text};
       final saved = [
-        for (final i in _store.list())
+        for (final i
+            in cutoff == null ? _store.list() : _store.listSince(cutoff))
           if (!_isWaiting(i, waitingTexts)) i,
       ];
       _items = [
         for (final w in _waiting.reversed)
-          ClipItem(
-            id: w.id,
-            kind: w.kind,
-            preview: previewOf(w.text),
-            isTruncated: w.text.length > ClipItem.previewLength,
-            createdAt: w.time,
-            lastCopiedAt: w.time,
-          ),
+          if (cutoff == null || w.time >= cutoff)
+            ClipItem(
+              id: w.id,
+              kind: w.kind,
+              preview: previewOf(w.text),
+              isTruncated: w.text.length > ClipItem.previewLength,
+              createdAt: w.time,
+              lastCopiedAt: w.time,
+            ),
         ...saved,
       ];
     } catch (_) {
       _log.log(LogCode.readFailed);
+      failed = true;
+      // The list in memory still loses what has expired (R1, reviewer F3).
+      if (cutoff != null) {
+        _items = [
+          for (final i in _items)
+            if (i.lastCopiedAt >= cutoff) i,
+        ];
+      }
     }
+    _scheduleExpiryRefresh(cutoff, afterFailure: failed);
     _notify();
   }
 
   /// Puts the whole text of an item on the clipboard. Returns false if that
-  /// failed. The watcher then sees the copy and moves the item to the top.
+  /// failed, or the item is gone or expired. The watcher then sees the copy
+  /// and moves the item to the top.
   Future<bool> copy(int id) async {
     if (_closed) return false;
     try {
@@ -338,7 +444,8 @@ class HistoryService extends ChangeNotifier {
   }
 
   /// The whole text of an item (also one still waiting to be saved), or null
-  /// if it is gone.
+  /// if it is gone or expired (R1: the read filter holds for an id kept
+  /// from before, too).
   String? textOf(int id) {
     if (_closed) return null;
     try {
@@ -386,13 +493,15 @@ class HistoryService extends ChangeNotifier {
   }
 
   String? _contentOf(int id) {
+    final cutoff = expiry.cutoff;
     if (id < 0) {
       for (final w in _waiting) {
-        if (w.id == id) return w.text;
+        if (w.id != id) continue;
+        return cutoff == null || w.time >= cutoff ? w.text : null;
       }
       return null;
     }
-    return _store.contentOf(id);
+    return _store.contentOf(id, notBefore: cutoff);
   }
 
   /// Removes one item and returns it so Undo can put it back.
@@ -456,10 +565,18 @@ class HistoryService extends ChangeNotifier {
   /// when that cannot be read (the store failed, or the history is closed).
   /// Never 0 for "unknown": the Keep dialog must not show a count it could
   /// not read (reviewer W2).
+  ///
+  /// Only items that are shown count: expired ones the clean-up has not
+  /// removed yet are the oldest, so the trim takes them too, but they were
+  /// never the user's to see (M1.7 reviewer F5).
   int? countRemovedBy(int newLimit) {
     if (_closed) return null;
     try {
-      return _store.countRemovedBy(newLimit);
+      final all = _store.countRemovedBy(newLimit);
+      final cutoff = expiry.cutoff;
+      if (cutoff == null || all == 0) return all;
+      final shown = _store.count - _store.countOlderThan(cutoff);
+      return shown > newLimit ? shown - newLimit : 0;
     } catch (_) {
       return null;
     }
@@ -492,11 +609,14 @@ class HistoryService extends ChangeNotifier {
     if (_closed) return;
     _closed = true;
     pause.dispose();
+    expiry.dispose();
+    _expiryRefresh?.cancel();
     await _subscription?.cancel();
     _subscription = null;
     try {
       // One last try to save copies that are still waiting, so a quit does
-      // not lose them.
+      // not lose them (but never one that has expired).
+      _dropExpiredWaiting(expiry.cutoff);
       for (final w in List.of(_waiting)) {
         if (_trySave(w) != _Save.retryLater) _waiting.remove(w);
       }
@@ -522,6 +642,8 @@ class HistoryService extends ChangeNotifier {
     _closed = true;
     snippets.dispose();
     pause.dispose();
+    expiry.dispose();
+    _expiryRefresh?.cancel();
     unawaited(_subscription?.cancel());
     super.dispose();
   }

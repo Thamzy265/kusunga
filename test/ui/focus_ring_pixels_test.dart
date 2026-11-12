@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +10,7 @@ import 'package:kusunga/history/memory_history_store.dart';
 import 'package:kusunga/history/ui/history_host.dart';
 import 'package:kusunga/picker/picker_controller.dart';
 import 'package:kusunga/picker/ui/picker_settings_section.dart';
+import 'package:kusunga/settings/login_item.dart';
 import 'package:kusunga/snippets/snippet.dart';
 import 'package:kusunga/theme/tokens.dart';
 
@@ -15,6 +18,7 @@ import '../picker/fake_picker_port.dart';
 import '../snippets/snippet_service_test.dart' show FlakySnippetStore;
 import '../support/fakes.dart';
 import '../theme/tokens_test.dart' show contrast;
+import '../support/main_tabs.dart';
 
 /// Tester probes for QA-M14-4 (c0dbfe0), on what is really drawn: the 2 px
 /// `color.focus` ring is painted on all four sides of every control on both
@@ -242,6 +246,8 @@ void main() {
         );
         final dismiss = find.widgetWithIcon(IconButton, Icons.close);
         await expectRing(tester, dismiss, t, 'banner Dismiss');
+        // The limit field is in the Settings tab since M1.7.
+        await showKeepField(tester);
         final field = find.byType(TextField).first;
         await expectRing(tester, field, t, 'limit field');
       });
@@ -471,6 +477,34 @@ void main() {
       );
       expect(change, findsOneWidget, reason: 'the Change button is shown');
       await expectRing(tester, change, t, 'shortcut Change');
+    });
+  }
+
+  // M1.7 reviewer F1: the Settings tab's switch and menu had only a faint
+  // tint (about 1.1:1) for focus. Added by the developer.
+  for (final brightness in Brightness.values) {
+    testWidgets('${brightness.name}: the Launch at login switch and the '
+        'Auto-delete menu show the ring', (tester) async {
+      final login = LoginItemService(port: FakeLoginItemPort(), log: FakeLog());
+      addTearDown(login.dispose);
+      final opened = Completer<HistoryService>();
+      final t = await show(
+        tester,
+        brightness,
+        home: HistoryHost(history: opened.future, loginItem: login),
+      );
+      opened.complete(service);
+      await tester.pump();
+      await tester.tap(mainTab('main-tab-settings'));
+      await tester.pumpAndSettle();
+      final switchRing = find.byKey(
+        const ValueKey('settings-launch-at-login-ring'),
+      );
+      final menuRing = find.byKey(const ValueKey('settings-auto-delete-ring'));
+      expect(switchRing, findsOneWidget);
+      expect(menuRing, findsOneWidget);
+      await expectRing(tester, switchRing, t, 'Launch at login');
+      await expectRing(tester, menuRing, t, 'Auto-delete');
     });
   }
 }

@@ -265,6 +265,8 @@ void main() {
       await show(tester, copies: 1);
       await tester.tap(hook('main-tab-privacy'));
       await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab); // Settings tab
+      await tester.pump();
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
       final before = focusedId();
@@ -275,7 +277,10 @@ void main() {
       // The focused button is replaced by Resume; focus goes to Resume or
       // falls back to the tab strip, never to nowhere.
       expect(before, 'pause-15');
-      expect(focusedId(), anyOf('pause-resume', 'main-tab-privacy'));
+      expect(
+        focusedId(),
+        anyOf('pause-resume', 'main-tab-privacy', 'main-tab-settings'),
+      );
       expect(FocusManager.instance.primaryFocus?.context, isNotNull);
     });
   });

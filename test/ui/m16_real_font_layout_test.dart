@@ -95,17 +95,21 @@ void main() {
       if (skip == null) await _loadReal();
     });
 
-    testWidgets('600 px: History, Snippets, Privacy and New snippet on one '
-        'row (the test the developer moved to 680 px)', (tester) async {
+    testWidgets('600 px: History, Snippets, Privacy, Settings (M1.7) and New '
+        'snippet on one row (the test the developer moved to 680 px)', (
+      tester,
+    ) async {
       await show(tester, const Size(600, 632));
       final h = tab(tester, 'history');
       final s = tab(tester, 'snippets');
       final p = tab(tester, 'privacy');
+      final g = tab(tester, 'settings');
       final n = tester.getRect(find.bySemanticsIdentifier('snippet-new'));
       expect(s.center.dy, moreOrLessEquals(h.center.dy, epsilon: 1));
       expect(p.center.dy, moreOrLessEquals(h.center.dy, epsilon: 1));
+      expect(g.center.dy, moreOrLessEquals(h.center.dy, epsilon: 1));
       expect(n.center.dy, moreOrLessEquals(h.center.dy, epsilon: 12));
-      expect(p.right, lessThan(n.left));
+      expect(g.right, lessThan(n.left));
       expect(tester.takeException(), isNull);
     }, skip: skip != null);
 

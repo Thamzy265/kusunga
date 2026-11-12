@@ -17,9 +17,9 @@ class _ReadFails extends FlakyStore {
   bool fail = false;
 
   @override
-  String? contentOf(int id) {
+  String? contentOf(int id, {int? notBefore}) {
     if (fail) throw StateError('read failed');
-    return super.contentOf(id);
+    return super.contentOf(id, notBefore: notBefore);
   }
 }
 

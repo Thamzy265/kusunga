@@ -28,9 +28,40 @@ class MemoryHistoryStore implements HistoryStore {
   ];
 
   @override
-  String? contentOf(int id) {
+  List<ClipItem> listSince(int sinceMs) => [
+    for (final i in list())
+      if (i.lastCopiedAt >= sinceMs) i,
+  ];
+
+  @override
+  int countOlderThan(int cutoffMs, {int? notBefore}) => _items
+      .where(
+        (e) =>
+            e.record.lastCopiedAt < cutoffMs &&
+            (notBefore == null || e.record.lastCopiedAt >= notBefore),
+      )
+      .length;
+
+  @override
+  int deleteOlderThan(int cutoffMs) {
+    final before = _items.length;
+    _items.removeWhere((e) => e.record.lastCopiedAt < cutoffMs);
+    return before - _items.length;
+  }
+
+  @override
+  int setExpiryDays(int days, {int? deleteBefore}) {
+    checkExpiryDays(days);
+    _settings[historyExpirySetting] = '$days';
+    return deleteBefore == null ? 0 : deleteOlderThan(deleteBefore);
+  }
+
+  @override
+  String? contentOf(int id, {int? notBefore}) {
     for (final e in _items) {
-      if (e.id == id) return e.record.content;
+      if (e.id != id) continue;
+      final kept = notBefore == null || e.record.lastCopiedAt >= notBefore;
+      return kept ? e.record.content : null;
     }
     return null;
   }
@@ -102,7 +133,10 @@ class MemoryHistoryStore implements HistoryStore {
     return true;
   }
 
-  final _settings = <String, String>{};
+  /// Auto-delete starts at Never in a memory-only session: it is usually an
+  /// existing user whose keychain can't be reached, and nothing here
+  /// outlives the session anyway.
+  final _settings = <String, String>{historyExpirySetting: '0'};
 
   @override
   String? readSetting(String key) {

@@ -63,7 +63,7 @@ About 1.2× M1.6's Dart work and less native work: one Dart service, one migrati
 | `history_expiry_days` (new, schema v6) | 0 = never, 1, 7, 30 | See D3 | Integer like the other settings |
 
 - Launch at login is **not stored**. The OS is the source of truth: `SMAppService.mainApp.status` on Mac, the `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` value `Kusunga` on Windows.
-- Migration v6 adds the key with `INSERT OR IGNORE`. The value depends on D3. Rollback: the key is ignored by older builds (they don't read it), so no down step is needed beyond deleting the row.
+- Migration v6 adds the key with `INSERT OR IGNORE`. The value depends on D3. Older builds do not ignore it: a build from before M1.7 (schema 5) that opens a v6 file sees a newer schema, shows the "newer or different version" banner and runs memory-only, leaving the file untouched (the M1.1 rule). See "Rollout and rollback".
 
 ## Auto-delete
 
@@ -89,7 +89,10 @@ About 1.2× M1.6's Dart work and less native work: one Dart service, one migrati
   - `.enabled` → switch on;
   - `.notRegistered` → off;
   - `.requiresApproval` → switch on with the note "Allow Kusunga in System Settings › General › Login Items" and a button that calls `SMAppService.openSystemSettingsLoginItems()`;
-  - `.notFound` or an error → switch off, note "Couldn't turn this on. Try again."
+  - `.notFound` or an error → see below. A failure note shows only after a change the user asked for has failed. A plain status read with no change by the user (at launch, when the Settings tab opens, when Kusunga becomes active):
+    - answers `.notFound` (no error number): switch off, no note. A debug build run from the build folder gets `.notFound` (QA-M17-1);
+    - answers an error, or no answer within 2 s (on either platform; Windows can fail to read its Run value while it is there): the switch keeps the last position the OS reported in this run (a `.notFound` answer reports off), or off if it never reported one, with no note (R4; lead's ruling 2026-11-12, refined);
+    - the first such read in a row logs `loginItemFailed` with its error number (none for `.notFound` or no answer); a read that works ends the run, so it is not logged on every tab opening.
 - Works inside the App Sandbox, with no helper app and no new entitlement.
 - **Mac 12 (D4):** `SMAppService` needs macOS 13.
 - **Windows:** write `"<full path to Kusunga.exe>" --login` to the HKCU Run value `Kusunga`; delete it to turn off. Per user, no admin rights.
@@ -99,7 +102,14 @@ About 1.2× M1.6's Dart work and less native work: one Dart service, one migrati
   - Windows: the `--login` argument.
   - Mac: `SMAppService` passes no argument. Kusunga checks the launch Apple event's `keyAELaunchedAsLogInItem`. If it can't be told reliably, the window opens as today. The developer reports which, and QA checks it.
 - **Re-read the state** when the Settings tab opens and when Kusunga becomes active, so a change made in System Settings shows up.
-- The channel gets two calls, `loginItemStatus` and `setLoginItem(bool)`. They carry no path or user data.
+- **After a failed change** (a `register()` or `unregister()` error, a Windows registry error such as access denied, or no answer), Kusunga reads the status again as part of the same change, and the switch shows what the OS says (R4, tester finding B3):
+  - a failed turn-on: off, note "Couldn't turn this on. Try again.";
+  - a failed turn-off while the item is still on: on, note "Couldn't turn this off. Try again.";
+  - if that read fails too, the switch stays where it was: a failed turn-off stays on and a failed turn-on stays off, each with its "Couldn't turn this off/on. Try again." note (PM decision 2026-11-11, "Where it was"), so it never shows off while the OS may have it on;
+  - if the OS already has the position the user asked for, no failure note;
+  - the next change starts clean: while it runs, no earlier failure note shows (tester finding N1).
+- **Time limit:** every login-item call has the M1.6 native-call limit: no answer within 2 s counts as failed and a late answer is ignored (tester finding B4). With the read after a failure, the switch is usable again after at most 4 s.
+- The channel gets three calls: `loginItemStatus`, `setLoginItem(bool)` and, on the Mac, `openLoginItemsSettings`. They carry no path or user data.
 
 ## Settings tab (D1)
 
@@ -131,7 +141,7 @@ New log codes, with numbers only:
 - `historyExpiryFailed`;
 - `settingSaveFailed`;
 - `loginItemOn`, `loginItemOff`;
-- `loginItemFailed <OS error number>`;
+- `loginItemFailed <OS error number>` (a failed change, or the first plain status read in a row that fails; no number for `.notFound` or no answer);
 - `loginItemNeedsApproval`.
 
 No text, no paths and no item ids. They are added to the Swift `knownCodes` list and the guard tests.
@@ -175,7 +185,7 @@ Assumed unless the PM says otherwise: lawful basis n/a (nothing leaves the devic
 ## Rollout and rollback
 
 - **Rollout:** ships with the normal build; migration v6 runs at launch.
-- **Rollback:** revert the merge. Older builds ignore `history_expiry_days`. A login item registered by M1.7 stays registered after a rollback, so the rollback note tells the user to switch it off in System Settings or Task Manager first.
+- **Rollback:** a build from before M1.7 can't open a file that migration v6 has run on: it shows the "newer or different version" banner and runs memory-only (the file is left untouched). So a rollback reverts the feature but keeps migration v6, so the file stays readable; it is not a plain return to an older build. A login item registered by M1.7 stays registered after a rollback, so the rollback note tells the user to switch it off in System Settings or Task Manager first.
 
 ## Later lines (added to docs/PLAN.md 2026-11-11)
 

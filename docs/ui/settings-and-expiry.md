@@ -59,14 +59,15 @@ flowchart LR
 
 | Screen / component | Default | Hover | Focus | Disabled | Loading | Empty | Error | Success | Long content | Offline | Permission denied |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| Settings tab | Sections "General" and "History" | Tab `surfaceHover` | Focus ring; Ctrl+Tab cycles tabs | n/a | n/a | n/a | n/a | n/a | Scrolls vertically | n/a — no network | n/a |
-| Launch at login switch | Off (AC2) | `surfaceHover` | Focus ring | macOS 12: off and disabled, note "Needs macOS 13 or later." (D4 B) | While the OS call runs: the switch keeps its new position, with no spinner (the call is fast); input is ignored until it returns | n/a | Failed: switch back off, note "Couldn't turn this on. Try again." · Mac needs approval: switch on, note "Allow Kusunga in System Settings › General › Login Items." + button "Open Login Items" · Windows disabled in Task Manager: switch off, note "Turned off in Task Manager." | Switch on; announced "Launch at login on" / "off" | n/a | n/a | Mac approval state as Error |
+| Settings tab | Sections "General" and "History" | Tab `surfaceHover` | Focus ring; Tab reaches the tabs, Left and Right move to the previous or next tab and show it, Enter or Space shows the focused tab, as the M1.6 Privacy tab (no Ctrl+Tab) | n/a | n/a | n/a | n/a | n/a | Scrolls vertically | n/a — no network | n/a |
+| Launch at login switch | Off (AC2) | `surfaceHover` | Focus ring | macOS 12: off and disabled, note "Needs macOS 13 or later." (D4 B) | While the OS call runs: the switch keeps its new position, with no spinner (the call is fast); input is ignored until it returns. A login-item call with no answer within 2 s counts as failed (the M1.6 native-call limit); after a failed change the read of the OS state is part of the same call, so input is ignored for at most 4 s. A new change starts clean: an earlier "Couldn't turn this on/off" note goes away while it runs | n/a | A failure note shows only after a change the user asked for has failed · A status read with no change by the user (at launch, on tab open, on becoming active) that answers notFound: switch off, no note (QA-M17-1) · One that answers an error or doesn't answer within 2 s: the switch keeps the last position the OS reported in this run (a notFound answer reports off; off if it never reported one), no note (lead's ruling 2026-11-12, refined; on Windows the Run value can be there while the read fails) · After any failed change Kusunga reads the OS state again and the switch shows what it says · Failed turn-on: switch back off, note "Couldn't turn this on. Try again." · Failed turn-off while the OS still has it on: switch stays on, note "Couldn't turn this off. Try again." · If that read fails too, the switch stays where it was: a failed turn-on stays off and a failed turn-off stays on, each with its note (PM decision 2026-11-11, "Where it was") · Mac needs approval: switch on, note "Allow Kusunga in System Settings › General › Login Items." + button "Open Login Items" · Windows disabled in Task Manager: switch off, note "Turned off in Task Manager." | Switch on; announced "Launch at login on" / "off" | n/a | n/a | Mac approval state as Error |
 | Picker shortcut row | As M1.3, moved | As M1.3 | As M1.3 | As M1.3 | As M1.3 | n/a | As M1.3 | As M1.3 | n/a | n/a | n/a |
 | Keep field | As M1.2, moved, including its confirm dialog | As M1.2 | As M1.2 | As M1.2 | As M1.2 | n/a | As M1.2 | As M1.2 | n/a | n/a | n/a |
 | Auto-delete menu | New installs "After 30 days"; existing data "Never" (D3 B) | `surfaceHover` | Focus ring; arrow keys move in the open menu | n/a | n/a | n/a | Save failed: the menu goes back to the old value, "Couldn't save. Try again." below | Longer or Never: saved, no toast · shorter with 0 items to go: saved, no dialog · shorter with items to go: confirm dialog | n/a | n/a | n/a |
 | Confirm dialog (shorter time) | "Delete items after 1 day? 143 older items will be deleted. Snippets aren't affected." [Cancel] [Delete] | Button hover | Focus on Cancel first | Count unreadable: "Couldn't count the items. Try again.", only Cancel works (as the limit dialog) | n/a | Count 0 at open: no dialog | Delete failed: dialog closes, toast "Couldn't delete. Try again.", old setting kept | Toast "143 items deleted" | Count follows live changes, as the limit dialog | n/a | n/a |
 | Clean-up keeps failing (3 runs) | — | — | — | — | — | — | Warning banner in History (`_Banner`, `bannerWarnBg`): "Couldn't remove old items. Kusunga will try again." | Banner goes away after the next good run | — | — | — |
 | "Ignored apps and pause are in Privacy" link | Text button | Underline | Focus ring | n/a | n/a | n/a | n/a | Opens the Privacy tab, focus on "Pause history" heading | n/a | n/a | n/a |
+| "Change in Settings" (History, in the banner "Kusunga's shortcut … is used by another app. Choose another.") — PM decision 2026-11-11 | Text button in the banner, `bannerWarnText` | Button hover | Focus ring (3:1 on `bannerWarnBg`) | n/a | n/a | n/a | n/a | Opens the Settings tab, focus on the picker shortcut's Change | Moves below the banner text when they don't fit on one row | n/a | n/a |
 | Started at login (D5 A) | No window; the menu-bar or tray icon only | n/a | n/a | n/a | n/a | n/a | Mac can't tell it was a login start: the window opens as today | n/a | n/a | n/a | n/a |
 
 ## Breakpoints
@@ -89,6 +90,7 @@ flowchart LR
 - **Accessible names:**
   - "Launch at login", a switch with an on/off state;
   - "Auto-delete history", whose value is the chosen option;
+  - "Change in Settings", a button in the History banner for a taken shortcut;
   - each note is read with its control, as its description.
 - **Announcements (polite):**
   - "Launch at login on" and "Launch at login off";
@@ -104,7 +106,7 @@ flowchart LR
 - Launch at login:
   - label "Launch at login";
   - help "Start Kusunga in the menu bar when you log in." (Windows: "Start Kusunga in the tray when you sign in.");
-  - notes "Needs macOS 13 or later.", "Couldn't turn this on. Try again.", "Allow Kusunga in System Settings › General › Login Items.", "Turned off in Task Manager.";
+  - notes "Needs macOS 13 or later.", "Couldn't turn this on. Try again.", "Couldn't turn this off. Try again.", "Allow Kusunga in System Settings › General › Login Items.", "Turned off in Task Manager.";
   - button "Open Login Items".
 - Auto-delete:
   - label "Auto-delete";
@@ -117,6 +119,7 @@ flowchart LR
   - toasts "{n} items deleted" and "Couldn't delete. Try again."
 - Banner: "Couldn't remove old items. Kusunga will try again."
 - Link: "Ignored apps and pause are in Privacy".
+- History banner for a taken picker shortcut: button "Change in Settings" (opens the Settings tab with the focus on Change).
 
 No deceptive patterns: the most private login choice is the default, a deletion always says how many items it removes, and turning anything off is as easy as turning it on.
 

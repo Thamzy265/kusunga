@@ -69,14 +69,18 @@ void main() {
     expect(all, contains(first.appId));
   });
 
-  test('migrating twice (reopen) adds nothing and keeps user_version 5', () {
+  test('migrating twice (reopen) adds nothing and keeps the latest '
+      'user_version', () {
     openV4().close();
     SqliteHistoryStore.open(path: path, keyHex: _key).close();
     final once = ids();
     SqliteHistoryStore.open(path: path, keyHex: _key).close();
     expect(ids(), once);
     final db = sqlite3.open(path)..execute("PRAGMA hexkey = '$_key'");
-    expect(db.select('PRAGMA user_version').single.values.single, 5);
+    expect(
+      db.select('PRAGMA user_version').single.values.single,
+      kMigrations.last.version,
+    );
     db.close();
   });
 

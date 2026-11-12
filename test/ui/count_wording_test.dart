@@ -10,6 +10,7 @@ import 'package:kusunga/snippets/snippet.dart';
 import 'package:kusunga/theme/tokens.dart';
 
 import '../support/fakes.dart';
+import '../support/main_tabs.dart';
 
 /// QA-M14-7: a count of 1 takes the singular ("1 older item will be
 /// deleted.", "Delete 1 item"); 2 or more keep the plural. Every count
@@ -60,6 +61,7 @@ void main() {
       of: find.byType(LimitField),
       matching: find.byType(TextField),
     );
+    await showKeepField(tester);
     await tester.enterText(field, '10');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
@@ -101,6 +103,7 @@ void main() {
 
   group('History: Clear history', () {
     Future<void> openClear(WidgetTester tester) async {
+      await showHistoryTab(tester);
       await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Clear history'));
@@ -276,6 +279,7 @@ void main() {
     'Clear history at a count of 0 (PM 2026-11-08, "Close or relabel")',
     () {
       Future<void> openClear(WidgetTester tester) async {
+        await showHistoryTab(tester);
         await tester.tap(find.byTooltip('More options'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Clear history'));

@@ -6,6 +6,7 @@ import 'package:kusunga/history/clip_item.dart';
 import 'package:kusunga/history/history_store.dart';
 import 'package:kusunga/history/key_store.dart';
 import 'package:kusunga/log/app_log.dart';
+import 'package:kusunga/settings/login_item.dart';
 
 class FakeKeyStore implements KeyStore {
   FakeKeyStore({this.stored});
@@ -125,6 +126,9 @@ class FlakyStore implements HistoryStore {
   final HistoryStore inner;
   bool failWrites = false;
   bool failClear = false;
+
+  /// The history lists can't be read (a locked or damaged file).
+  bool failReads = false;
   int closes = 0;
 
   void _maybeFail() {
@@ -136,9 +140,35 @@ class FlakyStore implements HistoryStore {
   @override
   int get count => inner.count;
   @override
-  List<ClipItem> list() => inner.list();
+  List<ClipItem> list() {
+    if (failReads) throw const FileSystemException('locked');
+    return inner.list();
+  }
+
   @override
-  String? contentOf(int id) => inner.contentOf(id);
+  List<ClipItem> listSince(int sinceMs) {
+    if (failReads) throw const FileSystemException('locked');
+    return inner.listSince(sinceMs);
+  }
+
+  @override
+  int countOlderThan(int cutoffMs, {int? notBefore}) =>
+      inner.countOlderThan(cutoffMs, notBefore: notBefore);
+  @override
+  int deleteOlderThan(int cutoffMs) {
+    _maybeFail();
+    return inner.deleteOlderThan(cutoffMs);
+  }
+
+  @override
+  int setExpiryDays(int days, {int? deleteBefore}) {
+    _maybeFail();
+    return inner.setExpiryDays(days, deleteBefore: deleteBefore);
+  }
+
+  @override
+  String? contentOf(int id, {int? notBefore}) =>
+      inner.contentOf(id, notBefore: notBefore);
   @override
   int insertOrBump(String content, ClipKind kind, int nowMs) {
     _maybeFail();
@@ -178,4 +208,41 @@ class FlakyStore implements HistoryStore {
     closes++;
     inner.close();
   }
+}
+
+/// A login-item port (M1.7) that answers [next], or waits on [hold].
+class FakeLoginItemPort implements LoginItemPort {
+  LoginItemAnswer next = const LoginItemAnswer(LoginItemState.off);
+
+  /// When set, reads answer this instead of [next]: what the OS still has
+  /// after a change that failed.
+  LoginItemAnswer? reads;
+  int statusCalls = 0;
+  final setCalls = <bool>[];
+  int openCalls = 0;
+  Completer<LoginItemAnswer>? _held;
+
+  /// The next call waits until the returned completer completes.
+  Completer<LoginItemAnswer> hold() => _held = Completer<LoginItemAnswer>();
+
+  Future<LoginItemAnswer> _answer([LoginItemAnswer? answer]) {
+    final held = _held;
+    _held = null;
+    return held?.future ?? Future.value(answer ?? next);
+  }
+
+  @override
+  Future<LoginItemAnswer> status() {
+    statusCalls++;
+    return _answer(reads);
+  }
+
+  @override
+  Future<LoginItemAnswer> set(bool on) {
+    setCalls.add(on);
+    return _answer();
+  }
+
+  @override
+  Future<void> openSettings() async => openCalls++;
 }

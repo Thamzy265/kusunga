@@ -45,9 +45,9 @@ void main() {
     migrations: kMigrations.sublist(0, 4),
   );
 
-  test('the latest version is 5, and it only inserts preset rows', () {
-    expect(kMigrations.last.version, 5);
-    final v5 = kMigrations.last;
+  test('version 5 only inserts preset rows', () {
+    final v5 = kMigrations[4];
+    expect(v5.version, 5);
     expect(v5.statements, hasLength(1));
     expect(
       v5.statements.single,
@@ -143,7 +143,7 @@ void main() {
       'CREATE TABLE ignored_apps (id INTEGER PRIMARY KEY, app_id TEXT '
       'NOT NULL UNIQUE, display_name TEXT NOT NULL, preset INTEGER NOT NULL)',
     );
-    kMigrations.last.statements.forEach(db.execute);
+    kMigrations[4].statements.forEach(db.execute);
     expect(
       [
         for (final r in db.select(

@@ -28,7 +28,9 @@ enum DiagLog {
     "shortcutSkippedInjected", "shortcutSkippedAdmin", "shortcutTapReenabled",
     "shortcutTapFailed", "shortcutHookFailed", "shortcutPermissionMissing", "shortcutTableSize",
     "shortcutSyntheticKeysAllowed", "captureSkippedIgnoredApp", "capturePaused", "captureResumed",
-    "captureSourceUnknown", "captureIgnoredSendFailed",
+    "captureSourceUnknown", "captureIgnoredSendFailed", "historyExpired",
+    "historyExpiryFailed", "settingSaveFailed", "loginItemOn", "loginItemOff", "loginItemFailed",
+    "loginItemNeedsApproval",
     // Native
     "pasteResult", "postKeyNone", "postKeyCode", "postForced", "postFrontmostOk", "postTiming",
     "postSourceState", "postSourceNil", "postTap", "postEventNil", "postSent",

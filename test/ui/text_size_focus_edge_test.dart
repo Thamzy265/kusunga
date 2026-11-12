@@ -19,6 +19,7 @@ import 'package:kusunga/theme/tokens.dart';
 
 import '../picker/fake_picker_port.dart';
 import '../support/fakes.dart';
+import '../support/main_tabs.dart';
 
 /// Tester round 9 on 6edb532, d9d691f and d892b56: a text-size change keeps
 /// the focus on the same control, scrolled into view (Snippets and History);
@@ -454,6 +455,7 @@ void main() {
       await setScale(tester, 2);
       expect(focusedHook(), 'main-tab-snippets');
       await press(tester); // the Privacy tab (M1.6)
+      await press(tester); // the Settings tab (M1.7)
       await press(tester); // New snippet
       expect(focusedHook(), 'snippet-new');
       await setScale(tester, 1);
@@ -655,6 +657,7 @@ void main() {
         'view, and typing still works', (tester) async {
       fillHistory(30);
       await show(tester);
+      await showKeepField(tester); // in Settings since M1.7
       await tester.tap(find.byType(TextField).first);
       await tester.pump();
       final field = FocusManager.instance.primaryFocus;
@@ -860,6 +863,7 @@ void main() {
             await wheel(tester, SnippetsScreen, dy);
             await tapTab(tester, 'main-tab-snippets');
             await press(tester); // the Privacy tab (M1.6)
+            await press(tester); // the Settings tab (M1.7)
             await press(tester); // New snippet
             await press(tester); // into the list
             final id = focusedSnippetItem();

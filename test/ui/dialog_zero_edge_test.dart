@@ -13,6 +13,7 @@ import 'package:kusunga/snippets/memory_snippet_store.dart';
 import 'package:kusunga/theme/tokens.dart';
 
 import '../support/fakes.dart';
+import '../support/main_tabs.dart';
 
 /// Tester round 15 on be09a77 (PM decision 2026-11-08 "Close or relabel"): the
 /// Clear history dialog closes itself at a count of 0; the Keep dialog says
@@ -66,12 +67,14 @@ void main() {
       of: find.byType(LimitField),
       matching: find.byType(TextField),
     );
+    await showKeepField(tester);
     await tester.enterText(field, '$limit');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
   }
 
   Future<void> openClear(WidgetTester tester) async {
+    await showHistoryTab(tester);
     await tester.tap(find.byTooltip('More options'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Clear history'));

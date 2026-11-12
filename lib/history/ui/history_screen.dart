@@ -8,12 +8,12 @@ import '../../clipboard/clipboard_source.dart';
 import '../../privacy/ui/privacy_screen.dart' show pauseEndText;
 import '../../snippets/ui/snippet_editor.dart';
 import '../../theme/tokens.dart';
+import '../../ui/close_at_zero.dart';
 import '../../ui/focus_order.dart';
 import '../clip_item.dart';
 import '../history_service.dart';
 import '../pause_service.dart';
 import 'history_row.dart';
-import 'limit_field.dart';
 
 /// The home view: what Kusunga has saved, with Copy, Delete (with Undo),
 /// Clear history and the limit. Spec: `docs/ui/clipboard-history.md`.
@@ -630,31 +630,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
   // can arrive meanwhile), so they always say what confirming deletes
   // (BUG-W1).
   Future<void> _confirmClear() async {
-    var shown = _service.items.length;
     final confirmed = await showDialog<bool>(
       context: context,
       // At a count of 0 (items deleted elsewhere) the dialog closes by
       // itself, as Cancel would (PM decision 2026-11-08, "Close or
       // relabel"). The count is the list in memory, never a store read, so
       // a failed read or save cannot close it.
-      builder: (context) => _CloseWhenEmpty(
-        service: _service,
-        child: AlertDialog(
+      builder: (context) => CloseAtZero(
+        listenable: _service,
+        count: () => _service.items.length,
+        builder: (context, count) => AlertDialog(
           title: const Text('Clear all history?'),
-          content: ListenableBuilder(
-            listenable: _service,
-            builder: (context, _) {
-              // While it closes at 0 it keeps the last count it showed.
-              final count = _service.items.isEmpty
-                  ? shown
-                  : shown = _service.items.length;
-              return Text(
-                // "all 1 item" reads oddly: one item is "the 1 item" (lead,
-                // 2026-11-06, QA-M14-7).
-                '${count == 1 ? 'This deletes the 1 item.' : 'This deletes all $count items.'} '
-                'Snippets are not affected.',
-              );
-            },
+          content: Text(
+            // "all 1 item" reads oddly: one item is "the 1 item" (lead,
+            // 2026-11-06, QA-M14-7).
+            '${count == 1 ? 'This deletes the 1 item.' : 'This deletes all $count items.'} '
+            'Snippets are not affected.',
           ),
           actions: [
             TextButton(
@@ -695,58 +686,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     // it (reviewer F-M1).
     final nodes = _moreWrap.traversalDescendants;
     if (nodes.isNotEmpty) nodes.first.requestFocus();
-  }
-
-  /// [removed] is the count when the dialog opens; the text then follows
-  /// the live count. At a known 0 it says no items will be deleted and the
-  /// button is "Set limit", which only sets the limit (PM decision
-  /// 2026-11-08). While the count cannot be read (null) the dialog shows no
-  /// number and only Cancel works (reviewer W2).
-  Future<bool> _confirmLower(int newLimit, int? removed) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => ListenableBuilder(
-        listenable: _service,
-        builder: (context, _) {
-          // One read per change, so the text and the button always agree.
-          final removed = _service.countRemovedBy(newLimit);
-          return AlertDialog(
-            content: Text(switch (removed) {
-              null => "Couldn't count the items. Try again.",
-              0 =>
-                'Keep only the newest $newLimit items? No items will be '
-                    'deleted.',
-              _ =>
-                'Keep only the newest $newLimit items? '
-                    '$removed older ${removed == 1 ? 'item' : 'items'} '
-                    'will be deleted.',
-            }),
-            actions: [
-              TextButton(
-                autofocus: true,
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: KusungaTokens.of(context).danger,
-                  foregroundColor: KusungaTokens.of(context).surface,
-                ),
-                onPressed: removed == null
-                    ? null
-                    : () => Navigator.of(context).pop(true),
-                child: Text(switch (removed) {
-                  null => 'Delete',
-                  0 => 'Set limit',
-                  _ => 'Delete $removed ${removed == 1 ? 'item' : 'items'}',
-                }),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-    return ok == true;
   }
 
   @override
@@ -806,15 +745,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                       CrossAxisAlignment.stretch,
                                   children: [
                                     _Header(
-                                      service: _service,
                                       count: items.length,
                                       moreWrap: _moreWrap,
                                       onClear: _confirmClear,
                                       onMenuCancelled: _focusMore,
-                                      confirmLower: _confirmLower,
-                                      onSaveFailed: () => _toast(
-                                        "Couldn't save that number. Try again.",
-                                      ),
                                     ),
                                     SizedBox(height: KusungaTokens.space3),
                                     // M1.6: while paused, before the list
@@ -914,66 +848,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 }
 
-/// Closes the dialog it is in, with the same result as Cancel, when the
-/// history becomes empty while it is open (PM decision 2026-11-08). It
-/// listens only while the dialog is there, so nothing is left listening if
-/// the dialog goes another way.
-class _CloseWhenEmpty extends StatefulWidget {
-  const _CloseWhenEmpty({required this.service, required this.child});
-
-  final HistoryService service;
-  final Widget child;
-
-  @override
-  State<_CloseWhenEmpty> createState() => _CloseWhenEmptyState();
-}
-
-class _CloseWhenEmptyState extends State<_CloseWhenEmpty> {
-  var _closing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.service.addListener(_check);
-  }
-
-  @override
-  void dispose() {
-    widget.service.removeListener(_check);
-    super.dispose();
-  }
-
-  void _check() {
-    if (_closing || !mounted || widget.service.items.isNotEmpty) return;
-    final route = ModalRoute.of(context);
-    if (route == null) return;
-    _closing = true;
-    final navigator = Navigator.of(context);
-    if (route.isCurrent) {
-      navigator.pop(false);
-    } else {
-      navigator.removeRoute(route, false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => widget.child;
-}
-
+/// The title and the ⋯ menu. The Keep field moved to the Settings tab
+/// (M1.7, D1 A).
 class _Header extends StatelessWidget {
   const _Header({
-    required this.service,
     required this.count,
     required this.moreWrap,
     required this.onClear,
     required this.onMenuCancelled,
-    required this.confirmLower,
-    required this.onSaveFailed,
   });
 
-  final HistoryService service;
   final int count;
-  final VoidCallback onSaveFailed;
   final VoidCallback onClear;
 
   /// The menu closed without a choice.
@@ -981,7 +866,6 @@ class _Header extends StatelessWidget {
 
   /// A node placed above the "More options" button (see `_focusMore`).
   final FocusNode moreWrap;
-  final Future<bool> Function(int newLimit, int? removed) confirmLower;
 
   @override
   Widget build(BuildContext context) {
@@ -998,11 +882,6 @@ class _Header extends StatelessWidget {
       spacing: KusungaTokens.space2,
       runSpacing: KusungaTokens.space2,
       children: [
-        LimitField(
-          service: service,
-          confirmLower: confirmLower,
-          onSaveFailed: onSaveFailed,
-        ),
         Focus(
           focusNode: moreWrap,
           canRequestFocus: false,
@@ -1076,6 +955,8 @@ class _Banner extends StatelessWidget {
     HistoryBanner.writeError =>
       "Couldn't save the latest item. Kusunga will try again.",
     HistoryBanner.clearError => "Couldn't clear history. Try again.",
+    HistoryBanner.expiryFailed =>
+      "Couldn't remove old items. Kusunga will try again.",
   };
 
   @override

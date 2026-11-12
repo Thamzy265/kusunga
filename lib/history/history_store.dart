@@ -1,5 +1,12 @@
 import 'clip_item.dart';
 
+/// Auto-delete (M1.7, schema version 6): "0" never, or "1", "7" or "30"
+/// days since an item was last copied. Any other value counts as never.
+const historyExpirySetting = 'history_expiry_days';
+
+/// The only auto-delete values, in days; 0 is never.
+const historyExpiryChoices = [0, 1, 7, 30];
+
 /// Where clipboard history is kept. Calls are synchronous: the database is
 /// local, and one copy is one small transaction.
 abstract interface class HistoryStore {
@@ -11,12 +18,14 @@ abstract interface class HistoryStore {
   /// mode (schema version 2), and the typed-shortcuts switch, "0" or "1"
   /// (version 4), and the history pause, "0", "-1" or an end time in ms
   /// (M1.6, `history_paused_until`; the user's choice to stop recording,
-  /// kept in the encrypted file like the rest).
+  /// kept in the encrypted file like the rest), and auto-delete (M1.7,
+  /// version 6, [historyExpirySetting]).
   static const storedSettingKeys = {
     'picker_shortcut',
     'paste_mode',
     'typed_shortcuts_on',
     'history_paused_until',
+    historyExpirySetting,
   };
   static const maxSettingLength = 64;
 
@@ -27,8 +36,28 @@ abstract interface class HistoryStore {
   /// Newest first.
   List<ClipItem> list();
 
-  /// The whole text of an item, or null if it is gone.
-  String? contentOf(int id);
+  /// Newest first, only items last copied at or after [sinceMs] (M1.7 read
+  /// filter: an expired item is never shown, even before the clean-up).
+  List<ClipItem> listSince(int sinceMs);
+
+  /// How many items were last copied before [cutoffMs] (and, with
+  /// [notBefore], at or after it).
+  int countOlderThan(int cutoffMs, {int? notBefore});
+
+  /// Removes every item last copied before [cutoffMs], in one transaction,
+  /// and returns how many went. Snippets are never touched.
+  int deleteOlderThan(int cutoffMs);
+
+  /// Saves the auto-delete setting ([historyExpiryChoices]) and, with
+  /// [deleteBefore], removes the items last copied before it, all in one
+  /// transaction: if either fails, neither happens. Returns how many items
+  /// went. Throws [ArgumentError] for any other number of days.
+  int setExpiryDays(int days, {int? deleteBefore});
+
+  /// The whole text of an item, or null if it is gone (or, with
+  /// [notBefore], last copied before it: the M1.7 read filter, so an id
+  /// kept from before the item expired gives nothing).
+  String? contentOf(int id, {int? notBefore});
 
   /// Saves [content], or moves it to the top if it is already there, then
   /// trims to [limit]. All of it is one transaction. Returns the item id.
@@ -89,5 +118,11 @@ void checkSetting(String key, String value) {
   checkSettingKey(key);
   if (value.isEmpty || value.length > HistoryStore.maxSettingLength) {
     throw ArgumentError.value(value.length, 'value.length');
+  }
+}
+
+void checkExpiryDays(int days) {
+  if (!historyExpiryChoices.contains(days)) {
+    throw ArgumentError.value(days, 'days');
   }
 }

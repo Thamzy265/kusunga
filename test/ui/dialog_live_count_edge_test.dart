@@ -10,6 +10,7 @@ import 'package:kusunga/snippets/snippet.dart';
 import 'package:kusunga/theme/tokens.dart';
 
 import '../support/fakes.dart';
+import '../support/main_tabs.dart';
 
 /// Tester round 12 on 2020e85 (BUG-W1 fix): the Clear history and Keep
 /// dialogs follow the live count while open. What a click deletes must match
@@ -71,12 +72,14 @@ void main() {
       of: find.byType(LimitField),
       matching: find.byType(TextField),
     );
+    await showKeepField(tester);
     await tester.enterText(field, '$limit');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
   }
 
   Future<void> openClear(WidgetTester tester) async {
+    await showHistoryTab(tester);
     await tester.tap(find.byTooltip('More options'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Clear history'));

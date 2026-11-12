@@ -11,6 +11,7 @@ import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/memory_history_store.dart';
 import 'package:kusunga/history/ui/history_host.dart';
 import 'package:kusunga/history/ui/history_screen.dart';
+import 'package:kusunga/settings/ui/settings_screen.dart';
 import 'package:kusunga/log/app_log.dart';
 import 'package:kusunga/theme/tokens.dart';
 
@@ -37,6 +38,7 @@ void main() {
     HistoryService s, {
     Brightness brightness = Brightness.light,
     bool disableAnimations = false,
+    bool settings = false,
   }) => MaterialApp(
     theme: KusungaTokens.themeData(brightness),
     builder: (context, child) => MediaQuery(
@@ -45,7 +47,9 @@ void main() {
       ).copyWith(disableAnimations: disableAnimations),
       child: child!,
     ),
-    home: HistoryScreen(service: s, now: () => now),
+    home: settings
+        ? SettingsScreen(service: s, onShowPrivacy: () {})
+        : HistoryScreen(service: s, now: () => now),
   );
 
   Future<void> show(WidgetTester tester, [HistoryService? s]) async {
@@ -407,6 +411,12 @@ void main() {
   });
 
   group('Keep N items field', () {
+    // The Keep field is in the Settings tab since M1.7 (D1 A).
+    Future<void> show(WidgetTester tester, [HistoryService? s]) async {
+      await tester.pumpWidget(app(s ?? service, settings: true));
+      await tester.pump();
+    }
+
     Finder field() => find.byKey(const Key('limit-field'));
 
     testWidgets(
@@ -723,9 +733,7 @@ void main() {
   });
 
   group('accessibility', () {
-    testWidgets('heading, list label, row names, buttons and the limit field', (
-      tester,
-    ) async {
+    testWidgets('heading, list label, row names and buttons', (tester) async {
       final handle = tester.ensureSemantics();
       await show(tester);
       copyTexts(['Call me on 07700 900123', 'https://example.com/x']);
@@ -747,9 +755,10 @@ void main() {
         find.bySemanticsLabel('Text: Call me on 07700 900123, copied just now'),
         findsOneWidget,
       );
+      // The limit field is in the Settings tab since M1.7.
       expect(
         find.bySemanticsLabel('Number of history items to keep'),
-        findsOneWidget,
+        findsNothing,
       );
 
       final ids = service.items.map((i) => i.id).toList();

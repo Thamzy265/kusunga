@@ -14,6 +14,7 @@ import 'package:kusunga/theme/tokens.dart';
 
 import '../picker/fake_picker_port.dart';
 import '../support/fakes.dart';
+import '../support/main_tabs.dart';
 
 /// Tester round 11 on d6cea52 and 9f0e719 (QA-M14-7): the count wording for
 /// 0, 1, 2, 10, 11 and 1,000 wherever it can occur, when it changes while
@@ -79,12 +80,14 @@ void main() {
       of: find.byType(LimitField),
       matching: find.byType(TextField),
     );
+    await showKeepField(tester);
     await tester.enterText(field, '$limit');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
   }
 
   Future<void> openClear(WidgetTester tester) async {
+    await showHistoryTab(tester);
     await tester.tap(find.byTooltip('More options'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Clear history'));
@@ -194,6 +197,7 @@ void main() {
 
     testWidgets('0 items: Clear history is not offered', (tester) async {
       await show(tester);
+      await showHistoryTab(tester);
       await tester.tap(find.byTooltip('More options'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Clear history'), warnIfMissed: false);

@@ -147,7 +147,8 @@ class SqliteHistoryStore implements HistoryStore {
       m.onRun?.call();
       db.execute('BEGIN IMMEDIATE');
       try {
-        for (final sql in m.statements) {
+        final fresh = from == 0 ? m.freshStatements : null;
+        for (final sql in fresh ?? m.statements) {
           db.execute(sql);
         }
         db.execute('PRAGMA user_version = ${m.version}');
@@ -185,15 +186,57 @@ class SqliteHistoryStore implements HistoryStore {
   static const _previewBytes = ClipItem.previewLength * 4;
 
   @override
-  List<ClipItem> list() {
+  List<ClipItem> list() => _list('', const []);
+
+  @override
+  List<ClipItem> listSince(int sinceMs) =>
+      _list('WHERE last_copied_at >= ? ', [sinceMs]);
+
+  List<ClipItem> _list(String where, List<Object?> args) {
     // The preview is cut on the bytes (CAST ... AS BLOB) because SQL text
     // functions stop at a NUL and count code points, not UTF-16 units.
     final rows = _db.select(
       'SELECT id, kind, substr(CAST(content AS BLOB), 1, $_previewBytes) AS '
       'head, length(CAST(content AS BLOB)) AS bytes, created_at, '
-      'last_copied_at FROM clip_items ORDER BY last_copied_at DESC, id DESC',
+      'last_copied_at FROM clip_items $where'
+      'ORDER BY last_copied_at DESC, id DESC',
+      args,
     );
     return [for (final r in rows) _item(r)];
+  }
+
+  @override
+  int countOlderThan(int cutoffMs, {int? notBefore}) =>
+      _db.select(
+            'SELECT count(*) AS n FROM clip_items WHERE last_copied_at < ? '
+            'AND last_copied_at >= ?',
+            [cutoffMs, notBefore ?? _minInt],
+          ).single['n']
+          as int;
+
+  static const _minInt = -0x8000000000000000;
+
+  @override
+  int deleteOlderThan(int cutoffMs) => _transaction(() {
+    _db.execute('DELETE FROM clip_items WHERE last_copied_at < ?', [cutoffMs]);
+    return _db.updatedRows;
+  });
+
+  @override
+  int setExpiryDays(int days, {int? deleteBefore}) {
+    checkExpiryDays(days);
+    return _transaction(() {
+      _db.execute(
+        'INSERT INTO settings (key, value) VALUES (?, ?) '
+        'ON CONFLICT (key) DO UPDATE SET value = excluded.value',
+        [historyExpirySetting, days],
+      );
+      if (deleteBefore == null) return 0;
+      _db.execute('DELETE FROM clip_items WHERE last_copied_at < ?', [
+        deleteBefore,
+      ]);
+      return _db.updatedRows;
+    });
   }
 
   ClipItem _item(Row r) {
@@ -212,10 +255,11 @@ class SqliteHistoryStore implements HistoryStore {
   }
 
   @override
-  String? contentOf(int id) {
-    final rows = _db.select('SELECT content FROM clip_items WHERE id = ?', [
-      id,
-    ]);
+  String? contentOf(int id, {int? notBefore}) {
+    final rows = _db.select(
+      'SELECT content FROM clip_items WHERE id = ? AND last_copied_at >= ?',
+      [id, notBefore ?? _minInt],
+    );
     return rows.isEmpty ? null : rows.single['content'] as String;
   }
 

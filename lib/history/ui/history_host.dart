@@ -4,6 +4,8 @@ import 'dart:ui' show SemanticsRole;
 import 'package:flutter/material.dart';
 
 import '../../privacy/ui/privacy_screen.dart';
+import '../../settings/login_item.dart';
+import '../../settings/ui/settings_screen.dart';
 import '../../snippets/snippet_service.dart';
 import '../../snippets/ui/snippet_editor.dart';
 import '../../snippets/ui/snippets_screen.dart';
@@ -13,8 +15,9 @@ import '../../ui/tab_strip.dart';
 import '../history_service.dart';
 import 'history_screen.dart';
 
-/// The main window: the History and Snippets tabs (M1.4) and the Privacy tab
-/// (M1.6), each shown once the history has opened. If opening takes more than 300 ms a spinner with
+/// The main window: the History and Snippets tabs (M1.4), the Privacy tab
+/// (M1.6) and the Settings tab (M1.7), each shown once the history has
+/// opened. If opening takes more than 300 ms a spinner with
 /// "Opening your history…" (or "…snippets…") shows; a fast open never
 /// flashes it.
 class HistoryHost extends StatefulWidget {
@@ -27,6 +30,9 @@ class HistoryHost extends StatefulWidget {
     this.dataProfile,
     this.dataProfileRejected = false,
     this.ignoredAppsSlot,
+    this.pickerShortcutSlot,
+    this.pickerShortcutFocus,
+    this.loginItem,
   });
 
   /// Opens the Privacy tab with the focus on its "Ignored apps" heading
@@ -34,6 +40,13 @@ class HistoryHost extends StatefulWidget {
   /// window.
   static void showIgnoredApps(BuildContext context) =>
       context.findAncestorStateOfType<_HistoryHostState>()?._showIgnoredApps();
+
+  /// Opens the Settings tab with the focus on the picker shortcut's Change
+  /// ("Change in Settings" in the History banner, M1.7 F9). [context] is
+  /// inside the window.
+  static void showPickerShortcut(BuildContext context) => context
+      .findAncestorStateOfType<_HistoryHostState>()
+      ?._showPickerShortcut();
 
   final Future<HistoryService> history;
 
@@ -44,8 +57,20 @@ class HistoryHost extends StatefulWidget {
   /// The history if it is already open, so there is no empty first frame.
   final HistoryService? initial;
 
-  /// Extra content for the history screen (the picker settings).
+  /// Extra content for the history screen (the picker's notices: the
+  /// shortcut-taken banner and, on a Mac, the paste permission card).
   final Widget? topSlot;
+
+  /// The picker shortcut row for the Settings tab (M1.7, moved from
+  /// History).
+  final Widget? pickerShortcutSlot;
+
+  /// The focus node of the Change button in [pickerShortcutSlot].
+  final FocusNode? pickerShortcutFocus;
+
+  /// Launch at login for the Settings tab (desktop). Read again from the OS
+  /// each time the tab opens.
+  final LoginItemService? loginItem;
 
   /// Extra content for the snippets screen (typed shortcuts, M1.5).
   final Widget? snippetsTopSlot;
@@ -68,14 +93,43 @@ class _HistoryHostState extends State<HistoryHost> {
   var _slow = false;
   Timer? _timer;
 
-  /// 0 History (selected at start), 1 Snippets, 2 Privacy.
+  /// 0 History (selected at start), 1 Snippets, 2 Privacy, 3 Settings.
   var _tab = 0;
   final _tabNodes = [
     FocusNode(debugLabel: 'History tab'),
     FocusNode(debugLabel: 'Snippets tab'),
     FocusNode(debugLabel: 'Privacy tab'),
+    FocusNode(debugLabel: 'Settings tab'),
   ];
   final _ignoredHeading = FocusNode(debugLabel: 'Ignored apps heading');
+  final _pauseHeading = FocusNode(debugLabel: 'Pause history heading');
+
+  void _select(int tab) {
+    setState(() => _tab = tab);
+    // The launch-at-login switch shows what the OS has now (R4).
+    if (tab == 3) unawaited(widget.loginItem?.refresh());
+  }
+
+  /// "Ignored apps and pause are in Privacy" (Settings): the Privacy tab,
+  /// focus on its "Pause history" heading.
+  void _showPause() {
+    setState(() => _tab = 2);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _pauseHeading.context != null) {
+        _pauseHeading.requestFocus();
+      }
+    });
+  }
+
+  void _showPickerShortcut() {
+    _select(3);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final change = widget.pickerShortcutFocus;
+      if (mounted && change != null && change.context != null) {
+        change.requestFocus();
+      }
+    });
+  }
 
   void _showIgnoredApps() {
     setState(() => _tab = 2);
@@ -108,6 +162,7 @@ class _HistoryHostState extends State<HistoryHost> {
       n.dispose();
     }
     _ignoredHeading.dispose();
+    _pauseHeading.dispose();
     super.dispose();
   }
 
@@ -222,15 +277,16 @@ class _HistoryHostState extends State<HistoryHost> {
         runSpacing: KusungaTokens.space2,
         children: [
           TabStrip(
-            labels: const ['History', 'Snippets', 'Privacy'],
+            labels: const ['History', 'Snippets', 'Privacy', 'Settings'],
             identifiers: const [
               'main-tab-history',
               'main-tab-snippets',
               'main-tab-privacy',
+              'main-tab-settings',
             ],
             selected: _tab,
             focusNodes: _tabNodes,
-            onSelect: (i) => setState(() => _tab = i),
+            onSelect: _select,
           ),
           if (widget.dataProfile case final name?) _profileLabel(t, name),
           if (_tab == 1)
@@ -276,7 +332,18 @@ class _HistoryHostState extends State<HistoryHost> {
             PrivacyScreen(
               pause: service.pause,
               ignoredHeadingFocus: _ignoredHeading,
+              pauseHeadingFocus: _pauseHeading,
               ignoredApps: widget.ignoredAppsSlot,
+            ),
+          ),
+          _panel(
+            3,
+            'Settings',
+            SettingsScreen(
+              service: service,
+              loginItem: widget.loginItem,
+              pickerShortcut: widget.pickerShortcutSlot,
+              onShowPrivacy: _showPause,
             ),
           ),
           // Pausing and resuming are announced from any tab (and from the
