@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-12 — M1.8 Your data — lead answers G6 and the delete order
+- Changed: Developer raised G6 and a delete-order change.
+- Gates: developer building · tester — · reviewer — · QA — · PM merge —
+- Open findings: none
+- Decisions: none from the PM. Lead: G6 A — a file left after Delete everything is handled by today's M1.2 path (moved aside as unreadable, banner once, removed by the next Clear history or Delete everything); the design note is corrected. Order accepted as a deviation: stop capture and timers, delete the key (restart them if it fails), close the database, then delete files; a test checks no copy is written between the key delete and the close.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-12 — M1.8 Your data — lead answers to the developer's spec gaps
 - Changed: Developer raised 5 spec gaps while building the key delete, Delete everything and the validator.
 - Gates: developer building · tester — · reviewer — · QA — · PM merge —
