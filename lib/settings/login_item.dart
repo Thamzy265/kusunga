@@ -295,6 +295,26 @@ class LoginItemService extends ChangeNotifier {
         answer.state == LoginItemState.needsApproval;
   }
 
+  /// Delete everything (M1.8 D6 A): asks the OS to turn launch at login
+  /// off, even while another change runs, so a Kusunga the user has just
+  /// erased does not start at the next login. Never throws; a failure is
+  /// logged with its number.
+  Future<void> turnOff() async {
+    if (_disposed) return;
+    try {
+      final answer = await _port.set(false);
+      if (_disposed) return;
+      if (answer.state == LoginItemState.failed) {
+        _log.log(LogCode.loginItemFailed, answer.error);
+        return;
+      }
+      _log.log(LogCode.loginItemOff);
+      if (!busy) _show(answer);
+    } catch (_) {
+      _log.log(LogCode.loginItemFailed);
+    }
+  }
+
   /// Turns launch at login on or off. Ignored while another call runs and
   /// on macOS 12. A change that fails is followed by a read, still counted
   /// as part of the change (input stays ignored), and the switch shows what

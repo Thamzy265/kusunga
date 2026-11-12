@@ -4,6 +4,7 @@ import 'dart:ui' show SemanticsRole;
 import 'package:flutter/material.dart';
 
 import '../../privacy/ui/privacy_screen.dart';
+import '../../settings/ui/your_data_section.dart';
 import '../../settings/login_item.dart';
 import '../../settings/ui/settings_screen.dart';
 import '../../snippets/snippet_service.dart';
@@ -33,7 +34,11 @@ class HistoryHost extends StatefulWidget {
     this.pickerShortcutSlot,
     this.pickerShortcutFocus,
     this.loginItem,
+    this.yourData,
   });
+
+  /// Settings › Your data (M1.8). Without it there is no Your data section.
+  final YourDataSetup? yourData;
 
   /// Opens the Privacy tab with the focus on its "Ignored apps" heading
   /// ("Edit ignored apps" in the Snippets tab). [context] is inside the
@@ -342,6 +347,7 @@ class _HistoryHostState extends State<HistoryHost> {
             SettingsScreen(
               service: service,
               loginItem: widget.loginItem,
+              yourData: widget.yourData,
               pickerShortcut: widget.pickerShortcutSlot,
               onShowPrivacy: _showPause,
             ),

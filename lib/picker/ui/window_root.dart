@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../history/history_service.dart';
 import '../../history/ui/history_host.dart';
 import '../../settings/login_item.dart';
+import '../../settings/ui/your_data_section.dart';
 import '../../shortcuts/shortcut_service.dart';
 import '../../shortcuts/ui/ignored_apps_editor.dart';
 import '../../shortcuts/ui/typed_shortcuts_section.dart';
@@ -28,9 +29,13 @@ class WindowRoot extends StatefulWidget {
     this.dataProfileRejected = false,
     this.shortcuts,
     this.loginItem,
+    this.yourData,
   });
 
   final Future<HistoryService> history;
+
+  /// Settings › Your data (M1.8).
+  final YourDataSetup? yourData;
   final PickerController picker;
 
   /// Launch at login for the Settings tab (M1.7).
@@ -116,6 +121,7 @@ class _WindowRootState extends State<WindowRoot> {
           ),
           pickerShortcutFocus: _changeShortcut,
           loginItem: widget.loginItem,
+          yourData: widget.yourData,
           snippetsTopSlot: _shortcutsSection(),
           ignoredAppsSlot: _ignoredAppsEditor(),
           dataProfile: widget.dataProfile,
