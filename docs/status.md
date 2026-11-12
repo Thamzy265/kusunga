@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-12 — M1.8 Your data — developer fixes for tester round 1
+- Changed: Developer (opus, xhigh) fixed T7 (3572c09), T8 (2289108), T6 (d589309), T5 (5255eef, ruling B; stuck → capture stopped, note, OK quits), T1 (844fcab), T2 (fb75e2f), T3 (a5ded61), T9 (b9543c8), the timestamp ruling (79b4c83, in checkImportTimes after decodeImport), T4 (143bade, counts from a rolled-back preview; confirm text follows the settings tick box); docs c55a2e2. HEAD c55a2e2. check.sh 3646 passed, 11 skipped (BUG-T5 repro left skipped for the tester's rewrite, plus 10 older skips); native suites all pass. Lead approved during the round: option A for one assertion in the 5,000-item export test.
+- Deviations reported: tester-test edits beyond un-skipping (removed unused _repro helpers; option A assertion); T7 removes Kusunga's own leftover temp files; T8 and T6 applied to both default and profile folders; T2 also covers ignored apps; T9 accepts only the UTC form; three tester tests now describe only the decoder or store (timestamps). Worst case 90 s of "Deleting…" when the keychain hangs. In a debug profile the partial message's "can't be read any more" isn't true (shared key).
+- Gates: developer pass · tester re-check started · reviewer — · QA — · PM merge —
+- Open findings: T1–T9 fixed, waiting for the tester; BUG-T5 repro to be rewritten
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-12 — M1.8 Your data — lead answer on T5
 - Changed: Developer reported the BUG-T5 repro can't pass under the lead's ruling (it expects the key to survive a late successful delete).
 - Gates: developer fixing · tester open · reviewer — · QA — · PM merge —
