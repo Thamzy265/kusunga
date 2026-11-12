@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-12 — M1.8 Your data — lead answer on T5
+- Changed: Developer reported the BUG-T5 repro can't pass under the lead's ruling (it expects the key to survive a late successful delete).
+- Gates: developer fixing · tester open · reviewer — · QA — · PM merge —
+- Open findings: 1 Medium (T5), 8 Low (being fixed)
+- Decisions: none from the PM. Lead: option B — no write-back; a late successful key delete stands, because the user asked for it. After the time limit with the key still present, Kusunga waits; if the call never returns, capture stays stopped and the note "Kusunga couldn't confirm whether its key was deleted, so it has stopped recording and will now quit. Open Kusunga again. If your snippets and history are still there, try Delete everything again." shows with OK, which quits. The tester rewrites the T5 repro to this ruling after the developer's hand-off.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-12 — M1.8 Your data — tester round 1: 9 bugs
 - Changed: Tester commits 542c1f9, 7c0e571, 1d009fb, 6a9cbc6: 120 tests (111 pass; 9 repros skipped unless KUSUNGA_REPRO=1). Abuse cases 11/11; UI states 11/11 automatable rows. check.sh 3578 passed, 19 skipped; native suites all pass.
 - Findings: T5 Medium — a key delete abandoned after 30 s isn't cancelled; if it completes late, recording has resumed with the key gone, so the next launch can't read snippets or history. T7 Low — predictable export temp name written through a planted symlink. T8 Low — a profile folder that is itself a symlink has its target's contents deleted. T6 Low — an unlistable data folder after the key is gone reports "Everything is deleted." T1 Low — whitespace-only history accepted on import. T2 Low — lone surrogates accepted and stored as U+FFFD. T3 Low — typed_shortcuts_on 1.0/0.0 accepted. T9 Low — impossible dates roll over. T4 Low — import counts are file lines, not rows added. Observation: far-future last_copied_at sorts first and never expires.
