@@ -58,7 +58,9 @@ class _CloseAtZeroState extends State<CloseAtZero> {
       return;
     }
     final route = ModalRoute.of(context);
-    if (route == null) return;
+    // Already closed (confirmed), and still on screen only while it leaves:
+    // nothing to close (Delete all history clears right after the pop).
+    if (route == null || !route.isActive) return;
     _closing = true;
     final navigator = Navigator.of(context);
     if (route.isCurrent) {

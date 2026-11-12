@@ -20,27 +20,6 @@ import '../support/fakes.dart';
 const _key = '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
 const _day = Duration.millisecondsPerDay;
 
-class FakeFilePort implements FilePort {
-  String? savePath;
-  String? openPath;
-  String? suggested;
-  int saves = 0;
-  int opens = 0;
-
-  @override
-  Future<String?> pickSavePath(String suggestedName) async {
-    saves++;
-    suggested = suggestedName;
-    return savePath;
-  }
-
-  @override
-  Future<String?> pickOpenPath() async {
-    opens++;
-    return openPath;
-  }
-}
-
 void main() {
   late Directory dir;
   late FakeLog log;

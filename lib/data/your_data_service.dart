@@ -210,7 +210,7 @@ class YourDataService {
     }
     if (path == null) return const ImportCancelled();
     try {
-      final bundle = decodeImport(await _read(path));
+      final bundle = decodeImport(_read(path));
       return ImportReady(
         bundle: bundle,
         fileName: File(path).uri.pathSegments.last,
@@ -228,16 +228,17 @@ class YourDataService {
   }
 
   /// At most [maxImportBytes] + 1 bytes are read, so a huge file (or one
-  /// that grows while it is read) is refused without loading it.
-  static Future<List<int>> _read(String path) async {
-    final file = await File(path).open();
+  /// that grows while it is read) is refused without loading it. Read in
+  /// one go, like the export is written: 20 MB at most.
+  static List<int> _read(String path) {
+    final file = File(path).openSync();
     try {
-      if (await file.length() > maxImportBytes) {
+      if (file.lengthSync() > maxImportBytes) {
         throw const ImportRejected(ImportRejectReason.tooLarge);
       }
-      return await file.read(maxImportBytes + 1);
+      return file.readSync(maxImportBytes + 1);
     } finally {
-      await file.close();
+      file.closeSync();
     }
   }
 

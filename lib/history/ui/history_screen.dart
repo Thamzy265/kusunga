@@ -630,41 +630,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   // can arrive meanwhile), so they always say what confirming deletes
   // (BUG-W1).
   Future<void> _confirmClear() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      // At a count of 0 (items deleted elsewhere) the dialog closes by
-      // itself, as Cancel would (PM decision 2026-11-08, "Close or
-      // relabel"). The count is the list in memory, never a store read, so
-      // a failed read or save cannot close it.
-      builder: (context) => CloseAtZero(
-        listenable: _service,
-        count: () => _service.items.length,
-        builder: (context, count) => AlertDialog(
-          title: const Text('Clear all history?'),
-          content: Text(
-            // "all 1 item" reads oddly: one item is "the 1 item" (lead,
-            // 2026-11-06, QA-M14-7).
-            '${count == 1 ? 'This deletes the 1 item.' : 'This deletes all $count items.'} '
-            'Snippets are not affected.',
-          ),
-          actions: [
-            TextButton(
-              autofocus: true,
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: KusungaTokens.of(context).danger,
-                foregroundColor: KusungaTokens.of(context).surface,
-              ),
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Clear history'),
-            ),
-          ],
-        ),
-      ),
-    );
+    final confirmed = await showClearHistoryDialog(context, _service);
     if (confirmed == true) {
       _service.clear();
       // Undo must not bring back an item the user just cleared.
@@ -1223,3 +1189,51 @@ class _UndoDeleteAction extends Action<_UndoDeleteIntent> {
 
 /// A focus request for the first or the last row.
 enum _End { first, last }
+
+/// The "Clear all history?" dialog (M1.2), also used by Settings › Your
+/// data › Delete all history… (M1.8 D4 A: the same dialog). True if the
+/// user confirmed.
+///
+/// It follows the live count while it is open (a copy can arrive
+/// meanwhile), so it always says what confirming deletes (BUG-W1). At a
+/// count of 0 (items deleted elsewhere) it closes by itself, as Cancel
+/// would (PM decision 2026-11-08, "Close or relabel"). The count is the
+/// list in memory, never a store read, so a failed read or save cannot
+/// close it.
+Future<bool> showClearHistoryDialog(
+  BuildContext context,
+  HistoryService service,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => CloseAtZero(
+      listenable: service,
+      count: () => service.items.length,
+      builder: (context, count) => AlertDialog(
+        title: const Text('Clear all history?'),
+        content: Text(
+          // "all 1 item" reads oddly: one item is "the 1 item" (lead,
+          // 2026-11-06, QA-M14-7).
+          '${count == 1 ? 'This deletes the 1 item.' : 'This deletes all $count items.'} '
+          'Snippets are not affected.',
+        ),
+        actions: [
+          TextButton(
+            autofocus: true,
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: KusungaTokens.of(context).danger,
+              foregroundColor: KusungaTokens.of(context).surface,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Clear history'),
+          ),
+        ],
+      ),
+    ),
+  );
+  return confirmed == true;
+}

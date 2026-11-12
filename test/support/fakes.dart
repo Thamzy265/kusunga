@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:kusunga/clipboard/clipboard_source.dart';
 import 'package:kusunga/data/export_format.dart';
+import 'package:kusunga/data/your_data_service.dart';
 import 'package:kusunga/history/clip_item.dart';
 import 'package:kusunga/history/history_store.dart';
 import 'package:kusunga/history/key_store.dart';
@@ -51,6 +52,10 @@ class FakeKeyStore implements KeyStore {
 
   Object? deleteError;
   int deletes = 0;
+  Completer<void>? _deleteGate;
+
+  /// The next delete waits until the returned completer completes.
+  Completer<void> holdDelete() => _deleteGate = Completer<void>();
 
   /// Called at the start of [delete] (to record the order of steps).
   void Function()? onDelete;
@@ -58,6 +63,11 @@ class FakeKeyStore implements KeyStore {
   @override
   Future<void> delete() async {
     onDelete?.call();
+    final gate = _deleteGate;
+    if (gate != null) {
+      _deleteGate = null;
+      await gate.future;
+    }
     if (deleteError != null) throw deleteError!;
     stored = null;
     deletes++;
@@ -288,4 +298,35 @@ class FakeLoginItemPort implements LoginItemPort {
 
   @override
   Future<void> openSettings() async => openCalls++;
+}
+
+/// The save and open dialogs (M1.8): answers the paths set here.
+class FakeFilePort implements FilePort {
+  String? savePath;
+  String? openPath;
+  String? suggested;
+  int saves = 0;
+  int opens = 0;
+  Completer<String?>? _openGate;
+
+  /// The next open dialog answers only when the completer completes.
+  Completer<String?> holdOpen() => _openGate = Completer<String?>();
+
+  @override
+  Future<String?> pickSavePath(String suggestedName) async {
+    saves++;
+    suggested = suggestedName;
+    return savePath;
+  }
+
+  @override
+  Future<String?> pickOpenPath() async {
+    opens++;
+    final gate = _openGate;
+    if (gate != null) {
+      _openGate = null;
+      return gate.future;
+    }
+    return openPath;
+  }
 }
