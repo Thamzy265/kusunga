@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-12 — M1.7 Settings and expiry — merged to main (done)
+- Changed: feat/settings-expiry merged into main with --no-ff as cdf7076 (44 commits). Checks on merged main, run one after another: check.sh "Formatted 260 files (0 changed)", "No issues found!", 3301 passed, 10 skipped ("All tests passed!"); test_mac_capture.sh 40/0; test_mac_shortcuts.sh 165/0; test_mac_shortcuts_release.sh 153/0; test_mac_login_item.sh 30/0; test_windows_policy.sh all passed ("all login item checks passed", "login_item_policy_edge_test: all passed"). M1.7 ticked in docs/PLAN.md. Not pushed.
+- Gates: developer pass · tester pass · reviewer approve · QA pass · PM merge approved
+- Open findings: none
+- Decisions: PM said: "Approve the merge" (2026-11-12), in answer to "Approve merging M1.7 into main on this Mac (no push)?". No push: push needs the PM's approval at the time.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks (docs/qa/m1.md#pm-check-m17: launch at login on/off, needs approval, log-out with it on, no note on an installed build, VoiceOver); push of main; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5 (Windows CI; M1.7 Windows bridge never compiled on Windows)
+
 ## 2026-11-12 — M1.7 Settings and expiry — QA session 2: pass; waiting for PM merge approval
 - Changed: QA commit 400239d (docs/qa/m1.md "M1.7 session 2", 3 screenshots m1.7-s2-*.png) at e73b0d1, rebuilt Debug, qa profile. PASS: normal launch opens the window; Settings opened 5 times (incl. hide/show) shows the switch off with no note (QA-M17-1 re-verified); log has one loginItemFailed with no number (launch status read) and codes only; Auto-delete menu saves with no dialog; Tab order and focus rings unchanged; Privacy link works. qa profile left as found; Kusunga quit. Lead spot-checked m1.7-s2-settings-tab.png: no PM data. Branch: 44 commits ahead of main.
 - Gates: developer pass · tester pass · reviewer approve · QA pass (AC1 and AC2 for what can be shown without the PM; launch at login on/off, needs approval, login start (D5), installed build, VoiceOver, 200% text, light mode and Windows not run) · PM merge waiting
