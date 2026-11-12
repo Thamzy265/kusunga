@@ -273,10 +273,22 @@ bool _tooDeep(String text) {
 
 T _as<T>(Object? value) => value is T ? value : _bad();
 
+/// Text from the file. Half a character (a lone UTF-16 surrogate) can't be
+/// stored as UTF-8: SQLite would keep U+FFFD instead, so what is saved would
+/// differ from the file. Such a file is refused (T2), as shortcuts already
+/// are.
+String _text(Object? value) {
+  final text = _as<String>(value);
+  for (final r in text.runes) {
+    if (r >= 0xD800 && r <= 0xDFFF) _bad();
+  }
+  return text;
+}
+
 ExportSnippet _snippet(Object? raw) {
   final s = _as<Map<String, Object?>>(raw);
-  final name = _as<String>(s['name']);
-  final content = _as<String>(s['content']);
+  final name = _text(s['name']);
+  final content = _text(s['content']);
   // The editor's own rules (M1.4): a name that is one visible line of 1 to
   // 100 characters, content that is not blank and within 1 MiB.
   if (normaliseName(name) != name || checkSnippet(name, content).isNotEmpty) {
@@ -308,7 +320,7 @@ int _ms(Object? raw) {
 
 ExportHistoryItem _historyItem(Object? raw) {
   final h = _as<Map<String, Object?>>(raw);
-  final content = _as<String>(h['content']);
+  final content = _text(h['content']);
   // Capture's own rule: blank text is never kept (T1).
   if (content.trim().isEmpty || isOverCap(content)) _bad();
   final kindName = _as<String>(h['kind']);
@@ -349,10 +361,7 @@ ExportSettings _settings(Map<String, Object?> s) {
 
 IgnoredApp _app(Object? raw) {
   final a = _as<Map<String, Object?>>(raw);
-  final app = IgnoredApp(
-    _as<String>(a['app_id']),
-    _as<String>(a['display_name']),
-  );
+  final app = IgnoredApp(_text(a['app_id']), _text(a['display_name']));
   try {
     checkIgnoredApp(app);
   } on ArgumentError {

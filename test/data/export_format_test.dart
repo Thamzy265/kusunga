@@ -297,6 +297,12 @@ void main() {
       (s) => s['content'] = 'x' * (ClipItem.maxContentLength + 1),
     );
     badSnippet('an unknown type', (s) => s['type'] = 'password');
+    badSnippet('half a character in its name (T2)', (s) {
+      s['name'] = 'a\ud800b';
+    });
+    badSnippet('half a character in its content (T2)', (s) {
+      s['content'] = 'x\udc00';
+    });
     badSnippet('a shortcut with a space', (s) => s['shortcut'] = '; ph');
     badSnippet('a one-character shortcut', (s) => s['shortcut'] = ';');
     badSnippet('a 33-character shortcut', (s) => s['shortcut'] = ';' * 33);
@@ -357,6 +363,12 @@ void main() {
       (h) => h['content'] = 'é' * (ClipItem.maxContentLength ~/ 2 + 1),
     );
     badHistory('an unknown kind', (h) => h['kind'] = 'image');
+    badHistory('half a character at the end (T2)', (h) {
+      h['content'] = 'text\ud83d';
+    });
+    badHistory('the halves of a character the wrong way round (T2)', (h) {
+      h['content'] = '\ude00\ud83d';
+    });
     badHistory('a time that does not parse', (h) => h['created_at'] = 'soon');
     badHistory('a time that is a number', (h) => h['last_copied_at'] = 5);
     badHistory('no time', (h) => h.remove('last_copied_at'));
@@ -428,6 +440,14 @@ void main() {
       'display_name': 'n' * 101,
     });
     badApp('no name', {'app_id': 'a'});
+    badApp('half a character in its id (T2)', {
+      'app_id': 'com.a\ud800',
+      'display_name': 'A',
+    });
+    badApp('half a character in its name (T2)', {
+      'app_id': 'com.a',
+      'display_name': '\udfff',
+    });
   });
 
   group('import reads only what it knows', () {
@@ -449,6 +469,17 @@ void main() {
       ((json['history'] as List).first as Map<String, Object?>)['content'] =
           '  a\n ';
       expect(decodeImport(_bytes(json)).history!.single.content, '  a\n ');
+    });
+
+    test('whole characters made of two halves (emoji) are kept exactly '
+        '(T2)', () {
+      final json = _valid();
+      final s = (json['snippets'] as List).first as Map<String, Object?>;
+      s['name'] = 'Smile 😀';
+      s['content'] = '👨‍👩‍👧 🇬🇧';
+      final b = decodeImport(_bytes(json));
+      expect(b.snippets.first.name, 'Smile 😀');
+      expect(b.snippets.first.content, '👨‍👩‍👧 🇬🇧');
     });
 
     test('an app id of exactly 255 characters is fine', () {

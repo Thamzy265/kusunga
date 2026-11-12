@@ -713,7 +713,6 @@ void main() {
           // refused: fine
         }
       },
-      skip: _repro,
     );
 
     test('BUG-T9 (Low): a time that does not exist (month 13, 31 February) is '
