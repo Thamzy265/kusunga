@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-12 — M1.7 Settings and expiry — reviewer: approve; QA starts
+- Changed: Reviewer re-checked 99d578d..34c60de: RN1 and RN2 fixed (tests fail on the old lib), F6 and F11 still hold. All six checks pass (check.sh 3248 passed, 10 skipped). Whole review: F1–F9, F11, F12, RN1, RN2 fixed; F10 no change needed. QA briefed (qa profile only; no real login item, no log-out, no System Settings change while the PM is away).
+- Gates: developer pass · tester pass · reviewer approve · QA running · PM merge —
+- Open findings: none
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — push of main; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-11 — M1.7 Settings and expiry — RN1 and RN2 fixed
 - Changed: Developer fixed RN1 (22b646c: the minute check passes its reload to the clean-up run, so listeners hear it) and RN2 (34c60de: an unchanged run re-arms the history expiry timer through a cheap callback, reading the store only when the list must change). The two asserts edited in bc8ec16 restored; reviewer's probes pass unchanged. HEAD 34c60de. check.sh 3248 passed, 10 skipped; test_mac_capture 40/0; test_mac_shortcuts 165/0; test_mac_shortcuts_release 153/0; test_mac_login_item 30/0; test_windows_policy passed.
 - Gates: developer pass · tester pass · reviewer re-check of RN1, RN2 started · QA — · PM merge —
