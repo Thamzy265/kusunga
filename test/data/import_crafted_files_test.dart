@@ -690,7 +690,7 @@ void main() {
         () => _decode(_file(history: [_clip(content: '   \n\t ')])),
         _rejected(),
       );
-    }, skip: _repro);
+    });
 
     test(
       'BUG-T2 (Low): a lone surrogate in text is refused or stays exactly as '

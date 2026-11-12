@@ -346,6 +346,12 @@ void main() {
     }
 
     badHistory('empty content', (h) => h['content'] = '');
+    badHistory('content that is only white space (T1)', (h) {
+      h['content'] = ' \n\t\r ';
+    });
+    badHistory('content that is only no-break and wide spaces (T1)', (h) {
+      h['content'] = '\u00a0\u2003\ufeff';
+    });
     badHistory(
       'content over 1 MiB of UTF-8',
       (h) => h['content'] = 'é' * (ClipItem.maxContentLength ~/ 2 + 1),
@@ -435,6 +441,14 @@ void main() {
       final b = decodeImport(_bytes(json));
       expect(b.snippets, hasLength(2));
       expect(b.settings!.historyLimit, 300);
+    });
+
+    test('history text with white space around it is kept exactly as it '
+        'is (T1)', () {
+      final json = _valid();
+      ((json['history'] as List).first as Map<String, Object?>)['content'] =
+          '  a\n ';
+      expect(decodeImport(_bytes(json)).history!.single.content, '  a\n ');
     });
 
     test('an app id of exactly 255 characters is fine', () {

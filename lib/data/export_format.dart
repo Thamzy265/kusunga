@@ -309,7 +309,8 @@ int _ms(Object? raw) {
 ExportHistoryItem _historyItem(Object? raw) {
   final h = _as<Map<String, Object?>>(raw);
   final content = _as<String>(h['content']);
-  if (content.isEmpty || isOverCap(content)) _bad();
+  // Capture's own rule: blank text is never kept (T1).
+  if (content.trim().isEmpty || isOverCap(content)) _bad();
   final kindName = _as<String>(h['kind']);
   final kind = ClipKind.values.where((k) => k.name == kindName);
   if (kind.isEmpty) _bad();
