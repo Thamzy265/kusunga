@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-12 — M1.7 Settings and expiry — P1, P2 fixed
+- Changed: Developer fixed P1 and P2 in 3ad09ac (LoginItemAnswer gains a failure reason notFound / error / timeout; a plain read failing with an error or timeout keeps the last OS-reported position with no note; the first failing plain read in a row logs loginItemFailed, notFound included with no number). UI spec and design note updated. No tester test edited. check.sh 3277 passed, 10 skipped; native suites all pass.
+- Gates: developer pass · tester re-check started · reviewer re-check after the tester · QA re-check after the reviewer · PM merge —
+- Open findings: P1, P2 fixed, waiting for re-checks
+- Decisions: none. Lead accepts that a notFound plain read is logged once per run of failures (it is a failing read; numbers only).
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; push of main; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-12 — M1.7 Settings and expiry — reviewer: QA-M17-1 and TN2 fixed; P1, P2 Low
 - Changed: Reviewer re-checked b4c4b16..9e29fcb: QA-M17-1 and TN2 fixed (tests fail on the old lib), "Where it was" holds. All six checks pass (check.sh 3264 passed, 10 skipped). Verdict: approve with notes.
 - Findings: P1 Low (R4) — a plain read that fails with an error or timeout after the OS said on shows the switch off with no note, while the OS may still have it on (caused by the lead's QA-M17-1 ruling, which covered "notFound or an error"). P2 Low — a plain read that fails is not logged.
