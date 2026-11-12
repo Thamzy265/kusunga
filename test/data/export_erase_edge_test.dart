@@ -2,8 +2,8 @@
 // encrypted databases, the log, and Delete everything's links and failure
 // cases (docs/design/your-data.md, "Export file", "Delete everything",
 // "Failure plan", "Observability"). Fakes and temp folders only: never the
-// real keychain, log or data folder. Bug repros are skipped unless
-// KUSUNGA_REPRO=1.
+// real keychain, log or data folder. The earlier bug repros are
+// fixed and run as normal tests.
 import 'dart:convert';
 import 'dart:io';
 
@@ -22,10 +22,6 @@ import '../support/fakes.dart';
 
 const _key = '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
 const _day = Duration.millisecondsPerDay;
-
-final Object? _repro = Platform.environment['KUSUNGA_REPRO'] == '1'
-    ? null
-    : 'bug repro (set KUSUNGA_REPRO=1 to run)';
 
 void main() {
   late Directory dir;
@@ -539,28 +535,45 @@ void main() {
       await Future<void>.delayed(Duration.zero);
     });
 
-    test(
-      'BUG-T5 (Medium): after "Nothing was deleted" (a key delete that '
-      'timed out) the key is still there when the keychain answers late',
-      () async {
-        // The key delete is only given up on, not cancelled. If the keychain
-        // answers after the 30 s, it still removes the key while Kusunga is
-        // recording again with the open database, and the next launch can no
-        // longer read the file: the snippets and history are gone although
-        // the user was told nothing was deleted.
-        final h = openIn(folder);
-        final gate = keys.holdDelete();
-        final result = await eraser(
-          DefaultEraseTarget(keys: keys, folder: () async => folder),
-          keyTimeout: const Duration(milliseconds: 20),
-        ).run(h);
-        expect(result, isA<EraseFailed>());
-        gate.complete();
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-        expect(keys.stored, _key);
-      },
-      skip: _repro,
-    );
+    test('T5, lead ruling B: a key delete that never answers is "stuck": '
+        'nothing deleted, recording stays stopped for good, and a late '
+        'answer from the keychain changes neither', () async {
+      final source = FakeClipboardSource();
+      final store = SqliteHistoryStore.open(
+        path: p.join(folder.path, 'kusunga.db'),
+        keyHex: _key,
+      );
+      final h = HistoryService(
+        store: store,
+        source: source,
+        log: fakeLog,
+        clock: () => now,
+        snippetStore: store.snippetStore(),
+        ignoredAppStore: store.ignoredAppStore(),
+      )..start();
+      addTearDown(h.dispose);
+      source.copy('before');
+      final gate = keys.holdDelete();
+      final result = await eraser(
+        DefaultEraseTarget(keys: keys, folder: () async => folder),
+        keyTimeout: const Duration(milliseconds: 20),
+      ).run(h);
+      expect(result, isA<EraseFailed>().having((e) => e.stuck, 'stuck', true));
+      // Nothing deleted, nothing logged as done, no login change.
+      expect(File(p.join(folder.path, 'kusunga.db')).existsSync(), isTrue);
+      expect(fakeLog.codes, isNot(contains(LogCode.deleteEverythingDone)));
+      expect(steps, isEmpty);
+      // Recording is stopped and stays stopped, also after a late answer.
+      source.copy('after the time-out');
+      expect(h.items.map((i) => i.preview), ['before']);
+      gate.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      source.copy('after the late answer');
+      expect(h.items.map((i) => i.preview), ['before']);
+      // The late success stands: it is never written back.
+      expect(keys.stored, isNull);
+      expect(keys.writes, 0);
+    });
 
     test('BUG-T6 (Low): when the data folder cannot be listed after the key '
         'is gone, the result does not claim every file is gone', () async {
