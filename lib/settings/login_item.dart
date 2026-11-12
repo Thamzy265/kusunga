@@ -140,8 +140,9 @@ class LoginItemService extends ChangeNotifier {
   var _state = LoginItemState.off;
   bool? _pending;
 
-  /// The position the user asked for when that change failed: kept until
-  /// a read answers a state of its own, or the next change.
+  /// The position the user asked for when that change failed and did not
+  /// happen (the read after it failed too, or shows the switch elsewhere):
+  /// kept until a read answers a state of its own, or the next change.
   bool? _failedTo;
   var _announceSerial = 0;
   String? _announcement;
@@ -229,7 +230,13 @@ class LoginItemService extends ChangeNotifier {
       _log.log(LogCode.loginItemFailed, answer.error);
       state = (await _port.status()).state;
       if (_disposed) return;
-      _failedTo = on;
+      // When the OS already has what the user asked (applied late, or the
+      // error came after the change), nothing failed for the user: no note
+      // now, and a later unreadable read can't bring one back or move the
+      // switch (tester finding TN2, R4).
+      final shownOn =
+          state == LoginItemState.on || state == LoginItemState.needsApproval;
+      if (state == LoginItemState.failed || shownOn != on) _failedTo = on;
     }
     _pending = null;
     _state = state;
