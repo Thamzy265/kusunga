@@ -1,5 +1,14 @@
 # Status log
 
+## 2026-11-12 — M1.8 Your data — developer hand-off
+- Changed: feat/your-data, 13 commits on accdfb3. Export/import (plain JSON, history only when ticked, four settings per G1, whole-file refusal, one-transaction merge, file times kept per G5, settings and ignored apps only when ticked); KeyStore.delete on Mac and Windows (a data profile's key store refuses); Delete all history = Clear history + VACUUM (Settings only); Delete everything (stop capture, key, close, log, files, login item off, quit; a debug profile deletes only its folder); Settings › Your data section; file_selector 1.1.0 added; Mac user-selected read-write entitlement; 11 new log codes. check.sh 3467 passed, 10 skipped; test_mac_capture 40/0; test_mac_shortcuts 165/0; test_mac_shortcuts_release 153/0; test_mac_login_item 30/0; test_windows_policy passed. Later line added by developer: import of exports over 20 MB.
+- Deviations reported: key deleted before the database closes (accepted 2026-11-12); multi-number log codes split into single-number codes; import summary toast 8 s; CloseAtZero fix; VACUUM only from Settings; commit 69a76dd fails the zone guard alone (fixed in 9f47303).
+- Unverified: no build run, so file_selector native parts not compiled; a real sandboxed save; real key deletion; VACUUM time at 5,000 items; Windows build (F5).
+- Gates: developer pass · tester started · reviewer — · QA — · PM merge —
+- Open findings: none
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-12 — M1.8 Your data — lead answers G6 and the delete order
 - Changed: Developer raised G6 and a delete-order change.
 - Gates: developer building · tester — · reviewer — · QA — · PM merge —
