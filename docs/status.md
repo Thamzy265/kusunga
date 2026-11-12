@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-12 — M1.8 Your data — reviewer round 1: block (R1)
+- Changed: Reviewer (Mode: branch, accdfb3..2f547c8). All six checks pass (check.sh 3700 passed, 10 skipped); `flutter build macos --debug` built (only an upstream deprecation warning); built entitlements app-sandbox, allow-jit, get-task-allow, network.server, user-selected.read-write. Security review: 0 findings. file_selector 1.1.0 and its transitive packages (cross_file, platform_interface, http, http_parser) are BSD-3; nothing does network I/O. Export fields are exactly the approved set; no key delete in a profile; links never followed; T5 logic correct; import checks match the app's rules.
+- Findings: R1 Medium — an import can delete existing history with no warning (the trim to the limit removes the user's oldest items; ticked settings with a lower limit or shorter auto-delete delete most history at once), while the dialog says "Nothing you have now will be changed or removed" (against D3 and the M1.7 confirm rule). R2 Low — Delete all history from Settings doesn't drop History's pending Undo, so Cmd+Z brings a deleted item back. R3 Low — the sandbox direct write deletes an existing read-only file it never opened. R4 Low — a settings-only export can't be imported ("nothing to import"). R5 Low — an export can hold more than 5,000 history items (waiting copies), which import refuses. R6 Low — a read error after COMMIT reports "Nothing was changed". R7 Low — (a) leftover log files are called unreadable; (b) Windows CredDeleteW errors are logged with no number. Cleanup: setting value sets checked in three places.
+- Gates: developer — · tester pass · reviewer block (R1) · QA — · PM merge —
+- Open findings: 1 Medium (R1), 6 Low (R2–R7)
+- Decisions: none yet. Taken to the PM: how R1 is fixed, and the escalation (the developer is already on opus at xhigh after one failed round).
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — R1 approach; developer escalation; M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-12 — M1.8 Your data — T10 fixed, review starts
 - Changed: Developer fixed T10 in 2f547c8 with the lead's wording for a debug profile: "Everything is deleted. {n} {file/files} in this test profile couldn't be removed." (B2, chosen so the tester's repro passes unchanged). The unused _repro declaration removed (lead agreed). check.sh 3700 passed, 10 skipped (all older, none M1.8); native suites all pass. Tester gate closed by the repro passing.
 - Gates: developer pass · tester pass · reviewer started (Mode: branch, accdfb3..2f547c8) · QA — · PM merge —
