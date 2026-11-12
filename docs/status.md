@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-12 — M1.7 Settings and expiry — tester re-check of P1, P2: 1 Low
+- Changed: Tester added test/settings/login_item_last_position_test.dart (24 tests; 23 pass, 1 repro). Last-position memory, "Where it was", log counts and nine bad channel replies (all treated as errors, never notFound) hold. check.sh 3300 passed, 1 failed (the repro), 10 skipped; native suites all pass.
+- Findings: N4 Low — a notFound plain read doesn't count as an OS report, so on → notFound (off) → error read flips the switch back on with no OS report in between.
+- Gates: developer fixing N4 · tester open (1 Low) · reviewer — · QA — · PM merge —
+- Open findings: 1 Low (N4)
+- Decisions: none from the PM. Lead's ruling: a notFound answer counts as an OS report of off, so a later error or timeout read keeps off.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; push of main; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-12 — M1.7 Settings and expiry — P1, P2 fixed
 - Changed: Developer fixed P1 and P2 in 3ad09ac (LoginItemAnswer gains a failure reason notFound / error / timeout; a plain read failing with an error or timeout keeps the last OS-reported position with no note; the first failing plain read in a row logs loginItemFailed, notFound included with no number). UI spec and design note updated. No tester test edited. check.sh 3277 passed, 10 skipped; native suites all pass.
 - Gates: developer pass · tester re-check started · reviewer re-check after the tester · QA re-check after the reviewer · PM merge —
