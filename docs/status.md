@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-12 — main — pushed to GitHub
+- Changed: main pushed to origin (github.com/Thamzy265/kusunga) 5170b08..c75b6c0 (149 commits: M1.5, M1.6, M1.7 and their docs). Only main pushed; no branch, no tag.
+- Gates: n/a — push of already-merged work
+- Open findings: none
+- Decisions: PM said: "Push main" (2026-11-12), in answer to "Push main to GitHub now?".
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-12 — M1.7 Settings and expiry — merged to main (done)
 - Changed: feat/settings-expiry merged into main with --no-ff as cdf7076 (44 commits). Checks on merged main, run one after another: check.sh "Formatted 260 files (0 changed)", "No issues found!", 3301 passed, 10 skipped ("All tests passed!"); test_mac_capture.sh 40/0; test_mac_shortcuts.sh 165/0; test_mac_shortcuts_release.sh 153/0; test_mac_login_item.sh 30/0; test_windows_policy.sh all passed ("all login item checks passed", "login_item_policy_edge_test: all passed"). M1.7 ticked in docs/PLAN.md. Not pushed.
 - Gates: developer pass · tester pass · reviewer approve · QA pass · PM merge approved
