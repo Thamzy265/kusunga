@@ -450,7 +450,8 @@ class ImportCounts {
   /// Added without their shortcut, which was already used.
   final int shortcutsDropped;
 
-  /// History items added or merged into one already here.
+  /// History rows added and still there after the trim to the limit: not
+  /// lines that merged into an item here or repeat another line (T4).
   final int historyAdded;
 
   /// Older than the auto-delete time: not added (lead ruling G5).

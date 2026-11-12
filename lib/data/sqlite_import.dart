@@ -19,7 +19,8 @@ import 'export_format.dart';
 ///  - history items keep their times and merge with an item already here as
 ///    Undo does (the newer last copy, the older creation); items older than
 ///    [notBefore] (the auto-delete time) are not added; then the history is
-///    trimmed to the limit;
+///    trimmed to the limit. The count is of rows added and still there
+///    after the trim, not of lines in the file (T4);
 ///  - settings and ignored apps only with [applySettings]; apps are only
 ///    ever added.
 ImportCounts importIntoDatabase(
@@ -36,7 +37,15 @@ ImportCounts importIntoDatabase(
   }
   final (added, alreadyHere, dropped) = _addSnippets(db, bundle, nowMs);
 
-  var historyAdded = 0;
+  // A new row gets an id above every id here now (INTEGER PRIMARY KEY, and
+  // nothing is deleted before the trim), so the rows added can be counted
+  // after it. A line that merges into a row here or into an earlier line
+  // adds no row (T4).
+  final lastId =
+      db
+              .select('SELECT coalesce(max(id), 0) AS id FROM clip_items')
+              .single['id']
+          as int;
   var tooOld = 0;
   final history = bundle.history ?? const [];
   final insert = db.prepare(
@@ -61,7 +70,6 @@ ImportCounts importIntoDatabase(
         h.createdAt,
         h.lastCopiedAt,
       ]);
-      historyAdded++;
     }
   } finally {
     insert.close();
@@ -76,6 +84,11 @@ ImportCounts importIntoDatabase(
     'ORDER BY last_copied_at DESC, id DESC LIMIT -1 OFFSET ?)',
     [limit],
   );
+  final historyAdded =
+      db.select('SELECT count(*) AS n FROM clip_items WHERE id > ?', [
+            lastId,
+          ]).single['n']
+          as int;
   return ImportCounts(
     snippetsAdded: added,
     snippetsAlreadyHere: alreadyHere,

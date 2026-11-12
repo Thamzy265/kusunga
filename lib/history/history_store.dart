@@ -106,6 +106,17 @@ abstract interface class HistoryStore {
     required int nowMs,
   });
 
+  /// What [importBundle] would do now, changing nothing: it runs in a
+  /// transaction that is always rolled back. The import's confirm dialog
+  /// counts rows from it, not file lines (M1.8 T4). Throws where import is
+  /// not offered, or where the import itself would fail.
+  ImportCounts previewImport(
+    ExportBundle bundle, {
+    required bool applySettings,
+    int? notBefore,
+    required int nowMs,
+  });
+
   /// How many items lowering the limit to [newLimit] would delete.
   int countRemovedBy(int newLimit);
 

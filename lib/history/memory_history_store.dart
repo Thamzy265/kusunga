@@ -214,6 +214,14 @@ class MemoryHistoryStore implements HistoryStore {
   }) => throw UnsupportedError('import needs a saved history');
 
   @override
+  ImportCounts previewImport(
+    ExportBundle bundle, {
+    required bool applySettings,
+    int? notBefore,
+    required int nowMs,
+  }) => throw UnsupportedError('import needs a saved history');
+
+  @override
   int countRemovedBy(int newLimit) {
     checkLimit(newLimit);
     return _items.length > newLimit ? _items.length - newLimit : 0;

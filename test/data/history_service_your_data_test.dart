@@ -61,6 +61,77 @@ void main() {
     dir.deleteSync(recursive: true);
   });
 
+  group('history an import adds (T4)', () {
+    ExportHistoryItem item(String content, int last) => ExportHistoryItem(
+      content: content,
+      kind: ClipKind.text,
+      createdAt: 0,
+      lastCopiedAt: last,
+    );
+
+    test('counts rows, not lines, and changes nothing; with the file\'s '
+        'settings ticked, its auto-delete time and limit decide', () {
+      service.setLimit(10);
+      for (var i = 0; i < 10; i++) {
+        store.insertOrBump('mine $i', ClipKind.text, now - i * 1000);
+      }
+      final bundle = ExportBundle(
+        snippets: const [],
+        history: [
+          item('twice', now - 2 * _day),
+          item('twice', now - 2 * _day),
+          item('mine 0', now), // already here
+          item('week old', now - 8 * _day),
+          item('three weeks old', now - 21 * _day),
+        ],
+        settings: const ExportSettings(historyLimit: 20, historyExpiryDays: 7),
+      );
+      // Not ticked: limit 10, auto-delete 30 days. All of them are older
+      // than the 10 items here, so all are trimmed.
+      expect(service.historyToAdd(bundle, applySettings: false), 0);
+      // Ticked: limit 20, auto-delete 7 days: "twice" once only.
+      expect(service.historyToAdd(bundle, applySettings: true), 1);
+      expect(store.count, 10);
+      expect(store.limit, 10);
+
+      final c = service.importBundle(bundle, applySettings: true);
+      expect(c.historyAdded, 1);
+      expect(c.historyTooOld, 2, reason: 'older than the new 7 days');
+      expect(store.count, 11);
+    });
+
+    test("null where it can't be worked out: memory only, or a file the "
+        'import would refuse to write', () {
+      final memory = build(
+        MemoryHistoryStore(),
+        notices: {HistoryNotice.memoryOnly},
+      );
+      addTearDown(memory.dispose);
+      final b = ExportBundle(snippets: const [], history: [item('x', now)]);
+      expect(memory.historyToAdd(b, applySettings: false), isNull);
+      for (var i = 0; i < 1000; i++) {
+        store.snippetStore().insert(
+          name: 'n$i',
+          content: 'c',
+          type: SnippetType.other,
+          nowMs: 1,
+        );
+      }
+      final tooMany = ExportBundle(
+        snippets: const [
+          ExportSnippet(
+            name: 'one more',
+            content: 'c',
+            type: SnippetType.other,
+            position: 0,
+          ),
+        ],
+        history: [item('x', now)],
+      );
+      expect(service.historyToAdd(tooMany, applySettings: false), isNull);
+    });
+  });
+
   group('export bundle', () {
     test('snippets, the four settings and the ignore list; no history '
         'unless asked (D2 A)', () {
@@ -125,7 +196,7 @@ void main() {
       expect(c.historyAdded, 1);
       expect(c.historyTooOld, 1);
       expect(
-        service.importableHistory(
+        service.historyToAdd(
           ExportBundle(
             snippets: const [],
             history: [
@@ -143,6 +214,7 @@ void main() {
               ),
             ],
           ),
+          applySettings: false,
         ),
         1,
       );

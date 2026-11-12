@@ -561,8 +561,8 @@ class _ImportDialogState extends State<_ImportDialog> {
           children: [
             Text(
               'Import ${_snippets(ready.snippets)} and '
-              '${_items(ready.history)}? Nothing you have now will be '
-              'changed or removed.',
+              '${_items(ready.historyFor(applySettings: _useSettings))}? '
+              'Nothing you have now will be changed or removed.',
             ),
             if (ready.hasSettings) ...[
               SizedBox(height: KusungaTokens.space2),

@@ -664,8 +664,39 @@ class HistoryService extends ChangeNotifier {
     );
   }
 
-  /// How many of the file's history items an import would add: those not
-  /// older than the auto-delete time (lead ruling G5).
+  /// The history rows an import of [bundle] would add now, with or without
+  /// its settings (T4): not lines older than the auto-delete time, that
+  /// repeat another line or an item already here, or that the limit would
+  /// trim. Worked out by running the import and rolling it back, so it
+  /// changes nothing. Null where that can't be done: Import is off (G2), or
+  /// the import itself would fail (over 1,000 snippets, a write error).
+  int? historyToAdd(ExportBundle bundle, {required bool applySettings}) {
+    if (!canImport) return null;
+    try {
+      return _store
+          .previewImport(
+            bundle,
+            applySettings: applySettings,
+            notBefore: _importCutoff(bundle, applySettings: applySettings),
+            nowMs: _clock(),
+          )
+          .historyAdded;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// The auto-delete cut-off for an import. With the file's settings
+  /// applied it is the file's auto-delete time, so an item that time would
+  /// delete at once is counted as too old, not as added (T4).
+  int? _importCutoff(ExportBundle bundle, {required bool applySettings}) {
+    final days = applySettings ? bundle.settings?.historyExpiryDays : null;
+    return days == null ? expiry.cutoff : expiryCutoff(days, _clock());
+  }
+
+  /// How many of the file's history items are not older than the
+  /// auto-delete time (lead ruling G5): the count to show when
+  /// [historyToAdd] can't tell.
   int importableHistory(ExportBundle bundle) {
     final cutoff = expiry.cutoff;
     final history = bundle.history ?? const [];
@@ -685,7 +716,7 @@ class HistoryService extends ChangeNotifier {
     final counts = _store.importBundle(
       bundle,
       applySettings: applySettings,
-      notBefore: expiry.cutoff,
+      notBefore: _importCutoff(bundle, applySettings: applySettings),
       nowMs: _clock(),
     );
     if (applySettings) {

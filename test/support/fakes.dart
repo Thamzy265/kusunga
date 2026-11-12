@@ -253,6 +253,22 @@ class FlakyStore implements HistoryStore {
   }
 
   @override
+  ImportCounts previewImport(
+    ExportBundle bundle, {
+    required bool applySettings,
+    int? notBefore,
+    required int nowMs,
+  }) {
+    _maybeFail();
+    return inner.previewImport(
+      bundle,
+      applySettings: applySettings,
+      notBefore: notBefore,
+      nowMs: nowMs,
+    );
+  }
+
+  @override
   int countRemovedBy(int newLimit) => inner.countRemovedBy(newLimit);
   @override
   void setLimit(int newLimit) => inner.setLimit(newLimit);

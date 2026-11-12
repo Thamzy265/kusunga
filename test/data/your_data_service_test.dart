@@ -363,6 +363,104 @@ void main() {
       expect(r.isEmpty, isFalse);
     });
 
+    test('ready: the history count is the rows the import will add, with '
+        'and without the file\'s settings; the import adds exactly that '
+        '(T4)', () async {
+      final h = history('a.db');
+      h.setLimit(10);
+      for (var i = 0; i < 9; i++) {
+        h.importBundle(
+          ExportBundle(
+            snippets: const [],
+            history: [
+              ExportHistoryItem(
+                content: 'mine $i',
+                kind: ClipKind.text,
+                createdAt: 0,
+                lastCopiedAt: now - i,
+              ),
+            ],
+          ),
+          applySettings: false,
+        );
+      }
+      ExportHistoryItem item(String content, int last) => ExportHistoryItem(
+        content: content,
+        kind: ClipKind.text,
+        createdAt: 0,
+        lastCopiedAt: last,
+      );
+      files.openPath = p.join(dir.path, 'in.json');
+      File(files.openPath!).writeAsStringSync(
+        encodeExport(
+          ExportBundle(
+            snippets: const [],
+            history: [
+              item('dup', now - _day),
+              item('dup', now - _day),
+              item('mine 0', now - _day), // already here
+              item('older', now - 2 * _day),
+              item('oldest', now - 3 * _day),
+            ],
+            settings: const ExportSettings(historyLimit: 50),
+          ),
+          exportedAt: DateTime(2026),
+        ),
+      );
+      final s = service(h);
+      final r = await s.checkImport() as ImportReady;
+      // Limit 10 with 9 here: one new row fits, the newest ("dup").
+      expect(r.history, 1);
+      expect(r.historyFor(applySettings: false), 1);
+      // The file's limit of 50: "dup", "older" and "oldest".
+      expect(r.historyFor(applySettings: true), 3);
+      expect(h.items.length, 9, reason: 'checking changed nothing');
+      final done = s.runImport(r, applySettings: true) as ImportDone;
+      expect(done.counts.historyAdded, 3);
+      expect(h.items.length, 12);
+      final i = log.codes.indexOf(LogCode.dataImportedHistory);
+      expect(log.details[i], 3);
+    });
+
+    test('ready: nothing to import only when no snippet and no history row '
+        'would be added either way (T4)', () async {
+      final h = history('a.db');
+      h.importBundle(
+        ExportBundle(
+          snippets: const [],
+          history: [
+            ExportHistoryItem(
+              content: 'here',
+              kind: ClipKind.text,
+              createdAt: 0,
+              lastCopiedAt: now,
+            ),
+          ],
+        ),
+        applySettings: false,
+      );
+      files.openPath = p.join(dir.path, 'in.json');
+      File(files.openPath!).writeAsStringSync(
+        encodeExport(
+          ExportBundle(
+            snippets: const [],
+            history: [
+              ExportHistoryItem(
+                content: 'here',
+                kind: ClipKind.text,
+                createdAt: 0,
+                lastCopiedAt: now,
+              ),
+            ],
+          ),
+          exportedAt: DateTime(2026),
+        ),
+      );
+      final r = await service(h).checkImport() as ImportReady;
+      expect(r.history, 0);
+      expect(r.isEmpty, isTrue);
+    });
+
     test(
       'a write failure is logged as importFailed and changes nothing',
       () async {

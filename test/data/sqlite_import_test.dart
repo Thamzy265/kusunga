@@ -165,7 +165,7 @@ void main() {
         applySettings: false,
         nowMs: _now,
       );
-      expect(c.historyAdded, 2);
+      expect(c.historyAdded, 1, reason: '"both" merged: no new row (T4)');
       final items = store.list();
       expect(items.map((i) => i.preview), ['both', 'new']);
       expect(items.first.createdAt, 1000, reason: 'the older creation');
@@ -215,6 +215,35 @@ void main() {
       expect(store.count, 10);
       expect(store.list().first.preview, 'h14');
       expect(store.list().last.preview, 'h5');
+    });
+
+    test('the history count is rows added: a line repeated in the file '
+        'counts once, a line already here and one trimmed past the limit '
+        'not at all (T4)', () {
+      store.setLimit(10);
+      for (var i = 0; i < 8; i++) {
+        store.insertOrBump('mine $i', ClipKind.text, 1000 + i);
+      }
+      final c = store.importBundle(
+        ExportBundle(
+          snippets: const [],
+          history: [
+            _h('twice', 1, 5000),
+            _h('twice', 1, 5000),
+            _h('mine 7', 1, 6000), // already here
+            _h('new', 1, 4000),
+            _h('too far down', 1, 10), // past the limit after the trim
+          ],
+        ),
+        applySettings: false,
+        nowMs: _now,
+      );
+      expect(c.historyAdded, 2);
+      expect(store.count, 10);
+      expect(
+        store.list().map((i) => i.preview).where((p) => !p.startsWith('mine')),
+        ['twice', 'new'],
+      );
     });
 
     test('the whole text of a long item, not a preview', () {
@@ -311,6 +340,83 @@ void main() {
     });
   });
 
+  group('preview (T4): the counts an import would give, changing nothing', () {
+    List<Object?> dump() {
+      final db = raw();
+      try {
+        return [
+          for (final t in [
+            'snippets ORDER BY id',
+            'clip_items ORDER BY id',
+            'settings ORDER BY key',
+            'ignored_apps ORDER BY app_id',
+          ])
+            [for (final r in db.select('SELECT * FROM $t')) r.values.toList()],
+        ];
+      } finally {
+        db.close();
+      }
+    }
+
+    final bundle = ExportBundle(
+      snippets: [_s('A'), _s('Mine')],
+      history: [
+        _h('dup', 1, 5000),
+        _h('dup', 1, 5000),
+        _h('here', 1, 6000),
+        for (var i = 0; i < 12; i++) _h('h$i', 1, 100 + i),
+      ],
+      settings: const ExportSettings(historyLimit: 50, typedShortcutsOn: true),
+      ignoredApps: const [IgnoredApp('com.example.vault', 'Vault')],
+    );
+
+    for (final apply in [false, true]) {
+      test('applySettings $apply: the same counts as the import, and every '
+          'table and the limit in use are as they were', () {
+        store.setLimit(10);
+        addSnippet('Mine');
+        store.insertOrBump('here', ClipKind.text, 3000);
+        final before = dump();
+        final preview = store.previewImport(
+          bundle,
+          applySettings: apply,
+          nowMs: _now,
+        );
+        expect(dump(), before);
+        expect(store.limit, 10);
+        final done = store.importBundle(
+          bundle,
+          applySettings: apply,
+          nowMs: _now,
+        );
+        expect(preview.historyAdded, done.historyAdded);
+        expect(preview.historyAdded, apply ? 13 : 9);
+        expect(preview.snippetsAdded, done.snippetsAdded);
+        expect(preview.snippetsAlreadyHere, done.snippetsAlreadyHere);
+        expect(preview.historyTooOld, done.historyTooOld);
+      });
+    }
+
+    test('a preview that fails (over 1,000 snippets) changes nothing and the '
+        'store still works', () {
+      for (var i = 0; i < SnippetStore.maxCount; i++) {
+        addSnippet('n$i');
+      }
+      final before = dump();
+      expect(
+        () => store.previewImport(
+          ExportBundle(snippets: [_s('one more')]),
+          applySettings: false,
+          nowMs: _now,
+        ),
+        throwsA(isA<SnippetCapReached>()),
+      );
+      expect(dump(), before);
+      store.insertOrBump('after', ClipKind.text, 1);
+      expect(store.count, 1);
+    });
+  });
+
   test('a write failure mid-import rolls everything back', () {
     addSnippet('Mine', shortcut: ';m');
     store.insertOrBump('kept', ClipKind.text, 10);
@@ -389,6 +495,17 @@ void main() {
         );
       expect(ms.records().single.shortcut, ';n');
       expect(ms.records().single.type, SnippetType.email);
+    });
+
+    test('a memory store never previews an import either (G2)', () {
+      expect(
+        () => MemoryHistoryStore().previewImport(
+          const ExportBundle(snippets: []),
+          applySettings: false,
+          nowMs: 1,
+        ),
+        throwsUnsupportedError,
+      );
     });
 
     test('a memory store never imports (Import is off there, G2)', () {

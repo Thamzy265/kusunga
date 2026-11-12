@@ -178,7 +178,11 @@ void main() {
       files.openPath = files.savePath;
       expect(
         await yd(open('c.db').service).checkImport(),
-        isA<ImportReady>().having((r) => r.history, 'history', 5000),
+        isA<ImportReady>().having(
+          (r) => r.historyFor(applySettings: true),
+          'history',
+          5000,
+        ),
       );
     });
   });

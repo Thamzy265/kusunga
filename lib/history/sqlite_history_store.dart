@@ -457,6 +457,33 @@ class SqliteHistoryStore implements HistoryStore {
     return counts;
   }
 
+  @override
+  ImportCounts previewImport(
+    ExportBundle bundle, {
+    required bool applySettings,
+    int? notBefore,
+    required int nowMs,
+  }) {
+    _db.execute('BEGIN IMMEDIATE');
+    try {
+      return importIntoDatabase(
+        _db,
+        bundle,
+        applySettings: applySettings,
+        notBefore: notBefore,
+        nowMs: nowMs,
+        hash: _hash,
+      );
+    } finally {
+      // Only counted, never kept. The cached limit was never touched.
+      if (!_db.autocommit) {
+        try {
+          _db.execute('ROLLBACK');
+        } catch (_) {}
+      }
+    }
+  }
+
   /// "Clear history" must leave nothing readable behind: the migration backup
   /// and files moved aside as unreadable are encrypted with the key that is
   /// still in the keychain, so they are deleted too.

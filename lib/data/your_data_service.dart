@@ -179,7 +179,8 @@ class ImportReady extends ImportCheck {
     required this.fileName,
     required this.snippets,
     required this.history,
-  });
+    int? historyWithSettings,
+  }) : historyWithSettings = historyWithSettings ?? history;
 
   final ExportBundle bundle;
 
@@ -189,14 +190,26 @@ class ImportReady extends ImportCheck {
   /// Snippets in the file.
   final int snippets;
 
-  /// History items that will be added: those not older than the
-  /// auto-delete time (lead ruling G5).
+  /// History rows the import will add without the file's settings: not
+  /// lines older than the auto-delete time (lead ruling G5), that repeat
+  /// another line or an item already here, or that the limit would trim
+  /// (T4).
   final int history;
+
+  /// The same with the file's settings applied: its limit and auto-delete
+  /// time decide instead.
+  final int historyWithSettings;
+
+  /// The history count for the confirm text, as the tick box stands.
+  int historyFor({required bool applySettings}) =>
+      applySettings && hasSettings ? historyWithSettings : history;
 
   bool get hasSettings => bundle.hasSettings;
 
-  /// "This file has nothing to import."
-  bool get isEmpty => snippets == 0 && history == 0;
+  /// "This file has nothing to import": no snippet and no history row,
+  /// with or without its settings.
+  bool get isEmpty =>
+      snippets == 0 && history == 0 && historyFor(applySettings: true) == 0;
 }
 
 sealed class ImportResult {
@@ -274,11 +287,19 @@ class YourDataService {
         decodeImport(_read(path)),
         nowMs: _now().millisecondsSinceEpoch,
       );
+      // Rows, not lines (T4); the old estimate only if that can't be
+      // worked out, and then the import fails anyway.
+      int rows({required bool applySettings}) =>
+          history.historyToAdd(bundle, applySettings: applySettings) ??
+          history.importableHistory(bundle);
       return ImportReady(
         bundle: bundle,
         fileName: File(path).uri.pathSegments.last,
         snippets: bundle.snippets.length,
-        history: history.importableHistory(bundle),
+        history: rows(applySettings: false),
+        historyWithSettings: bundle.hasSettings
+            ? rows(applySettings: true)
+            : null,
       );
     } on ImportRejected catch (e) {
       _log.log(LogCode.importRejected, e.reason.number);

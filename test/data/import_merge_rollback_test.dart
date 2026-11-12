@@ -21,10 +21,6 @@ const _key = '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
 const _now = 1700000000000;
 const _day = Duration.millisecondsPerDay;
 
-final Object? _repro = Platform.environment['KUSUNGA_REPRO'] == '1'
-    ? null
-    : 'bug repro (set KUSUNGA_REPRO=1 to run)';
-
 ExportSnippet _s(String name, {String? content, String? shortcut, int p = 0}) =>
     ExportSnippet(
       name: name,
@@ -373,7 +369,6 @@ void main() {
         );
         expect(c.historyAdded, store.records().length);
       },
-      skip: _repro,
     );
   });
 

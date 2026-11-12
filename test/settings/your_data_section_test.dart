@@ -580,6 +580,59 @@ void main() {
       expect(afterImports, 1);
     });
 
+    testWidgets('the history count is rows, not lines, and follows the '
+        'settings tick box as it changes; Import adds that many (T4)', (
+      tester,
+    ) async {
+      await show(tester);
+      service.setLimit(10);
+      seedHistory(10);
+      final old = now - Duration.millisecondsPerDay;
+      ExportHistoryItem older(String c) => ExportHistoryItem(
+        content: c,
+        kind: ClipKind.text,
+        createdAt: old,
+        lastCopiedAt: old,
+      );
+      writeFile(
+        ExportBundle(
+          snippets: const [
+            ExportSnippet(
+              name: 'A',
+              content: 'a',
+              type: SnippetType.other,
+              position: 0,
+            ),
+          ],
+          history: [older('x'), older('x'), older('y'), older('z')],
+          settings: const ExportSettings(historyLimit: 50),
+        ),
+      );
+      await pickFile(tester);
+      String text(int n) =>
+          'Import 1 snippet and $n history ${n == 1 ? 'item' : 'items'}? '
+          'Nothing you have now will be changed or removed.';
+      // Limit 10, and the 10 items here are all newer: nothing would stay.
+      expect(find.text(text(0)), findsOneWidget);
+      await tester.tap(find.byType(Checkbox));
+      await tester.pump();
+      // The file's limit of 50: x, y and z, with x once.
+      expect(find.text(text(3)), findsOneWidget);
+      expect(find.text(text(0)), findsNothing);
+      await tester.tap(find.byType(Checkbox));
+      await tester.pump();
+      expect(find.text(text(0)), findsOneWidget);
+      await tester.tap(find.byType(Checkbox));
+      await tester.pump();
+      await tester.tap(hook('import-confirm'));
+      await settle(tester);
+      expect(
+        find.text('Imported 1 snippet and 3 history items.'),
+        findsOneWidget,
+      );
+      expect(service.items.length, 13);
+    });
+
     testWidgets('no settings in the file: no tick box', (tester) async {
       await show(tester);
       writeFile(
