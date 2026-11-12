@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-12 — M1.7 Settings and expiry — reviewer: approve; QA re-check
+- Changed: Reviewer re-checked 9e29fcb..e73b0d1: P1, P2, N4 fixed (tests fail on the old lib); R4, "Where it was", TN2 and QA-M17-1 hold; log codes and numbers only. All six checks pass (check.sh 3301 passed, 10 skipped). Verdict: approve, no open finding. QA asked to re-check QA-M17-1 in the running app.
+- Gates: developer pass · tester pass · reviewer approve · QA re-check running · PM merge —
+- Open findings: none in code; QA-M17-1 waiting for QA
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; push of main; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-12 — M1.7 Settings and expiry — N4 fixed, reviewer re-check
 - Changed: Developer fixed N4 in e73b0d1 (a notFound answer sets the last OS-reported position to off; still a failing read for logging). Tester's repro passes unedited. check.sh 3301 passed, 10 skipped; native suites all pass. Tester gate closed by the tester's repro passing unedited. Reviewer asked to re-check 9e29fcb..e73b0d1 (P1, P2, N4).
 - Gates: developer pass · tester pass · reviewer re-check running · QA re-check after the reviewer · PM merge —
