@@ -445,6 +445,18 @@ class PauseService extends ChangeNotifier {
     }
   }
 
+  /// True while the 15 s tick runs (after [startTicking]).
+  bool get ticking => _timer != null;
+
+  /// Stops the tick (Delete everything, M1.8); [startTicking] starts it
+  /// again.
+  void stopTicking() {
+    _timer?.cancel();
+    _timer = null;
+    _lifecycle?.dispose();
+    _lifecycle = null;
+  }
+
   void _notify() {
     if (_disposed) return;
     _lastSeen = _seen();

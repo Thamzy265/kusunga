@@ -234,6 +234,15 @@ class ExpiryService extends ChangeNotifier {
     _onChanged();
   }
 
+  /// Stops the minute check (Delete everything, M1.8); [startTicking]
+  /// starts it again.
+  void stopTicking() {
+    _timer?.cancel();
+    _timer = null;
+    _lifecycle?.dispose();
+    _lifecycle = null;
+  }
+
   void _changed() {
     if (_disposed) return;
     _onChanged();

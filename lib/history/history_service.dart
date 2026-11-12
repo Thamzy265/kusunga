@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 import '../clipboard/clipboard_source.dart';
+import '../data/export_format.dart';
 import '../log/app_log.dart';
 import 'clip_classifier.dart';
 import 'clip_item.dart';
@@ -48,6 +49,7 @@ class HistoryService extends ChangeNotifier {
        _writeClipboard =
            writeClipboard ??
            ((text) => Clipboard.setData(ClipboardData(text: text))),
+       keychainUnusable = notices.contains(HistoryNotice.memoryOnly),
        _persists =
            !notices.contains(HistoryNotice.memoryOnly) &&
            !notices.contains(HistoryNotice.incompatible) &&
@@ -107,6 +109,14 @@ class HistoryService extends ChangeNotifier {
 
   /// The typed-shortcut ignore list, on the same database (M1.5).
   final IgnoredAppStore ignoredApps;
+
+  /// The keychain or the data folder could not be used, so this session is
+  /// memory only (not a newer or failed file). Delete everything then only
+  /// tries the key delete (M1.8 design note, "Memory-only mode").
+  final bool keychainUnusable;
+
+  /// Import is offered only while history is saved (lead ruling G2).
+  bool get canImport => _persists && !_closed;
 
   /// Copies that could not be saved are kept in memory, up to this many.
   static const maxWaiting = 20;
@@ -205,7 +215,7 @@ class HistoryService extends ChangeNotifier {
   }
 
   void _onEvent(ClipboardEvent event) {
-    if (_closed) return;
+    if (_closed || _captureStopped) return;
     switch (event) {
       case ClipboardSkipped(:final reason):
         switch (reason) {
@@ -599,13 +609,152 @@ class HistoryService extends ChangeNotifier {
     return true;
   }
 
+  // ---- Your data (M1.8) ----
+
+  /// Everything to export: the snippets, the settings that travel (G1),
+  /// the ignore list and, with [includeHistory], the items shown now (an
+  /// expired item is never exported, R1 of M1.7). Throws if the store
+  /// can't be read.
+  ExportBundle exportBundle({required bool includeHistory}) {
+    final cutoff = expiry.cutoff;
+    String? read(String key) => _store.readSetting(key);
+    final typed = read('typed_shortcuts_on');
+    final paste = read('paste_mode');
+    final days = int.tryParse(read(historyExpirySetting) ?? '');
+    return ExportBundle(
+      snippets: [
+        for (final s in snippets.records())
+          ExportSnippet(
+            name: s.name,
+            content: s.content,
+            type: s.type,
+            position: s.position,
+            shortcut: s.shortcut,
+          ),
+      ],
+      history: includeHistory
+          ? [
+              for (final w in _waiting.reversed)
+                if (cutoff == null || w.time >= cutoff)
+                  ExportHistoryItem(
+                    content: w.text,
+                    kind: w.kind,
+                    createdAt: w.time,
+                    lastCopiedAt: w.time,
+                  ),
+              for (final r in _store.records(notBefore: cutoff))
+                if (!_waiting.any((w) => w.text == r.content))
+                  ExportHistoryItem(
+                    content: r.content,
+                    kind: r.kind,
+                    createdAt: r.createdAt,
+                    lastCopiedAt: r.lastCopiedAt,
+                  ),
+            ]
+          : null,
+      settings: ExportSettings(
+        historyLimit: _store.limit,
+        historyExpiryDays: days != null && historyExpiryChoices.contains(days)
+            ? days
+            : null,
+        typedShortcutsOn: typed == null ? null : typed == '1',
+        pasteMode: paste == 'auto' || paste == 'copy_only' ? paste : null,
+      ),
+      ignoredApps: ignoredApps.list(),
+    );
+  }
+
+  /// How many of the file's history items an import would add: those not
+  /// older than the auto-delete time (lead ruling G5).
+  int importableHistory(ExportBundle bundle) {
+    final cutoff = expiry.cutoff;
+    final history = bundle.history ?? const [];
+    if (cutoff == null) return history.length;
+    return history.where((h) => h.lastCopiedAt >= cutoff).length;
+  }
+
+  /// Adds a checked file in one transaction (R2, R3) and shows the result
+  /// at once: the list, the snippets and, with [applySettings], the limit,
+  /// auto-delete and the ignore list sent to the clipboard watcher. Throws
+  /// if it failed; then nothing changed.
+  ImportCounts importBundle(
+    ExportBundle bundle, {
+    required bool applySettings,
+  }) {
+    if (!canImport) throw StateError('import needs a saved history');
+    final counts = _store.importBundle(
+      bundle,
+      applySettings: applySettings,
+      notBefore: expiry.cutoff,
+      nowMs: _clock(),
+    );
+    if (applySettings) {
+      expiry.load();
+      expiry.cleanUp();
+      try {
+        unawaited(
+          setCaptureIgnored([for (final a in ignoredApps.list()) a.appId]),
+        );
+      } catch (_) {
+        _log.log(LogCode.readFailed);
+      }
+    }
+    snippets.reload();
+    _refresh();
+    return counts;
+  }
+
+  /// "Delete all history" (D4 A): Clear history, then VACUUM so the freed
+  /// pages are gone from the file. The key, snippets and settings stay.
+  /// Returns how many items went, or null if the clear failed.
+  int? deleteAllHistory() {
+    final n = clear();
+    if (n == null) return null;
+    try {
+      _store.compact();
+    } catch (error) {
+      final code = error is SqliteException ? error.extendedResultCode : null;
+      _log.log(LogCode.writeFailed, code);
+    }
+    return n;
+  }
+
+  var _captureStopped = false;
+  var _expiryWasTicking = false;
+  var _pauseWasTicking = false;
+
+  /// Delete everything stops capture and the timers before the key goes
+  /// (lead ruling 2026-11-12): no copy is written after that.
+  void stopCapture() {
+    if (_captureStopped) return;
+    _captureStopped = true;
+    _expiryWasTicking = expiry.ticking;
+    _pauseWasTicking = pause.ticking;
+    expiry.stopTicking();
+    pause.stopTicking();
+    _expiryRefresh?.cancel();
+    _expiryRefresh = null;
+  }
+
+  /// The key could not be deleted: recording carries on as before.
+  void resumeCapture() {
+    if (!_captureStopped || _closed) return;
+    _captureStopped = false;
+    if (_expiryWasTicking) expiry.startTicking();
+    if (_pauseWasTicking) pause.startTicking();
+    _refresh();
+  }
+
   void dismiss(HistoryBanner banner) {
     if (_banners.remove(banner)) _notify();
   }
 
   /// Stops listening and closes the database cleanly. Safe to call more than
   /// once. Called on every exit path.
-  Future<void> close() async {
+  ///
+  /// [saveWaiting] false (Delete everything): copies still waiting are
+  /// dropped, not written to a file that is about to be deleted.
+  Future<void> close({bool saveWaiting = true}) async {
     if (_closed) return;
     _closed = true;
     pause.dispose();
@@ -616,6 +765,7 @@ class HistoryService extends ChangeNotifier {
     try {
       // One last try to save copies that are still waiting, so a quit does
       // not lose them (but never one that has expired).
+      if (!saveWaiting) _waiting.clear();
       _dropExpiredWaiting(expiry.cutoff);
       for (final w in List.of(_waiting)) {
         if (_trySave(w) != _Save.retryLater) _waiting.remove(w);
