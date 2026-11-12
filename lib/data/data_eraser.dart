@@ -36,9 +36,14 @@ sealed class EraseResult {
   const EraseResult();
 }
 
-/// The key could not be deleted: nothing was deleted, recording goes on.
+/// The key could not be deleted.
 class EraseFailed extends EraseResult {
-  const EraseFailed();
+  const EraseFailed({this.stuck = false});
+
+  /// False: the keychain refused, nothing was deleted, and recording goes
+  /// on. True: the keychain never answered, so the key delete may still
+  /// complete; recording stays stopped for good and Kusunga quits (T5).
+  final bool stuck;
 }
 
 /// Everything is deleted; [filesLeft] files could not be removed, but with
@@ -62,9 +67,10 @@ bool _isKusungaFile(String name) =>
 /// Delete everything, in this order (design note, as changed by the lead's
 /// ruling of 2026-11-12):
 ///  1. stop capture and the timers;
-///  2. delete the key; if that fails, start them again and stop: nothing
-///     was deleted (a memory-only session, whose keychain can't be used,
-///     only logs it and goes on);
+///  2. delete the key; if the keychain refuses, start them again and stop:
+///     nothing was deleted. If it doesn't answer in time, see [_deleteKey]
+///     (T5). A memory-only session, whose keychain can't be used, only logs
+///     a failure and goes on;
 ///  3. close the database (copies still waiting are dropped);
 ///  4. log `deleteEverythingDone`, stop the file log, delete the files;
 ///  5. turn launch at login off (D6 A). The caller then quits.
@@ -84,7 +90,8 @@ class DataEraser {
   final Future<void> Function()? _turnOffLogin;
   final void Function(FileSystemEntity entity) _delete;
 
-  /// A keychain prompt nobody answers counts as a failure.
+  /// How long each keychain step is waited for: the delete, the read
+  /// after it and, if the key is still there, the delete once more.
   final Duration keyTimeout;
 
   static void _deleteOne(FileSystemEntity e) => e.deleteSync();
@@ -93,13 +100,20 @@ class DataEraser {
     history.stopCapture();
     final target = this.target;
     if (target is DefaultEraseTarget) {
-      try {
-        await target.keys.delete().timeout(keyTimeout);
-      } catch (error) {
-        _log.log(LogCode.deleteEverythingFailed, _errorNumber(error));
-        if (!history.keychainUnusable) {
-          history.resumeCapture();
-          return const EraseFailed();
+      // A memory-only session never opened the file with this key, so a
+      // late answer can't hurt it: it is tried once and the rest goes on.
+      final memoryOnly = history.keychainUnusable;
+      final key = await _deleteKey(target.keys, waitForLate: !memoryOnly);
+      if (!memoryOnly) {
+        switch (key) {
+          case _Key.gone:
+            break;
+          case _Key.kept:
+            history.resumeCapture();
+            return const EraseFailed();
+          case _Key.unknown:
+            // Recording is never started again in this run of Kusunga.
+            return const EraseFailed(stuck: true);
         }
       }
     }
@@ -123,6 +137,47 @@ class DataEraser {
       }
     }
     return Erased(left);
+  }
+
+  /// Deletes the key and says whether it is gone. A call that runs out of
+  /// time is given up on but can't be cancelled, so it may still remove the
+  /// key later (T5, lead ruling 2026-11-12). The key is then read again:
+  ///  - gone: the deletion carries on;
+  ///  - still there, or the read fails: the call is waited for once more.
+  ///    If it answers, its answer counts. If not, the result is unknown and
+  ///    recording must not start again while the call is still out there.
+  /// [deleteEverythingFailed] is logged once, for a key that is not gone.
+  Future<_Key> _deleteKey(KeyStore keys, {required bool waitForLate}) async {
+    final call = Future.sync(keys.delete);
+    try {
+      await call.timeout(keyTimeout);
+      return _Key.gone;
+    } on TimeoutException {
+      if (!waitForLate) return _failed(_Key.unknown);
+    } catch (error) {
+      return _failed(_Key.kept, error);
+    }
+    try {
+      if (await keys.read().timeout(keyTimeout) == null) return _Key.gone;
+    } catch (_) {
+      // Can't tell: as if the key were still there.
+    }
+    try {
+      await call.timeout(keyTimeout);
+      return _Key.gone;
+    } on TimeoutException {
+      return _failed(_Key.unknown);
+    } catch (error) {
+      return _failed(_Key.kept, error);
+    }
+  }
+
+  _Key _failed(_Key key, [Object? error]) {
+    _log.log(
+      LogCode.deleteEverythingFailed,
+      error == null ? null : _errorNumber(error),
+    );
+    return key;
   }
 
   /// Counts one failure and logs its number.
@@ -200,6 +255,10 @@ class DataEraser {
     return left;
   }
 }
+
+/// Where the key stands after a delete: [kept] means the keychain answered
+/// with a refusal; [unknown] means it never answered.
+enum _Key { gone, kept, unknown }
 
 int? _errorNumber(Object error) => switch (error) {
   FileSystemException(:final osError) => osError?.errorCode,

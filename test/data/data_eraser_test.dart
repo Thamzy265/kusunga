@@ -11,6 +11,7 @@ import 'package:kusunga/history/clip_item.dart';
 import 'package:kusunga/history/data_profile.dart';
 import 'package:kusunga/history/history_opener.dart';
 import 'package:kusunga/history/history_service.dart';
+import 'package:kusunga/history/key_store.dart';
 import 'package:kusunga/history/memory_history_store.dart';
 import 'package:kusunga/history/sqlite_history_store.dart';
 import 'package:kusunga/log/app_log.dart';
@@ -346,6 +347,126 @@ void main() {
     });
   });
 
+  group('a key delete that times out (T5): never record again while it '
+      'might still complete', () {
+    const limit = Duration(milliseconds: 20);
+
+    DataEraser late(_LateKeys k) => eraser(
+      DefaultEraseTarget(keys: k, folder: () async => folder),
+      keyTimeout: limit,
+    );
+
+    test('the key is gone when read again: the deletion carries on', () async {
+      final h = open(folder);
+      final k = _LateKeys()..removedEarly = true;
+      final result = await late(k).run(h.service);
+      expect(result, isA<Erased>().having((e) => e.filesLeft, 'left', 0));
+      expect(k.reads, 1);
+      expect(names(folder), isEmpty);
+      expect(steps, ['stopFileLog', 'loginOff']);
+      expect(log.codes, isNot(contains(LogCode.deleteEverythingFailed)));
+    });
+
+    test('still there, then the call succeeds while it is waited for: the '
+        'deletion carries on', () async {
+      final h = open(folder);
+      final k = _LateKeys();
+      k.onRead = () => Timer(Duration.zero, k.answer.complete);
+      final result = await late(k).run(h.service);
+      expect(result, isA<Erased>().having((e) => e.filesLeft, 'left', 0));
+      expect(k.stored, isNull);
+      expect(names(folder), isEmpty);
+    });
+
+    test('still there, then the call is refused: "Nothing was deleted", and '
+        'recording resumes only after that answer', () async {
+      final h = open(folder);
+      source.copy('before');
+      final k = _LateKeys();
+      k.onRead = () {
+        source.copy('while waiting');
+        Timer(
+          Duration.zero,
+          () => k.answer.completeError(
+            PlatformException(code: 'x', message: 'Code: -25244, Message: no'),
+          ),
+        );
+      };
+      final result = await late(k).run(h.service);
+      expect(result, isA<EraseFailed>().having((e) => e.stuck, 'stuck', false));
+      expect(k.stored, _key);
+      expect(File(p.join(folder.path, 'kusunga.db')).existsSync(), isTrue);
+      expect(steps, isEmpty);
+      expect(
+        log.codes.where((c) => c == LogCode.deleteEverythingFailed),
+        hasLength(1),
+      );
+      final i = log.codes.indexOf(LogCode.deleteEverythingFailed);
+      expect(log.details[i], -25244);
+      source.copy('after');
+      expect(h.service.items.map((i) => i.preview), ['after', 'before']);
+    });
+
+    test('no answer at all: stuck, so recording stays stopped for good and '
+        'nothing is deleted or closed; a success after that stands '
+        '(lead ruling B)', () async {
+      final h = open(folder);
+      final k = _LateKeys();
+      final result = await late(k).run(h.service);
+      expect(result, isA<EraseFailed>().having((e) => e.stuck, 'stuck', true));
+      expect(k.reads, 1);
+      expect(log.codes, contains(LogCode.deleteEverythingFailed));
+      expect(steps, isEmpty);
+      expect(h.store.closes, 0);
+      expect(File(p.join(folder.path, 'kusunga.db')).existsSync(), isTrue);
+      source.copy('later');
+      await Future<void>.delayed(limit * 3);
+      source.copy('much later');
+      expect(h.service.items, isEmpty);
+      k.answer.complete();
+      await Future<void>.delayed(Duration.zero);
+      expect(k.stored, isNull);
+      source.copy('after the answer');
+      expect(h.service.items, isEmpty);
+    });
+
+    test(
+      'a read again that fails or never answers counts as still there',
+      () async {
+        for (final setUp in <void Function(_LateKeys)>[
+          (k) => k.readError = StateError('locked'),
+          (k) => k.hangRead = true,
+        ]) {
+          final h = open(folder);
+          final k = _LateKeys();
+          setUp(k);
+          final result = await late(k).run(h.service);
+          expect(result, isA<EraseFailed>().having((e) => e.stuck, 's', true));
+          expect(File(p.join(folder.path, 'kusunga.db')).existsSync(), isTrue);
+          await h.service.close();
+        }
+      },
+    );
+
+    test('memory only: a time-out is logged and the rest goes on, without '
+        'reading the key or waiting again', () async {
+      touch(folder, ['kusunga.db']);
+      final service = HistoryService(
+        store: MemoryHistoryStore(),
+        source: source,
+        log: log,
+        notices: {HistoryNotice.memoryOnly},
+      )..start();
+      addTearDown(service.dispose);
+      final k = _LateKeys();
+      final result = await late(k).run(service);
+      expect(result, isA<Erased>());
+      expect(k.reads, 0);
+      expect(names(folder), isEmpty);
+      expect(log.codes, contains(LogCode.deleteEverythingFailed));
+    });
+  });
+
   test('memory-only (keychain unusable): the key delete is tried, a failure '
       'is logged and the rest goes on', () async {
     touch(folder, ['kusunga.db', 'kusunga.log']);
@@ -420,4 +541,37 @@ class _HangingKeys extends FakeKeyStore {
   final Future<void> pending;
   @override
   Future<void> delete() => pending;
+}
+
+/// A key store whose delete answers only when the test says so, and which
+/// runs [onRead] when the key is read again (T5).
+class _LateKeys implements KeyStore {
+  String? stored = _key;
+  final answer = Completer<void>();
+
+  /// The keychain has already removed the key; only its answer is late.
+  bool removedEarly = false;
+  void Function()? onRead;
+  Object? readError;
+  bool hangRead = false;
+  int reads = 0;
+
+  @override
+  Future<String?> read() async {
+    reads++;
+    onRead?.call();
+    if (hangRead) return Completer<String?>().future;
+    if (readError != null) throw readError!;
+    return stored;
+  }
+
+  @override
+  Future<void> write(String keyHex) async => stored = keyHex;
+
+  @override
+  Future<void> delete() async {
+    if (removedEarly) stored = null;
+    await answer.future;
+    stored = null;
+  }
 }

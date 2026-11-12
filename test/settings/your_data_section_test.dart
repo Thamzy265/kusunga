@@ -858,6 +858,51 @@ void main() {
       );
     });
 
+    testWidgets('the keychain never answers: the note says Kusunga stopped '
+        'recording and will quit; its one button, OK, quits; recording '
+        'stays stopped (T5)', (tester) async {
+      await show(tester, keyTimeout: const Duration(milliseconds: 20));
+      keys.holdDelete(); // never answers
+      await tapHook(tester, 'your-data-delete-everything');
+      await tester.runAsync(() async {
+        await tester.tap(hook('delete-everything-confirm'));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      });
+      await tester.pump();
+      final note = find.text(
+        "Kusunga couldn't confirm whether its key was deleted, so it has "
+        'stopped recording and will now quit. Open Kusunga again. If your '
+        'snippets and history are still there, try Delete everything again.',
+      );
+      expect(note, findsOneWidget);
+      expect(liveRegionAround(note), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
+        ),
+        findsOneWidget,
+        reason: 'OK only: no Cancel, no Try again',
+      );
+      expect(find.text('Delete everything'), findsNothing);
+      expect(
+        find.text(
+          "Couldn't delete everything. Nothing was deleted. Try again.",
+        ),
+        findsNothing,
+      );
+      expect(focused(tester, 'OK'), isTrue);
+      expect(File(p.join(dir.path, 'kusunga.db')).existsSync(), isTrue);
+      expect(steps, isEmpty, reason: 'the log file is not stopped');
+      source.copy('after');
+      await tester.pump();
+      expect(service.items, isEmpty);
+      expect(quits, 0);
+      await tester.tap(hook('delete-everything-ok'));
+      await tester.pumpAndSettle();
+      expect(quits, 1);
+    });
+
     testWidgets('while deleting: "Deleting…", input ignored', (tester) async {
       await show(tester);
       final gate = keys.holdDelete();

@@ -51,6 +51,11 @@ const _kDeleting = 'Deleting…';
 const _kDeleted = 'Everything is deleted. Kusunga will now quit.';
 const _kDeleteFailed =
     "Couldn't delete everything. Nothing was deleted. Try again.";
+// The keychain never answered (T5; lead's wording, 2026-11-12).
+const _kDeleteStuck =
+    "Kusunga couldn't confirm whether its key was deleted, so it has "
+    'stopped recording and will now quit. Open Kusunga again. If your '
+    'snippets and history are still there, try Delete everything again.';
 
 String _items(int n) => n == 1 ? '1 history item' : '$n history items';
 String _snippets(int n) => n == 1 ? '1 snippet' : '$n snippets';
@@ -625,6 +630,10 @@ class _DeleteEverythingDialogState extends State<_DeleteEverythingDialog> {
     setState(() {
       _deleting = false;
       switch (result) {
+        // The key delete may still complete: recording stays stopped, and
+        // the only way on is to quit (T5).
+        case EraseFailed(stuck: true):
+          _done = _kDeleteStuck;
         case EraseFailed():
           _failed = true;
         case Erased(:final filesLeft):
@@ -638,7 +647,8 @@ class _DeleteEverythingDialogState extends State<_DeleteEverythingDialog> {
     final t = KusungaTokens.of(context);
     final done = _done;
     if (done != null) {
-      // Kusunga quits after OK; Escape does the same.
+      // Done, or the key delete never answered: Kusunga quits after OK;
+      // Escape does the same.
       return PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, _) {

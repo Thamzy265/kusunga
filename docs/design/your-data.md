@@ -133,7 +133,7 @@ Tests: format round trip, validator abuse cases, delete order, UI states.
   - It adds a `VACUUM` after the delete, so the file shrinks and freed pages are gone, not only zeroed.
 - **Delete everything**, in this order (changed by the lead's ruling of 2026-11-12, so a failed key delete leaves Kusunga recording as before):
   1. Stop capture and timers.
-  2. Delete the keychain key (Mac: the keychain entry; Windows: the credential). From this step on, the data can't be read. If the key delete fails, start capture and timers again and stop here: nothing was deleted.
+  2. Delete the keychain key (Mac: the keychain entry; Windows: the credential). From this step on, the data can't be read. If the keychain refuses, start capture and timers again and stop here: nothing was deleted. If it doesn't answer in time, see "If the keychain doesn't answer" below.
   3. Close the database. Copies still waiting to be saved are dropped, not written.
   4. Write `deleteEverythingDone`, stop the log file, then delete the remaining files:
      - `kusunga.db`, `-wal`, `-shm`, `.bak` and `.unreadable-*`;
@@ -142,6 +142,15 @@ Tests: format round trip, validator abuse cases, delete order, UI states.
   5. Turn launch at login off (D6).
   6. Kusunga shows "Everything is deleted. Kusunga will now quit." and quits. The next launch is a fresh start: a new key, an empty file and default settings.
 - **If the key delete fails:** stop and delete nothing, show "Couldn't delete everything. Nothing was deleted. Try again.", and log `deleteEverythingFailed <errno>`.
+- **If the keychain doesn't answer (T5, lead ruling 2026-11-12):** a keychain call that runs out of time can't be cancelled, so it may still remove the key later. Kusunga must never start recording again while that can happen. Each step below waits at most 30 s, so it takes at most 90 s in all:
+  1. After 30 s, Kusunga reads the key again.
+  2. **The key is gone:** the deletion carries on (close the database, then delete the files).
+  3. **The key is still there, or the read fails:** capture stays stopped, and Kusunga waits for the outstanding call once more.
+     - If the call succeeds, the deletion carries on.
+     - If it refuses, Kusunga shows "Nothing was deleted" and starts recording again, as above.
+  4. **No answer at all:** nothing is deleted or closed, and capture stays stopped for the rest of this run. Kusunga logs `deleteEverythingFailed` with no number, and shows "Kusunga couldn't confirm whether its key was deleted, so it has stopped recording and will now quit. Open Kusunga again. If your snippets and history are still there, try Delete everything again." Its only button is OK, which quits (Escape does the same). Quitting means nothing can start recording again while the old call is still running.
+  5. **A late success stands:** if the call removes the key after that, the key is not written back, because the user asked for it to go (lead ruling B). The next launch handles a file with no key as in G6.
+  - In memory-only mode the key delete is tried once. A time-out is logged and the rest goes on, because that session never opened the file with this key.
 - **If a file delete fails after the key is gone:** carry on with the others, then show "Everything is deleted. 1 file couldn't be removed, but it can't be read any more." The next launch already handles a file with no key (lead ruling G6): it makes a new key, moves the old file aside as unreadable and shows the banner once; the next Clear history or Delete everything removes it.
 - **In a debug data profile:** only the profile's own folder is deleted. The key is shared with the real history, so it is never deleted, and launch at login (which may be the real app's) is left alone (lead ruling G3). A rejected profile switch (memory only) deletes nothing on disk.
 - **Memory-only mode:** the memory store is emptied, every file that exists is deleted, the key delete is attempted, and Kusunga quits.
@@ -163,6 +172,7 @@ Tests: format round trip, validator abuse cases, delete order, UI states.
 | Import file refused | Nothing changes; "This file can't be imported. It isn't a Kusunga export, or it is damaged." | `importRejected <reason number>` |
 | Import write fails | Transaction rolled back; "Couldn't import. Nothing was changed." | `importFailed` |
 | Key delete fails | Nothing deleted; error note; retry | `deleteEverythingFailed <errno>` |
+| Key delete doesn't answer, and the key is still there after a second wait (T5) | Nothing deleted; capture stays stopped; note; OK quits | `deleteEverythingFailed` (no number) |
 | File delete fails after the key is gone | Carry on; note says the file can't be read; cleaned up next launch | `deleteFileFailed <errno>` |
 
 ## Observability
@@ -174,7 +184,7 @@ New log codes, numbers only. The log takes one number per line, so the counts ar
 - `importFailed`
 - `exportFailed <errno>`
 - `deleteEverythingDone`
-- `deleteEverythingFailed <errno>`
+- `deleteEverythingFailed <errno>`, with no number when the keychain never answered
 - `deleteFileFailed <errno>`
 
 There are no file names or paths. The log file is itself deleted by Delete everything, so `deleteEverythingDone` is written just before it is removed, and that is fine.
