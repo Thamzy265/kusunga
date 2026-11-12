@@ -59,6 +59,9 @@ abstract interface class SnippetStore {
   /// itself is never lost.
   void restore(SnippetRecord record);
 
+  /// Every snippet with its whole text, in the user's order (export, M1.8).
+  List<SnippetRecord> records();
+
   void close();
 }
 

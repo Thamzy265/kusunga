@@ -359,3 +359,28 @@ IgnoredApp _app(Object? raw) {
   }
   return app;
 }
+
+/// What an import did, for the summary toast and the log.
+class ImportCounts {
+  const ImportCounts({
+    this.snippetsAdded = 0,
+    this.snippetsAlreadyHere = 0,
+    this.shortcutsDropped = 0,
+    this.historyAdded = 0,
+    this.historyTooOld = 0,
+  });
+
+  final int snippetsAdded;
+
+  /// Same name and content as a snippet already here: skipped.
+  final int snippetsAlreadyHere;
+
+  /// Added without their shortcut, which was already used.
+  final int shortcutsDropped;
+
+  /// History items added or merged into one already here.
+  final int historyAdded;
+
+  /// Older than the auto-delete time: not added (lead ruling G5).
+  final int historyTooOld;
+}

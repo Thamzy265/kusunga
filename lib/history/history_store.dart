@@ -1,3 +1,4 @@
+import '../data/export_format.dart';
 import 'clip_item.dart';
 
 /// Auto-delete (M1.7, schema version 6): "0" never, or "1", "7" or "30"
@@ -85,6 +86,25 @@ abstract interface class HistoryStore {
 
   /// Removes everything and returns how many items were removed.
   int clear();
+
+  /// Every item with its whole text, newest first; with [notBefore], only
+  /// items last copied at or after it (the auto-delete read filter). For
+  /// export (M1.8).
+  List<ClipRecord> records({int? notBefore});
+
+  /// Rebuilds the file so freed pages are gone, not only zeroed (Delete all
+  /// history, M1.8 D4 A). Nothing to do in memory.
+  void compact();
+
+  /// Adds a checked import file in one write transaction: if anything fails,
+  /// nothing changes (M1.8; see `importIntoDatabase`). Throws
+  /// [UnsupportedError] where import is not offered (memory only, G2).
+  ImportCounts importBundle(
+    ExportBundle bundle, {
+    required bool applySettings,
+    int? notBefore,
+    required int nowMs,
+  });
 
   /// How many items lowering the limit to [newLimit] would delete.
   int countRemovedBy(int newLimit);

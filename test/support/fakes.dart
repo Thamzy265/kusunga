@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:kusunga/clipboard/clipboard_source.dart';
+import 'package:kusunga/data/export_format.dart';
 import 'package:kusunga/history/clip_item.dart';
 import 'package:kusunga/history/history_store.dart';
 import 'package:kusunga/history/key_store.dart';
@@ -211,6 +212,34 @@ class FlakyStore implements HistoryStore {
   int clear() {
     if (failClear) throw const FileSystemException('locked');
     return inner.clear();
+  }
+
+  @override
+  List<ClipRecord> records({int? notBefore}) {
+    if (failReads) throw const FileSystemException('locked');
+    return inner.records(notBefore: notBefore);
+  }
+
+  @override
+  void compact() {
+    _maybeFail();
+    inner.compact();
+  }
+
+  @override
+  ImportCounts importBundle(
+    ExportBundle bundle, {
+    required bool applySettings,
+    int? notBefore,
+    required int nowMs,
+  }) {
+    _maybeFail();
+    return inner.importBundle(
+      bundle,
+      applySettings: applySettings,
+      notBefore: notBefore,
+      nowMs: nowMs,
+    );
   }
 
   @override

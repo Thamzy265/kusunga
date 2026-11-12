@@ -225,5 +225,25 @@ class SqliteSnippetStore implements SnippetStore {
   }
 
   @override
+  List<SnippetRecord> records() => [
+    for (final (i, r)
+        in _db
+            .select(
+              'SELECT name, content, type, created_at, updated_at, shortcut '
+              'FROM snippets ORDER BY position, id',
+            )
+            .indexed)
+      SnippetRecord(
+        name: r['name'] as String,
+        content: r['content'] as String,
+        type: SnippetType.fromName(r['type'] as String),
+        position: i,
+        createdAt: r['created_at'] as int,
+        updatedAt: r['updated_at'] as int,
+        shortcut: r['shortcut'] as String?,
+      ),
+  ];
+
+  @override
   void close() {}
 }

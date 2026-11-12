@@ -5,6 +5,8 @@ import 'package:crypto/crypto.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'dart:convert';
 
+import '../data/export_format.dart';
+import '../data/sqlite_import.dart';
 import '../shortcuts/ignored_apps.dart';
 import '../snippets/sqlite_snippet_store.dart';
 import 'clip_item.dart';
@@ -403,6 +405,56 @@ class SqliteHistoryStore implements HistoryStore {
     });
     _removeOldCopies();
     return n;
+  }
+
+  @override
+  List<ClipRecord> records({int? notBefore}) => [
+    for (final r in _db.select(
+      'SELECT content, kind, created_at, last_copied_at FROM clip_items '
+      'WHERE last_copied_at >= ? ORDER BY last_copied_at DESC, id DESC',
+      [notBefore ?? _minInt],
+    ))
+      ClipRecord(
+        content: r['content'] as String,
+        kind: ClipKind.fromName(r['kind'] as String),
+        createdAt: r['created_at'] as int,
+        lastCopiedAt: r['last_copied_at'] as int,
+      ),
+  ];
+
+  @override
+  void compact() {
+    _db.execute('VACUUM');
+    // Moves the rebuilt pages into the file and empties the -wal.
+    _db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
+  }
+
+  @override
+  ImportCounts importBundle(
+    ExportBundle bundle, {
+    required bool applySettings,
+    int? notBefore,
+    required int nowMs,
+  }) {
+    final counts = _transaction(
+      () => importIntoDatabase(
+        _db,
+        bundle,
+        applySettings: applySettings,
+        notBefore: notBefore,
+        nowMs: nowMs,
+        hash: _hash,
+      ),
+    );
+    // Only after the commit: a failed import leaves the limit as it was.
+    _limit =
+        _db
+                .select(
+                  "SELECT value FROM settings WHERE key = 'history_limit'",
+                )
+                .single['value']
+            as int;
+    return counts;
   }
 
   /// "Clear history" must leave nothing readable behind: the migration backup
