@@ -27,6 +27,33 @@ void main() {
     );
   });
 
+  test('both Mac builds may read and write only the file the user picks '
+      '(M1.8 D1 A): user-selected read-write, nothing wider', () {
+    for (final path in [
+      'macos/Runner/Release.entitlements',
+      'macos/Runner/DebugProfile.entitlements',
+    ]) {
+      final plist = File(path).readAsStringSync();
+      expect(
+        RegExp(
+          r'<key>com\.apple\.security\.files\.user-selected\.read-write</key>'
+          r'\s*<true/>',
+        ).hasMatch(plist),
+        isTrue,
+        reason: path,
+      );
+      for (final wider in [
+        'files.all',
+        'files.downloads',
+        'temporary-exception.files',
+        'assets.',
+        'files.user-selected.executable',
+      ]) {
+        expect(plist, isNot(contains(wider)), reason: '$path: $wider');
+      }
+    }
+  });
+
   test('the Mac CI job runs on the pinned macos-15 runner', () {
     final yaml = File('.github/workflows/check.yml').readAsStringSync();
     expect(yaml, contains('runs-on: macos-15'));
