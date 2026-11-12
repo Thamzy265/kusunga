@@ -185,9 +185,9 @@ class LoginItemService extends ChangeNotifier {
   LoginItemFailure? _failure;
 
   /// The last position the OS reported in this run (off until it reports
-  /// one), shown when a plain read can't tell: an error or no answer
-  /// (lead's ruling 2026-11-12, reviewer P1). Windows can fail to read its
-  /// Run value while it is there.
+  /// one; notFound reports off), shown when a plain read can't tell: an
+  /// error or no answer (lead's ruling 2026-11-12, reviewer P1). Windows
+  /// can fail to read its Run value while it is there.
   var _lastReportedOn = false;
 
   /// A plain read failed and was logged; a read that works ends the run
@@ -281,10 +281,13 @@ class LoginItemService extends ChangeNotifier {
   }
 
   /// Takes [answer] as what the switch shows; a real state is also the
-  /// last position the OS reported, and ends a run of failing reads.
+  /// last position the OS reported, and ends a run of failing reads. A
+  /// notFound answer counts as the OS reporting off (lead's ruling
+  /// 2026-11-12, tester finding N4), but is still a failing read.
   void _show(LoginItemAnswer answer) {
     _state = answer.state;
     _failure = answer.failure;
+    if (answer.failure == LoginItemFailure.notFound) _lastReportedOn = false;
     if (answer.state == LoginItemState.failed) return;
     _readFailing = false;
     _lastReportedOn =
