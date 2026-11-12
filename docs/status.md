@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-12 — M1.7 Settings and expiry — reviewer: QA-M17-1 and TN2 fixed; P1, P2 Low
+- Changed: Reviewer re-checked b4c4b16..9e29fcb: QA-M17-1 and TN2 fixed (tests fail on the old lib), "Where it was" holds. All six checks pass (check.sh 3264 passed, 10 skipped). Verdict: approve with notes.
+- Findings: P1 Low (R4) — a plain read that fails with an error or timeout after the OS said on shows the switch off with no note, while the OS may still have it on (caused by the lead's QA-M17-1 ruling, which covered "notFound or an error"). P2 Low — a plain read that fails is not logged.
+- Gates: developer fixing P1, P2 · tester pass · reviewer approve with notes · QA re-check pending · PM merge —
+- Open findings: 2 Low (P1, P2)
+- Decisions: none from the PM. Lead refines its own ruling of 2026-11-12: a plain read answering notFound shows off with no note; a plain read failing with an error or timeout keeps the last position the OS reported (off if there was none), with no note; the first failing plain read in a row logs loginItemFailed with its number. No new copy.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; push of main; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-12 — M1.7 Settings and expiry — TN2 fixed, reviewer re-check
 - Changed: Developer fixed TN2 in 9e29fcb (keep the failed direction only when the re-read failed or differs from the request). The tester's two repros pass unedited; check.sh 3264 passed, 10 skipped; native suites all pass. Tester gate: closed by the tester's own repro tests passing unedited. Reviewer asked to re-check b4c4b16..9e29fcb (QA-M17-1 and TN2).
 - Gates: developer pass · tester pass (repros pass) · reviewer re-check running · QA re-check after the reviewer · PM merge —
