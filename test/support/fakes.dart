@@ -47,6 +47,20 @@ class FakeKeyStore implements KeyStore {
     _written = true;
     writes++;
   }
+
+  Object? deleteError;
+  int deletes = 0;
+
+  /// Called at the start of [delete] (to record the order of steps).
+  void Function()? onDelete;
+
+  @override
+  Future<void> delete() async {
+    onDelete?.call();
+    if (deleteError != null) throw deleteError!;
+    stored = null;
+    deletes++;
+  }
 }
 
 class FakeLog implements ErrorLog {

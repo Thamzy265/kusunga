@@ -33,6 +33,9 @@ class WindowsKeyStore implements KeyStore {
 
   @override
   Future<void> write(String keyHex) async => _vault.write(target, keyHex);
+
+  @override
+  Future<void> delete() async => _vault.delete(target);
 }
 
 /// Credential Manager through CredReadW / CredWriteW / CredDeleteW.

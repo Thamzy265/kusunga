@@ -21,4 +21,17 @@ void main() {
     expect(SecureKeyStore.macOptions.usesDataProtectionKeychain, isFalse);
     expect(SecureKeyStore.macOptions.accountName, 'com.wnasoni.kusunga');
   });
+
+  test(
+    'delete removes the key, and is fine when there is none (M1.8)',
+    () async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final store = SecureKeyStore();
+      await store.write('ab' * 32);
+      await store.delete();
+      expect(await store.read(), isNull);
+      await store.delete();
+      expect(await store.read(), isNull);
+    },
+  );
 }

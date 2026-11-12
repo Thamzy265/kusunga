@@ -14,9 +14,12 @@ class FakeVault implements CredentialVault {
     return entries[target];
   }
 
+  Object? deleteError;
+
   @override
   void delete(String target) {
     calls.add('delete $target');
+    if (deleteError != null) throw deleteError!;
     entries.remove(target);
   }
 
@@ -66,4 +69,19 @@ void main() {
       );
     },
   );
+
+  test('delete removes only its own credential (M1.8)', () async {
+    final vault = FakeVault()..entries['other'] = 'x';
+    final store = WindowsKeyStore(vault);
+    await store.write('ab' * 32);
+    await store.delete();
+    expect(await store.read(), isNull);
+    expect(vault.entries, {'other': 'x'});
+  });
+
+  test('a failed delete reaches the caller (M1.8)', () async {
+    final vault = FakeVault()..deleteError = StateError('denied');
+    final store = WindowsKeyStore(vault);
+    expect(store.delete(), throwsStateError);
+  });
 }
