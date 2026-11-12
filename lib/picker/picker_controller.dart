@@ -167,6 +167,16 @@ class PickerController extends ChangeNotifier {
   bool get shortcutSaveFailed => _shortcutSaveFailed;
   HistoryService? get history => _history;
   PasteMode get pasteMode => _pasteMode;
+
+  /// Reads the saved paste mode again (an import applied the file's
+  /// settings, M1.8).
+  void reloadSettings() {
+    final history = _history;
+    if (history == null || _disposed) return;
+    _pasteMode = PasteMode.parse(history.setting('paste_mode'));
+    notifyListeners();
+  }
+
   ToastKind? get toast => _toast;
 
   /// The permission card ("Let Kusunga paste for you") is showing.
