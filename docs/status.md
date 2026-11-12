@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-12 — M1.7 Settings and expiry — N4 fixed, reviewer re-check
+- Changed: Developer fixed N4 in e73b0d1 (a notFound answer sets the last OS-reported position to off; still a failing read for logging). Tester's repro passes unedited. check.sh 3301 passed, 10 skipped; native suites all pass. Tester gate closed by the tester's repro passing unedited. Reviewer asked to re-check 9e29fcb..e73b0d1 (P1, P2, N4).
+- Gates: developer pass · tester pass · reviewer re-check running · QA re-check after the reviewer · PM merge —
+- Open findings: P1, P2, N4 fixed, waiting for the reviewer
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; push of main; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-12 — M1.7 Settings and expiry — tester re-check of P1, P2: 1 Low
 - Changed: Tester added test/settings/login_item_last_position_test.dart (24 tests; 23 pass, 1 repro). Last-position memory, "Where it was", log counts and nine bad channel replies (all treated as errors, never notFound) hold. check.sh 3300 passed, 1 failed (the repro), 10 skipped; native suites all pass.
 - Findings: N4 Low — a notFound plain read doesn't count as an OS report, so on → notFound (off) → error read flips the switch back on with no OS report in between.
