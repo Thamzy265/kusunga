@@ -91,6 +91,12 @@ Tests: format round trip, validator abuse cases, delete order, UI states.
   - The picker shortcut, the pause (`history_paused_until`) and launch at login are **not** exported: the shortcut is per machine, the pause is a state rather than a setting, and the OS holds launch at login.
 - **Writing:**
   - Kusunga writes the export to a temporary file next to the target and renames it, so a failed export never leaves half a file. Where that temporary file can't be made (the Mac sandbox allows only the file the user picked), it writes the picked file directly and removes it again if the write fails.
+  - **The temporary file can't be planted (T7):**
+    - its name is `<picked name>.kusunga-tmp-<32 random hex digits>` (128 bits from a secure random source);
+    - it is made with `O_CREAT | O_EXCL`, which fails if anything is already at that name, including a link;
+    - it is opened without truncating and written only once it is known to still be a plain file, so it is never written through a link.
+  - **A direct write never follows a link either:** if the picked path is a link, the export fails with "Couldn't save the export. Try again."
+  - **Leftovers:** plain temporary files that an earlier export to the same path left behind (a crash while writing) are removed. Only Kusunga's own names count, including `<picked name>.kusunga-tmp` from builds before T7. Links are never followed or removed.
   - It never writes to any other path.
 - **Size:** at most 5,000 history items (the limit's maximum) plus every snippet. No cap is needed on export.
 - **The file is not encrypted** (D1). The dialog says so before the save dialog opens.
@@ -155,6 +161,7 @@ Tests: format round trip, validator abuse cases, delete order, UI states.
   4. **No answer at all:** nothing is deleted or closed, and capture stays stopped for the rest of this run. Kusunga logs `deleteEverythingFailed` with no number, and shows "Kusunga couldn't confirm whether its key was deleted, so it has stopped recording and will now quit. Open Kusunga again. If your snippets and history are still there, try Delete everything again." Its only button is OK, which quits (Escape does the same). Quitting means nothing can start recording again while the old call is still running.
   5. **A late success stands:** if the call removes the key after that, the key is not written back, because the user asked for it to go (lead ruling B). The next launch handles a file with no key as in G6.
   - In memory-only mode the key delete is tried once. A time-out is logged and the rest goes on, because that session never opened the file with this key.
+- **A folder that can't be listed (T6), or a data or profile folder that is itself a link (T8):** Kusunga never follows the link. Nothing in the folder it points to is deleted, and the link itself stays. Either way the folder counts as one file not removed, so the partial message below shows, never "Everything is deleted." It is logged as `deleteFileFailed`, with the OS error number when there is one. A data folder that isn't there at all has nothing left in it.
 - **If a file delete fails after the key is gone:** carry on with the others, then show "Everything is deleted. 1 file couldn't be removed, but it can't be read any more." The next launch already handles a file with no key (lead ruling G6): it makes a new key, moves the old file aside as unreadable and shows the banner once; the next Clear history or Delete everything removes it.
 - **In a debug data profile:** only the profile's own folder is deleted. The key is shared with the real history, so it is never deleted, and launch at login (which may be the real app's) is left alone (lead ruling G3). A rejected profile switch (memory only) deletes nothing on disk.
 - **Memory-only mode:** the memory store is emptied, every file that exists is deleted, the key delete is attempted, and Kusunga quits.
