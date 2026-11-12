@@ -372,6 +372,33 @@ void main() {
     badHistory('a time that does not parse', (h) => h['created_at'] = 'soon');
     badHistory('a time that is a number', (h) => h['last_copied_at'] = 5);
     badHistory('no time', (h) => h.remove('last_copied_at'));
+    for (final bad in [
+      '2026-02-31T00:00:00Z', // 31 February (T9)
+      '2025-02-29T00:00:00Z', // not a leap year
+      '2026-13-01T00:00:00Z',
+      '2026-00-10T00:00:00Z',
+      '2026-11-00T00:00:00Z',
+      '2026-11-12T24:00:00Z',
+      '2026-11-12T09:60:00Z',
+      '2026-11-12T09:30:60Z',
+      // other ways of writing a time: Kusunga writes only the one above
+      '2026-11-12',
+      '2026-11-12T09:30:00',
+      '2026-11-12T09:30:00+01:00',
+      '2026-11-12 09:30:00Z',
+      '+002026-11-12T09:30:00Z',
+      '2026-11-12T09:30:00.1234567Z',
+    ]) {
+      badHistory('the time $bad (T9)', (h) => h['created_at'] = bad);
+    }
+
+    test('an exported_at that does not exist refuses the file (T9)', () {
+      final json = _valid()..['exported_at'] = '2026-02-30T00:00:00Z';
+      expect(
+        () => decodeImport(_bytes(json)),
+        _rejected(ImportRejectReason.badItem),
+      );
+    });
 
     test('more than 5,000 history items', () {
       final json = _valid()
@@ -483,6 +510,30 @@ void main() {
       final b = decodeImport(_bytes(json));
       expect(b.snippets.first.name, 'Smile 😀');
       expect(b.snippets.first.content, '👨‍👩‍👧 🇬🇧');
+    });
+
+    test('times that exist read back exactly: a leap day, the last moment '
+        'of a year, and fractions of a second (T9)', () {
+      for (final (text, expected) in [
+        ('2024-02-29T00:00:00Z', DateTime.utc(2024, 2, 29)),
+        (
+          '2026-12-31T23:59:59.999Z',
+          DateTime.utc(2026, 12, 31, 23, 59, 59, 999),
+        ),
+        ('2026-11-12T09:30:00.5Z', DateTime.utc(2026, 11, 12, 9, 30, 0, 500)),
+        (
+          '2026-11-12T09:30:00.123456Z',
+          DateTime.utc(2026, 11, 12, 9, 30, 0, 123),
+        ),
+      ]) {
+        final json = _valid()..['exported_at'] = text;
+        final h = (json['history'] as List).first as Map<String, Object?>;
+        h['created_at'] = text;
+        h['last_copied_at'] = text;
+        final item = decodeImport(_bytes(json)).history!.single;
+        expect(item.createdAt, expected.millisecondsSinceEpoch, reason: text);
+        expect(item.lastCopiedAt, expected.millisecondsSinceEpoch);
+      }
     });
 
     test('an app id of exactly 255 characters is fine', () {

@@ -6,15 +6,10 @@
 // Tests marked with [_repro] are bug repros: they fail today and are skipped
 // so the check command stays green. Run them with KUSUNGA_REPRO=1.
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/data/export_format.dart';
 import 'package:kusunga/history/clip_item.dart';
-
-final Object? _repro = Platform.environment['KUSUNGA_REPRO'] == '1'
-    ? null
-    : 'bug repro (set KUSUNGA_REPRO=1 to run)';
 
 Map<String, Object?> _file({
   Object? snippets = const <Object?>[],
@@ -727,7 +722,7 @@ void main() {
           reason: bad,
         );
       }
-    }, skip: _repro);
+    });
 
     test('BUG-T3 (Low): a typed_shortcuts_on written as 1.0 or 0.0 is refused '
         'like any other number that is not 0 or 1', () {

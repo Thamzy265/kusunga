@@ -221,7 +221,7 @@ ExportBundle decodeImport(List<int> bytes) {
     throw const ImportRejected(ImportRejectReason.newerVersion);
   }
   final at = root['exported_at'];
-  if (at != null && (at is! String || DateTime.tryParse(at) == null)) _bad();
+  if (at != null) _ms(at);
 
   final snippets = root['snippets'];
   if (snippets is! List || snippets.length > SnippetStore.maxCount) _bad();
@@ -313,9 +313,34 @@ ExportSnippet _snippet(Object? raw) {
   );
 }
 
+/// The one form Kusunga writes: UTC, `2026-11-12T09:30:00.000Z`, with or
+/// without the fraction of a second.
+final _utcTime = RegExp(
+  r'^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)(\.\d{1,6})?Z$',
+);
+
+/// A time from the file, in Unix milliseconds. It must name a moment that
+/// exists: `DateTime.parse` rolls 31 February over to 3 March and month 13
+/// into the next year, so the fields it read must be the fields written
+/// (T9).
 int _ms(Object? raw) {
-  final time = DateTime.tryParse(_as<String>(raw));
-  return time == null ? _bad() : time.millisecondsSinceEpoch;
+  final text = _as<String>(raw);
+  final m = _utcTime.firstMatch(text);
+  final time = m == null ? null : DateTime.tryParse(text);
+  if (m == null || time == null) _bad();
+  final written = [for (var i = 1; i <= 6; i++) int.parse(m.group(i)!)];
+  final read = [
+    time.year,
+    time.month,
+    time.day,
+    time.hour,
+    time.minute,
+    time.second,
+  ];
+  for (var i = 0; i < written.length; i++) {
+    if (written[i] != read[i]) _bad();
+  }
+  return time.millisecondsSinceEpoch;
 }
 
 ExportHistoryItem _historyItem(Object? raw) {
