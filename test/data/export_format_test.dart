@@ -565,4 +565,64 @@ void main() {
       expect(s.pasteMode, isNull);
     });
   });
+
+  group('the time rules (lead ruling 2026-11-12)', () {
+    final now = _at.millisecondsSinceEpoch;
+    const day = Duration.millisecondsPerDay;
+
+    ExportBundle withHistory(int created, int last) => ExportBundle(
+      snippets: const [],
+      history: [
+        ExportHistoryItem(
+          content: 'x',
+          kind: ClipKind.text,
+          createdAt: created,
+          lastCopiedAt: last,
+        ),
+      ],
+      settings: const ExportSettings(historyLimit: 50),
+      ignoredApps: const [IgnoredApp('com.a', 'A')],
+    );
+
+    test('a time more than 24 hours after the import refuses the whole '
+        'file; 24 hours exactly is fine', () {
+      for (final (created, last) in [
+        (now, now + day + 1),
+        (now + day + 1, now + day + 1),
+        (now - day, now + 3650 * day),
+      ]) {
+        expect(
+          () => checkImportTimes(withHistory(created, last), nowMs: now),
+          _rejected(ImportRejectReason.badItem),
+          reason: '$created $last',
+        );
+      }
+      final ok = checkImportTimes(
+        withHistory(now + day, now + day),
+        nowMs: now,
+      );
+      expect(ok.history!.single.lastCopiedAt, now + day);
+    });
+
+    test('a last copy before its creation moves the creation back to the '
+        'last copy; other times and the rest of the file stay as they are', () {
+      final b = checkImportTimes(withHistory(now, now - 10 * day), nowMs: now);
+      expect(b.history!.single.createdAt, now - 10 * day);
+      expect(b.history!.single.lastCopiedAt, now - 10 * day);
+      expect(b.history!.single.content, 'x');
+      expect(b.settings!.historyLimit, 50);
+      expect(b.ignoredApps!.single.appId, 'com.a');
+      final same = checkImportTimes(
+        withHistory(now - 2 * day, now - day),
+        nowMs: now,
+      );
+      expect(same.history!.single.createdAt, now - 2 * day);
+      expect(same.history!.single.lastCopiedAt, now - day);
+    });
+
+    test('a file without history passes as it is', () {
+      final b = ExportBundle(snippets: const []);
+      expect(checkImportTimes(b, nowMs: now).history, isNull);
+    });
+  });
 }

@@ -270,7 +270,10 @@ class YourDataService {
     }
     if (path == null) return const ImportCancelled();
     try {
-      final bundle = decodeImport(_read(path));
+      final bundle = checkImportTimes(
+        decodeImport(_read(path)),
+        nowMs: _now().millisecondsSinceEpoch,
+      );
       return ImportReady(
         bundle: bundle,
         fileName: File(path).uri.pathSegments.last,

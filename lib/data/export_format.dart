@@ -396,6 +396,42 @@ IgnoredApp _app(Object? raw) {
   return app;
 }
 
+/// How far after the import a history time in the file may be: a day, for
+/// clocks that differ between computers (lead ruling 2026-11-12).
+const maxImportAhead = Duration(hours: 24);
+
+/// The lead's time rules (2026-11-12). They need the import time, which
+/// [decodeImport] doesn't have, so the import runs them on its result:
+///  - a `created_at` or `last_copied_at` more than [maxImportAhead] after
+///    [nowMs] refuses the whole file (it would sort first and never
+///    expire);
+///  - a `last_copied_at` before its `created_at` is kept with `created_at`
+///    set to `last_copied_at`.
+ExportBundle checkImportTimes(ExportBundle bundle, {required int nowMs}) {
+  final history = bundle.history;
+  if (history == null) return bundle;
+  final latest = nowMs + maxImportAhead.inMilliseconds;
+  return ExportBundle(
+    snippets: bundle.snippets,
+    history: [
+      for (final h in history)
+        if (h.createdAt > latest || h.lastCopiedAt > latest)
+          _bad()
+        else
+          ExportHistoryItem(
+            content: h.content,
+            kind: h.kind,
+            createdAt: h.lastCopiedAt < h.createdAt
+                ? h.lastCopiedAt
+                : h.createdAt,
+            lastCopiedAt: h.lastCopiedAt,
+          ),
+    ],
+    settings: bundle.settings,
+    ignoredApps: bundle.ignoredApps,
+  );
+}
+
 /// What an import did, for the summary toast and the log.
 class ImportCounts {
   const ImportCounts({

@@ -267,6 +267,54 @@ void main() {
       expect(log.details[i], ImportRejectReason.tooLarge.number);
     });
 
+    group('the time rules (lead ruling 2026-11-12)', () {
+      // The service's clock: 2026-11-12 09:30, local time.
+      final importTime = DateTime(2026, 11, 12, 9, 30).millisecondsSinceEpoch;
+
+      void writeFile(int created, int last) {
+        files.openPath = p.join(dir.path, 'in.json');
+        File(files.openPath!).writeAsStringSync(
+          encodeExport(
+            ExportBundle(
+              snippets: const [],
+              history: [
+                ExportHistoryItem(
+                  content: 'x',
+                  kind: ClipKind.text,
+                  createdAt: created,
+                  lastCopiedAt: last,
+                ),
+              ],
+            ),
+            exportedAt: DateTime(2026),
+          ),
+        );
+      }
+
+      test('a history time more than 24 hours after the import refuses the '
+          'file, logged as a bad item', () async {
+        final h = history('a.db');
+        writeFile(importTime, importTime + _day + 1000);
+        expect(await service(h).checkImport(), isA<ImportRefused>());
+        final i = log.codes.indexOf(LogCode.importRejected);
+        expect(log.details[i], ImportRejectReason.badItem.number);
+        writeFile(importTime, importTime + _day);
+        expect(await service(h).checkImport(), isA<ImportReady>());
+      });
+
+      test('a last copy before its creation is stored with the creation set '
+          'to the last copy', () async {
+        final h = history('a.db');
+        writeFile(now, now - 3 * _day);
+        final s = service(h);
+        final ready = await s.checkImport() as ImportReady;
+        expect(s.runImport(ready, applySettings: false), isA<ImportDone>());
+        final r = h.exportBundle(includeHistory: true).history!.single;
+        expect(r.createdAt, now - 3 * _day);
+        expect(r.lastCopiedAt, now - 3 * _day);
+      });
+    });
+
     test('a file that cannot be read is refused like a damaged one', () async {
       final h = history('a.db');
       files.openPath = p.join(dir.path, 'gone.json');

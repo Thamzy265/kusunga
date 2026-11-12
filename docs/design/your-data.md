@@ -105,17 +105,19 @@ Tests: format round trip, validator abuse cases, delete order, UI states.
   - any item breaks the app's own rules:
     - name 1–100 characters;
     - type in the list;
-    - content within the history item size limit;
+    - content within the history item size limit, and history text that isn't blank (capture's own rule, T1);
+    - no text with half a character (a lone UTF-16 surrogate) in a name, content, history item or ignored app. UTF-8 can't store it, so what was saved would differ from the file (T2);
     - shortcut valid under the M1.5 rules;
-    - timestamps parse;
-    - settings values are allowed values (the same checks as M1.7);
+    - timestamps in the one form Kusunga writes (UTC, `2026-11-12T09:30:00.000Z`, with the fraction optional), naming a moment that exists: no 31 February or month 13 (T9);
+    - a `created_at` or `last_copied_at` no more than 24 hours after the import time (lead ruling 2026-11-12). The check runs when the file is checked, against the clock at that moment. Such an item would sort first and never expire. This rule and the next one need the import time, so they run right after the file is decoded (`checkImportTimes`), not inside the decoder;
+    - settings values are allowed values (the same checks as M1.7), and whole numbers where the setting is a number: 1.0 is refused (T3);
     - app ids are under 255 characters.
 - Unknown fields are ignored. Nothing in the file is run, opened or followed as a path.
 - **Where import is offered (lead ruling G2):** only while history is saved. In memory-only, incompatible and backup-failed sessions the Import… button is disabled, with the line "Import isn't available right now, because history isn't being saved."
 - **Merge (D3):**
   - Snippets are added after the existing ones. A snippet with the same name and content as an existing one is skipped.
   - If an imported shortcut is already used, the imported snippet is added without a shortcut, and the summary says how many.
-  - History items keep the file's times (lead ruling G5). An item already here merges the way Undo does: the newer last copy and the older creation time, so duplicates never double. Items already older than the current auto-delete time are not added; the confirm count shows only the items that will be added, and the summary says how many were left out. Then the history is trimmed to the limit as usual.
+  - History items keep the file's times (lead ruling G5). A `last_copied_at` earlier than its `created_at` is stored with `created_at` set to `last_copied_at` (lead ruling 2026-11-12). An item already here merges the way Undo does: the newer last copy and the older creation time, so duplicates never double. Items already older than the current auto-delete time are not added; the confirm count shows only the items that will be added, and the summary says how many were left out. Then the history is trimmed to the limit as usual.
   - Settings and ignored apps from the file are applied only if the user ticks "Also use the settings in this file" (D5). They take effect at once: the limit, auto-delete, typed shortcuts, the paste mode and the ignore list.
   - Ignored apps are added; none are removed or renamed. An id that is one of the presets comes back marked as a preset.
   - A file that would take the snippets past 1,000 fails as a write failure: "Couldn't import. Nothing was changed."
