@@ -1,6 +1,6 @@
 # M1.8 Your data: export and delete — design note
 
-Date: 2026-11-12 — Author: lead — Status: draft, waiting for the PM (decisions D1–D6)
+Date: 2026-11-12 — Author: lead — Status: approved by PM 2026-11-12 (D1 A, D2 A, D3 A, D4 A, D5 A, D6 A)
 
 UI spec: `docs/ui/your-data.md` — Deck: `docs/slides/your-data.html`
 
@@ -222,7 +222,7 @@ Assumed unless the PM says otherwise:
 - **Rollout:** ships with the normal build. No schema change.
 - **Rollback:** revert the merge. Export files already made stay where the user saved them. The Mac entitlement goes back to sandbox-only.
 
-## Later lines (proposed)
+## Later lines (added to docs/PLAN.md 2026-11-12)
 
 - Password-protected export — plain JSON matches the plan and the warning covers the risk — trigger: ≥ 5 beta requests — noted 2026-11-12 by lead
 - Import from other clipboard apps (Paste, Maccy, Ditto, Windows clipboard history) — each needs its own format reader — trigger: ≥ 10 beta requests naming one app — noted 2026-11-12 by lead

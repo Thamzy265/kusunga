@@ -1,8 +1,8 @@
 # M1.8 Your data — UI spec
 
-Date: 2026-11-12 — Design note: `docs/design/your-data.md` — Status: draft, waiting for the PM (D1–D6)
+Date: 2026-11-12 — Design note: `docs/design/your-data.md` — Status: approved by PM 2026-11-12
 
-Written for the recommended options (D1 A, D2 A, D3 A, D4 A, D5 A, D6 A). If the PM picks other options, this spec changes before the developer starts.
+Built on the PM's decisions of 2026-11-12: D1 A, D2 A, D3 A, D4 A, D5 A, D6 A (the recommended options).
 
 ## User and task
 

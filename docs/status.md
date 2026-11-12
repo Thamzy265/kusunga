@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-12 — M1.8 Your data: export and delete — deck approved, build starts
+- Changed: The PM said: "the deck is empty" (2026-11-12). Cause: every deck hid its slides until its script ran, and the PM's viewer runs no scripts. Lead fixed all 8 decks (a9786f0) so slides show without scripts, and re-sent the M1.8 deck. Design note and UI spec marked approved; two Later lines added (password-protected export; import from other clipboard apps). Branch feat/your-data created from main. Developer briefed on opus (personal data, key deletion, several modules).
+- Gates: developer started · tester — · reviewer — · QA — · PM merge —
+- Open findings: none
+- Decisions: PM said: "Approve as recommended" (2026-11-12), in answer to "Approve the M1.8 deck with the recommended options?". This decides D1 A (plain JSON export with a warning; approves the file_selector package and the Mac user-selected read-write entitlement), D2 A (history off by default), D3 A (import merges, never overwrites), D4 A (Delete all history = Clear history plus VACUUM, key kept), D5 A (settings and ignored apps exported; applied on import only if ticked), D6 A (after Delete everything: launch at login off, quit). The assumptions in the deck stand: lawful basis n/a, no ADR, size large.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-12 — M1.8 Your data: export and delete — design drafted, waiting for the PM
 - Changed: PM said: "ok, proceed and start M1.8" (2026-11-12). Lead resized M1.8 from small to large (export moves personal data out of the encrypted file; import reads an untrusted file; Delete everything removes the keychain key, which no code does today). Scout lookup of main 914b75b: no file dialogs or file entitlement, no JSON code, KeyStore has no delete, Clear history keeps snippets, settings and key. Wrote docs/design/your-data.md, docs/ui/your-data.md and docs/slides/your-data.html. No branch and no developer brief yet.
 - Gates: developer not started (waiting for deck approval) · tester — · reviewer — · QA — · PM merge —

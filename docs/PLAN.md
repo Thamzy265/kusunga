@@ -80,7 +80,7 @@ Everything stays on the device. No account, no server.
   - AC: history limit, auto-delete after a set time (never / 1 day / 7 days / 30 days), shortcut, launch at login, ignore list.
   - AC: the most private choice is the default where there is one (e.g. launch at login off until the user turns it on).
 - [ ] **M1.8 Your data: export and delete** — large (resized by lead 2026-11-12: export moves personal data out of the encrypted file; import reads an untrusted file; Delete everything removes the key).
-  - Design: `docs/design/your-data.md`, UI spec `docs/ui/your-data.md`, deck `docs/slides/your-data.html` (waiting for PM approval, D1–D6).
+  - Design: `docs/design/your-data.md`, UI spec `docs/ui/your-data.md`, deck `docs/slides/your-data.html` (approved 2026-11-12: D1 A, D2 A, D3 A, D4 A, D5 A, D6 A).
   - AC: export snippets (and optionally history) as a JSON file; import the same file.
   - AC: "Delete all history" and "Delete everything" remove all stored data and the keychain key.
 - [ ] **M1.9 Signed installers and first beta** — large (release).
@@ -162,3 +162,5 @@ Needs its own design note and deck. Mobile cannot record clipboard history in th
 - A native wake-from-sleep hook for the pause UI — the banner, tray tooltip and menu refresh on a 15 s Dart tick (which resumes on wake) and when Kusunga becomes active; capture itself is exact because native code checks the wall clock on every copy — trigger: QA measures the banner or tooltip showing an ended pause more than 15 s after wake — noted 2026-11-10 by developer
 - Auto-delete after 1 hour — Pause covers short private moments — trigger: ≥ 5 beta requests — noted 2026-11-10 by lead
 - Auto-delete per app — one global time covers personal use — trigger: ≥ 5 beta requests — noted 2026-11-10 by lead
+- Password-protected export — plain JSON matches the plan and the warning covers the risk — trigger: ≥ 5 beta requests — noted 2026-11-12 by lead
+- Import from other clipboard apps (Paste, Maccy, Ditto, Windows clipboard history) — each needs its own format reader — trigger: ≥ 10 beta requests naming one app — noted 2026-11-12 by lead
