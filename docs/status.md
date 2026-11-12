@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-12 — M1.7 Settings and expiry — QA session 2: pass; waiting for PM merge approval
+- Changed: QA commit 400239d (docs/qa/m1.md "M1.7 session 2", 3 screenshots m1.7-s2-*.png) at e73b0d1, rebuilt Debug, qa profile. PASS: normal launch opens the window; Settings opened 5 times (incl. hide/show) shows the switch off with no note (QA-M17-1 re-verified); log has one loginItemFailed with no number (launch status read) and codes only; Auto-delete menu saves with no dialog; Tab order and focus rings unchanged; Privacy link works. qa profile left as found; Kusunga quit. Lead spot-checked m1.7-s2-settings-tab.png: no PM data. Branch: 44 commits ahead of main.
+- Gates: developer pass · tester pass · reviewer approve · QA pass (AC1 and AC2 for what can be shown without the PM; launch at login on/off, needs approval, login start (D5), installed build, VoiceOver, 200% text, light mode and Windows not run) · PM merge waiting
+- Open findings: none
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — merge approval; M1.7 PM checks (docs/qa/m1.md#pm-check-m17); push of main; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-12 — M1.7 Settings and expiry — reviewer: approve; QA re-check
 - Changed: Reviewer re-checked 9e29fcb..e73b0d1: P1, P2, N4 fixed (tests fail on the old lib); R4, "Where it was", TN2 and QA-M17-1 hold; log codes and numbers only. All six checks pass (check.sh 3301 passed, 10 skipped). Verdict: approve, no open finding. QA asked to re-check QA-M17-1 in the running app.
 - Gates: developer pass · tester pass · reviewer approve · QA re-check running · PM merge —
