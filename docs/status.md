@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-12 — M1.8 Your data — lead answers to the developer's spec gaps
+- Changed: Developer raised 5 spec gaps while building the key delete, Delete everything and the validator.
+- Gates: developer building · tester — · reviewer — · QA — · PM merge —
+- Open findings: none
+- Decisions: none from the PM. Lead rulings within the approved design: G1 export history_limit, history_expiry_days, typed_shortcuts_on, paste_mode (never history_paused_until or picker_shortcut); G2 Import… disabled in memory-only, incompatible and backup-failed sessions, with a help line; G3 in a debug profile Delete everything leaves launch at login alone (it may share the real app's login item), D6 covered by unit tests and a PM step; G4 Import… button shows "Checking the file…", refusal as a toast; G5 imported history keeps the file's times, duplicates merge like Undo, items already past auto-delete are not added and are counted in the toast. Developer conventions accepted: 1,000-snippet cap fails the import; a rejected-profile session deletes nothing.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-12 — M1.8 Your data: export and delete — deck approved, build starts
 - Changed: The PM said: "the deck is empty" (2026-11-12). Cause: every deck hid its slides until its script ran, and the PM's viewer runs no scripts. Lead fixed all 8 decks (a9786f0) so slides show without scripts, and re-sent the M1.8 deck. Design note and UI spec marked approved; two Later lines added (password-protected export; import from other clipboard apps). Branch feat/your-data created from main. Developer briefed on opus (personal data, key deletion, several modules).
 - Gates: developer started · tester — · reviewer — · QA — · PM merge —
