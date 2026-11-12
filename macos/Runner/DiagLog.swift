@@ -30,7 +30,9 @@ enum DiagLog {
     "shortcutSyntheticKeysAllowed", "captureSkippedIgnoredApp", "capturePaused", "captureResumed",
     "captureSourceUnknown", "captureIgnoredSendFailed", "historyExpired",
     "historyExpiryFailed", "settingSaveFailed", "loginItemOn", "loginItemOff", "loginItemFailed",
-    "loginItemNeedsApproval",
+    "loginItemNeedsApproval", "dataExported", "dataExportedHistory", "dataImported",
+    "dataImportedHistory", "dataImportSkipped", "importRejected", "importFailed",
+    "exportFailed", "deleteEverythingDone", "deleteEverythingFailed", "deleteFileFailed",
     // Native
     "pasteResult", "postKeyNone", "postKeyCode", "postForced", "postFrontmostOk", "postTiming",
     "postSourceState", "postSourceNil", "postTap", "postEventNil", "postSent",

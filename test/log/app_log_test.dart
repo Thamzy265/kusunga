@@ -95,6 +95,35 @@ void main() {
       expect(a.lines, ['readFailed', 'flushFailed']);
       expect(b.lines, isEmpty);
     });
+
+    test('after stopFile nothing reaches the file log, only the mirror '
+        '(Delete everything, M1.8)', () {
+      final mirror = _Recording();
+      final late = DeferredErrorLog(mirror: mirror);
+      final file = _Recording();
+      late.attach(file);
+      late.log(LogCode.deleteEverythingDone);
+      late.stopFile();
+      late.log(LogCode.deleteFileFailed, 13);
+      late.attach(_Recording());
+      late.log(LogCode.loginItemOff);
+      expect(file.lines, ['deleteEverythingDone']);
+      expect(mirror.lines, [
+        'deleteEverythingDone',
+        'deleteFileFailed 13',
+        'loginItemOff',
+      ]);
+    });
+
+    test('stopFile before attach: nothing waits, nothing is written', () {
+      final late = DeferredErrorLog();
+      late.log(LogCode.readFailed);
+      late.stopFile();
+      final file = _Recording();
+      late.attach(file);
+      late.log(LogCode.flushFailed);
+      expect(file.lines, isEmpty);
+    });
   });
 
   group('unified log mirror', () {
