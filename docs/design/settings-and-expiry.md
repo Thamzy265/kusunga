@@ -89,7 +89,7 @@ About 1.2× M1.6's Dart work and less native work: one Dart service, one migrati
   - `.enabled` → switch on;
   - `.notRegistered` → off;
   - `.requiresApproval` → switch on with the note "Allow Kusunga in System Settings › General › Login Items" and a button that calls `SMAppService.openSystemSettingsLoginItems()`;
-  - `.notFound` or an error → switch off, note "Couldn't turn this on. Try again."
+  - `.notFound` or an error → switch off. A failure note shows only after a change the user asked for has failed (below): a plain status read with no change by the user (at launch, when the Settings tab opens, when Kusunga becomes active) that answers `.notFound` or an error shows the switch off with no note. A debug build run from the build folder gets `.notFound` (QA-M17-1, lead's ruling 2026-11-12).
 - Works inside the App Sandbox, with no helper app and no new entitlement.
 - **Mac 12 (D4):** `SMAppService` needs macOS 13.
 - **Windows:** write `"<full path to Kusunga.exe>" --login` to the HKCU Run value `Kusunga`; delete it to turn off. Per user, no admin rights.

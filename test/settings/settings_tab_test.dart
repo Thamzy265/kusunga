@@ -290,9 +290,11 @@ void main() {
     testWidgets('accessible name, on/off state and the note as its '
         'description', (tester) async {
       final handle = tester.ensureSemantics();
-      port.next = const LoginItemAnswer(LoginItemState.failed);
       await show(tester);
       await openSettings(tester);
+      port.next = const LoginItemAnswer(LoginItemState.failed);
+      await tester.tap(find.byType(Switch)); // a change that fails
+      await tester.pump();
       // The switch's own node is merged up into its control's node.
       final node = tester
           .getSemantics(hook('settings-launch-at-login'))
@@ -301,6 +303,25 @@ void main() {
       expect(node.hint, "Couldn't turn this on. Try again.");
       expect(node.flagsCollection.isToggled, isNot(Tristate.none));
       handle.dispose();
+    });
+
+    // QA-M17-1: the status read when the tab opens answers notFound (a
+    // debug build run from the build folder); nothing was changed, so there
+    // is no failure note.
+    testWidgets('opening the tab when the OS answers notFound or an error: '
+        'off, no note', (tester) async {
+      port.next = const LoginItemAnswer(LoginItemState.failed);
+      await show(tester);
+      await openSettings(tester);
+      expect(port.statusCalls, 1);
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
+      expect(find.text("Couldn't turn this on. Try again."), findsNothing);
+      expect(log.codes, isNot(contains(LogCode.loginItemFailed)));
+      await tester.tap(hook('main-tab-history'));
+      await tester.pump();
+      await openSettings(tester); // read again: still no note
+      expect(port.statusCalls, 2);
+      expect(find.text("Couldn't turn this on. Try again."), findsNothing);
     });
 
     testWidgets('failed: back off, with the note', (tester) async {

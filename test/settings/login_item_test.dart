@@ -69,6 +69,22 @@ void main() {
       expect(calls.single.arguments, false);
     });
 
+    // QA-M17-1: what a debug build run from the build folder gets.
+    test('a read answering notFound or error over the channel shows no '
+        'note', () async {
+      for (final reply in <Object?>[
+        {'state': 'notFound'},
+        {'state': 'error', 'error': 5},
+      ]) {
+        answer = (_) => reply;
+        final s = LoginItemService(port: port(), log: FakeLog());
+        await s.refresh();
+        expect(s.isOn, isFalse, reason: '$reply');
+        expect(s.note, isNull, reason: '$reply');
+        s.dispose();
+      }
+    });
+
     test('openLoginItemsSettings takes no arguments', () async {
       await port().openSettings();
       expect(calls.single.method, 'openLoginItemsSettings');
@@ -313,9 +329,31 @@ void main() {
       expect(service.announcement, isNull);
     });
 
-    test('notFound or an error on a read: off with the failure note', () async {
+    // QA-M17-1 (lead's ruling 2026-11-12): a failure note shows only after
+    // a change the user asked for. A plain read (launch, tab open, becoming
+    // active) that answers notFound or an error, as for a debug build run
+    // from the build folder, shows the switch off with no note.
+    test(
+      'a plain read that answers notFound or an error: off, no note',
+      () async {
+        port.next = const LoginItemAnswer(LoginItemState.failed, error: 3);
+        await service.refresh();
+        expect(service.state, LoginItemState.failed);
+        expect(service.isOn, isFalse);
+        expect(service.enabled, isTrue);
+        expect(service.note, isNull);
+        expect(service.showOpenLoginItems, isFalse);
+        await service.refresh(); // again, as each tab opening does
+        expect(service.note, isNull);
+      },
+    );
+
+    test('turning it on after such a read, and failing: "Couldn\'t turn this '
+        'on"', () async {
       port.next = const LoginItemAnswer(LoginItemState.failed);
       await service.refresh();
+      expect(service.note, isNull);
+      await service.set(true);
       expect(service.isOn, isFalse);
       expect(service.note, "Couldn't turn this on. Try again.");
     });
@@ -522,7 +560,7 @@ void main() {
       port.reads = const LoginItemAnswer(LoginItemState.failed);
       await service.refresh();
       expect(service.isOn, isFalse, reason: 'an unreadable state shows off');
-      expect(service.note, cantOn);
+      expect(service.note, isNull, reason: 'no change by the user: no note');
     });
 
     test('the next change starts without the old failure', () async {
@@ -546,15 +584,11 @@ void main() {
       for (final (reads, retry) in [
         (LoginItemState.failed, false), // after a failed turn-off
         (LoginItemState.off, true), // after a failed turn-on
-        (LoginItemState.failed, true), // a read that failed, no change
+        (LoginItemState.failed, true), // after a failed turn-on, unreadable
       ]) {
         await startAt(retry ? LoginItemState.off : LoginItemState.on);
         port.reads = LoginItemAnswer(reads);
-        if (reads == LoginItemState.failed && retry) {
-          await service.refresh();
-        } else {
-          await service.set(retry);
-        }
+        await service.set(retry);
         expect(service.note, isNotNull, reason: '$reads $retry');
         final held = port.hold();
         final change = service.set(retry);

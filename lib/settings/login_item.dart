@@ -167,10 +167,14 @@ class LoginItemService extends ChangeNotifier {
   /// False on macOS 12 (the switch is disabled).
   bool get enabled => _state != LoginItemState.unsupported;
 
-  /// The note under the switch (UI spec, "Copy"), or null. After a failed
-  /// change it says so while the switch is not where the user asked, or the
-  /// OS could not be read. While the next change runs, no failure note
-  /// shows; a note about the OS state (approval, Task Manager) stays.
+  /// The note under the switch (UI spec, "Copy"), or null. A failure note
+  /// shows only after a change the user asked for has failed: while the
+  /// switch is not where the user asked, or the OS could not be read. A
+  /// plain read that answers notFound or an error (at launch, on tab open,
+  /// on becoming active; a debug build run from the build folder) shows the
+  /// switch off with no note (QA-M17-1, lead's ruling 2026-11-12). While
+  /// the next change runs, no failure note shows; a note about the OS state
+  /// (approval, Task Manager) stays.
   String? get note {
     final failedTo = _failedTo;
     if (failedTo != null &&
@@ -179,12 +183,9 @@ class LoginItemService extends ChangeNotifier {
       return failedTo ? _cantTurnOn : _cantTurnOff;
     }
     return switch (_state) {
-      LoginItemState.on || LoginItemState.off => null,
+      LoginItemState.on || LoginItemState.off || LoginItemState.failed => null,
       LoginItemState.needsApproval =>
         'Allow Kusunga in System Settings › General › Login Items.',
-      // While a change runs it starts clean: no earlier failure shows, as
-      // it could name the wrong direction (tester finding N1).
-      LoginItemState.failed => busy ? null : _cantTurnOn,
       LoginItemState.unsupported => 'Needs macOS 13 or later.',
       LoginItemState.turnedOffInTaskManager => 'Turned off in Task Manager.',
     };
