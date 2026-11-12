@@ -348,7 +348,8 @@ ExportSettings _settings(Map<String, Object?> s) {
     _bad();
   }
   final typed = s['typed_shortcuts_on'];
-  if (typed != null && typed != 0 && typed != 1) _bad();
+  // A whole number, like the other settings: 1.0 == 1 in Dart (T3).
+  if (typed != null && (typed is! int || (typed != 0 && typed != 1))) _bad();
   final paste = s['paste_mode'];
   if (paste != null && !_pasteModes.contains(paste)) _bad();
   return ExportSettings(

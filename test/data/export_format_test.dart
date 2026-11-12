@@ -409,6 +409,9 @@ void main() {
     badSetting('history_expiry_days', -1);
     badSetting('typed_shortcuts_on', 2);
     badSetting('typed_shortcuts_on', true);
+    badSetting('typed_shortcuts_on', 1.0); // T3
+    badSetting('typed_shortcuts_on', 0.0); // T3
+    badSetting('typed_shortcuts_on', '1');
     badSetting('paste_mode', 'sometimes');
     badSetting('paste_mode', 'a' * 100000);
 
