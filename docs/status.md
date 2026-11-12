@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-12 — M1.7 Settings and expiry — TN2 fixed, reviewer re-check
+- Changed: Developer fixed TN2 in 9e29fcb (keep the failed direction only when the re-read failed or differs from the request). The tester's two repros pass unedited; check.sh 3264 passed, 10 skipped; native suites all pass. Tester gate: closed by the tester's own repro tests passing unedited. Reviewer asked to re-check b4c4b16..9e29fcb (QA-M17-1 and TN2).
+- Gates: developer pass · tester pass (repros pass) · reviewer re-check running · QA re-check after the reviewer · PM merge —
+- Open findings: QA-M17-1 and TN2 fixed, waiting for the reviewer and QA
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; push of main; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-12 — M1.7 Settings and expiry — tester re-check of QA-M17-1: 1 new Medium
 - Changed: Tester added test/settings/login_item_note_rule_test.dart (10 tests; 8 pass, 2 are repros). The note rule works for every case probed. check.sh 3262 passed, 2 failed (the repros), 10 skipped; native suites all pass.
 - Findings: TN2 Medium (R4) — after a failed change whose re-read already shows what the user asked, the stale failed target is kept; a later plain failed read then shows the switch on with "Couldn't turn this off. Try again." although the OS last said off. Low twin for turn-on: a stale "Couldn't turn this on" note with no user action.
