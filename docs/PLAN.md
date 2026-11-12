@@ -79,7 +79,8 @@ Everything stays on the device. No account, no server.
   - Design: `docs/design/settings-and-expiry.md`, UI spec `docs/ui/settings-and-expiry.md`, deck `docs/slides/settings-and-expiry.html` (approved 2026-11-11: D1 A, D2 A, D3 B, D4 B, D5 A).
   - AC: history limit, auto-delete after a set time (never / 1 day / 7 days / 30 days), shortcut, launch at login, ignore list.
   - AC: the most private choice is the default where there is one (e.g. launch at login off until the user turns it on).
-- [ ] **M1.8 Your data: export and delete** — small.
+- [ ] **M1.8 Your data: export and delete** — large (resized by lead 2026-11-12: export moves personal data out of the encrypted file; import reads an untrusted file; Delete everything removes the key).
+  - Design: `docs/design/your-data.md`, UI spec `docs/ui/your-data.md`, deck `docs/slides/your-data.html` (waiting for PM approval, D1–D6).
   - AC: export snippets (and optionally history) as a JSON file; import the same file.
   - AC: "Delete all history" and "Delete everything" remove all stored data and the keychain key.
 - [ ] **M1.9 Signed installers and first beta** — large (release).

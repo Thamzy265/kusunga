@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-12 — M1.8 Your data: export and delete — design drafted, waiting for the PM
+- Changed: PM said: "ok, proceed and start M1.8" (2026-11-12). Lead resized M1.8 from small to large (export moves personal data out of the encrypted file; import reads an untrusted file; Delete everything removes the keychain key, which no code does today). Scout lookup of main 914b75b: no file dialogs or file entitlement, no JSON code, KeyStore has no delete, Clear history keeps snippets, settings and key. Wrote docs/design/your-data.md, docs/ui/your-data.md and docs/slides/your-data.html. No branch and no developer brief yet.
+- Gates: developer not started (waiting for deck approval) · tester — · reviewer — · QA — · PM merge —
+- Open findings: none
+- Decisions: open for the PM — D1 export encrypted? (rec. A, plain JSON with a warning; approves file_selector and the Mac user-selected file entitlement); D2 history in export by default (rec. A, off); D3 import (rec. A, merge, never overwrite); D4 Delete all history (rec. A, today's Clear history plus VACUUM, key kept); D5 settings and ignored apps in the export (rec. A, yes, applied on import only if ticked); D6 after Delete everything (rec. A, launch at login off and quit). Assumed unless the PM objects: lawful basis n/a; no ADR; the resize to large.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — approve the M1.8 deck and D1–D6; M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-12 — main — pushed to GitHub
 - Changed: main pushed to origin (github.com/Thamzy265/kusunga) 5170b08..c75b6c0 (149 commits: M1.5, M1.6, M1.7 and their docs). Only main pushed; no branch, no tag.
 - Gates: n/a — push of already-merged work
