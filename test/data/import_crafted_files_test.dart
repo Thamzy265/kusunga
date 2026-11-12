@@ -3,8 +3,7 @@
 // or a program could put on disk; the rule is that the whole file is refused
 // with an [ImportRejected], never another exception and never a half read.
 //
-// Tests marked with [_repro] are bug repros: they fail today and are skipped
-// so the check command stays green. Run them with KUSUNGA_REPRO=1.
+// The bug repros T1, T2, T3 and T9 were fixed on the branch and now run.
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -445,7 +444,9 @@ void main() {
       expect(b.hasSettings, isTrue);
     });
 
-    test('timestamps far in the past and far in the future parse without '
+    test('decoder level (decodeImport; the 24 h rule is checkImportTimes, '
+        'tested apart): timestamps far in the past and far in the future parse '
+        'without '
         'error', () {
       final b = _decode(
         _file(
@@ -481,7 +482,9 @@ void main() {
       }
     });
 
-    test('last_copied_at before created_at is read as it is (no check)', () {
+    test('decoder level (decodeImport; checkImportTimes then sets the creation '
+        'back, tested apart): last_copied_at before created_at is read as '
+        'written', () {
       final b = _decode(
         _file(
           history: [

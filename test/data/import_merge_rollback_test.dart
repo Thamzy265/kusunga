@@ -1,7 +1,7 @@
 // M1.8 tester: merge rules and rollback of the import
 // (docs/design/your-data.md, "Merge (D3)", "One transaction"), against a
-// real encrypted SQLite file in a temp folder. Bug repros are skipped unless
-// KUSUNGA_REPRO=1.
+// real encrypted SQLite file in a temp folder. The earlier bug repros are
+// fixed and run as normal tests.
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -309,7 +309,8 @@ void main() {
       expect(store.limit, 25);
     });
 
-    test('a history item with a time in the future is kept as it is (the '
+    test('store level (the 24 h limit is checkImportTimes, tested apart): a '
+        'history item with a time in the future is kept as it is (the '
         'newest) and does not make Undo-style merging go backwards', () {
       store.insertOrBump('x', ClipKind.text, _now);
       doImport(
@@ -325,8 +326,9 @@ void main() {
       expect(store.records().single.createdAt, 0);
     });
 
-    test('the file times may be before created_at: stored as given, no '
-        'crash, no exception', () {
+    test('store level (importBundle, which does not check times; '
+        'checkImportTimes does that before it): a last copy before the '
+        'creation is written as it is, with no error', () {
       doImport(
         ExportBundle(
           snippets: const [],
@@ -338,7 +340,8 @@ void main() {
       expect(r.lastCopiedAt, _now - 10 * _day);
     });
 
-    test('the oldest and newest possible times are stored and read back', () {
+    test('store level (no time check here): the oldest and newest possible '
+        'times are stored and read back', () {
       const oldest = -62135596800000; // 0001-01-01
       const newest = 253402300799000; // 9999-12-31
       doImport(
