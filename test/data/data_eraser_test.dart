@@ -210,6 +210,25 @@ void main() {
       },
     );
 
+    test('a data folder that is itself a link is never followed: the key '
+        'still goes, nothing where it points is deleted, and it counts as '
+        'not removed (T8)', () async {
+      final real = Directory(p.join(base.path, 'real'))..createSync();
+      final h = open(real);
+      final link = Link(p.join(base.path, 'data'))..createSync(real.path);
+      final result = await eraser(
+        DefaultEraseTarget(
+          keys: keys,
+          folder: () async => Directory(link.path),
+        ),
+      ).run(h.service);
+      expect(result, isA<Erased>().having((e) => e.filesLeft, 'left', 1));
+      expect(keys.stored, isNull);
+      expect(File(p.join(real.path, 'kusunga.db')).existsSync(), isTrue);
+      expect(link.existsSync(), isTrue);
+      expect(log.codes, contains(LogCode.deleteFileFailed));
+    });
+
     test('a failed launch-at-login change never stops the quit', () async {
       final h = open(folder);
       final result = await eraser(
@@ -237,6 +256,29 @@ void main() {
       expect(keys.deletes, 0);
       expect(keys.stored, _key);
       expect(steps, ['stopFileLog'], reason: 'no login item change');
+    });
+
+    test('a profile folder that is itself a link, to a folder or to '
+        'nothing: never followed, the link stays, and it counts as not '
+        'removed (T8)', () async {
+      final outside = Directory(p.join(base.path, 'outside'))..createSync();
+      final keep = File(p.join(outside.path, 'kusunga.db'))
+        ..writeAsStringSync('k');
+      Directory(p.join(base.path, 'profiles')).createSync();
+      final h = open(Directory(p.join(base.path, 'session'))..createSync());
+      for (final target in [outside.path, p.join(base.path, 'gone')]) {
+        log.codes.clear();
+        final profile = Link(p.join(base.path, 'profiles', 'qa'))
+          ..createSync(target);
+        final result = await eraser(
+          ProfileEraseTarget(folder: () async => Directory(profile.path)),
+        ).run(h.service);
+        expect(result, isA<Erased>().having((e) => e.filesLeft, 'left', 1));
+        expect(keep.readAsStringSync(), 'k');
+        expect(profile.existsSync(), isTrue);
+        expect(log.codes, contains(LogCode.deleteFileFailed));
+        profile.deleteSync();
+      }
     });
 
     test('a rejected profile (memory only): nothing deleted anywhere, no '

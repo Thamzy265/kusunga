@@ -136,10 +136,24 @@ class DataEraser {
     }
   }
 
+  /// A data or profile folder that is itself a link is never followed, so
+  /// nothing in the folder it points to is deleted (T8). The link stays,
+  /// and counts as one thing that could not be removed.
+  bool _refuseLink(Directory dir) {
+    if (FileSystemEntity.typeSync(dir.path, followLinks: false) !=
+        FileSystemEntityType.link) {
+      return false;
+    }
+    _log.log(LogCode.deleteFileFailed);
+    return true;
+  }
+
   Future<int> _deleteFiles(Future<Directory> Function() folder) async {
     final List<FileSystemEntity> entries;
     try {
-      entries = (await folder()).listSync(followLinks: false);
+      final dir = await folder();
+      if (_refuseLink(dir)) return 1;
+      entries = dir.listSync(followLinks: false);
     } catch (error) {
       _log.log(LogCode.deleteFileFailed, _errorNumber(error));
       return 0;
@@ -154,12 +168,14 @@ class DataEraser {
   }
 
   /// The whole profile folder, files first, then folders from the deepest
-  /// up. Links are removed, never followed.
+  /// up. Links inside it are removed, never followed; the folder itself is
+  /// never followed either.
   Future<int> _deleteFolder(Future<Directory> Function() folder) async {
     final Directory dir;
     final List<FileSystemEntity> entries;
     try {
       dir = await folder();
+      if (_refuseLink(dir)) return 1;
       if (!dir.existsSync()) return 0;
       entries = dir.listSync(recursive: true, followLinks: false);
     } catch (error) {

@@ -477,7 +477,7 @@ void main() {
       final h = openIn(real);
       await eraser(ProfileEraseTarget(folder: () async => profile)).run(h);
       expect(keep.existsSync(), isTrue);
-    }, skip: _repro);
+    });
 
     test('a folder named like a Kusunga file is left alone and not counted '
         'as a file that could not be removed', () async {
