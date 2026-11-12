@@ -66,6 +66,7 @@ void main() {
     Size size = const Size(800, 900),
     double textScale = 1,
     Duration keyTimeout = const Duration(seconds: 30),
+    EraseTarget? target,
   }) async {
     service = history ?? sqliteService();
     addTearDown(service.dispose);
@@ -88,7 +89,9 @@ void main() {
             files: files,
             log: log,
             eraser: () => DataEraser(
-              target: DefaultEraseTarget(keys: keys, folder: () async => dir),
+              target:
+                  target ??
+                  DefaultEraseTarget(keys: keys, folder: () async => dir),
               log: log,
               stopFileLog: () => steps.add('stopFileLog'),
               keyTimeout: keyTimeout,
@@ -956,6 +959,59 @@ void main() {
       expect(quits, 1);
     });
 
+    testWidgets('a debug data profile with a file left: the profile wording, '
+        'never "can\'t be read any more"; OK quits (T10)', (tester) async {
+      await show(
+        tester,
+        target: ProfileEraseTarget(
+          folder: () async => throw const FileSystemException(
+            'denied',
+            '',
+            OSError('denied', 13),
+          ),
+        ),
+      );
+      await tapHook(tester, 'your-data-delete-everything');
+      await tester.runAsync(() async {
+        await tester.tap(hook('delete-everything-confirm'));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pump();
+      final note = find.text(
+        "Everything is deleted. 1 file in this test profile couldn't be "
+        'removed.',
+      );
+      expect(note, findsOneWidget);
+      expect(liveRegionAround(note), findsOneWidget);
+      expect(find.textContaining("can't be read any more"), findsNothing);
+      expect(keys.deletes, 0, reason: 'the shared key stays');
+      await tester.tap(hook('delete-everything-ok'));
+      await tester.pumpAndSettle();
+      expect(quits, 1);
+    });
+
+    testWidgets('a debug data profile with nothing left: the usual done '
+        'message (T10)', (tester) async {
+      final profile = Directory(p.join(dir.path, 'profiles', 'qa'))
+        ..createSync(recursive: true);
+      File(p.join(profile.path, 'kusunga.log')).writeAsStringSync('x');
+      await show(
+        tester,
+        target: ProfileEraseTarget(folder: () async => profile),
+      );
+      await tapHook(tester, 'your-data-delete-everything');
+      await tester.runAsync(() async {
+        await tester.tap(hook('delete-everything-confirm'));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pump();
+      expect(
+        find.text('Everything is deleted. Kusunga will now quit.'),
+        findsOneWidget,
+      );
+      expect(profile.existsSync(), isFalse);
+    });
+
     testWidgets('while deleting: "Deleting…", input ignored', (tester) async {
       await show(tester);
       final gate = keys.holdDelete();
@@ -980,6 +1036,20 @@ void main() {
       await tester.pump();
       await tester.pump();
     });
+  });
+
+  test('the partial wording in a debug data profile, whose key stays '
+      '(T10; lead wording, 2026-11-12)', () {
+    expect(
+      profilePartialMessage(1),
+      "Everything is deleted. 1 file in this test profile couldn't be "
+      'removed.',
+    );
+    expect(
+      profilePartialMessage(2),
+      "Everything is deleted. 2 files in this test profile couldn't be "
+      'removed.',
+    );
   });
 
   test('count wording', () {

@@ -96,6 +96,15 @@ String partialMessage(int files) => files == 1
     : "Everything is deleted. $files files couldn't be removed, but they "
           "can't be read any more.";
 
+/// The partial message in a debug data profile (T10; lead's wording,
+/// 2026-11-12). The profile shares the key, which is never deleted there,
+/// so a file left behind can still be read.
+String profilePartialMessage(int files) => files == 1
+    ? "Everything is deleted. 1 file in this test profile couldn't be "
+          'removed.'
+    : "Everything is deleted. $files files in this test profile couldn't be "
+          'removed.';
+
 /// What the Your data section needs from the app (M1.8).
 class YourDataSetup {
   const YourDataSetup({
@@ -625,7 +634,8 @@ class _DeleteEverythingDialogState extends State<_DeleteEverythingDialog> {
       _deleting = true;
       _failed = false;
     });
-    final result = await widget.setup.eraser().run(widget.service);
+    final eraser = widget.setup.eraser();
+    final result = await eraser.run(widget.service);
     if (!mounted) return;
     setState(() {
       _deleting = false;
@@ -637,7 +647,11 @@ class _DeleteEverythingDialogState extends State<_DeleteEverythingDialog> {
         case EraseFailed():
           _failed = true;
         case Erased(:final filesLeft):
-          _done = filesLeft == 0 ? _kDeleted : partialMessage(filesLeft);
+          _done = filesLeft == 0
+              ? _kDeleted
+              : eraser.target is ProfileEraseTarget
+              ? profilePartialMessage(filesLeft)
+              : partialMessage(filesLeft);
       }
     });
   }

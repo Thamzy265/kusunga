@@ -595,7 +595,6 @@ void main() {
 String tester0Text(Finder f) => (f.evaluate().first.widget as Text).data ?? '';
 
 // ---- re-check of the fixes (2026-11-12) ----
-final bool _repro = Platform.environment['KUSUNGA_REPRO'] != '1';
 
 void recheckMain() {
   late Directory dir;
@@ -688,7 +687,6 @@ void recheckMain() {
       expect(find.textContaining("can't be read any more"), findsNothing);
       expect(find.textContaining('Everything is deleted.'), findsOneWidget);
     },
-    skip: _repro,
   );
 
   testWidgets('T5 in the UI: a key delete that never answers shows the lead\'s '
