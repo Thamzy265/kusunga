@@ -89,7 +89,10 @@ About 1.2× M1.6's Dart work and less native work: one Dart service, one migrati
   - `.enabled` → switch on;
   - `.notRegistered` → off;
   - `.requiresApproval` → switch on with the note "Allow Kusunga in System Settings › General › Login Items" and a button that calls `SMAppService.openSystemSettingsLoginItems()`;
-  - `.notFound` or an error → switch off. A failure note shows only after a change the user asked for has failed (below): a plain status read with no change by the user (at launch, when the Settings tab opens, when Kusunga becomes active) that answers `.notFound` or an error shows the switch off with no note. A debug build run from the build folder gets `.notFound` (QA-M17-1, lead's ruling 2026-11-12).
+  - `.notFound` or an error → see below. A failure note shows only after a change the user asked for has failed. A plain status read with no change by the user (at launch, when the Settings tab opens, when Kusunga becomes active):
+    - answers `.notFound` (no error number): switch off, no note. A debug build run from the build folder gets `.notFound` (QA-M17-1);
+    - answers an error, or no answer within 2 s (on either platform; Windows can fail to read its Run value while it is there): the switch keeps the last position the OS reported in this run, or off if it never reported one, with no note (R4; lead's ruling 2026-11-12, refined);
+    - the first such read in a row logs `loginItemFailed` with its error number (none for `.notFound` or no answer); a read that works ends the run, so it is not logged on every tab opening.
 - Works inside the App Sandbox, with no helper app and no new entitlement.
 - **Mac 12 (D4):** `SMAppService` needs macOS 13.
 - **Windows:** write `"<full path to Kusunga.exe>" --login` to the HKCU Run value `Kusunga`; delete it to turn off. Per user, no admin rights.
@@ -138,7 +141,7 @@ New log codes, with numbers only:
 - `historyExpiryFailed`;
 - `settingSaveFailed`;
 - `loginItemOn`, `loginItemOff`;
-- `loginItemFailed <OS error number>`;
+- `loginItemFailed <OS error number>` (a failed change, or the first plain status read in a row that fails; no number for `.notFound` or no answer);
 - `loginItemNeedsApproval`.
 
 No text, no paths and no item ids. They are added to the Swift `knownCodes` list and the guard tests.

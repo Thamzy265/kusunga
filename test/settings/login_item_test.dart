@@ -85,6 +85,40 @@ void main() {
       }
     });
 
+    // Lead's ruling 2026-11-12 (P1): Windows can fail to read while its Run
+    // value is there; macOS answers notFound for a build it can't register.
+    test('after "enabled": an error read keeps the switch on, a notFound '
+        'read shows it off; no note either way', () async {
+      final s = LoginItemService(port: port(), log: FakeLog());
+      addTearDown(s.dispose);
+      answer = (_) => {'state': 'enabled'};
+      await s.refresh();
+      answer = (_) => {'state': 'error', 'error': 5};
+      await s.refresh();
+      expect(s.isOn, isTrue, reason: 'Windows: the Run value may be there');
+      expect(s.note, isNull);
+      answer = (_) => {'state': 'notFound'};
+      await s.refresh();
+      expect(s.isOn, isFalse);
+      expect(s.note, isNull);
+    });
+
+    test('the channel says why a call failed', () async {
+      for (final (reply, why) in <(Object?, LoginItemFailure)>[
+        ({'state': 'notFound'}, LoginItemFailure.notFound),
+        ({'state': 'error', 'error': 5}, LoginItemFailure.error),
+        ({'state': 'weird'}, LoginItemFailure.error),
+        (PlatformException(code: 'x'), LoginItemFailure.error),
+      ]) {
+        answer = (_) => reply;
+        final a = await port().status();
+        expect(a.state, LoginItemState.failed, reason: '$reply');
+        expect(a.failure, why, reason: '$reply');
+      }
+      answer = (_) => {'state': 'enabled'};
+      expect((await port().status()).failure, isNull);
+    });
+
     test('openLoginItemsSettings takes no arguments', () async {
       await port().openSettings();
       expect(calls.single.method, 'openLoginItemsSettings');
@@ -189,6 +223,34 @@ void main() {
       expect(s.busy, isFalse);
       expect(s.isOn, isFalse);
       expect(s.note, "Couldn't turn this on. Try again.");
+      s.dispose();
+    });
+
+    // Lead's ruling 2026-11-12 (P1, P2): a plain read with no answer keeps
+    // the last position the OS reported, with no note, and is logged once.
+    testWidgets('a plain read with no answer after "enabled": stays on, no '
+        'note, logged once with no number', (tester) async {
+      final log = FakeLog();
+      final s = LoginItemService(
+        port: ChannelLoginItemPort(channel: channel),
+        log: log,
+      );
+      messenger.setMockMethodCallHandler(
+        channel,
+        (call) async => {'state': 'enabled'},
+      );
+      await s.refresh();
+      hang();
+      unawaited(s.refresh());
+      await tester.pump(const Duration(seconds: 2));
+      expect(s.state, LoginItemState.failed);
+      expect(s.isOn, isTrue);
+      expect(s.note, isNull);
+      expect(log.codes, [LogCode.loginItemFailed]);
+      expect(log.details, [null]);
+      unawaited(s.refresh());
+      await tester.pump(const Duration(seconds: 2));
+      expect(log.codes, [LogCode.loginItemFailed], reason: 'once per run');
       s.dispose();
     });
 
@@ -319,9 +381,10 @@ void main() {
       expect(service.isOn, isTrue);
     });
 
-    test("a read is not logged (only the user's changes are)", () async {
+    test('a read that works is not logged or announced', () async {
       for (final s in LoginItemState.values) {
-        port.next = LoginItemAnswer(s, error: 3);
+        if (s == LoginItemState.failed) continue;
+        port.next = LoginItemAnswer(s);
         await service.refresh();
         expect(service.state, s);
       }
@@ -621,6 +684,129 @@ void main() {
         held.complete(const LoginItemAnswer(LoginItemState.off));
         await change;
       }
+    });
+  });
+
+  // Lead's ruling 2026-11-12, refined (reviewer P1, P2): a plain read with
+  // no change by the user.
+  group('a plain read that fails (P1, P2)', () {
+    late FakeLoginItemPort port;
+    late FakeLog log;
+    late LoginItemService service;
+
+    setUp(() {
+      port = FakeLoginItemPort();
+      log = FakeLog();
+      service = LoginItemService(port: port, log: log);
+    });
+    tearDown(() => service.dispose());
+
+    Future<void> read(LoginItemAnswer a) async {
+      port.next = a;
+      await service.refresh();
+    }
+
+    const error = LoginItemAnswer(LoginItemState.failed, error: 5);
+    const timeout = LoginItemAnswer(
+      LoginItemState.failed,
+      failure: LoginItemFailure.timeout,
+    );
+    const notFound = LoginItemAnswer(
+      LoginItemState.failed,
+      failure: LoginItemFailure.notFound,
+    );
+
+    test(
+      'Windows: on, then a read error: the switch stays on, no note',
+      () async {
+        await read(const LoginItemAnswer(LoginItemState.on));
+        await read(error);
+        expect(service.isOn, isTrue);
+        expect(service.note, isNull);
+        expect(service.enabled, isTrue);
+      },
+    );
+
+    test('on, then no answer within 2 s: stays on, no note', () async {
+      await read(const LoginItemAnswer(LoginItemState.on));
+      await read(timeout);
+      expect(service.isOn, isTrue);
+      expect(service.note, isNull);
+    });
+
+    test(
+      'needs approval, then an error: stays on, no note and no button',
+      () async {
+        await read(const LoginItemAnswer(LoginItemState.needsApproval));
+        await read(error);
+        expect(service.isOn, isTrue);
+        expect(service.note, isNull);
+        expect(service.showOpenLoginItems, isFalse);
+      },
+    );
+
+    test('off (or nothing read yet), then an error or no answer: off, no '
+        'note', () async {
+      await read(error);
+      expect(service.isOn, isFalse);
+      await read(const LoginItemAnswer(LoginItemState.off));
+      await read(timeout);
+      expect(service.isOn, isFalse);
+      expect(service.note, isNull);
+    });
+
+    test('on, then notFound: off, no note (QA-M17-1)', () async {
+      await read(const LoginItemAnswer(LoginItemState.on));
+      await read(notFound);
+      expect(service.isOn, isFalse);
+      expect(service.note, isNull);
+    });
+
+    test('the last position is what the OS reported: after "on" an error '
+        'keeps on until a read says otherwise', () async {
+      await read(const LoginItemAnswer(LoginItemState.on));
+      await read(error);
+      await read(error);
+      expect(service.isOn, isTrue);
+      await read(const LoginItemAnswer(LoginItemState.off));
+      await read(error);
+      expect(service.isOn, isFalse);
+    });
+
+    test('the first failing read in a row logs loginItemFailed with its '
+        'number, once; a read that works starts again', () async {
+      await read(error);
+      expect(log.codes, [LogCode.loginItemFailed]);
+      expect(log.details, [5]);
+      await read(error);
+      await read(timeout);
+      await read(notFound);
+      expect(log.codes, [LogCode.loginItemFailed], reason: 'once per run');
+      await read(const LoginItemAnswer(LoginItemState.on));
+      await read(timeout);
+      expect(log.codes, [LogCode.loginItemFailed, LogCode.loginItemFailed]);
+      expect(log.details, [5, null], reason: 'a timeout has no number');
+      expect(service.announcement, isNull, reason: 'reads are not announced');
+    });
+
+    test('notFound is logged too, once, with no number', () async {
+      await read(notFound);
+      await read(notFound);
+      expect(log.codes, [LogCode.loginItemFailed]);
+      expect(log.details, [null]);
+    });
+
+    test('a failed change is logged as before, and a read failing after it '
+        'still logs the first time', () async {
+      await read(const LoginItemAnswer(LoginItemState.off));
+      port.next = const LoginItemAnswer(LoginItemState.failed, error: 13);
+      await service.set(true); // the read inside the change is not logged
+      expect(log.codes, [LogCode.loginItemFailed]);
+      await read(error);
+      expect(log.codes, [LogCode.loginItemFailed, LogCode.loginItemFailed]);
+      expect(log.details, [13, 5]);
+      expect(service.isOn, isFalse, reason: '"Where it was" still applies');
+      expect(service.note, "Couldn't turn this on. Try again.");
     });
   });
 

@@ -316,12 +316,30 @@ void main() {
       expect(port.statusCalls, 1);
       expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
       expect(find.text("Couldn't turn this on. Try again."), findsNothing);
-      expect(log.codes, isNot(contains(LogCode.loginItemFailed)));
+      // The first failing read in a row is logged, once (lead, P2).
+      expect(log.codes, [LogCode.loginItemFailed]);
       await tester.tap(hook('main-tab-history'));
       await tester.pump();
       await openSettings(tester); // read again: still no note
       expect(port.statusCalls, 2);
       expect(find.text("Couldn't turn this on. Try again."), findsNothing);
+      expect(log.codes, [LogCode.loginItemFailed], reason: 'not each opening');
+    });
+
+    // Lead's ruling 2026-11-12 (P1): on Windows the Run value can be there
+    // while it can't be read; the switch keeps what the OS last reported.
+    testWidgets('on, then the tab opens and the read fails with an error: the '
+        'switch stays on, no note', (tester) async {
+      port.next = const LoginItemAnswer(LoginItemState.on);
+      await show(tester);
+      await openSettings(tester);
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+      await tester.tap(hook('main-tab-history'));
+      await tester.pump();
+      port.next = const LoginItemAnswer(LoginItemState.failed, error: 5);
+      await openSettings(tester);
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+      expect(find.textContaining("Couldn't turn this"), findsNothing);
     });
 
     testWidgets('failed: back off, with the note', (tester) async {

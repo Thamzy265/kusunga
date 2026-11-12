@@ -31,12 +31,38 @@ enum LoginItemState {
   turnedOffInTaskManager,
 }
 
+/// Why a call answered [LoginItemState.failed].
+enum LoginItemFailure {
+  /// macOS `.notFound`, with no error number: the app is not where macOS
+  /// can register it (a debug build run from the build folder).
+  notFound,
+
+  /// An OS error (Windows can't read its Run value), or a reply that made
+  /// no sense.
+  error,
+
+  /// No answer within [ChannelLoginItemPort.timeout].
+  timeout,
+}
+
 class LoginItemAnswer {
-  const LoginItemAnswer(this.state, {this.error});
+  const LoginItemAnswer(this.state, {this.error, this._failure});
   final LoginItemState state;
 
   /// The OS error number, when there is one (for the log only).
   final int? error;
+
+  final LoginItemFailure? _failure;
+
+  /// Why a failed answer failed: as given; otherwise an error when there
+  /// is an OS error number, and notFound when there is none. Null for any
+  /// other state.
+  LoginItemFailure? get failure => state != LoginItemState.failed
+      ? null
+      : _failure ??
+            (error != null
+                ? LoginItemFailure.error
+                : LoginItemFailure.notFound);
 }
 
 abstract interface class LoginItemPort {
@@ -80,7 +106,10 @@ class ChannelLoginItemPort implements LoginItemPort {
   };
 
   Future<LoginItemAnswer> _call(String method, [Object? arguments]) async {
-    const failed = LoginItemAnswer(LoginItemState.failed);
+    const failed = LoginItemAnswer(
+      LoginItemState.failed,
+      failure: LoginItemFailure.error,
+    );
     try {
       final reply = await _channel
           .invokeMethod<Object?>(method, arguments)
@@ -89,13 +118,24 @@ class ChannelLoginItemPort implements LoginItemPort {
       final state = _states[reply['state']];
       final error = reply['error'];
       if (state == null || (error != null && error is! int)) return failed;
-      return LoginItemAnswer(state, error: error as int?);
+      return LoginItemAnswer(
+        state,
+        error: error as int?,
+        failure: switch (reply['state']) {
+          'notFound' => LoginItemFailure.notFound,
+          'error' => LoginItemFailure.error,
+          _ => null,
+        },
+      );
     } on MissingPluginException {
       return failed;
     } on PlatformException {
       return failed;
     } on TimeoutException {
-      return failed;
+      return const LoginItemAnswer(
+        LoginItemState.failed,
+        failure: LoginItemFailure.timeout,
+      );
     }
   }
 
@@ -128,9 +168,11 @@ class ChannelLoginItemPort implements LoginItemPort {
 /// failed, so the switch shows what the OS still has (R4, tester finding
 /// B3).
 ///
-/// Logs codes only, for the user's own changes: `loginItemOn`,
+/// Logs codes only: for the user's own changes `loginItemOn`,
 /// `loginItemOff`, `loginItemFailed` (with the OS error number) and
-/// `loginItemNeedsApproval`.
+/// `loginItemNeedsApproval`; and `loginItemFailed` (with its number, none
+/// for notFound or no answer) for the first plain read in a row that fails
+/// (reviewer P2).
 class LoginItemService extends ChangeNotifier {
   LoginItemService({required this._port, required this._log});
 
@@ -138,6 +180,19 @@ class LoginItemService extends ChangeNotifier {
   final ErrorLog _log;
 
   var _state = LoginItemState.off;
+
+  /// Why the state shown is [LoginItemState.failed].
+  LoginItemFailure? _failure;
+
+  /// The last position the OS reported in this run (off until it reports
+  /// one), shown when a plain read can't tell: an error or no answer
+  /// (lead's ruling 2026-11-12, reviewer P1). Windows can fail to read its
+  /// Run value while it is there.
+  var _lastReportedOn = false;
+
+  /// A plain read failed and was logged; a read that works ends the run
+  /// (reviewer P2).
+  var _readFailing = false;
   bool? _pending;
 
   /// The position the user asked for when that change failed and did not
@@ -159,9 +214,14 @@ class LoginItemService extends ChangeNotifier {
       _pending ??
       switch (_state) {
         LoginItemState.on || LoginItemState.needsApproval => true,
-        // A turn-off failed and the OS could not be read either: the switch
-        // stays where it was (on), never off while the OS may have it on.
-        LoginItemState.failed => _failedTo == false,
+        LoginItemState.failed => switch (_failedTo) {
+          // A change failed and the OS could not be read either: the switch
+          // stays where it was ("Where it was", PM 2026-11-11).
+          final failedTo? => !failedTo,
+          // A plain read: notFound shows off (QA-M17-1); an error or no
+          // answer keeps what the OS last reported (P1).
+          null => _failure != LoginItemFailure.notFound && _lastReportedOn,
+        },
         _ => false,
       };
 
@@ -204,14 +264,32 @@ class LoginItemService extends ChangeNotifier {
   int get announceSerial => _announceSerial;
 
   /// Reads the OS state. Ignored while a change runs. A read that fails
-  /// keeps the note of a failed change; any other answer clears it.
+  /// keeps the note of a failed change; any other answer clears it. The
+  /// first read in a row that fails is logged (P2).
   Future<void> refresh() async {
     if (_disposed || busy) return;
     final answer = await _port.status();
     if (_disposed || busy) return;
-    _state = answer.state;
-    if (answer.state != LoginItemState.failed) _failedTo = null;
+    if (answer.state == LoginItemState.failed) {
+      if (!_readFailing) _log.log(LogCode.loginItemFailed, answer.error);
+      _readFailing = true;
+    } else {
+      _failedTo = null;
+    }
+    _show(answer);
     notifyListeners();
+  }
+
+  /// Takes [answer] as what the switch shows; a real state is also the
+  /// last position the OS reported, and ends a run of failing reads.
+  void _show(LoginItemAnswer answer) {
+    _state = answer.state;
+    _failure = answer.failure;
+    if (answer.state == LoginItemState.failed) return;
+    _readFailing = false;
+    _lastReportedOn =
+        answer.state == LoginItemState.on ||
+        answer.state == LoginItemState.needsApproval;
   }
 
   /// Turns launch at login on or off. Ignored while another call runs and
@@ -225,11 +303,12 @@ class LoginItemService extends ChangeNotifier {
     notifyListeners();
     final answer = await _port.set(on);
     if (_disposed) return;
-    var state = answer.state;
-    if (state == LoginItemState.failed) {
+    var shown = answer;
+    if (answer.state == LoginItemState.failed) {
       _log.log(LogCode.loginItemFailed, answer.error);
-      state = (await _port.status()).state;
+      shown = await _port.status();
       if (_disposed) return;
+      final state = shown.state;
       // When the OS already has what the user asked (applied late, or the
       // error came after the change), nothing failed for the user: no note
       // now, and a later unreadable read can't bring one back or move the
@@ -239,7 +318,7 @@ class LoginItemService extends ChangeNotifier {
       if (state == LoginItemState.failed || shownOn != on) _failedTo = on;
     }
     _pending = null;
-    _state = state;
+    _show(shown);
     switch (answer.state) {
       case LoginItemState.on:
         _log.log(LogCode.loginItemOn);
