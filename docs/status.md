@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-12 — M1.7 Settings and expiry — tester re-check of QA-M17-1: 1 new Medium
+- Changed: Tester added test/settings/login_item_note_rule_test.dart (10 tests; 8 pass, 2 are repros). The note rule works for every case probed. check.sh 3262 passed, 2 failed (the repros), 10 skipped; native suites all pass.
+- Findings: TN2 Medium (R4) — after a failed change whose re-read already shows what the user asked, the stale failed target is kept; a later plain failed read then shows the switch on with "Couldn't turn this off. Try again." although the OS last said off. Low twin for turn-on: a stale "Couldn't turn this on" note with no user action.
+- Gates: developer fixing TN2 · tester open (1 Medium) · reviewer — · QA — · PM merge —
+- Open findings: 1 Medium (TN2)
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; push of main; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-12 — M1.7 Settings and expiry — QA-M17-1 fixed
 - Changed: Developer fixed QA-M17-1 in c8df41d per the lead's ruling: a plain status read answering notFound or an error shows off with no note; a failed user change keeps its note. UI spec and design note updated. Three of the developer's own earlier tests changed to get their note from a failed change; no tester test edited. check.sh 3251 passed, 10 skipped; native suites all pass.
 - Gates: developer pass · tester re-check started · reviewer — (re-check after the tester) · QA re-check of the Settings screen after the reviewer · PM merge —
