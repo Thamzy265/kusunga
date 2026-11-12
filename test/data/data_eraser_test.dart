@@ -229,6 +229,34 @@ void main() {
       expect(log.codes, contains(LogCode.deleteFileFailed));
     });
 
+    test('a data folder that can\'t be listed after the key is gone counts as '
+        'not removed, with its number logged (T6)', () async {
+      final data = Directory(p.join(base.path, 'data'))..createSync();
+      final h = open(data);
+      Process.runSync('chmod', ['000', data.path]);
+      addTearDown(() => Process.runSync('chmod', ['755', data.path]));
+      final result = await eraser(
+        DefaultEraseTarget(keys: keys, folder: () async => data),
+      ).run(h.service);
+      expect(result, isA<Erased>().having((e) => e.filesLeft, 'left', 1));
+      expect(keys.stored, isNull);
+      final i = log.codes.indexOf(LogCode.deleteFileFailed);
+      expect(log.details[i], 13, reason: 'EACCES');
+      expect(steps, contains('loginOff'), reason: 'carries on');
+    }, skip: Platform.isWindows ? 'chmod needs a POSIX system' : false);
+
+    test('a data folder that is not there has nothing left in it', () async {
+      final h = open(Directory(p.join(base.path, 'session'))..createSync());
+      final result = await eraser(
+        DefaultEraseTarget(
+          keys: keys,
+          folder: () async => Directory(p.join(base.path, 'missing')),
+        ),
+      ).run(h.service);
+      expect(result, isA<Erased>().having((e) => e.filesLeft, 'left', 0));
+      expect(log.codes, isNot(contains(LogCode.deleteFileFailed)));
+    });
+
     test('a failed launch-at-login change never stops the quit', () async {
       final h = open(folder);
       final result = await eraser(
@@ -279,6 +307,23 @@ void main() {
         expect(log.codes, contains(LogCode.deleteFileFailed));
         profile.deleteSync();
       }
+    });
+
+    test('a profile folder that can\'t be listed counts as not removed '
+        '(T6)', () async {
+      final h = open(Directory(p.join(base.path, 'session'))..createSync());
+      final result = await eraser(
+        ProfileEraseTarget(
+          folder: () async => throw const FileSystemException(
+            'denied',
+            '',
+            OSError('denied', 13),
+          ),
+        ),
+      ).run(h.service);
+      expect(result, isA<Erased>().having((e) => e.filesLeft, 'left', 1));
+      final i = log.codes.indexOf(LogCode.deleteFileFailed);
+      expect(log.details[i], 13);
     });
 
     test('a rejected profile (memory only): nothing deleted anywhere, no '

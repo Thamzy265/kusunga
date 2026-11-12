@@ -148,15 +148,22 @@ class DataEraser {
     return true;
   }
 
+  /// A folder that can't be found or listed counts as one thing not
+  /// removed: its files may still be there (T6).
+  int _unlisted(Object error) {
+    _log.log(LogCode.deleteFileFailed, _errorNumber(error));
+    return 1;
+  }
+
   Future<int> _deleteFiles(Future<Directory> Function() folder) async {
     final List<FileSystemEntity> entries;
     try {
       final dir = await folder();
       if (_refuseLink(dir)) return 1;
+      if (!dir.existsSync()) return 0;
       entries = dir.listSync(followLinks: false);
     } catch (error) {
-      _log.log(LogCode.deleteFileFailed, _errorNumber(error));
-      return 0;
+      return _unlisted(error);
     }
     var left = 0;
     for (final e in entries) {
@@ -179,8 +186,7 @@ class DataEraser {
       if (!dir.existsSync()) return 0;
       entries = dir.listSync(recursive: true, followLinks: false);
     } catch (error) {
-      _log.log(LogCode.deleteFileFailed, _errorNumber(error));
-      return 0;
+      return _unlisted(error);
     }
     var left = 0;
     for (final e in entries.where((e) => e is! Directory)) {

@@ -574,7 +574,7 @@ void main() {
         result,
         isA<Erased>().having((e) => e.filesLeft, 'left', greaterThan(0)),
       );
-    }, skip: _repro);
+    });
 
     test('a failing key delete reports its number from a platform error, '
         'a file error and an error with none', () async {
