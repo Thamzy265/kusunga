@@ -1,0 +1,263 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:file_selector/file_selector.dart';
+
+import '../history/history_service.dart';
+import '../log/app_log.dart';
+import 'export_format.dart';
+
+/// The OS save and open dialogs (M1.8). A seam, so tests need no dialog.
+abstract interface class FilePort {
+  /// The path the user chose to save to, or null if they cancelled.
+  Future<String?> pickSavePath(String suggestedName);
+
+  /// The `.json` file the user chose to open, or null if they cancelled.
+  Future<String?> pickOpenPath();
+}
+
+/// `file_selector`: NSSavePanel / NSOpenPanel on the Mac (the sandbox then
+/// lets Kusunga read or write only that file), IFileDialog on Windows.
+class FileSelectorPort implements FilePort {
+  static const _json = XTypeGroup(
+    label: 'JSON',
+    extensions: ['json'],
+    uniformTypeIdentifiers: ['public.json'],
+  );
+
+  @override
+  Future<String?> pickSavePath(String suggestedName) async =>
+      (await getSaveLocation(
+        suggestedName: suggestedName,
+        acceptedTypeGroups: const [_json],
+      ))?.path;
+
+  @override
+  Future<String?> pickOpenPath() async =>
+      (await openFile(acceptedTypeGroups: const [_json]))?.path;
+}
+
+typedef ExportWriter = void Function(String path, List<int> bytes);
+
+/// Writes the export so a failure never leaves half a file: to a temporary
+/// file next to [path], then renamed over it. Where that temporary file
+/// can't be made (the Mac sandbox allows only the file the user picked), the
+/// file is written directly and removed again if the write fails. Nothing
+/// is ever written to any other path.
+void writeExportFile(String path, List<int> bytes) {
+  final temp = File('$path.kusunga-tmp');
+  try {
+    temp.writeAsBytesSync(bytes, flush: true);
+  } on FileSystemException {
+    _removeQuietly(temp);
+    final target = File(path);
+    try {
+      target.writeAsBytesSync(bytes, flush: true);
+    } catch (_) {
+      _removeQuietly(target);
+      rethrow;
+    }
+    return;
+  }
+  try {
+    temp.renameSync(path);
+  } catch (_) {
+    _removeQuietly(temp);
+    rethrow;
+  }
+}
+
+void _removeQuietly(File file) {
+  try {
+    if (FileSystemEntity.typeSync(file.path, followLinks: false) ==
+        FileSystemEntityType.file) {
+      file.deleteSync();
+    }
+  } catch (_) {}
+}
+
+sealed class ExportResult {
+  const ExportResult();
+}
+
+/// The save dialog was cancelled: nothing happens, no message.
+class ExportCancelled extends ExportResult {
+  const ExportCancelled();
+}
+
+class ExportSaved extends ExportResult {
+  const ExportSaved({required this.snippets, this.history});
+  final int snippets;
+
+  /// Null when history was not included.
+  final int? history;
+}
+
+/// "Couldn't save the export. Try again." No file was left.
+class ExportFailed extends ExportResult {
+  const ExportFailed();
+}
+
+sealed class ImportCheck {
+  const ImportCheck();
+}
+
+class ImportCancelled extends ImportCheck {
+  const ImportCancelled();
+}
+
+/// "This file can't be imported. It isn't a Kusunga export, or it is
+/// damaged."
+class ImportRefused extends ImportCheck {
+  const ImportRefused();
+}
+
+/// A checked file, ready for the confirm dialog.
+class ImportReady extends ImportCheck {
+  const ImportReady({
+    required this.bundle,
+    required this.fileName,
+    required this.snippets,
+    required this.history,
+  });
+
+  final ExportBundle bundle;
+
+  /// Only the name, shown in the confirm title; never logged.
+  final String fileName;
+
+  /// Snippets in the file.
+  final int snippets;
+
+  /// History items that will be added: those not older than the
+  /// auto-delete time (lead ruling G5).
+  final int history;
+
+  bool get hasSettings => bundle.hasSettings;
+
+  /// "This file has nothing to import."
+  bool get isEmpty => snippets == 0 && history == 0;
+}
+
+sealed class ImportResult {
+  const ImportResult();
+}
+
+class ImportDone extends ImportResult {
+  const ImportDone(this.counts);
+  final ImportCounts counts;
+}
+
+/// "Couldn't import. Nothing was changed."
+class ImportFailedResult extends ImportResult {
+  const ImportFailedResult();
+}
+
+/// Export and import for the Your data section (M1.8,
+/// `docs/design/your-data.md`). Logs codes and numbers only: never a file
+/// name, a path or anything from a file.
+class YourDataService {
+  YourDataService({
+    required this.history,
+    required this._log,
+    required this._files,
+    DateTime Function()? now,
+    ExportWriter? writer,
+  }) : _now = now ?? DateTime.now,
+       _write = writer ?? writeExportFile;
+
+  final HistoryService history;
+  final ErrorLog _log;
+  final FilePort _files;
+  final DateTime Function() _now;
+  final ExportWriter _write;
+
+  /// Asks where to save, then writes what the user chose (R1). The save
+  /// dialog opens only after the warning was shown in Kusunga's own dialog.
+  Future<ExportResult> export({required bool includeHistory}) async {
+    final String? path;
+    try {
+      path = await _files.pickSavePath(exportFileName(_now()));
+    } catch (_) {
+      _log.log(LogCode.exportFailed);
+      return const ExportFailed();
+    }
+    if (path == null) return const ExportCancelled();
+    try {
+      final bundle = history.exportBundle(includeHistory: includeHistory);
+      _write(path, utf8.encode(encodeExport(bundle, exportedAt: _now())));
+      _log.log(LogCode.dataExported, bundle.snippets.length);
+      final n = bundle.history?.length;
+      if (n != null) _log.log(LogCode.dataExportedHistory, n);
+      return ExportSaved(snippets: bundle.snippets.length, history: n);
+    } catch (error) {
+      _log.log(
+        LogCode.exportFailed,
+        error is FileSystemException ? error.osError?.errorCode : null,
+      );
+      return const ExportFailed();
+    }
+  }
+
+  /// Asks for a file, then reads and checks it. Nothing is changed yet.
+  Future<ImportCheck> checkImport() async {
+    final String? path;
+    try {
+      path = await _files.pickOpenPath();
+    } catch (_) {
+      _log.log(LogCode.importRejected);
+      return const ImportRefused();
+    }
+    if (path == null) return const ImportCancelled();
+    try {
+      final bundle = decodeImport(await _read(path));
+      return ImportReady(
+        bundle: bundle,
+        fileName: File(path).uri.pathSegments.last,
+        snippets: bundle.snippets.length,
+        history: history.importableHistory(bundle),
+      );
+    } on ImportRejected catch (e) {
+      _log.log(LogCode.importRejected, e.reason.number);
+      return const ImportRefused();
+    } catch (_) {
+      // Unreadable (gone, no rights): refused like a damaged file.
+      _log.log(LogCode.importRejected);
+      return const ImportRefused();
+    }
+  }
+
+  /// At most [maxImportBytes] + 1 bytes are read, so a huge file (or one
+  /// that grows while it is read) is refused without loading it.
+  static Future<List<int>> _read(String path) async {
+    final file = await File(path).open();
+    try {
+      if (await file.length() > maxImportBytes) {
+        throw const ImportRejected(ImportRejectReason.tooLarge);
+      }
+      return await file.read(maxImportBytes + 1);
+    } finally {
+      await file.close();
+    }
+  }
+
+  /// Adds the checked file in one transaction (R2, R3).
+  ImportResult runImport(ImportReady ready, {required bool applySettings}) {
+    try {
+      final c = history.importBundle(
+        ready.bundle,
+        applySettings: applySettings && ready.hasSettings,
+      );
+      _log.log(LogCode.dataImported, c.snippetsAdded);
+      _log.log(LogCode.dataImportedHistory, c.historyAdded);
+      _log.log(
+        LogCode.dataImportSkipped,
+        c.snippetsAlreadyHere + c.historyTooOld,
+      );
+      return ImportDone(c);
+    } catch (_) {
+      _log.log(LogCode.importFailed);
+      return const ImportFailedResult();
+    }
+  }
+}
