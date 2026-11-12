@@ -3,6 +3,7 @@
 // real temp files.
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/data/export_format.dart';
@@ -133,12 +134,96 @@ void main() {
       expect(dir.listSync().map((e) => p.basename(e.path)), ['out.json']);
     });
 
+    /// A folder Kusunga may not add files to, with the picked file already
+    /// in it: what the Mac sandbox allows.
+    Directory sandboxLike(String picked, {void Function(String path)? plant}) {
+      final box = Directory(p.join(dir.path, 'box'))..createSync();
+      final path = p.join(box.path, picked);
+      plant?.call(path);
+      Process.runSync('chmod', ['555', box.path]);
+      addTearDown(() => Process.runSync('chmod', ['755', box.path]));
+      return box;
+    }
+
     test('when the temp file next to it cannot be made (the Mac sandbox '
         'allows only the picked file), it writes the file directly', () {
-      final path = p.join(dir.path, 'out.json');
-      Directory('$path.kusunga-tmp').createSync();
+      final box = sandboxLike(
+        'out.json',
+        plant: (path) => File(path).writeAsStringSync('old'),
+      );
+      final path = p.join(box.path, 'out.json');
       writeExportFile(path, utf8.encode('data'));
       expect(File(path).readAsStringSync(), 'data');
+      expect(box.listSync().map((e) => p.basename(e.path)), ['out.json']);
+    }, skip: Platform.isWindows ? 'chmod needs a POSIX system' : false);
+
+    test('written directly, a picked path that is a link is refused: the file '
+        'it points to is never written (T7)', () {
+      final victim = File(p.join(dir.path, 'victim.txt'))
+        ..writeAsStringSync('keep');
+      final box = sandboxLike(
+        'out.json',
+        plant: (path) => Link(path).createSync(victim.path),
+      );
+      expect(
+        () => writeExportFile(p.join(box.path, 'out.json'), [1, 2, 3]),
+        throwsA(isA<FileSystemException>()),
+      );
+      expect(victim.readAsStringSync(), 'keep');
+    }, skip: Platform.isWindows ? 'chmod needs a POSIX system' : false);
+
+    test('the temp name has 128 random bits, so it differs every time and '
+        "can't be guessed (T7)", () {
+      final path = p.join(dir.path, 'out.json');
+      final a = exportTempPath(path);
+      final b = exportTempPath(path);
+      expect(a, isNot(b));
+      expect(
+        p.basename(a),
+        matches(RegExp(r'^out\.json\.kusunga-tmp-[0-9a-f]{32}$')),
+      );
+    });
+
+    test('a link already at the temp name is never written through: the '
+        'temp file is made only if nothing is there (T7)', () {
+      final victim = File(p.join(dir.path, 'victim.txt'))
+        ..writeAsStringSync('keep');
+      final nowhere = p.join(dir.path, 'nowhere');
+      for (final (name, target) in [
+        ('a.json', victim.path),
+        ('b.json', nowhere), // a link to nothing yet
+      ]) {
+        final path = p.join(dir.path, name);
+        // The same random numbers, so the link sits at the exact temp name.
+        Link(exportTempPath(path, Random(7))).createSync(target);
+        writeExportFile(path, utf8.encode('{}'), random: Random(7));
+        expect(File(path).readAsStringSync(), '{}');
+      }
+      expect(victim.readAsStringSync(), 'keep');
+      expect(File(nowhere).existsSync(), isFalse);
+    });
+
+    test('temp files an earlier export to the same file left behind are '
+        'removed; links, folders and other names are left alone', () {
+      final path = p.join(dir.path, 'out.json');
+      final crashed = File(exportTempPath(path))..writeAsStringSync('half');
+      final older = File('$path.kusunga-tmp')..writeAsStringSync('half');
+      final victim = File(p.join(dir.path, 'victim.txt'))
+        ..writeAsStringSync('keep');
+      final link = Link(exportTempPath(path))..createSync(victim.path);
+      final folder = Directory(exportTempPath(path))..createSync();
+      final notOurs = File('$path.kusunga-tmp-notes')..writeAsStringSync('n');
+      final otherExport = File(exportTempPath(p.join(dir.path, 'b.json')))
+        ..writeAsStringSync('b');
+      writeExportFile(path, utf8.encode('new'));
+      expect(File(path).readAsStringSync(), 'new');
+      expect(crashed.existsSync(), isFalse);
+      expect(older.existsSync(), isFalse);
+      expect(link.existsSync(), isTrue);
+      expect(victim.readAsStringSync(), 'keep');
+      expect(folder.existsSync(), isTrue);
+      expect(notOurs.existsSync(), isTrue);
+      expect(otherExport.existsSync(), isTrue);
     });
 
     test('a failed write leaves no half file', () {

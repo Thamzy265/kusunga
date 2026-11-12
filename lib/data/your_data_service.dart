@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:path/path.dart' as p;
 
 import '../history/history_service.dart';
 import '../log/app_log.dart';
@@ -39,31 +41,89 @@ class FileSelectorPort implements FilePort {
 
 typedef ExportWriter = void Function(String path, List<int> bytes);
 
+/// The temporary file for an export to [path]: next to it, with 128 random
+/// bits in its name, so nobody can put a file or a link there first (T7).
+String exportTempPath(String path, [Random? random]) {
+  final r = random ?? Random.secure();
+  final hex = [
+    for (var i = 0; i < 16; i++)
+      r.nextInt(256).toRadixString(16).padLeft(2, '0'),
+  ].join();
+  return '$path.kusunga-tmp-$hex';
+}
+
 /// Writes the export so a failure never leaves half a file: to a temporary
-/// file next to [path], then renamed over it. Where that temporary file
-/// can't be made (the Mac sandbox allows only the file the user picked), the
-/// file is written directly and removed again if the write fails. Nothing
-/// is ever written to any other path.
-void writeExportFile(String path, List<int> bytes) {
-  final temp = File('$path.kusunga-tmp');
+/// file next to [path], then renamed over it. The temporary file has a name
+/// nobody can guess, is made only if nothing is there yet, and is never
+/// written through a link. Where it can't be made (the Mac sandbox allows
+/// only the file the user picked), the file is written directly, never
+/// through a link, and removed again if the write fails. Nothing is ever
+/// written to any other path.
+void writeExportFile(String path, List<int> bytes, {Random? random}) {
+  _removeLeftovers(path);
+  final temp = File(exportTempPath(path, random));
   try {
-    temp.writeAsBytesSync(bytes, flush: true);
+    // O_CREAT | O_EXCL: fails if anything is there, a link included.
+    temp.createSync(exclusive: true);
   } on FileSystemException {
-    _removeQuietly(temp);
-    final target = File(path);
-    try {
-      target.writeAsBytesSync(bytes, flush: true);
-    } catch (_) {
-      _removeQuietly(target);
-      rethrow;
-    }
+    _writeDirect(File(path), bytes);
     return;
   }
   try {
+    _writeInto(temp, bytes);
     temp.renameSync(path);
   } catch (_) {
     _removeQuietly(temp);
     rethrow;
+  }
+}
+
+/// Writes into [file], which was just made empty. It is opened without
+/// truncating, and written only once it is known to still be a plain file:
+/// a link put in its place is never written through.
+void _writeInto(File file, List<int> bytes) {
+  final out = file.openSync(mode: FileMode.writeOnlyAppend);
+  try {
+    _refuseLink(file);
+    out.writeFromSync(bytes);
+    out.flushSync();
+  } finally {
+    out.closeSync();
+  }
+}
+
+void _writeDirect(File target, List<int> bytes) {
+  try {
+    _refuseLink(target);
+    target.writeAsBytesSync(bytes, flush: true);
+  } catch (_) {
+    _removeQuietly(target);
+    rethrow;
+  }
+}
+
+void _refuseLink(File file) {
+  if (FileSystemEntity.typeSync(file.path, followLinks: false) ==
+      FileSystemEntityType.link) {
+    throw FileSystemException('a link, not a file', file.path);
+  }
+}
+
+/// Temporary files that an earlier export to the same [path] left behind
+/// (a crash while writing): only Kusunga's own names, only plain files.
+/// Links are never followed or removed. `<name>.kusunga-tmp` is the name
+/// builds before T7 used.
+void _removeLeftovers(String path) {
+  final name = RegExp.escape(p.basename(path));
+  final leftover = RegExp('^$name\\.kusunga-tmp(-[0-9a-f]{32})?\$');
+  try {
+    for (final e in File(path).parent.listSync(followLinks: false)) {
+      if (e is File && leftover.hasMatch(p.basename(e.path))) {
+        _removeQuietly(e);
+      }
+    }
+  } catch (_) {
+    // The folder can't be listed (the Mac sandbox): nothing to tidy.
   }
 }
 

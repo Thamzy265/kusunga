@@ -224,7 +224,7 @@ void main() {
         writeExportFile(path, utf8.encode('{"secret":"snippets"}'));
       } catch (_) {}
       expect(victim.readAsStringSync(), 'keep');
-    }, skip: _repro);
+    });
   });
 
   group('the log carries codes and numbers only', () {
