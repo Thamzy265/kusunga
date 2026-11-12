@@ -79,6 +79,7 @@ void main() {
     Size size = const Size(800, 1200),
     double textScale = 1,
     Duration keyTimeout = const Duration(seconds: 30),
+    EraseTarget Function()? target,
   }) async {
     service = history ?? sqliteService();
     addTearDown(service.dispose);
@@ -101,7 +102,9 @@ void main() {
             files: files,
             log: log,
             eraser: () => DataEraser(
-              target: DefaultEraseTarget(keys: keys, folder: () async => dir),
+              target:
+                  target?.call() ??
+                  DefaultEraseTarget(keys: keys, folder: () async => dir),
               log: log,
               stopFileLog: () {},
               deleteEntity: deleteEntity,
@@ -586,6 +589,156 @@ void main() {
       });
     }
   });
+  recheckMain();
 }
 
 String tester0Text(Finder f) => (f.evaluate().first.widget as Text).data ?? '';
+
+// ---- re-check of the fixes (2026-11-12) ----
+final bool _repro = Platform.environment['KUSUNGA_REPRO'] != '1';
+
+void recheckMain() {
+  late Directory dir;
+  late Directory profile;
+  late FakeKeyStore keys;
+  late int quits;
+
+  setUp(() {
+    dir = Directory.systemTemp.createTempSync('kusunga_tester_ui2_');
+    profile = Directory(p.join(dir.path, 'profiles', 'qa'))
+      ..createSync(recursive: true);
+    keys = FakeKeyStore(stored: _key);
+    quits = 0;
+  });
+  tearDown(() => dir.deleteSync(recursive: true));
+
+  Finder hook(String id) => find.byWidgetPredicate(
+    (w) => w is Semantics && w.properties.identifier == id,
+  );
+
+  Future<void> pumpSettings(
+    WidgetTester tester,
+    HistoryService service,
+    DataEraser Function() eraser,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KusungaTokens.themeData(Brightness.light),
+        home: SettingsScreen(
+          service: service,
+          onShowPrivacy: () {},
+          yourData: YourDataSetup(
+            files: FakeFilePort(),
+            log: FakeLog(),
+            eraser: eraser,
+            quit: () async => quits++,
+            afterImport: () async {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+  }
+
+  testWidgets(
+    'BUG-T10 (Low): in a debug data profile the partial message does not '
+    'say the files "can\'t be read any more": the profile shares the key '
+    'that was not deleted, so they can still be read',
+    (tester) async {
+      final store = SqliteHistoryStore.open(
+        path: p.join(profile.path, 'kusunga.db'),
+        keyHex: _key,
+      );
+      final service = HistoryService(
+        store: store,
+        source: FakeClipboardSource(),
+        log: FakeLog(),
+        snippetStore: store.snippetStore(),
+        ignoredAppStore: store.ignoredAppStore(),
+      )..start();
+      addTearDown(service.dispose);
+      File(p.join(profile.path, 'kusunga.log')).writeAsStringSync('x');
+      await pumpSettings(
+        tester,
+        service,
+        () => DataEraser(
+          target: ProfileEraseTarget(folder: () async => profile),
+          log: FakeLog(),
+          stopFileLog: () {},
+          deleteEntity: (e) {
+            if (p.basename(e.path) == 'kusunga.log') {
+              throw const FileSystemException('busy', '', OSError('busy', 16));
+            }
+            e.deleteSync();
+          },
+        ),
+      );
+      await tester.ensureVisible(hook('your-data-delete-everything'));
+      await tester.tap(hook('your-data-delete-everything'));
+      await tester.pump();
+      await tester.runAsync(() async {
+        await tester.tap(hook('delete-everything-confirm'));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pump();
+      expect(keys.deletes, 0, reason: 'the shared key is never deleted');
+      expect(find.textContaining("can't be read any more"), findsNothing);
+      expect(find.textContaining('Everything is deleted.'), findsOneWidget);
+    },
+    skip: _repro,
+  );
+
+  testWidgets('T5 in the UI: a key delete that never answers shows the lead\'s '
+      'note with only OK, which quits', (tester) async {
+    final store = SqliteHistoryStore.open(
+      path: p.join(dir.path, 'kusunga.db'),
+      keyHex: _key,
+    );
+    final service = HistoryService(
+      store: store,
+      source: FakeClipboardSource(),
+      log: FakeLog(),
+      snippetStore: store.snippetStore(),
+      ignoredAppStore: store.ignoredAppStore(),
+    )..start();
+    addTearDown(service.dispose);
+    keys.holdDelete();
+    await pumpSettings(
+      tester,
+      service,
+      () => DataEraser(
+        target: DefaultEraseTarget(keys: keys, folder: () async => dir),
+        log: FakeLog(),
+        stopFileLog: () {},
+        keyTimeout: const Duration(milliseconds: 30),
+      ),
+    );
+    await tester.ensureVisible(hook('your-data-delete-everything'));
+    await tester.tap(hook('your-data-delete-everything'));
+    await tester.pump();
+    await tester.runAsync(() async {
+      await tester.tap(hook('delete-everything-confirm'));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pump();
+    expect(
+      find.text(
+        "Kusunga couldn't confirm whether its key was deleted, so it has "
+        'stopped recording and will now quit. Open Kusunga again. If your '
+        'snippets and history are still there, try Delete everything '
+        'again.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Cancel'), findsNothing);
+    expect(find.text('Delete everything'), findsNothing);
+    expect(hook('delete-everything-ok'), findsOneWidget);
+    expect(quits, 0);
+    await tester.tap(hook('delete-everything-ok'));
+    await tester.pumpAndSettle();
+    expect(quits, 1);
+  });
+}
