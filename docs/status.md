@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-12 — M1.8 Your data — T10 fixed, review starts
+- Changed: Developer fixed T10 in 2f547c8 with the lead's wording for a debug profile: "Everything is deleted. {n} {file/files} in this test profile couldn't be removed." (B2, chosen so the tester's repro passes unchanged). The unused _repro declaration removed (lead agreed). check.sh 3700 passed, 10 skipped (all older, none M1.8); native suites all pass. Tester gate closed by the repro passing.
+- Gates: developer pass · tester pass · reviewer started (Mode: branch, accdfb3..2f547c8) · QA — · PM merge —
+- Open findings: none
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-12 — M1.8 Your data — tester re-check: T1–T9 closed, 1 new Low
 - Changed: Tester commits 9506969, 869ecda, b751919: BUG-T5 repro rewritten to ruling B and un-skipped; key_delete_timing_test (13) and recheck_fixes_test (33) added; three timestamp tests renamed to decoder or store level. T1–T9 closed; the developer's edits to tester tests reviewed and accepted. check.sh 3696 passed, 11 skipped (10 older + BUG-T10 repro); native suites all pass.
 - Findings: T10 Low — in a debug data profile the partial message says leftover files "can't be read any more", which is false (the profile shares the key).
