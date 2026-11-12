@@ -2,7 +2,7 @@
 
 Date: 2026-11-12 — Design note: `docs/design/your-data.md` — Status: approved by PM 2026-11-12
 
-Built on the PM's decisions of 2026-11-12: D1 A, D2 A, D3 A, D4 A, D5 A, D6 A (the recommended options).
+Built on the PM's decisions of 2026-11-12: D1 A, D2 A, D3 A, D4 A, D5 A, D6 A (the recommended options), and the lead's rulings of 2026-11-12 during the build (G2, G4, G5).
 
 ## User and task
 
@@ -92,11 +92,11 @@ The "Delete everything" button uses the destructive style already used by Clear 
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | Your data section | Four buttons and two help lines | `surfaceHover` | 2 px `focus` ring | Delete all history disabled when history is empty | n/a | No snippets and no history: Export still works (exports settings) | n/a | n/a | Buttons wrap at narrow widths | n/a | n/a |
 | Export dialog | Include history unticked (D2 A); focus on Cancel | Button hover | Tab order: tick box, Cancel, Save… | Include history disabled, "(no items)", when history is empty | While writing: Save… shows "Saving…", input ignored | — | Write failed: dialog stays, "Couldn't save the export. Try again." | Toast "Exported 12 snippets" / "Exported 12 snippets and 200 history items" | Counts use the item/items rule | n/a | Mac save dialog cancelled: nothing happens, no message |
-| Import (open dialog) | OS dialog filtered to `.json` | OS | OS | n/a | While reading and checking: "Checking the file…" | — | Refused: "This file can't be imported. It isn't a Kusunga export, or it is damaged." | Opens the confirm | n/a | n/a | Cancelled: nothing happens |
-| Import confirm | Counts from the file; settings tick box unticked; focus on Cancel | Button hover | Tab order: tick box, Cancel, Import | Settings tick box hidden when the file has no settings | "Importing…" | File with 0 snippets and 0 history: "This file has nothing to import." and only Close | Write failed: "Couldn't import. Nothing was changed." | Toast with counts and skips (see Copy) | Long file name shortened in the middle | n/a | n/a |
+| Import (open dialog) | OS dialog filtered to `.json` | OS | OS | Import… disabled while history isn't saved (memory only, incompatible, backup failed), with the line "Import isn't available right now, because history isn't being saved." (G2) | While the dialog is open and the file is checked: the Import… button reads "Checking the file…" and is disabled (G4) | — | Refused: a toast, "This file can't be imported. It isn't a Kusunga export, or it is damaged." (G4) | Opens the confirm | n/a | n/a | Cancelled: nothing happens |
+| Import confirm | Counts from the file (history: only the items that will be added, G5); settings tick box unticked; focus on Cancel | Button hover | Tab order: tick box, Cancel, Import | Settings tick box hidden when the file has no settings | "Importing…" | File with 0 snippets and 0 history: "This file has nothing to import." and only Close | Write failed: "Couldn't import. Nothing was changed." | Toast with counts and skips (see Copy) | Long file name shortened in the middle | n/a | n/a |
 | Delete all history | As Clear history (M1.2) | — | — | Disabled when empty | — | — | As Clear history | As Clear history | — | n/a | n/a |
 | Delete everything confirm | Lists counts; focus on Cancel | Button hover | Cancel first | n/a | "Deleting…", input ignored | Counts may be 0; the list still shows | Key delete failed: dialog stays, "Couldn't delete everything. Nothing was deleted. Try again." | "Everything is deleted. Kusunga will now quit." with one OK, then quit | — | n/a | Mac keychain or Windows credential refused: as Error |
-| Memory-only mode | Section shown; help line adds "History isn't saved right now." | — | — | — | — | — | — | — | — | — | — |
+| Memory-only mode | Section shown; help line adds "History isn't saved right now."; Import… disabled with its line (G2) | — | — | — | — | — | — | — | — | — | — |
 
 ## Breakpoints
 
@@ -141,7 +141,8 @@ The "Delete everything" button uses the destructive style already used by Clear 
   - tick box "Also use the settings in this file";
   - buttons "Cancel" and "Import";
   - empty "This file has nothing to import." with "Close";
-  - toast "Imported {n} {snippet/snippets} and {m} history {item/items}.", followed when they apply by "{k} {snippet was/snippets were} already here." and "{j} {shortcut was/shortcuts were} already used, so {that snippet has/those snippets have} none.";
+  - toast "Imported {n} {snippet/snippets} and {m} history {item/items}.", followed when they apply by "{k} {snippet was/snippets were} already here.", "{j} {shortcut was/shortcuts were} already used, so {that snippet has/those snippets have} none." and "{h} history {item was/items were} older than your auto-delete time and {wasn't/weren't} added." (G5);
+  - when Import is off (G2): "Import isn't available right now, because history isn't being saved.";
   - error "Couldn't import. Nothing was changed."
 - **Delete everything:**
   - title "Delete everything?";
