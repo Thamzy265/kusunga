@@ -436,24 +436,29 @@ class SqliteHistoryStore implements HistoryStore {
     int? notBefore,
     required int nowMs,
   }) {
-    final counts = _transaction(
-      () => importIntoDatabase(
+    final (counts, limit) = _transaction(() {
+      final counts = importIntoDatabase(
         _db,
         bundle,
         applySettings: applySettings,
         notBefore: notBefore,
         nowMs: nowMs,
         hash: _hash,
-      ),
-    );
+      );
+      // Read inside the transaction: after the commit nothing is left that
+      // can fail, so a committed import is never reported as "Nothing was
+      // changed" (R6).
+      final limit =
+          _db
+                  .select(
+                    "SELECT value FROM settings WHERE key = 'history_limit'",
+                  )
+                  .single['value']
+              as int;
+      return (counts, limit);
+    });
     // Only after the commit: a failed import leaves the limit as it was.
-    _limit =
-        _db
-                .select(
-                  "SELECT value FROM settings WHERE key = 'history_limit'",
-                )
-                .single['value']
-            as int;
+    _limit = limit;
     return counts;
   }
 
