@@ -155,36 +155,52 @@ void main() {
   });
 
   group('history (lead ruling G5)', () {
-    test('keeps the file times; a duplicate merges like Undo', () {
-      store.insertOrBump('both', ClipKind.text, 5000);
+    test('keeps the file times; a text already shown is left exactly as it '
+        'is, newer or older in the file (R9)', () {
+      store.insertOrBump('both', ClipKind.link, 5000);
       final c = store.importBundle(
         ExportBundle(
           snippets: const [],
-          history: [_h('both', 1000, 9000), _h('new', 2000, 3000)],
+          history: [
+            _h('both', 1000, 9000), // newer last copy, older creation
+            _h('new', 2000, 3000),
+          ],
         ),
         applySettings: false,
         nowMs: _now,
       );
-      expect(c.historyAdded, 1, reason: '"both" merged: no new row (T4)');
+      expect(c.historyAdded, 1);
+      expect(c.historyAlreadyHere, 1);
       final items = store.list();
       expect(items.map((i) => i.preview), ['both', 'new']);
-      expect(items.first.createdAt, 1000, reason: 'the older creation');
-      expect(items.first.lastCopiedAt, 9000, reason: 'the newer last copy');
+      expect(items.first.createdAt, 5000, reason: 'unchanged');
+      expect(items.first.lastCopiedAt, 5000, reason: 'not moved');
+      expect(items.first.kind, ClipKind.link);
       expect(items.last.createdAt, 2000);
       expect(items.last.lastCopiedAt, 3000);
-    });
-
-    test('a duplicate whose file copy is older keeps the newer time here', () {
-      store.insertOrBump('both', ClipKind.link, 9000);
       store.importBundle(
         ExportBundle(snippets: const [], history: [_h('both', 100, 200)]),
         applySettings: false,
         nowMs: _now,
       );
+      expect(store.list().first.createdAt, 5000);
+      expect(store.list().first.lastCopiedAt, 5000);
+    });
+
+    test('a hidden item that comes back is revived with the file\'s times '
+        'merged as Undo does (R9)', () {
+      store.insertOrBump('hidden', ClipKind.text, 100);
+      final c = store.importBundle(
+        ExportBundle(snippets: const [], history: [_h('hidden', 50, 9000)]),
+        applySettings: false,
+        notBefore: 1000,
+        nowMs: _now,
+      );
+      expect(c.historyAdded, 1);
+      expect(c.historyAlreadyHere, 0);
       final item = store.list().single;
       expect(item.lastCopiedAt, 9000);
-      expect(item.createdAt, 100);
-      expect(item.kind, ClipKind.link, reason: 'existing kind kept');
+      expect(item.createdAt, 50);
     });
 
     test('items older than the auto-delete time are not added', () {
@@ -305,7 +321,8 @@ void main() {
         );
       });
 
-      test('a text already shown merges into its item and needs no room', () {
+      test('a text already shown is already here, needs no room and is not '
+          'moved (R9)', () {
         store.setLimit(10);
         for (var i = 0; i < 10; i++) {
           store.insertOrBump('mine $i', ClipKind.text, 1000 + i);
@@ -317,8 +334,9 @@ void main() {
         );
         expect(c.historyAdded, 0);
         expect(c.historyNoRoom, 0);
-        expect(store.list().first.preview, 'mine 0');
-        expect(store.list().first.lastCopiedAt, 9000);
+        expect(c.historyAlreadyHere, 1);
+        expect(store.list().last.preview, 'mine 0');
+        expect(store.list().last.lastCopiedAt, 1000);
         expect(store.count, 10);
       });
 

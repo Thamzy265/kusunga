@@ -343,7 +343,7 @@ void main() {
       doImport(ExportBundle(snippets: const [], history: [_h('x', 0, 5)]));
       expect(store.records().single.lastCopiedAt, _now + 3650 * _day);
       expect(store.records().single.createdAt, 0);
-    });
+    }, skip: 'R9 (lead ruling 2026-11-13): shown items are left unchanged');
 
     test('store level (importBundle, which does not check times; '
         'checkImportTimes does that before it): a last copy before the '

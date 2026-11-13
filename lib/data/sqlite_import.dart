@@ -20,12 +20,12 @@ import 'export_format.dart';
 ///  - snippets are added after the existing ones; one with the same name and
 ///    content as a snippet already here is skipped; a shortcut that clashes
 ///    is dropped and the snippet added without it;
-///  - history never deletes anything here. Items keep their times and merge
-///    with an item already shown as Undo does (the newer last copy, the
-///    older creation). Items older than the auto-delete time are not added.
-///    The rest fill only the free room under the limit, newest first; the
-///    others don't fit and are not added. The count is of items added, not
-///    lines in the file (T4);
+///  - history never deletes or changes anything shown here. Items keep the
+///    file's times. A text already shown is "already here": its item keeps
+///    its times and its place (lead ruling R9, 2026-11-13). Items older than
+///    the auto-delete time are not added. The rest fill only the free room
+///    under the limit, newest first; the others don't fit and are not
+///    added. The count is of items added, not lines in the file (T4);
 ///  - settings and ignored apps only with [applySettings]; apps are only
 ///    ever added. A history limit or auto-delete time that would delete an
 ///    item shown now is kept as it is; the other settings still apply.
@@ -62,6 +62,7 @@ ImportCounts importIntoDatabase(
     snippetsAlreadyHere: alreadyHere,
     shortcutsDropped: dropped,
     historyAdded: history.added,
+    historyAlreadyHere: history.alreadyHere,
     historyTooOld: history.tooOld,
     historyNoRoom: history.noRoom,
     limitKept: kept.limit,
@@ -158,12 +159,14 @@ class _Line {
   }
 }
 
-/// Adds the file's history without deleting anything here (R1, PM decision
-/// 2026-11-13). A text already shown merges into its item and needs no
-/// room; any other text needs a free place under the limit (a hidden,
-/// expired item that comes back counts as one). Those are taken newest
-/// first while there is room, and written in the file's order.
-({int added, int tooOld, int noRoom}) _addHistory(
+/// Adds the file's history without deleting or changing anything shown
+/// here (R1, PM decision 2026-11-13; R9, lead ruling 2026-11-13). A text
+/// already shown is left as it is and counted as already here. Any other
+/// text needs a free place under the limit; a hidden, expired item that
+/// comes back counts as one, and is revived with the file's times merged
+/// as Undo does. Those are taken newest first while there is room, and
+/// written in the file's order.
+({int added, int alreadyHere, int tooOld, int noRoom}) _addHistory(
   Database db,
   List<ExportHistoryItem> history, {
   required int? notBefore,
@@ -184,10 +187,12 @@ class _Line {
       line.merge(h);
     }
   }
-  if (lines.isEmpty) return (added: 0, tooOld: tooOld, noRoom: 0);
+  if (lines.isEmpty) {
+    return (added: 0, alreadyHere: 0, tooOld: tooOld, noRoom: 0);
+  }
 
   final hashes = <_Line, Uint8List>{};
-  final merges = <_Line>{};
+  var alreadyHere = 0;
   final needRoom = <_Line>[];
   final find = db.prepare(
     'SELECT last_copied_at FROM clip_items WHERE content_hash = ?',
@@ -198,7 +203,7 @@ class _Line {
       final found = find.select([h]);
       final last = found.isEmpty ? null : found.single['last_copied_at'] as int;
       if (last != null && (notBefore == null || last >= notBefore)) {
-        merges.add(line);
+        alreadyHere++; // shown: never written, so nothing it has changes
       } else {
         needRoom.add(line);
       }
@@ -230,7 +235,7 @@ class _Line {
   );
   try {
     for (final line in lines.values) {
-      if (!merges.contains(line) && !taken.contains(line)) continue;
+      if (!taken.contains(line)) continue;
       insert.execute([
         line.content,
         line.kind.name,
@@ -244,6 +249,7 @@ class _Line {
   }
   return (
     added: taken.length,
+    alreadyHere: alreadyHere,
     tooOld: tooOld,
     noRoom: needRoom.length - taken.length,
   );

@@ -441,6 +441,7 @@ class ImportCounts {
     this.snippetsAlreadyHere = 0,
     this.shortcutsDropped = 0,
     this.historyAdded = 0,
+    this.historyAlreadyHere = 0,
     this.historyTooOld = 0,
     this.historyNoRoom = 0,
     this.limitKept = false,
@@ -455,9 +456,13 @@ class ImportCounts {
   /// Added without their shortcut, which was already used.
   final int shortcutsDropped;
 
-  /// History items added: not lines that merged into an item already shown
-  /// or repeat another line (T4), nor ones that didn't fit.
+  /// History items added: not lines that repeat another line (T4), texts
+  /// already shown, or ones that didn't fit.
   final int historyAdded;
+
+  /// Texts already shown here: left exactly as they are, never moved or
+  /// re-dated (lead ruling R9, 2026-11-13).
+  final int historyAlreadyHere;
 
   /// Older than the auto-delete time: not added (lead ruling G5).
   final int historyTooOld;

@@ -380,7 +380,7 @@ void main() {
         rows().firstWhere((r) => r.content == 'last shown').last,
         _now - 10 * _day,
       );
-    });
+    }, skip: 'R9 (lead ruling 2026-11-13): shown items are left unchanged');
   });
 
   group('the file\'s settings: kept or applied, with and without the tick', () {
@@ -733,6 +733,6 @@ void main() {
       final before = rows();
       run(hist([_h('mine', _now - _day)]));
       expect(rows(), before);
-    }, skip: Platform.environment['KUSUNGA_REPRO'] != '1');
+    });
   });
 }

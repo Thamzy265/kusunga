@@ -354,7 +354,10 @@ class YourDataService {
       _log.log(LogCode.dataImportedHistory, c.historyAdded);
       _log.log(
         LogCode.dataImportSkipped,
-        c.snippetsAlreadyHere + c.historyTooOld + c.historyNoRoom,
+        c.snippetsAlreadyHere +
+            c.historyAlreadyHere +
+            c.historyTooOld +
+            c.historyNoRoom,
       );
       return ImportDone(c);
     } catch (_) {

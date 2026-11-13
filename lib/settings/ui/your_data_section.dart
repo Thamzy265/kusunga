@@ -76,6 +76,10 @@ String importedMessage(ImportCounts c) {
     if (c.snippetsAlreadyHere == 1) '1 snippet was already here.',
     if (c.snippetsAlreadyHere > 1)
       '${c.snippetsAlreadyHere} snippets were already here.',
+    // Lead copy, R9 (2026-11-13).
+    if (c.historyAlreadyHere == 1) '1 history item was already here.',
+    if (c.historyAlreadyHere > 1)
+      '${c.historyAlreadyHere} history items were already here.',
     if (c.shortcutsDropped == 1)
       '1 shortcut was already used, so that snippet has none.',
     if (c.shortcutsDropped > 1)

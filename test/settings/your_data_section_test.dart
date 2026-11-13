@@ -1215,6 +1215,15 @@ void main() {
     String m(ImportCounts c) => importedMessage(c);
     const head = 'Imported 0 snippets and 0 history items.';
     expect(
+      m(const ImportCounts(snippetsAlreadyHere: 2, historyAlreadyHere: 1)),
+      '$head 2 snippets were already here. 1 history item was already here.',
+      reason: 'R9: right after the snippets one',
+    );
+    expect(
+      m(const ImportCounts(historyAlreadyHere: 3)),
+      '$head 3 history items were already here.',
+    );
+    expect(
       m(const ImportCounts(historyNoRoom: 1)),
       "$head 1 history item didn't fit under your history limit and wasn't "
       'added.',
