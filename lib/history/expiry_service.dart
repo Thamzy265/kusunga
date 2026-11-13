@@ -95,11 +95,8 @@ class ExpiryService extends ChangeNotifier {
       return;
     }
     _unknown = false;
-    final days = int.tryParse(raw ?? '');
-    if (raw == null ||
-        days == null ||
-        '$days' != raw ||
-        !historyExpiryChoices.contains(days)) {
+    final days = parseExpiryDays(raw);
+    if (days == null) {
       _log.log(LogCode.readFailed);
       _days = 0;
     } else {

@@ -7,6 +7,7 @@ import 'package:sqlite3/sqlite3.dart';
 import '../clipboard/clipboard_source.dart';
 import '../data/export_format.dart';
 import '../log/app_log.dart';
+import '../picker/paste_mode.dart';
 import 'clip_classifier.dart';
 import 'clip_item.dart';
 import 'expiry_service.dart';
@@ -627,7 +628,6 @@ class HistoryService extends ChangeNotifier {
     String? read(String key) => _store.readSetting(key);
     final typed = read('typed_shortcuts_on');
     final paste = read('paste_mode');
-    final days = int.tryParse(read(historyExpirySetting) ?? '');
     return ExportBundle(
       snippets: [
         for (final s in snippets.records())
@@ -642,11 +642,9 @@ class HistoryService extends ChangeNotifier {
       history: includeHistory ? _exportHistory(cutoff) : null,
       settings: ExportSettings(
         historyLimit: _store.limit,
-        historyExpiryDays: days != null && historyExpiryChoices.contains(days)
-            ? days
-            : null,
+        historyExpiryDays: parseExpiryDays(read(historyExpirySetting)),
         typedShortcutsOn: typed == null ? null : typed == '1',
-        pasteMode: paste == 'auto' || paste == 'copy_only' ? paste : null,
+        pasteMode: PasteMode.fromStored(paste)?.stored,
       ),
       ignoredApps: ignoredApps.list(),
     );

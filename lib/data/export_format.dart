@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../history/clip_item.dart';
 import '../history/history_store.dart';
+import '../picker/paste_mode.dart';
 import '../shortcuts/ignored_apps.dart';
 import '../snippets/snippet.dart';
 import '../snippets/snippet_shortcut.dart';
@@ -29,8 +30,6 @@ const exportedSettingKeys = [
   'typed_shortcuts_on',
   'paste_mode',
 ];
-
-const _pasteModes = {'auto', 'copy_only'};
 
 /// `kusunga-export-YYYY-MM-DD.json`, in local time.
 String exportFileName(DateTime day) =>
@@ -376,7 +375,10 @@ ExportSettings _settings(Map<String, Object?> s) {
   // A whole number, like the other settings: 1.0 == 1 in Dart (T3).
   if (typed != null && (typed is! int || (typed != 0 && typed != 1))) _bad();
   final paste = s['paste_mode'];
-  if (paste != null && !_pasteModes.contains(paste)) _bad();
+  if (paste != null &&
+      (paste is! String || PasteMode.fromStored(paste) == null)) {
+    _bad();
+  }
   return ExportSettings(
     historyLimit: limit as int?,
     historyExpiryDays: days as int?,

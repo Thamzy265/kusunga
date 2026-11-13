@@ -7,9 +7,12 @@ import '../history/history_service.dart';
 import '../snippets/snippet.dart';
 import '../snippets/ui/snippet_text.dart';
 import '../log/app_log.dart';
+import 'paste_mode.dart';
 import 'picker_port.dart';
 import 'picker_search.dart';
 import 'shortcut.dart';
+
+export 'paste_mode.dart';
 
 /// What the one window is showing: the history screen, the picker, or the
 /// small "Copied" toast.
@@ -35,18 +38,6 @@ enum ShortcutChange {
 
   /// It works now but could not be saved, so it is gone after a quit.
   notSaved,
-}
-
-/// The `paste_mode` setting: send Cmd+V / Ctrl+V ([auto]) or only copy.
-enum PasteMode {
-  auto('auto'),
-  copyOnly('copy_only');
-
-  const PasteMode(this.stored);
-  final String stored;
-
-  static PasteMode parse(String? text) =>
-      text == copyOnly.stored ? copyOnly : auto;
 }
 
 enum ToastKind { copied, copiedNoPermission, copiedElevated, copyFailed }

@@ -13,6 +13,7 @@ import 'package:kusunga/history/history_store.dart';
 import 'package:kusunga/history/memory_history_store.dart';
 import 'package:kusunga/history/sqlite_history_store.dart';
 import 'package:kusunga/log/app_log.dart';
+import 'package:kusunga/picker/paste_mode.dart';
 import 'package:kusunga/shortcuts/ignored_apps.dart';
 import 'package:kusunga/snippets/snippet.dart';
 
@@ -203,6 +204,41 @@ void main() {
         decodeImport(utf8.encode(file)).history,
         hasLength(HistoryStore.maxLimit),
       );
+    });
+
+    test('a stored paste mode or auto-delete value the app would not use '
+        'is left out, by the same rules the app reads them with', () {
+      for (final (paste, days) in [
+        ('AUTO', 'seven'),
+        ('copy-only', '2'),
+        ('', '-1'),
+      ]) {
+        service.saveSetting('paste_mode', paste);
+        service.saveSetting(historyExpirySetting, days);
+        final s = service.exportBundle(includeHistory: false).settings!;
+        expect(s.pasteMode, isNull, reason: paste);
+        expect(s.historyExpiryDays, isNull, reason: days);
+      }
+      service.saveSetting('paste_mode', 'auto');
+      service.saveSetting(historyExpirySetting, '7');
+      final s = service.exportBundle(includeHistory: false).settings!;
+      expect(s.pasteMode, 'auto');
+      expect(s.historyExpiryDays, 7);
+    });
+
+    test('paste mode and auto-delete values come from one place', () {
+      expect(PasteMode.fromStored('auto'), PasteMode.auto);
+      expect(PasteMode.fromStored('copy_only'), PasteMode.copyOnly);
+      for (final bad in [null, '', 'AUTO', 'copy-only']) {
+        expect(PasteMode.fromStored(bad), isNull);
+        expect(PasteMode.parse(bad), PasteMode.auto, reason: 'the picker');
+      }
+      for (final d in historyExpiryChoices) {
+        expect(parseExpiryDays('$d'), d);
+      }
+      for (final bad in [null, '', ' 7', '07', '7.0', '2', '-1', 'seven']) {
+        expect(parseExpiryDays(bad), isNull, reason: '$bad');
+      }
     });
 
     test('the history count for the tick box is the shown count', () {

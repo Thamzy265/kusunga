@@ -8,6 +8,15 @@ const historyExpirySetting = 'history_expiry_days';
 /// The only auto-delete values, in days; 0 is never.
 const historyExpiryChoices = [0, 1, 7, 30];
 
+/// The auto-delete days stored as [raw]: one of [historyExpiryChoices],
+/// written exactly as Kusunga writes it ("7", never " 7" or "07"); null for
+/// anything else. Auto-delete and the export read it the same way.
+int? parseExpiryDays(String? raw) {
+  final days = int.tryParse(raw ?? '');
+  if (days == null || '$days' != raw) return null;
+  return historyExpiryChoices.contains(days) ? days : null;
+}
+
 /// Where clipboard history is kept. Calls are synchronous: the database is
 /// local, and one copy is one small transaction.
 abstract interface class HistoryStore {
