@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-13 — M1.8 Your data — tester re-check: R1–R7 closed, 2 Low
+- Changed: Tester commits c770495, b96e0c5: the three skipped tests rewritten and un-skipped; 48-case R1 sweep (no existing row ever removed; preview equals import); R2–R7 edge tests. check.sh 3813 passed, 12 skipped (10 older + 2 repros); native suites all pass.
+- Findings: R9 Low — merges into shown items change their times (and can reorder the list), so "Nothing you have now will be changed or removed." isn't strictly true. R8 Low — a settings-only import ends with "Imported 0 snippets and 0 history items." and never says the settings were applied.
+- Gates: developer fixing R8, R9 · tester open (2 Low) · reviewer re-check after · QA — · PM merge —
+- Open findings: 2 Low (R8, R9)
+- Decisions: none from the PM. Lead rulings: R9 — an import leaves items already shown unchanged (counted as already here), so the confirm line stays true; R8 — a settings-only import toast reads "Imported the settings and ignored apps in this file.", followed by any kept-setting sentences.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-13 — M1.8 Your data — developer fixes for reviewer round 1
 - Changed: Developer fixed R1 (30504ba; import never deletes history; fills free room newest first; a lower limit or shorter auto-delete in the file is kept as it is), R6 (6d8ee23), R2 (e0f1724), R3 (85b1644), R4 (0f19130), R5 (13d46ef), R7b (27f9c73), R7a (e72aeae), cleanup (310d86f). HEAD 310d86f. check.sh 3726 passed, 13 skipped (10 older + 3 tester tests skipped for rewrite: two R1, one R7a; lead agreed); native suites all pass. During the round the lead agreed: skip the R7a tester test; a leftover -shm and memory-only with a failed key delete get the plain message.
 - Deviations reported: "Change it in Settings." for one kept setting; "shown" = not hidden by auto-delete; dataImportSkipped also counts items that didn't fit; merges into shown items still update their times, so "changed" in the confirm isn't strictly true.
