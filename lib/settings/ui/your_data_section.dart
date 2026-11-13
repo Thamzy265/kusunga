@@ -41,6 +41,9 @@ const _kRefused =
 const _kUseSettings = 'Also use the settings in this file';
 const _kImporting = 'Importing…';
 const _kNothing = 'This file has nothing to import.';
+// Lead ruling R4 (2026-11-13).
+const _kSettingsOnly =
+    'This file has settings and ignored apps, but no snippets or history.';
 const _kImportFailed = "Couldn't import. Nothing was changed.";
 const _kDeleteTitle = 'Delete everything?';
 const _kDeleteIntro = 'This removes from this computer:';
@@ -584,9 +587,11 @@ class _ImportDialogState extends State<_ImportDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Import ${_snippets(ready.snippets)} and '
-              '${_items(ready.historyFor(applySettings: _useSettings))}? '
-              'Nothing you have now will be changed or removed.',
+              ready.settingsOnly
+                  ? _kSettingsOnly
+                  : 'Import ${_snippets(ready.snippets)} and '
+                        '${_items(ready.historyFor(applySettings: _useSettings))}? '
+                        'Nothing you have now will be changed or removed.',
             ),
             if (ready.hasSettings) ...[
               SizedBox(height: KusungaTokens.space2),
@@ -614,7 +619,10 @@ class _ImportDialogState extends State<_ImportDialog> {
           Semantics(
             identifier: 'import-confirm',
             child: FilledButton(
-              onPressed: _importing ? null : () => unawaited(_run()),
+              // A settings-only file imports nothing unless ticked (R4).
+              onPressed: _importing || (ready.settingsOnly && !_useSettings)
+                  ? null
+                  : () => unawaited(_run()),
               child: Text(_importing ? _kImporting : 'Import'),
             ),
           ),

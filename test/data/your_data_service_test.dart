@@ -439,6 +439,36 @@ void main() {
       expect(log.details[i], 3);
     });
 
+    test('ready: a file with only settings or ignored apps is not empty; it '
+        'is settings only (R4)', () async {
+      final h = history('a.db');
+      for (final (bundle, settingsOnly) in [
+        (const ExportBundle(snippets: []), false),
+        (
+          const ExportBundle(
+            snippets: [],
+            settings: ExportSettings(historyLimit: 300),
+          ),
+          true,
+        ),
+        (
+          const ExportBundle(
+            snippets: [],
+            ignoredApps: [IgnoredApp('com.example.vault', 'Vault')],
+          ),
+          true,
+        ),
+      ]) {
+        files.openPath = p.join(dir.path, 'in.json');
+        File(
+          files.openPath!,
+        ).writeAsStringSync(encodeExport(bundle, exportedAt: DateTime(2026)));
+        final r = await service(h).checkImport() as ImportReady;
+        expect(r.settingsOnly, settingsOnly);
+        expect(r.isEmpty, !settingsOnly);
+      }
+    });
+
     test('ready: nothing to import only when no snippet and no history row '
         'would be added either way (T4)', () async {
       final h = history('a.db');

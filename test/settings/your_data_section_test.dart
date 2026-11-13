@@ -14,6 +14,7 @@ import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/memory_history_store.dart';
 import 'package:kusunga/history/sqlite_history_store.dart';
 import 'package:kusunga/settings/ui/settings_screen.dart';
+import 'package:kusunga/shortcuts/ignored_apps.dart';
 import 'package:kusunga/settings/ui/your_data_section.dart';
 import 'package:kusunga/snippets/snippet.dart';
 import 'package:kusunga/theme/tokens.dart';
@@ -771,12 +772,7 @@ void main() {
 
     testWidgets('nothing to import: only Close', (tester) async {
       await show(tester);
-      writeFile(
-        const ExportBundle(
-          snippets: [],
-          settings: ExportSettings(historyLimit: 10),
-        ),
-      );
+      writeFile(const ExportBundle(snippets: []));
       await pickFile(tester);
       expect(find.text('This file has nothing to import.'), findsOneWidget);
       expect(find.text('Import'), findsNothing);
@@ -784,6 +780,50 @@ void main() {
       await tester.tap(hook('import-empty-close'));
       await tester.pumpAndSettle();
       expect(find.byType(AlertDialog), findsNothing);
+    });
+
+    testWidgets('a file with only settings and ignored apps: its own line, '
+        'the tick box, and Import works only once it is ticked (R4)', (
+      tester,
+    ) async {
+      await show(tester);
+      writeFile(
+        const ExportBundle(
+          snippets: [],
+          settings: ExportSettings(historyLimit: 300),
+          ignoredApps: [IgnoredApp('com.example.vault', 'Vault')],
+        ),
+      );
+      await pickFile(tester);
+      expect(
+        find.text(
+          'This file has settings and ignored apps, but no snippets or '
+          'history.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('This file has nothing to import.'), findsNothing);
+      expect(find.text('Also use the settings in this file'), findsOneWidget);
+      expect(focused(tester, 'Cancel'), isTrue);
+      FilledButton import() => tester.widget<FilledButton>(
+        find.descendant(
+          of: hook('import-confirm'),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      expect(import().onPressed, isNull, reason: 'not ticked yet');
+      await tester.tap(find.byType(Checkbox));
+      await tester.pump();
+      expect(import().onPressed, isNotNull);
+      await tester.tap(hook('import-confirm'));
+      await settle(tester);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(service.limit, 300);
+      expect(
+        service.ignoredApps.list().any((a) => a.appId == 'com.example.vault'),
+        isTrue,
+      );
+      expect(afterImports, 1);
     });
 
     testWidgets('a write failure: the dialog stays with the error; nothing '

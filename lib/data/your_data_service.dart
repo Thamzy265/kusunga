@@ -215,10 +215,18 @@ class ImportReady extends ImportCheck {
 
   bool get hasSettings => bundle.hasSettings;
 
-  /// "This file has nothing to import": no snippet and no history row,
-  /// with or without its settings.
-  bool get isEmpty =>
+  /// No snippet and no history item to add, with or without its settings.
+  bool get _noItems =>
       snippets == 0 && history == 0 && historyFor(applySettings: true) == 0;
+
+  /// "This file has nothing to import": no items, and no settings or
+  /// ignored apps either.
+  bool get isEmpty => _noItems && !hasSettings;
+
+  /// Only settings or ignored apps (lead ruling R4, 2026-11-13): "This file
+  /// has settings and ignored apps, but no snippets or history." It can be
+  /// imported, but only with "Also use the settings in this file" ticked.
+  bool get settingsOnly => _noItems && hasSettings;
 }
 
 sealed class ImportResult {
