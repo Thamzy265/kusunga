@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-13 — M1.9 — PM decision D4 (name)
+- Changed: D4 decided; D4 row in docs/PLAN.md updated. The recommended trademark and app-store name check is not done yet.
+- Gates: n/a — decision, no code
+- Open findings: none
+- Decisions: PM said: "we are keeping the name" (2026-11-13). PM also asked whether the Windows CI can run on the PM's homelab (a self-hosted runner); answered, no decision yet.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — trademark and app-store name check (optional); join the Apple Developer Program; D5 Windows part; Windows CI (billing or homelab runner); M1.4–M1.8 PM checks; delete the stray QA export in Documents
+
 ## 2026-11-13 — M1.9 — PM decision D5 (Mac part)
 - Changed: D5 Mac part decided; D5 row in docs/PLAN.md updated. Windows part still open (lead recommendation: no Windows certificate for the beta; choose Microsoft Store or Azure Trusted Signing before the public release).
 - Gates: n/a — decision, no code

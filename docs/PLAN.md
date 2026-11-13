@@ -29,7 +29,7 @@ One app that keeps your clipboard history and your saved snippets, and pastes th
 | D1 | Tech stack | A: Flutter desktop UI + small native code for clipboard, hotkeys and paste · B: Tauri (Rust + web UI) · C: fully native (Swift on Mac, C# on Windows) | A — one UI codebase that we can reuse for the mobile apps in M4; native code only where the OS needs it | M1.1 |
 | D2 | Bank-details vault in the first release? | In M1 · Own milestone (M2) | M2 — it is the biggest privacy and security risk and needs its own design and review | M1 start |
 | D3 | Crash reports and usage stats | None · Opt-in only, no clipboard content ever | None in M1; revisit with a trigger (see Later) | M1.1 |
-| D4 | Product name "Kusunga" | Keep · Choose another | Keep, after a quick trademark and app-store name check | M1.9 |
+| D4 | Product name "Kusunga" | Keep · Choose another | Keep, after a quick trademark and app-store name check. **Decided 2026-11-13 — keep** (PM said: "we are keeping the name") | M1.9 |
 | D5 | Code signing (Apple Developer Program, about £79/year; a Windows signing certificate) | Buy now · Buy before first beta | Before first beta (M1.9) — needed so Mac and Windows don't block the app. **Mac: decided 2026-11-13 — PM will join the Apple Developer Program** ("i will get the apple developer account"). Windows: open | M1.9 |
 | D6 | Pricing | Free core + one-off payment for sync · Subscription · Free | Free core + one-off sync unlock (users complain about Paste's subscription) | M3 |
 | D7 | Lawful basis for any data that leaves the device | PM decides (likely contract for sync) | n/a in M1 — nothing leaves the device | M3 |
