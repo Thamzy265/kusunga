@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-13 — M1.9 — PM decision D5 (Mac part)
+- Changed: D5 Mac part decided; D5 row in docs/PLAN.md updated. Windows part still open (lead recommendation: no Windows certificate for the beta; choose Microsoft Store or Azure Trusted Signing before the public release).
+- Gates: n/a — decision, no code
+- Open findings: none
+- Decisions: PM said: "i will get the apple developer account" (2026-11-13), after the lead explained that without it the Mac app can't be notarised, and that updates would likely reset Accessibility and may lose keychain access to the key.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — join the Apple Developer Program; D5 Windows part; D4 (name); F5; M1.4–M1.8 PM checks; delete the stray QA export in Documents
+
 ## 2026-11-13 — main — pushed to GitHub
 - Changed: main pushed to origin (github.com/Thamzy265/kusunga), including M1.8 and this log entry. Only main pushed; no branch, no tag.
 - Gates: n/a — push of already-merged work
