@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-13 — main — pushed to GitHub
+- Changed: main pushed to origin (github.com/Thamzy265/kusunga), including M1.8 and this log entry. Only main pushed; no branch, no tag.
+- Gates: n/a — push of already-merged work
+- Open findings: none
+- Decisions: PM said: "Push main" (2026-11-13), in answer to "Push main to GitHub now?".
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.8 PM checks; delete the stray QA export in Documents; M1.7 PM checks; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5; D4 and D5 before M1.9
+
 ## 2026-11-13 — M1.8 Your data: export and delete — merged to main (done)
 - Changed: feat/your-data merged into main with --no-ff as b0d7763. Checks on merged main, run one after another: check.sh "Formatted 287 files (0 changed)", "No issues found!", 3840 passed, 10 skipped ("All tests passed!"); test_mac_capture.sh 40/0; test_mac_shortcuts.sh 165/0; test_mac_shortcuts_release.sh 153/0; test_mac_login_item.sh 30/0; test_windows_policy.sh all passed. M1.8 ticked in docs/PLAN.md. Not pushed.
 - Gates: developer pass · tester pass · reviewer approve with notes (closed) · QA pass · PM merge approved
