@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-13 — M1.8 Your data — reviewer re-check: approve with notes
+- Changed: Reviewer re-reviewed 2f547c8..110d391 with mutation checks in a scratch worktree: R1–R5, R7a, R7b and the cleanup fixed (each test fails when its fix is reverted or mutated); R8–R11 verified; R1 traced: no path removes an existing row, preview equals import, cached limit set only after commit. Security 0, privacy no issues. All six checks pass (check.sh 3839 passed, 10 skipped).
+- Findings: R6-test Low — the R6 fix (limit read inside the transaction) has no regression test.
+- Gates: developer adding the R6 test · tester pass · reviewer approve with notes · QA — · PM merge —
+- Open findings: 1 Low (R6-test)
+- Decisions: none. Lead: tests are never deferred, so the developer adds the R6 regression test (a fault seam) before QA.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-13 — M1.8 Your data — R11 fixed, reviewer re-check
 - Changed: Developer fixed R11 in 110d391 (an imported setting is compared with the value in use: the stored row, or the app's default). BUG-R11 repro passes unedited; no M1.8 test skipped. check.sh 3839 passed, 10 skipped (all older); native suites all pass. Tester gate closed by the repro passing. Reviewer asked to re-check 2f547c8..110d391 (R1–R11).
 - Gates: developer pass · tester pass · reviewer re-check running · QA — · PM merge —
