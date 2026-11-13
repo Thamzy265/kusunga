@@ -551,6 +551,12 @@ class HistoryService extends ChangeNotifier {
     _refresh();
   }
 
+  /// How many times the history was cleared, from anywhere (History,
+  /// Settings › Your data, Delete everything). A screen that holds an Undo
+  /// drops it when this moves (R2).
+  int get clears => _clears;
+  var _clears = 0;
+
   /// Removes everything. Returns how many items went, or null if it failed.
   int? clear() {
     if (_closed) return null;
@@ -558,6 +564,7 @@ class HistoryService extends ChangeNotifier {
       final waiting = _waiting.length;
       final removed = _store.clear() + waiting;
       _waiting.clear();
+      _clears++;
       _banners
         ..remove(HistoryBanner.clearError)
         ..remove(HistoryBanner.writeError);

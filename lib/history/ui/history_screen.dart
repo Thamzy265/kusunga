@@ -66,6 +66,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
   final _messenger = GlobalKey<ScaffoldMessengerState>();
   final _scroll = ScrollController();
   ClipRecord? _pendingUndo;
+
+  /// The service's clear count last seen: when it moves, the history was
+  /// cleared (here, in Settings or by Delete everything) and Undo must not
+  /// bring back an item from before it (R2).
+  late int _clearsSeen;
   Timer? _clock;
   Timer? _footerTimer;
   var _footerHold = false;
@@ -80,6 +85,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     super.initState();
     _seen.addAll(_service.items.map((i) => i.id));
     _shownIds = [for (final item in _service.items) item.id];
+    _clearsSeen = _service.clears;
     _service.addListener(_onChange);
     _service.snippets.addListener(_onSnippets);
     _footer = _footerText();
@@ -158,6 +164,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   void _onChange() {
+    if (_service.clears != _clearsSeen) {
+      _clearsSeen = _service.clears;
+      if (_pendingUndo != null) {
+        _pendingUndo = null;
+        _messenger.currentState?.hideCurrentSnackBar();
+      }
+    }
     for (final item in _service.items) {
       if (_seen.add(item.id)) _newIds.add(item.id);
     }
