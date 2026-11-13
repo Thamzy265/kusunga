@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-13 — M1.8 Your data — R8 and R9 fixed
+- Changed: Developer fixed R9 (2304b77: an import never changes an item already shown; counted as already here; toast "{n} history {item was/items were} already here.", lead copy) and R8 (2126ca1: "Imported the settings and ignored apps in this file." followed by every sentence that applies, lead agreed). Both repros pass unedited. Two tester tests asserting the old merge times skipped for rewrite (R9). check.sh 3814 passed, 12 skipped; native suites all pass. HEAD 2126ca1.
+- Gates: developer pass · tester re-check started (rewrite 2 tests) · reviewer re-check after the tester · QA — · PM merge —
+- Open findings: R8, R9 fixed, waiting for re-checks
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-13 — M1.8 Your data — tester re-check: R1–R7 closed, 2 Low
 - Changed: Tester commits c770495, b96e0c5: the three skipped tests rewritten and un-skipped; 48-case R1 sweep (no existing row ever removed; preview equals import); R2–R7 edge tests. check.sh 3813 passed, 12 skipped (10 older + 2 repros); native suites all pass.
 - Findings: R9 Low — merges into shown items change their times (and can reorder the list), so "Nothing you have now will be changed or removed." isn't strictly true. R8 Low — a settings-only import ends with "Imported 0 snippets and 0 history items." and never says the settings were applied.
