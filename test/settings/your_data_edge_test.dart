@@ -356,27 +356,41 @@ void main() {
       expect(find.text('• all snippets (1)'), findsOneWidget);
     });
 
-    testWidgets('the partial message when a file will not go: one file, '
-        'then two', (tester) async {
-      for (final (n, message) in [
-        (
-          1,
-          "Everything is deleted. 1 file couldn't be removed, but it can't "
-              'be read any more.',
-        ),
-        (
-          2,
-          "Everything is deleted. 2 files couldn't be removed, but they "
-              "can't be read any more.",
-        ),
-      ]) {
-        File(p.join(dir.path, 'kusunga.log')).writeAsStringSync('x');
-        File(p.join(dir.path, 'kusunga.log.1')).writeAsStringSync('x');
-        var failed = 0;
+    // R7a (lead ruling 2026-11-13): "can't be read any more" only when every
+    // file left is an encrypted database file and the key is gone.
+    for (final (stuck, message) in <(List<String>, String)>[
+      (['kusunga.log'], "Everything is deleted. 1 file couldn't be removed."),
+      (
+        ['kusunga.log', 'kusunga.log.1'],
+        "Everything is deleted. 2 files couldn't be removed.",
+      ),
+      (
+        ['kusunga.db'],
+        "Everything is deleted. 1 file couldn't be removed, but it can't be "
+            'read any more.',
+      ),
+      (
+        ['kusunga.db.bak', 'kusunga.db.unreadable-2026-11-01'],
+        "Everything is deleted. 2 files couldn't be removed, but they can't "
+            'be read any more.',
+      ),
+      (
+        ['kusunga.db', 'kusunga.db-shm'],
+        "Everything is deleted. 2 files couldn't be removed.",
+      ),
+      (
+        ['kusunga.db', 'kusunga.log'],
+        "Everything is deleted. 2 files couldn't be removed.",
+      ),
+    ]) {
+      testWidgets('the partial message when ${stuck.join(' and ')} will not '
+          'go', (tester) async {
+        for (final name in stuck) {
+          final f = File(p.join(dir.path, name));
+          if (!f.existsSync()) f.writeAsStringSync('x');
+        }
         deleteEntity = (e) {
-          final name = p.basename(e.path);
-          if (failed < n && name.startsWith('kusunga.log')) {
-            failed++;
+          if (stuck.contains(p.basename(e.path))) {
             throw const FileSystemException('busy', '', OSError('busy', 16));
           }
           e.deleteSync();
@@ -388,20 +402,36 @@ void main() {
           await Future<void>.delayed(const Duration(milliseconds: 100));
         });
         await tester.pump();
-        expect(find.text(message), findsOneWidget, reason: '$n');
+        expect(find.text(message), findsOneWidget);
         expect(keys.stored, isNull);
         await tester.tap(hook('delete-everything-ok'));
         await tester.pumpAndSettle();
-        await tester.pumpWidget(const SizedBox());
-        keys = FakeKeyStore(stored: _key);
-        for (final f in dir.listSync()) {
-          f.deleteSync(recursive: true);
+        expect(quits, 1);
+      });
+    }
+
+    testWidgets('memory only with a key delete that failed: a leftover '
+        'database file is not claimed unreadable', (tester) async {
+      File(p.join(dir.path, 'kusunga.db')).writeAsStringSync('x');
+      keys.deleteError = StateError('no keychain');
+      deleteEntity = (e) {
+        if (p.basename(e.path) == 'kusunga.db') {
+          throw const FileSystemException('busy', '', OSError('busy', 16));
         }
-      }
-      expect(quits, 2);
-      // R7a (lead ruling 2026-11-13): a leftover log is readable, so the
-      // message no longer says it can't be read. testWidgets takes no reason.
-    }, skip: true);
+        e.deleteSync();
+      };
+      await show(tester, history: memoryService({HistoryNotice.memoryOnly}));
+      await tapHook(tester, 'your-data-delete-everything');
+      await tester.runAsync(() async {
+        await tester.tap(hook('delete-everything-confirm'));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pump();
+      expect(
+        find.text("Everything is deleted. 1 file couldn't be removed."),
+        findsOneWidget,
+      );
+    });
 
     testWidgets('the import toast names every skip, with the singular forms', (
       tester,

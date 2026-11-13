@@ -268,13 +268,15 @@ void main() {
       expect(c.snippetsAlreadyHere, 1000);
     });
 
-    test('history over the limit keeps the newest, whichever file or store '
-        'they came from', () {
+    test('history over the limit never deletes (R1, PM decision '
+        '2026-11-13): the file fills only the free room, newest first; '
+        'every item here stays', () {
       store.setLimit(25);
-      for (var i = 24; i >= 0; i--) {
+      for (var i = 24; i >= 5; i--) {
         store.insertOrBump('mine $i', ClipKind.text, _now - i * 1000);
       }
-      doImport(
+      // 20 here, room for 5.
+      final c = doImport(
         ExportBundle(
           snippets: const [],
           history: [
@@ -285,29 +287,46 @@ void main() {
       );
       final kept = store.records();
       expect(kept, hasLength(25));
+      expect(c.historyAdded, 5);
+      expect(c.historyNoRoom, 25);
       expect(
-        kept.map((r) => r.lastCopiedAt).toList(),
-        [...kept.map((r) => r.lastCopiedAt)]..sort((a, b) => b.compareTo(a)),
+        kept.where((r) => r.content.startsWith('mine')),
+        hasLength(20),
+        reason: 'nothing that was here is removed',
       );
-      expect(kept.first.content, 'mine 0');
-      expect(kept.where((r) => r.content.startsWith('theirs')), isNotEmpty);
-    }, skip: 'R1 (PM decision 2026-11-13): an import never deletes history');
+      expect(
+        kept.where((r) => r.content.startsWith('theirs')).map((r) => r.content),
+        {for (var i = 0; i < 5; i++) 'theirs $i'},
+        reason: 'the newest five of the file',
+      );
+    });
 
-    test('a ticked limit lower than what is stored trims with the new '
-        'limit in the same import', () {
+    test('a ticked limit lower than what is stored is kept as it is, with '
+        'nothing removed; a limit that does not delete is applied (R1)', () {
       for (var i = 39; i >= 0; i--) {
         store.insertOrBump('mine $i', ClipKind.text, _now - i * 1000);
       }
-      doImport(
+      final c = doImport(
         ExportBundle(
           snippets: const [],
           settings: const ExportSettings(historyLimit: 25),
         ),
         settings: true,
       );
-      expect(store.records(), hasLength(25));
-      expect(store.limit, 25);
-    }, skip: 'R1 (PM decision 2026-11-13): an import never deletes history');
+      expect(store.records(), hasLength(40));
+      expect(store.limit, isNot(25));
+      expect(c.limitKept, isTrue);
+      final c2 = doImport(
+        ExportBundle(
+          snippets: const [],
+          settings: const ExportSettings(historyLimit: 40),
+        ),
+        settings: true,
+      );
+      expect(c2.limitKept, isFalse);
+      expect(store.limit, 40);
+      expect(store.records(), hasLength(40));
+    });
 
     test('store level (the 24 h limit is checkImportTimes, tested apart): a '
         'history item with a time in the future is kept as it is (the '
