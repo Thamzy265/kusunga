@@ -172,6 +172,23 @@ void main() {
       expect(victim.readAsStringSync(), 'keep');
     }, skip: Platform.isWindows ? 'chmod needs a POSIX system' : false);
 
+    test('written directly, an existing file Kusunga cannot open for writing '
+        'is left as it was, never removed (R3)', () {
+      final path = p.join(dir.path, 'out.json');
+      final keep = File(path)..writeAsStringSync('precious');
+      // Something already at the temp name, so the temp file can't be
+      // made and the file is written directly, as in the Mac sandbox.
+      Directory(exportTempPath(path, Random(3))).createSync();
+      Process.runSync('chmod', ['444', path]);
+      addTearDown(() => Process.runSync('chmod', ['644', path]));
+      expect(
+        () => writeExportFile(path, utf8.encode('{}'), random: Random(3)),
+        throwsA(isA<FileSystemException>()),
+      );
+      expect(keep.existsSync(), isTrue);
+      expect(keep.readAsStringSync(), 'precious');
+    }, skip: Platform.isWindows ? 'chmod needs a POSIX system' : false);
+
     test('the temp name has 128 random bits, so it differs every time and '
         "can't be guessed (T7)", () {
       final path = p.join(dir.path, 'out.json');

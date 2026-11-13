@@ -92,11 +92,20 @@ void _writeInto(File file, List<int> bytes) {
   }
 }
 
+/// Writes [target] in place. Only once Kusunga has opened it for writing
+/// (which empties it) is there half a file to remove on a failure: a file
+/// it couldn't open, such as a read-only one, is left as it was (R3).
 void _writeDirect(File target, List<int> bytes) {
+  _refuseLink(target);
+  final out = target.openSync(mode: FileMode.writeOnly);
   try {
-    _refuseLink(target);
-    target.writeAsBytesSync(bytes, flush: true);
+    out.writeFromSync(bytes);
+    out.flushSync();
+    out.closeSync();
   } catch (_) {
+    try {
+      out.closeSync();
+    } catch (_) {}
     _removeQuietly(target);
     rethrow;
   }
