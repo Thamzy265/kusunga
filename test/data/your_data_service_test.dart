@@ -508,6 +508,62 @@ void main() {
       expect(r.isEmpty, isTrue);
     });
 
+    test('a committed import is reported as done, with the new limit in '
+        'use, even where a read of the limit after the commit would fail '
+        '(R6)', () async {
+      // The seam stands for a settings read that fails once the import's
+      // transaction has committed; inside it, the read works.
+      var readsInside = 0;
+      final store = SqliteHistoryStore.open(
+        path: p.join(dir.path, 'seam.db'),
+        keyHex: _key,
+        onImportLimitRead: ({required inTransaction}) {
+          if (!inTransaction) {
+            throw const FileSystemException('read after the commit failed');
+          }
+          readsInside++;
+        },
+      );
+      final h = HistoryService(
+        store: store,
+        source: FakeClipboardSource(),
+        log: log,
+        clock: () => now,
+        snippetStore: store.snippetStore(),
+        ignoredAppStore: store.ignoredAppStore(),
+      )..start();
+      addTearDown(() async {
+        await h.close();
+        h.dispose();
+      });
+      files.openPath = p.join(dir.path, 'in.json');
+      File(files.openPath!).writeAsStringSync(
+        encodeExport(
+          const ExportBundle(
+            snippets: [
+              ExportSnippet(
+                name: 'A',
+                content: 'a',
+                type: SnippetType.other,
+                position: 0,
+              ),
+            ],
+            settings: ExportSettings(historyLimit: 300),
+          ),
+          exportedAt: DateTime(2026),
+        ),
+      );
+      final s = service(h);
+      final ready = await s.checkImport() as ImportReady;
+      final r = s.runImport(ready, applySettings: true);
+      expect(r, isA<ImportDone>(), reason: 'committed, so reported as done');
+      expect(log.codes, isNot(contains(LogCode.importFailed)));
+      expect(store.limit, 300, reason: 'the cached limit in use');
+      expect(h.limit, 300);
+      expect(h.snippets.items.single.name, 'A');
+      expect(readsInside, greaterThan(0));
+    });
+
     test(
       'a write failure is logged as importFailed and changes nothing',
       () async {
