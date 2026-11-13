@@ -5,6 +5,7 @@ import 'history/ui/history_host.dart';
 import 'picker/picker_controller.dart';
 import 'picker/ui/window_root.dart';
 import 'settings/login_item.dart';
+import 'settings/ui/your_data_section.dart';
 import 'shortcuts/shortcut_service.dart';
 import 'theme/tokens.dart';
 
@@ -17,7 +18,11 @@ class KusungaApp extends StatelessWidget {
     this.dataProfileRejected = false,
     this.shortcuts,
     this.loginItem,
+    this.yourData,
   });
+
+  /// Settings › Your data (M1.8, desktop).
+  final YourDataSetup? yourData;
 
   /// Launch at login (M1.7, desktop).
   final LoginItemService? loginItem;
@@ -58,6 +63,7 @@ class KusungaApp extends StatelessWidget {
               dataProfileRejected: dataProfileRejected,
               shortcuts: shortcuts,
               loginItem: loginItem,
+              yourData: yourData,
             ),
     );
   }

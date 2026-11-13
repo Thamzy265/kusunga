@@ -120,6 +120,10 @@ void main() {
       // history's expiry refresh is armed only while that check runs.
       'lib/history/expiry_service.dart',
       'lib/history/history_service.dart',
+      // M1.8: "Checking the file…" is announced after 1 s, and "Importing…"
+      // shows for one frame. Widget Timers, started from the widget's own
+      // button callbacks.
+      'lib/settings/ui/your_data_section.dart',
     };
     final seen = <String>{};
     for (final e in Directory('lib').listSync(recursive: true)) {

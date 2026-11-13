@@ -101,6 +101,23 @@ class ShortcutService extends ChangeNotifier {
     _notify();
   }
 
+  /// Reads the ignore list and the switch again after an import applied the
+  /// file's settings (M1.8), and sends both to native code when they
+  /// changed.
+  Future<void> reloadFromStore() async {
+    if (_disposed) return;
+    _loadIgnored();
+    await _sendIgnored();
+    if (available) {
+      final on = _readSetting(typedShortcutsSetting) == '1';
+      if (on != _enabled) {
+        _enabled = on;
+        await _apply(on);
+      }
+    }
+    _notify();
+  }
+
   /// False if the list could not be read; [_apps] is then unchanged.
   bool _loadIgnored() {
     try {

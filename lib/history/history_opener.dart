@@ -105,7 +105,7 @@ Future<OpenedHistory> openHistory({
     log.log(LogCode.keychainTimeout);
     return memoryOnly();
   } catch (error) {
-    log.log(LogCode.keychainReadFailed, _keychainStatus(error));
+    log.log(LogCode.keychainReadFailed, keychainStatus(error));
     return memoryOnly();
   }
 
@@ -179,7 +179,7 @@ void _moveAside(String path, DateTime day) {
 
 /// The OSStatus number in a keychain error such as "Code: -34018, ...", or
 /// null. Only the number is kept: the rest of the text is never logged.
-int? _keychainStatus(Object error) {
+int? keychainStatus(Object error) {
   if (error is! PlatformException) return null;
   final match = RegExp(r'Code:\s*(-?\d{1,6})').firstMatch(error.message ?? '');
   return match == null ? null : int.parse(match.group(1)!);

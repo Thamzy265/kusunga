@@ -141,6 +141,20 @@ class MemorySnippetStore implements SnippetStore {
   }
 
   @override
+  List<SnippetRecord> records() => [
+    for (final (i, e) in _entries.indexed)
+      SnippetRecord(
+        name: e.name,
+        content: e.content,
+        type: e.type,
+        position: i,
+        createdAt: e.createdAt,
+        updatedAt: e.updatedAt,
+        shortcut: e.shortcut,
+      ),
+  ];
+
+  @override
   void close() {}
 }
 

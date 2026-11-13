@@ -137,6 +137,10 @@ class SnippetService extends ChangeNotifier {
   /// Reads the list again ("Try again" on the read banner).
   void reload() => _refresh();
 
+  /// Every snippet with its whole text, for export (M1.8). Throws if the
+  /// store can't be read.
+  List<SnippetRecord> records() => _store.records();
+
   void _refresh() {
     if (_closed) return;
     try {

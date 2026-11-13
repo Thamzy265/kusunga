@@ -100,6 +100,28 @@ enum LogCode {
   loginItemOff,
   loginItemFailed,
   loginItemNeedsApproval,
+
+  // M1.8 your data (design note, "Observability"): numbers only, never a
+  // file name, a path or any text from a file. The log takes one number,
+  // so the counts are on separate codes: dataExported snippets,
+  // dataExportedHistory history items; dataImported snippets added,
+  // dataImportedHistory history items added, dataImportSkipped items not
+  // added (already here or past auto-delete). importRejected carries the
+  // reason number (1 too large, 2 not UTF-8, 3 not JSON, 4 too deep, 5
+  // another format, 6 newer version, 7 an item breaks a rule);
+  // exportFailed, deleteEverythingFailed and deleteFileFailed an OS error
+  // number.
+  dataExported,
+  dataExportedHistory,
+  dataImported,
+  dataImportedHistory,
+  dataImportSkipped,
+  importRejected,
+  importFailed,
+  exportFailed,
+  deleteEverythingDone,
+  deleteEverythingFailed,
+  deleteFileFailed,
 }
 
 abstract interface class ErrorLog {
@@ -178,8 +200,19 @@ class DeferredErrorLog implements ErrorLog {
   ErrorLog? _real;
   final _waiting = <(LogCode, int?)>[];
 
+  /// Delete everything (M1.8): from now on nothing reaches the log file,
+  /// which is about to be deleted, so no line can bring it back. The mirror
+  /// still gets every code.
+  void stopFile() {
+    _stopped = true;
+    _real = null;
+    _waiting.clear();
+  }
+
+  var _stopped = false;
+
   void attach(ErrorLog real) {
-    if (_real != null) return;
+    if (_stopped || _real != null) return;
     _real = real;
     for (final (code, detail) in _waiting) {
       real.log(code, detail);
@@ -190,6 +223,7 @@ class DeferredErrorLog implements ErrorLog {
   @override
   void log(LogCode code, [int? detail]) {
     mirror?.log(code, detail);
+    if (_stopped) return;
     final real = _real;
     if (real != null) {
       real.log(code, detail);

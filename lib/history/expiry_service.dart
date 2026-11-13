@@ -95,11 +95,8 @@ class ExpiryService extends ChangeNotifier {
       return;
     }
     _unknown = false;
-    final days = int.tryParse(raw ?? '');
-    if (raw == null ||
-        days == null ||
-        '$days' != raw ||
-        !historyExpiryChoices.contains(days)) {
+    final days = parseExpiryDays(raw);
+    if (days == null) {
       _log.log(LogCode.readFailed);
       _days = 0;
     } else {
@@ -232,6 +229,15 @@ class ExpiryService extends ChangeNotifier {
       _lifecycle = AppLifecycleListener(onResume: cleanUp);
     }
     _onChanged();
+  }
+
+  /// Stops the minute check (Delete everything, M1.8); [startTicking]
+  /// starts it again.
+  void stopTicking() {
+    _timer?.cancel();
+    _timer = null;
+    _lifecycle?.dispose();
+    _lifecycle = null;
   }
 
   void _changed() {

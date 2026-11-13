@@ -7,6 +7,10 @@ abstract interface class KeyStore {
   /// the keychain cannot be reached.
   Future<String?> read();
   Future<void> write(String keyHex);
+
+  /// Removes the key (Delete everything, M1.8). No error if there is none;
+  /// throws if the keychain refuses, and then the key is still there.
+  Future<void> delete();
 }
 
 class SecureKeyStore implements KeyStore {
@@ -33,4 +37,7 @@ class SecureKeyStore implements KeyStore {
   @override
   Future<void> write(String keyHex) =>
       _storage.write(key: entryName, value: keyHex);
+
+  @override
+  Future<void> delete() => _storage.delete(key: entryName);
 }

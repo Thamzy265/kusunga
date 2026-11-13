@@ -653,6 +653,12 @@ class _SpyKeys implements KeyStore {
     calls.add('write');
     return inner.write(keyHex);
   }
+
+  @override
+  Future<void> delete() {
+    calls.add('delete');
+    return inner.delete();
+  }
 }
 
 /// A list that counts every look at it: its length or an element.

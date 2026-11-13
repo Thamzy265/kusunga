@@ -5,6 +5,8 @@ import 'package:crypto/crypto.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'dart:convert';
 
+import '../data/export_format.dart';
+import '../data/sqlite_import.dart';
 import '../shortcuts/ignored_apps.dart';
 import '../snippets/sqlite_snippet_store.dart';
 import 'clip_item.dart';
@@ -48,11 +50,15 @@ bool _defaultCipherActive(Database db) => db.select('PRAGMA cipher').isNotEmpty;
 /// Encrypted SQLite history (ADR 0002). The whole file is encrypted with
 /// SQLite3 Multiple Ciphers; the key lives in the OS keychain.
 class SqliteHistoryStore implements HistoryStore {
-  SqliteHistoryStore._(this._db, this._limit, this._path);
+  SqliteHistoryStore._(this._db, this._limit, this._path, this._onLimitRead);
 
   final Database _db;
   final String _path;
   int _limit;
+
+  /// Test seam (R6), see [open]: called just before an import reads the
+  /// history limit back.
+  final void Function({required bool inTransaction})? _onLimitRead;
   bool _closed = false;
 
   static final _keyPattern = RegExp(r'^[0-9a-fA-F]{64}$');
@@ -61,11 +67,17 @@ class SqliteHistoryStore implements HistoryStore {
   /// characters. Throws [EncryptionUnavailable] if the cipher is not active,
   /// before anything is written. Throws [SqliteException] if the file cannot
   /// be read with this key.
+  ///
+  /// [onImportLimitRead] is a test seam (R6): it runs just before an import
+  /// reads the history limit back, with whether that read is still inside
+  /// the import's transaction. A test throws from it to stand for a read
+  /// that fails once the import is committed.
   static SqliteHistoryStore open({
     required String path,
     required String keyHex,
     bool Function(Database db)? cipherActive,
     List<Migration> migrations = kMigrations,
+    void Function({required bool inTransaction})? onImportLimitRead,
   }) {
     if (!_keyPattern.hasMatch(keyHex)) {
       throw ArgumentError.value('<redacted>', 'keyHex', 'not 64 hex digits');
@@ -98,7 +110,7 @@ class SqliteHistoryStore implements HistoryStore {
                   )
                   .single['value']
               as int;
-      return SqliteHistoryStore._(db, limit, path);
+      return SqliteHistoryStore._(db, limit, path, onImportLimitRead);
     } catch (_) {
       db.close();
       rethrow;
@@ -403,6 +415,89 @@ class SqliteHistoryStore implements HistoryStore {
     });
     _removeOldCopies();
     return n;
+  }
+
+  @override
+  List<ClipRecord> records({int? notBefore}) => [
+    for (final r in _db.select(
+      'SELECT content, kind, created_at, last_copied_at FROM clip_items '
+      'WHERE last_copied_at >= ? ORDER BY last_copied_at DESC, id DESC',
+      [notBefore ?? _minInt],
+    ))
+      ClipRecord(
+        content: r['content'] as String,
+        kind: ClipKind.fromName(r['kind'] as String),
+        createdAt: r['created_at'] as int,
+        lastCopiedAt: r['last_copied_at'] as int,
+      ),
+  ];
+
+  @override
+  void compact() {
+    _db.execute('VACUUM');
+    // Moves the rebuilt pages into the file and empties the -wal.
+    _db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
+  }
+
+  @override
+  ImportCounts importBundle(
+    ExportBundle bundle, {
+    required bool applySettings,
+    int? notBefore,
+    required int nowMs,
+  }) {
+    final (counts, limit) = _transaction(() {
+      final counts = importIntoDatabase(
+        _db,
+        bundle,
+        applySettings: applySettings,
+        notBefore: notBefore,
+        nowMs: nowMs,
+        hash: _hash,
+      );
+      // Read inside the transaction: after the commit nothing is left that
+      // can fail, so a committed import is never reported as "Nothing was
+      // changed" (R6).
+      _onLimitRead?.call(inTransaction: !_db.autocommit);
+      final limit =
+          _db
+                  .select(
+                    "SELECT value FROM settings WHERE key = 'history_limit'",
+                  )
+                  .single['value']
+              as int;
+      return (counts, limit);
+    });
+    // Only after the commit: a failed import leaves the limit as it was.
+    _limit = limit;
+    return counts;
+  }
+
+  @override
+  ImportCounts previewImport(
+    ExportBundle bundle, {
+    required bool applySettings,
+    int? notBefore,
+    required int nowMs,
+  }) {
+    _db.execute('BEGIN IMMEDIATE');
+    try {
+      return importIntoDatabase(
+        _db,
+        bundle,
+        applySettings: applySettings,
+        notBefore: notBefore,
+        nowMs: nowMs,
+        hash: _hash,
+      );
+    } finally {
+      // Only counted, never kept. The cached limit was never touched.
+      if (!_db.autocommit) {
+        try {
+          _db.execute('ROLLBACK');
+        } catch (_) {}
+      }
+    }
   }
 
   /// "Clear history" must leave nothing readable behind: the migration backup

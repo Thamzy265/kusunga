@@ -7,6 +7,8 @@ import 'package:path_provider/path_provider.dart';
 
 import 'app.dart';
 import 'clipboard/channel_clipboard_source.dart';
+import 'data/data_eraser.dart';
+import 'data/your_data_service.dart';
 import 'history/data_profile.dart';
 import 'history/history_handle.dart';
 import 'history/open_app_history.dart';
@@ -18,6 +20,7 @@ import 'log/unified_log.dart';
 import 'picker/channel_picker_port.dart';
 import 'picker/picker_controller.dart';
 import 'settings/login_item.dart';
+import 'settings/ui/your_data_section.dart';
 import 'shortcuts/channel_typed_shortcuts_port.dart';
 import 'shortcuts/shortcut_service.dart';
 import 'tray/tray_manager_port.dart';
@@ -39,10 +42,11 @@ Future<void> main(List<String> args) async {
   // `-KusungaDataProfile <name>`: Debug builds only, a separate data folder
   // for QA (PM decision 2026-11-05). Release ignores it.
   final profile = dataProfileFrom(args);
+  final keys = keyStoreFor(isWindows: Platform.isWindows);
   final data = dataProfileSetup(
     profile,
     supportDirectory: getApplicationSupportDirectory,
-    keys: keyStoreFor(isWindows: Platform.isWindows),
+    keys: keys,
     log: deferredLog,
   );
   final history = openAppHistory(
@@ -92,8 +96,40 @@ Future<void> main(List<String> args) async {
       ? (LoginItemService(port: ChannelLoginItemPort(), log: deferredLog)
           ..startListening())
       : null;
+  // Settings › Your data (M1.8). Delete everything removes only what this
+  // session uses: the default folder and the key, or (Debug) the profile's
+  // own folder, never the shared key or the login item (lead ruling G3),
+  // or, for a rejected profile, nothing on disk.
+  Future<void> Function()? quitApp;
+  final yourData = isDesktop
+      ? YourDataSetup(
+          files: FileSelectorPort(),
+          log: deferredLog,
+          eraser: () => DataEraser(
+            target: switch (profile) {
+              NoDataProfile() => DefaultEraseTarget(
+                keys: keys,
+                folder: getApplicationSupportDirectory,
+              ),
+              ActiveDataProfile() => ProfileEraseTarget(
+                folder: data.supportDirectory,
+              ),
+              RejectedDataProfile() => const NoDataEraseTarget(),
+            },
+            log: deferredLog,
+            stopFileLog: deferredLog.stopFile,
+            turnOffLogin: loginItem?.turnOff,
+          ),
+          quit: () async => quitApp?.call(),
+          afterImport: () async {
+            picker?.reloadSettings();
+            await (await shortcuts)?.reloadFromStore();
+          },
+        )
+      : null;
   runApp(
     KusungaApp(
+      yourData: yourData,
       loginItem: loginItem,
       history: history,
       picker: picker,
@@ -116,6 +152,7 @@ Future<void> main(List<String> args) async {
     stopTray: () => tray.dispose(),
     stopWindow: () => window.dispose(),
   )..listenForNativeFlush();
+  quitApp = () => quit.quitFromTray().catchError((Object _) {});
   tray = TrayService(
     port: TrayManagerPort(),
     iconPath: defaultTargetPlatform == TargetPlatform.windows

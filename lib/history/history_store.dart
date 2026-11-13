@@ -1,3 +1,4 @@
+import '../data/export_format.dart';
 import 'clip_item.dart';
 
 /// Auto-delete (M1.7, schema version 6): "0" never, or "1", "7" or "30"
@@ -6,6 +7,15 @@ const historyExpirySetting = 'history_expiry_days';
 
 /// The only auto-delete values, in days; 0 is never.
 const historyExpiryChoices = [0, 1, 7, 30];
+
+/// The auto-delete days stored as [raw]: one of [historyExpiryChoices],
+/// written exactly as Kusunga writes it ("7", never " 7" or "07"); null for
+/// anything else. Auto-delete and the export read it the same way.
+int? parseExpiryDays(String? raw) {
+  final days = int.tryParse(raw ?? '');
+  if (days == null || '$days' != raw) return null;
+  return historyExpiryChoices.contains(days) ? days : null;
+}
 
 /// Where clipboard history is kept. Calls are synchronous: the database is
 /// local, and one copy is one small transaction.
@@ -85,6 +95,36 @@ abstract interface class HistoryStore {
 
   /// Removes everything and returns how many items were removed.
   int clear();
+
+  /// Every item with its whole text, newest first; with [notBefore], only
+  /// items last copied at or after it (the auto-delete read filter). For
+  /// export (M1.8).
+  List<ClipRecord> records({int? notBefore});
+
+  /// Rebuilds the file so freed pages are gone, not only zeroed (Delete all
+  /// history, M1.8 D4 A). Nothing to do in memory.
+  void compact();
+
+  /// Adds a checked import file in one write transaction: if anything fails,
+  /// nothing changes (M1.8; see `importIntoDatabase`). Throws
+  /// [UnsupportedError] where import is not offered (memory only, G2).
+  ImportCounts importBundle(
+    ExportBundle bundle, {
+    required bool applySettings,
+    int? notBefore,
+    required int nowMs,
+  });
+
+  /// What [importBundle] would do now, changing nothing: it runs in a
+  /// transaction that is always rolled back. The import's confirm dialog
+  /// counts rows from it, not file lines (M1.8 T4). Throws where import is
+  /// not offered, or where the import itself would fail.
+  ImportCounts previewImport(
+    ExportBundle bundle, {
+    required bool applySettings,
+    int? notBefore,
+    required int nowMs,
+  });
 
   /// How many items lowering the limit to [newLimit] would delete.
   int countRemovedBy(int newLimit);

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:kusunga/clipboard/clipboard_source.dart';
+import 'package:kusunga/data/export_format.dart';
+import 'package:kusunga/data/your_data_service.dart';
 import 'package:kusunga/history/clip_item.dart';
 import 'package:kusunga/history/history_store.dart';
 import 'package:kusunga/history/key_store.dart';
@@ -46,6 +48,29 @@ class FakeKeyStore implements KeyStore {
     stored = keyHex;
     _written = true;
     writes++;
+  }
+
+  Object? deleteError;
+  int deletes = 0;
+  Completer<void>? _deleteGate;
+
+  /// The next delete waits until the returned completer completes.
+  Completer<void> holdDelete() => _deleteGate = Completer<void>();
+
+  /// Called at the start of [delete] (to record the order of steps).
+  void Function()? onDelete;
+
+  @override
+  Future<void> delete() async {
+    onDelete?.call();
+    final gate = _deleteGate;
+    if (gate != null) {
+      _deleteGate = null;
+      await gate.future;
+    }
+    if (deleteError != null) throw deleteError!;
+    stored = null;
+    deletes++;
   }
 }
 
@@ -200,6 +225,50 @@ class FlakyStore implements HistoryStore {
   }
 
   @override
+  List<ClipRecord> records({int? notBefore}) {
+    if (failReads) throw const FileSystemException('locked');
+    return inner.records(notBefore: notBefore);
+  }
+
+  @override
+  void compact() {
+    _maybeFail();
+    inner.compact();
+  }
+
+  @override
+  ImportCounts importBundle(
+    ExportBundle bundle, {
+    required bool applySettings,
+    int? notBefore,
+    required int nowMs,
+  }) {
+    _maybeFail();
+    return inner.importBundle(
+      bundle,
+      applySettings: applySettings,
+      notBefore: notBefore,
+      nowMs: nowMs,
+    );
+  }
+
+  @override
+  ImportCounts previewImport(
+    ExportBundle bundle, {
+    required bool applySettings,
+    int? notBefore,
+    required int nowMs,
+  }) {
+    _maybeFail();
+    return inner.previewImport(
+      bundle,
+      applySettings: applySettings,
+      notBefore: notBefore,
+      nowMs: nowMs,
+    );
+  }
+
+  @override
   int countRemovedBy(int newLimit) => inner.countRemovedBy(newLimit);
   @override
   void setLimit(int newLimit) => inner.setLimit(newLimit);
@@ -245,4 +314,35 @@ class FakeLoginItemPort implements LoginItemPort {
 
   @override
   Future<void> openSettings() async => openCalls++;
+}
+
+/// The save and open dialogs (M1.8): answers the paths set here.
+class FakeFilePort implements FilePort {
+  String? savePath;
+  String? openPath;
+  String? suggested;
+  int saves = 0;
+  int opens = 0;
+  Completer<String?>? _openGate;
+
+  /// The next open dialog answers only when the completer completes.
+  Completer<String?> holdOpen() => _openGate = Completer<String?>();
+
+  @override
+  Future<String?> pickSavePath(String suggestedName) async {
+    saves++;
+    suggested = suggestedName;
+    return savePath;
+  }
+
+  @override
+  Future<String?> pickOpenPath() async {
+    opens++;
+    final gate = _openGate;
+    if (gate != null) {
+      _openGate = null;
+      return gate.future;
+    }
+    return openPath;
+  }
 }

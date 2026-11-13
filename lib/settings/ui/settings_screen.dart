@@ -12,6 +12,7 @@ import '../../ui/close_at_zero.dart';
 import '../../ui/focus_order.dart';
 import '../../ui/section_heading.dart';
 import '../login_item.dart';
+import 'your_data_section.dart';
 
 // Copy from the UI spec (`docs/ui/settings-and-expiry.md`, "Copy").
 const _general = 'General';
@@ -50,9 +51,14 @@ class SettingsScreen extends StatefulWidget {
     required this.onShowPrivacy,
     this.loginItem,
     this.pickerShortcut,
+    this.yourData,
   });
 
   final HistoryService service;
+
+  /// Export, import and delete (M1.8). Without it there is no Your data
+  /// section.
+  final YourDataSetup? yourData;
 
   /// Launch at login (desktop). Without it there is no switch.
   final LoginItemService? loginItem;
@@ -104,14 +110,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() {});
   }
 
-  void _toast(String message) {
+  /// [long]: a summary of several sentences (the import toast), shown long
+  /// enough to read.
+  void _toast(String message, {bool long = false}) {
     final m = _messenger.currentState;
     if (m == null) return;
     m.hideCurrentSnackBar();
     m.showSnackBar(
       SnackBar(
         content: Text(message),
-        duration: const Duration(seconds: 2),
+        duration: Duration(seconds: long ? 8 : 2),
         persist: false,
         behavior: SnackBarBehavior.floating,
       ),
@@ -192,6 +200,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     alignment: AlignmentDirectional.centerStart,
                     child: _PrivacyLink(onPressed: widget.onShowPrivacy),
                   ),
+                  if (widget.yourData case final setup?) ...[
+                    SizedBox(height: KusungaTokens.space5),
+                    YourDataSection(
+                      service: _service,
+                      setup: setup,
+                      toast: _toast,
+                    ),
+                  ],
                 ],
               ),
             ),

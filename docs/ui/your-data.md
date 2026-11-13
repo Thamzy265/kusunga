@@ -2,7 +2,7 @@
 
 Date: 2026-11-12 — Design note: `docs/design/your-data.md` — Status: approved by PM 2026-11-12
 
-Built on the PM's decisions of 2026-11-12: D1 A, D2 A, D3 A, D4 A, D5 A, D6 A (the recommended options).
+Built on the PM's decisions of 2026-11-12: D1 A, D2 A, D3 A, D4 A, D5 A, D6 A (the recommended options), and the lead's rulings of 2026-11-12 during the build (G2, G4, G5).
 
 ## User and task
 
@@ -92,11 +92,11 @@ The "Delete everything" button uses the destructive style already used by Clear 
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | Your data section | Four buttons and two help lines | `surfaceHover` | 2 px `focus` ring | Delete all history disabled when history is empty | n/a | No snippets and no history: Export still works (exports settings) | n/a | n/a | Buttons wrap at narrow widths | n/a | n/a |
 | Export dialog | Include history unticked (D2 A); focus on Cancel | Button hover | Tab order: tick box, Cancel, Save… | Include history disabled, "(no items)", when history is empty | While writing: Save… shows "Saving…", input ignored | — | Write failed: dialog stays, "Couldn't save the export. Try again." | Toast "Exported 12 snippets" / "Exported 12 snippets and 200 history items" | Counts use the item/items rule | n/a | Mac save dialog cancelled: nothing happens, no message |
-| Import (open dialog) | OS dialog filtered to `.json` | OS | OS | n/a | While reading and checking: "Checking the file…" | — | Refused: "This file can't be imported. It isn't a Kusunga export, or it is damaged." | Opens the confirm | n/a | n/a | Cancelled: nothing happens |
-| Import confirm | Counts from the file; settings tick box unticked; focus on Cancel | Button hover | Tab order: tick box, Cancel, Import | Settings tick box hidden when the file has no settings | "Importing…" | File with 0 snippets and 0 history: "This file has nothing to import." and only Close | Write failed: "Couldn't import. Nothing was changed." | Toast with counts and skips (see Copy) | Long file name shortened in the middle | n/a | n/a |
+| Import (open dialog) | OS dialog filtered to `.json` | OS | OS | Import… disabled while history isn't saved (memory only, incompatible, backup failed), with the line "Import isn't available right now, because history isn't being saved." (G2) | While the dialog is open and the file is checked: the Import… button reads "Checking the file…" and is disabled (G4) | — | Refused: a toast, "This file can't be imported. It isn't a Kusunga export, or it is damaged." (G4) | Opens the confirm | n/a | n/a | Cancelled: nothing happens |
+| Import confirm | Counts from the file (history: only the items that will be added, G5, T4 and R1: not repeats, items already here, or items that don't fit in the free room under the limit, since an import never deletes history; the count follows the settings tick box as it changes); settings tick box unticked; focus on Cancel | Button hover | Tab order: tick box, Cancel, Import | Settings tick box hidden when the file has no settings. A file with only settings or ignored apps (R4): Import disabled until the tick box is ticked | "Importing…" | File with no snippet or history item to add and no settings or ignored apps: "This file has nothing to import." and only Close. File with only settings or ignored apps (lead ruling R4, 2026-11-13): "This file has settings and ignored apps, but no snippets or history." with the tick box, Cancel and Import | Write failed: "Couldn't import. Nothing was changed." | Toast with counts and skips (see Copy) | Long file name shortened in the middle | n/a | n/a |
 | Delete all history | As Clear history (M1.2) | — | — | Disabled when empty | — | — | As Clear history | As Clear history | — | n/a | n/a |
-| Delete everything confirm | Lists counts; focus on Cancel | Button hover | Cancel first | n/a | "Deleting…", input ignored | Counts may be 0; the list still shows | Key delete failed: dialog stays, "Couldn't delete everything. Nothing was deleted. Try again." | "Everything is deleted. Kusunga will now quit." with one OK, then quit | — | n/a | Mac keychain or Windows credential refused: as Error |
-| Memory-only mode | Section shown; help line adds "History isn't saved right now." | — | — | — | — | — | — | — | — | — | — |
+| Delete everything confirm | Lists counts; focus on Cancel | Button hover | Cancel first | n/a | "Deleting…", input ignored (up to 90 s if the keychain doesn't answer, T5) | Counts may be 0; the list still shows | Key delete failed: dialog stays, "Couldn't delete everything. Nothing was deleted. Try again." Keychain never answered (T5): the stuck note (see Copy), announced, with one OK (focused) that quits; Escape quits too; no Cancel or Try again; recording stays stopped | "Everything is deleted. Kusunga will now quit." with one OK, then quit. Files left: the partial message, which says they can't be read only when every file left is an encrypted database file and the key is gone, and is the plain partial message otherwise (R7a); in a debug data profile, the profile partial message instead (T10, see Copy) | — | n/a | Mac keychain or Windows credential refused: as Error |
+| Memory-only mode | Section shown; help line adds "History isn't saved right now."; Import… disabled with its line (G2) | — | — | — | — | — | — | — | — | — | — |
 
 ## Breakpoints
 
@@ -141,7 +141,9 @@ The "Delete everything" button uses the destructive style already used by Clear 
   - tick box "Also use the settings in this file";
   - buttons "Cancel" and "Import";
   - empty "This file has nothing to import." with "Close";
-  - toast "Imported {n} {snippet/snippets} and {m} history {item/items}.", followed when they apply by "{k} {snippet was/snippets were} already here." and "{j} {shortcut was/shortcuts were} already used, so {that snippet has/those snippets have} none.";
+  - settings only (R4) "This file has settings and ignored apps, but no snippets or history." with the tick box "Also use the settings in this file", "Cancel" and "Import" (Import works only when ticked);
+  - toast "Imported {n} {snippet/snippets} and {m} history {item/items}.", or, when nothing was added but at least one of the file's settings or ignored apps really changed something, "Imported the settings and ignored apps in this file." (lead ruling R8, 2026-11-13), or, when nothing at all was added or changed (a setting already in use, or one that was kept, is not a change), "Nothing was imported." (lead ruling R10, 2026-11-13), followed when they apply by "{k} {snippet was/snippets were} already here.", "{n} history {item was/items were} already here." (an item already shown is never changed, lead ruling R9, 2026-11-13), "{j} {shortcut was/shortcuts were} already used, so {that snippet has/those snippets have} none." and "{h} history {item was/items were} older than your auto-delete time and {wasn't/weren't} added." (G5), then "{n} history {item/items} didn't fit under your history limit and {wasn't/weren't} added." and, when a ticked limit or auto-delete time would have deleted items and so was kept, "Your history limit and auto-delete weren't changed, because that would delete items. Change them in Settings." or only the one kept: "Your history limit wasn't changed, because that would delete items. Change it in Settings." / "Your auto-delete time wasn't changed, because that would delete items. Change it in Settings." (R1; lead copy, 2026-11-13). An import never deletes history, so "Nothing you have now will be changed or removed." stays;
+  - when Import is off (G2): "Import isn't available right now, because history isn't being saved.";
   - error "Couldn't import. Nothing was changed."
 - **Delete everything:**
   - title "Delete everything?";
@@ -149,8 +151,11 @@ The "Delete everything" button uses the destructive style already used by Clear 
   - then "Launch at login is turned off, and Kusunga quits. This can't be undone. Export first if you want a copy.";
   - buttons "Cancel" and "Delete everything";
   - done "Everything is deleted. Kusunga will now quit." with "OK";
-  - partial "Everything is deleted. {n} {file/files} couldn't be removed, but {it/they} can't be read any more." with "OK";
-  - error "Couldn't delete everything. Nothing was deleted. Try again."
+  - partial "Everything is deleted. {n} {file/files} couldn't be removed, but {it/they} can't be read any more." with "OK", only when every file left is an encrypted database file and the key is gone;
+  - plain partial, when anything left may still be read, such as a log (lead ruling R7a, 2026-11-13): "Everything is deleted. {n} {file/files} couldn't be removed." with "OK";
+  - partial in a debug data profile, whose key is shared and never deleted (T10; lead's wording, 2026-11-12): "Everything is deleted. {n} {file/files} in this test profile couldn't be removed." with "OK", which quits;
+  - error "Couldn't delete everything. Nothing was deleted. Try again.";
+  - stuck, when the keychain never answers (T5; lead's wording, 2026-11-12) "Kusunga couldn't confirm whether its key was deleted, so it has stopped recording and will now quit. Open Kusunga again. If your snippets and history are still there, try Delete everything again." with "OK", which quits.
 
 No deceptive patterns:
 - the private choice is the default (history unticked);

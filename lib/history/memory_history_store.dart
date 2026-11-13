@@ -1,3 +1,4 @@
+import '../data/export_format.dart';
 import 'clip_item.dart';
 import 'history_store.dart';
 
@@ -193,6 +194,32 @@ class MemoryHistoryStore implements HistoryStore {
     _items.clear();
     return n;
   }
+
+  @override
+  List<ClipRecord> records({int? notBefore}) => [
+    for (final e in _items)
+      if (notBefore == null || e.record.lastCopiedAt >= notBefore) e.record,
+  ];
+
+  @override
+  void compact() {}
+
+  /// Import is not offered while history is memory only (lead ruling G2).
+  @override
+  ImportCounts importBundle(
+    ExportBundle bundle, {
+    required bool applySettings,
+    int? notBefore,
+    required int nowMs,
+  }) => throw UnsupportedError('import needs a saved history');
+
+  @override
+  ImportCounts previewImport(
+    ExportBundle bundle, {
+    required bool applySettings,
+    int? notBefore,
+    required int nowMs,
+  }) => throw UnsupportedError('import needs a saved history');
 
   @override
   int countRemovedBy(int newLimit) {

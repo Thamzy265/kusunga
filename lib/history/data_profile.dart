@@ -266,4 +266,12 @@ class _ReadOnlyKeyStore implements KeyStore {
     _log.log(LogCode.dataProfileNoKey);
     throw StateError('a data profile never writes a key');
   }
+
+  /// The key is shared with the default folder: a profile never deletes it
+  /// (Delete everything in a profile removes only the profile's files).
+  @override
+  Future<void> delete() async {
+    _log.log(LogCode.dataProfileNoKey);
+    throw StateError('a data profile never deletes a key');
+  }
 }
