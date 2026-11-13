@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-13 — M1.8 Your data — developer fixes for reviewer round 1
+- Changed: Developer fixed R1 (30504ba; import never deletes history; fills free room newest first; a lower limit or shorter auto-delete in the file is kept as it is), R6 (6d8ee23), R2 (e0f1724), R3 (85b1644), R4 (0f19130), R5 (13d46ef), R7b (27f9c73), R7a (e72aeae), cleanup (310d86f). HEAD 310d86f. check.sh 3726 passed, 13 skipped (10 older + 3 tester tests skipped for rewrite: two R1, one R7a; lead agreed); native suites all pass. During the round the lead agreed: skip the R7a tester test; a leftover -shm and memory-only with a failed key delete get the plain message.
+- Deviations reported: "Change it in Settings." for one kept setting; "shown" = not hidden by auto-delete; dataImportSkipped also counts items that didn't fit; merges into shown items still update their times, so "changed" in the confirm isn't strictly true.
+- Gates: developer pass · tester re-check started (rewrite 3 skipped tests) · reviewer re-check after the tester · QA — · PM merge —
+- Open findings: R1–R7 fixed, waiting for re-checks
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-13 — M1.8 Your data — PM decisions on the review round
 - Changed: Developer re-dispatched for R1–R7 and the cleanup.
 - Gates: developer fixing · tester pass · reviewer block (R1) · QA — · PM merge —
