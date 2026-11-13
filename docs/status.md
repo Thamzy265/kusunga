@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-13 — M1.8 Your data — R6 test added, QA starts
+- Changed: Developer added the R6 regression test with a narrow open() seam in 5954c92 (fails with the read moved after COMMIT; passes at HEAD). check.sh 3840 passed, 10 skipped (all older); native suites all pass. Reviewer's R6-test note closed by the lead on this evidence (test-only seam, no behaviour change). QA briefed: qa profile only; exports under qa-artifacts/m1.8/; Delete everything only in the qa profile; never start the default profile.
+- Gates: developer pass · tester pass · reviewer approve with notes (note closed) · QA running · PM merge —
+- Open findings: none
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-13 — M1.8 Your data — reviewer re-check: approve with notes
 - Changed: Reviewer re-reviewed 2f547c8..110d391 with mutation checks in a scratch worktree: R1–R5, R7a, R7b and the cleanup fixed (each test fails when its fix is reverted or mutated); R8–R11 verified; R1 traced: no path removes an existing row, preview equals import, cached limit set only after commit. Security 0, privacy no issues. All six checks pass (check.sh 3839 passed, 10 skipped).
 - Findings: R6-test Low — the R6 fix (limit read inside the transaction) has no regression test.
