@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-13 — M1.8 Your data — R11 fixed, reviewer re-check
+- Changed: Developer fixed R11 in 110d391 (an imported setting is compared with the value in use: the stored row, or the app's default). BUG-R11 repro passes unedited; no M1.8 test skipped. check.sh 3839 passed, 10 skipped (all older); native suites all pass. Tester gate closed by the repro passing. Reviewer asked to re-check 2f547c8..110d391 (R1–R11).
+- Gates: developer pass · tester pass · reviewer re-check running · QA — · PM merge —
+- Open findings: none open in code; waiting for the reviewer
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-13 — M1.8 Your data — tester re-check: R10 closed, 1 Low
 - Changed: Tester commit f08ee61: the three R10-skipped tests rewritten and un-skipped; R10 matrix added. check.sh 3837 passed, 11 skipped (10 older + BUG-R11); native suites all pass.
 - Findings: R11 Low — a setting at its default with no stored row (e.g. paste_mode auto on a fresh database) counts as a change, so the toast says settings were imported when nothing visible changed.
