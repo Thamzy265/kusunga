@@ -258,38 +258,46 @@ void main() {
   group('the R1 toast sentences', () {
     String t(ImportCounts c) => importedMessage(c);
 
-    test('no room: the singular and the plural', () {
-      expect(
-        t(const ImportCounts(historyNoRoom: 1)),
-        "Imported 0 snippets and 0 history items. 1 history item didn't fit "
-        "under your history limit and wasn't added.",
-      );
-      expect(
-        t(const ImportCounts(historyNoRoom: 4, historyAdded: 1)),
-        "Imported 0 snippets and 1 history item. 4 history items didn't fit "
-        "under your history limit and weren't added.",
-      );
-    });
+    test(
+      'no room: the singular and the plural',
+      () {
+        expect(
+          t(const ImportCounts(historyNoRoom: 1)),
+          "Imported 0 snippets and 0 history items. 1 history item didn't fit "
+          "under your history limit and wasn't added.",
+        );
+        expect(
+          t(const ImportCounts(historyNoRoom: 4, historyAdded: 1)),
+          "Imported 0 snippets and 1 history item. 4 history items didn't fit "
+          "under your history limit and weren't added.",
+        );
+      },
+      skip: 'R10 (lead ruling 2026-11-13): nothing added or changed',
+    );
 
-    test('kept settings: the limit, the auto-delete time, or both', () {
-      expect(
-        t(const ImportCounts(limitKept: true)),
-        "Imported 0 snippets and 0 history items. Your history limit wasn't "
-        'changed, because that would delete items. Change it in Settings.',
-      );
-      expect(
-        t(const ImportCounts(expiryKept: true)),
-        'Imported 0 snippets and 0 history items. Your auto-delete time '
-        "wasn't changed, because that would delete items. Change it in "
-        'Settings.',
-      );
-      expect(
-        t(const ImportCounts(limitKept: true, expiryKept: true)),
-        'Imported 0 snippets and 0 history items. Your history limit and '
-        "auto-delete weren't changed, because that would delete items. "
-        'Change them in Settings.',
-      );
-    });
+    test(
+      'kept settings: the limit, the auto-delete time, or both',
+      () {
+        expect(
+          t(const ImportCounts(limitKept: true)),
+          "Imported 0 snippets and 0 history items. Your history limit wasn't "
+          'changed, because that would delete items. Change it in Settings.',
+        );
+        expect(
+          t(const ImportCounts(expiryKept: true)),
+          'Imported 0 snippets and 0 history items. Your auto-delete time '
+          "wasn't changed, because that would delete items. Change it in "
+          'Settings.',
+        );
+        expect(
+          t(const ImportCounts(limitKept: true, expiryKept: true)),
+          'Imported 0 snippets and 0 history items. Your history limit and '
+          "auto-delete weren't changed, because that would delete items. "
+          'Change them in Settings.',
+        );
+      },
+      skip: 'R10 (lead ruling 2026-11-13): nothing added or changed',
+    );
 
     test('every sentence together, in the order the spec gives', () {
       final m = t(
@@ -471,7 +479,6 @@ void main() {
           findsOneWidget,
         );
       },
-      skip: Platform.environment['KUSUNGA_REPRO'] != '1',
     );
 
     test('the sentences come in the lead\'s order, the history "already '
@@ -508,7 +515,7 @@ void main() {
         'Imported 0 snippets and 0 history items. 1 history item was '
         'already here.',
       );
-    });
+    }, skip: 'R10 (lead ruling 2026-11-13): nothing added or changed');
 
     test('settingsApplied with nothing added reads as the settings sentence '
         'and keeps every other sentence in order', () {

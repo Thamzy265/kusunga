@@ -477,7 +477,8 @@ class ImportCounts {
   final bool limitKept;
   final bool expiryKept;
 
-  /// The file's settings or ignored apps were applied (the box was ticked
-  /// and the file has some).
+  /// At least one of the file's settings or ignored apps really changed
+  /// something here; a value that was already in use, or one that was
+  /// kept, doesn't count (lead ruling R10, 2026-11-13).
   final bool settingsApplied;
 }

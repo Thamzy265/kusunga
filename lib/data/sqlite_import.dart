@@ -40,7 +40,8 @@ ImportCounts importIntoDatabase(
   required int nowMs,
   required Uint8List Function(String content) hash,
 }) {
-  var kept = (cutoff: notBefore, limit: false, expiry: false);
+  var kept = (cutoff: notBefore, limit: false, expiry: false, changed: false);
+  var appsAdded = 0;
   if (applySettings) {
     kept = _applySettings(
       db,
@@ -48,7 +49,7 @@ ImportCounts importIntoDatabase(
       notBefore: notBefore,
       nowMs: nowMs,
     );
-    _addIgnoredApps(db, bundle.ignoredApps ?? const []);
+    appsAdded = _addIgnoredApps(db, bundle.ignoredApps ?? const []);
   }
   final (added, alreadyHere, dropped) = _addSnippets(db, bundle, nowMs);
   final history = _addHistory(
@@ -67,7 +68,8 @@ ImportCounts importIntoDatabase(
     historyNoRoom: history.noRoom,
     limitKept: kept.limit,
     expiryKept: kept.expiry,
-    settingsApplied: applySettings && bundle.hasSettings,
+    // Only a real change counts (lead ruling R10, 2026-11-13).
+    settingsApplied: kept.changed || appsAdded > 0,
   );
 }
 
@@ -85,21 +87,28 @@ const _minInt = -0x8000000000000000;
 /// auto-delete time that would delete an item shown now: that one keeps its
 /// value (PM decision 2026-11-13). Items already hidden by the auto-delete
 /// time in use don't count: they go at its next clean-up anyway. Returns
-/// the cut-off the history import then uses, and which setting was kept.
-({int? cutoff, bool limit, bool expiry}) _applySettings(
+/// the cut-off the history import then uses, which setting was kept, and
+/// whether any stored value really changed.
+({int? cutoff, bool limit, bool expiry, bool changed}) _applySettings(
   Database db,
   ExportSettings? s, {
   required int? notBefore,
   required int nowMs,
 }) {
-  if (s == null) return (cutoff: notBefore, limit: false, expiry: false);
+  if (s == null) {
+    return (cutoff: notBefore, limit: false, expiry: false, changed: false);
+  }
+  var changed = false;
   void put(String key, Object? value) {
     if (value == null) return;
+    final old = db.select('SELECT value FROM settings WHERE key = ?', [key]);
+    if (old.isNotEmpty && '${old.single['value']}' == '$value') return;
     db.execute(
       'INSERT INTO settings (key, value) VALUES (?, ?) '
       'ON CONFLICT (key) DO UPDATE SET value = excluded.value',
       [key, value],
     );
+    changed = true;
   }
 
   var cutoff = notBefore;
@@ -136,7 +145,12 @@ const _minInt = -0x8000000000000000;
   final typed = s.typedShortcutsOn;
   put('typed_shortcuts_on', typed == null ? null : (typed ? 1 : 0));
   put('paste_mode', s.pasteMode);
-  return (cutoff: cutoff, limit: limitKept, expiry: expiryKept);
+  return (
+    cutoff: cutoff,
+    limit: limitKept,
+    expiry: expiryKept,
+    changed: changed,
+  );
 }
 
 /// One history text from the file: repeated lines merge as Undo does.
@@ -256,8 +270,10 @@ class _Line {
   );
 }
 
-void _addIgnoredApps(Database db, List<IgnoredApp> apps) {
+/// Adds the apps not on the list yet; returns how many were added.
+int _addIgnoredApps(Database db, List<IgnoredApp> apps) {
   final presets = {for (final p in presetIgnoredApps) p.appId};
+  var added = 0;
   for (final a in apps) {
     checkIgnoredApp(a);
     db.execute(
@@ -265,7 +281,9 @@ void _addIgnoredApps(Database db, List<IgnoredApp> apps) {
       'VALUES (?, ?, ?) ON CONFLICT (app_id) DO NOTHING',
       [a.appId, a.displayName, presets.contains(a.appId) ? 1 : 0],
     );
+    added += db.updatedRows;
   }
+  return added;
 }
 
 (int, int, int) _addSnippets(Database db, ExportBundle bundle, int nowMs) {

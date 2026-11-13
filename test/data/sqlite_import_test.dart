@@ -506,6 +506,48 @@ void main() {
       IgnoredApp('com.1password.1password', 'Renamed'),
     ];
 
+    test('ticked: settingsApplied only when a setting or an ignored app '
+        'really changed (R10)', () {
+      ImportCounts run(ExportSettings? s, [List<IgnoredApp>? apps]) =>
+          store.importBundle(
+            ExportBundle(snippets: const [], settings: s, ignoredApps: apps),
+            applySettings: true,
+            nowMs: _now,
+          );
+      // The values in use now: nothing changes.
+      expect(
+        run(
+          const ExportSettings(
+            historyLimit: 200,
+            historyExpiryDays: 30,
+            typedShortcutsOn: false,
+          ),
+          [presetIgnoredApps.first],
+        ).settingsApplied,
+        isFalse,
+      );
+      // Only a limit that is kept.
+      for (var i = 0; i < 15; i++) {
+        store.insertOrBump('item $i', ClipKind.text, _now + i);
+      }
+      final kept = run(const ExportSettings(historyLimit: 10));
+      expect(kept.limitKept, isTrue);
+      expect(kept.settingsApplied, isFalse);
+      // A new paste mode, then the same again.
+      expect(
+        run(const ExportSettings(pasteMode: 'copy_only')).settingsApplied,
+        isTrue,
+      );
+      expect(
+        run(const ExportSettings(pasteMode: 'copy_only')).settingsApplied,
+        isFalse,
+      );
+      // A new ignored app, then the same again.
+      const vault = IgnoredApp('com.example.vault', 'Vault');
+      expect(run(null, [vault]).settingsApplied, isTrue);
+      expect(run(null, [vault]).settingsApplied, isFalse);
+    });
+
     test('not ticked: nothing changes', () {
       final before = store.ignoredAppStore().list().length;
       store.importBundle(

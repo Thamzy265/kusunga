@@ -1209,7 +1209,7 @@ void main() {
           historyTooOld: 1,
         ),
       ),
-      'Imported 0 snippets and 0 history items. 1 snippet was already here. '
+      'Nothing was imported. 1 snippet was already here. '
       '2 shortcuts were already used, so those snippets have none. 1 history '
       "item was older than your auto-delete time and wasn't added.",
     );
@@ -1239,15 +1239,22 @@ void main() {
     );
     expect(
       importedMessage(const ImportCounts()),
-      'Imported 0 snippets and 0 history items.',
-      reason: 'settings not applied: the usual line',
+      'Nothing was imported.',
+      reason: 'R10: nothing added or changed',
+    );
+    expect(
+      importedMessage(const ImportCounts(limitKept: true)),
+      "Nothing was imported. Your history limit wasn't changed, because "
+      'that would delete items. Change it in Settings.',
+      reason: 'R10: a kept setting is not an applied one',
     );
   });
 
   test('the import toast says what never deletes history kept out or '
       'unchanged (R1; lead copy, 2026-11-13)', () {
     String m(ImportCounts c) => importedMessage(c);
-    const head = 'Imported 0 snippets and 0 history items.';
+    // Nothing added or changed in these: R10's line.
+    const head = 'Nothing was imported.';
     expect(
       m(const ImportCounts(snippetsAlreadyHere: 2, historyAlreadyHere: 1)),
       '$head 2 snippets were already here. 1 history item was already here.',
