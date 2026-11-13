@@ -240,8 +240,8 @@ void main() {
 
     test('ticked settings take effect now: limit, auto-delete, ignore list '
         'sent to the clipboard watcher', () async {
-      store.insertOrBump('20 days', ClipKind.text, now - 20 * _day);
-      service.importBundle(
+      store.insertOrBump('3 days', ClipKind.text, now - 3 * _day);
+      final c = service.importBundle(
         const ExportBundle(
           snippets: [],
           settings: ExportSettings(historyLimit: 50, historyExpiryDays: 7),
@@ -250,10 +250,30 @@ void main() {
         applySettings: true,
       );
       await pumpEventQueue();
+      expect(c.limitKept || c.expiryKept, isFalse);
       expect(service.limit, 50);
       expect(service.expiry.days, 7);
-      expect(service.items, isEmpty, reason: 'auto-delete applied at once');
+      expect(service.items.single.preview, '3 days');
       expect(source.sentIgnored, contains('com.example.vault'));
+    });
+
+    test('a ticked auto-delete time that would delete a shown item is kept, '
+        'and the clean-up after the import deletes nothing (R1)', () async {
+      store.insertOrBump('20 days', ClipKind.text, now - 20 * _day);
+      store.insertOrBump('today', ClipKind.text, now);
+      final c = service.importBundle(
+        const ExportBundle(
+          snippets: [],
+          settings: ExportSettings(historyLimit: 50, historyExpiryDays: 7),
+        ),
+        applySettings: true,
+      );
+      await pumpEventQueue();
+      expect(c.expiryKept, isTrue);
+      expect(c.limitKept, isFalse);
+      expect(service.expiry.days, 30);
+      expect(service.limit, 50);
+      expect(service.items.map((i) => i.preview), ['today', '20 days']);
     });
 
     test(

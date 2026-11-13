@@ -440,6 +440,9 @@ class ImportCounts {
     this.shortcutsDropped = 0,
     this.historyAdded = 0,
     this.historyTooOld = 0,
+    this.historyNoRoom = 0,
+    this.limitKept = false,
+    this.expiryKept = false,
   });
 
   final int snippetsAdded;
@@ -450,10 +453,19 @@ class ImportCounts {
   /// Added without their shortcut, which was already used.
   final int shortcutsDropped;
 
-  /// History rows added and still there after the trim to the limit: not
-  /// lines that merged into an item here or repeat another line (T4).
+  /// History items added: not lines that merged into an item already shown
+  /// or repeat another line (T4), nor ones that didn't fit.
   final int historyAdded;
 
   /// Older than the auto-delete time: not added (lead ruling G5).
   final int historyTooOld;
+
+  /// Didn't fit in the free room under the history limit: not added, since
+  /// an import never deletes history (PM decision 2026-11-13).
+  final int historyNoRoom;
+
+  /// The file's history limit, or its auto-delete time, was ticked but not
+  /// applied, because it would have deleted items shown now.
+  final bool limitKept;
+  final bool expiryKept;
 }

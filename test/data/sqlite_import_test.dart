@@ -239,11 +239,230 @@ void main() {
         nowMs: _now,
       );
       expect(c.historyAdded, 2);
+      expect(c.historyNoRoom, 1);
       expect(store.count, 10);
       expect(
         store.list().map((i) => i.preview).where((p) => !p.startsWith('mine')),
         ['twice', 'new'],
       );
+    });
+
+    group('never deletes an item here (R1, PM decision 2026-11-13)', () {
+      List<String> mine() => [
+        for (final i in store.list())
+          if (i.preview.startsWith('mine')) i.preview,
+      ];
+
+      test('a full history keeps every item; newer items from the file '
+          "don't fit and are counted", () {
+        store.setLimit(10);
+        for (var i = 0; i < 10; i++) {
+          store.insertOrBump('mine $i', ClipKind.text, 1000 + i);
+        }
+        final before = mine();
+        final c = store.importBundle(
+          ExportBundle(
+            snippets: const [],
+            history: [_h('a', 1, 9000), _h('b', 1, 8000), _h('c', 1, 7000)],
+          ),
+          applySettings: false,
+          nowMs: _now,
+        );
+        expect(c.historyAdded, 0);
+        expect(c.historyNoRoom, 3);
+        expect(mine(), before);
+        expect(store.count, 10);
+      });
+
+      test('the free room is filled newest first; the rest are counted', () {
+        store.setLimit(10);
+        for (var i = 0; i < 7; i++) {
+          store.insertOrBump('mine $i', ClipKind.text, 5000 + i);
+        }
+        final c = store.importBundle(
+          ExportBundle(
+            snippets: const [],
+            history: [
+              _h('old', 1, 100),
+              _h('newest', 1, 9000),
+              _h('older', 1, 200),
+              _h('newer', 1, 8000),
+              _h('mid', 1, 300),
+            ],
+          ),
+          applySettings: false,
+          nowMs: _now,
+        );
+        expect(c.historyAdded, 3);
+        expect(c.historyNoRoom, 2);
+        expect(mine(), hasLength(7));
+        expect(
+          store
+              .list()
+              .map((i) => i.preview)
+              .where((p) => !p.startsWith('mine')),
+          ['newest', 'newer', 'mid'],
+        );
+      });
+
+      test('a text already shown merges into its item and needs no room', () {
+        store.setLimit(10);
+        for (var i = 0; i < 10; i++) {
+          store.insertOrBump('mine $i', ClipKind.text, 1000 + i);
+        }
+        final c = store.importBundle(
+          ExportBundle(snippets: const [], history: [_h('mine 0', 1, 9000)]),
+          applySettings: false,
+          nowMs: _now,
+        );
+        expect(c.historyAdded, 0);
+        expect(c.historyNoRoom, 0);
+        expect(store.list().first.preview, 'mine 0');
+        expect(store.list().first.lastCopiedAt, 9000);
+        expect(store.count, 10);
+      });
+
+      test('a hidden, expired item the file would bring back needs room: '
+          'without it, it stays as it was', () {
+        store.setLimit(10);
+        store.insertOrBump('hidden', ClipKind.text, 10);
+        for (var i = 0; i < 9; i++) {
+          store.insertOrBump('mine $i', ClipKind.text, 1000 + i);
+        }
+        // 9 shown under 10: room for one, which the newer item takes.
+        final c = store.importBundle(
+          ExportBundle(
+            snippets: const [],
+            history: [_h('hidden', 1, 9000), _h('newer', 1, 9500)],
+          ),
+          applySettings: false,
+          notBefore: 500,
+          nowMs: _now,
+        );
+        expect(c.historyNoRoom, 1);
+        expect(c.historyAdded, 1);
+        expect(mine(), hasLength(9));
+        expect(
+          store.records().firstWhere((r) => r.content == 'hidden').lastCopiedAt,
+          10,
+        );
+      });
+
+      test('ticked: a lower limit that would delete a shown item is kept; '
+          'the other settings and the apps still apply', () {
+        for (var i = 0; i < 30; i++) {
+          store.insertOrBump('mine $i', ClipKind.text, _now - i);
+        }
+        final c = store.importBundle(
+          const ExportBundle(
+            snippets: [],
+            settings: ExportSettings(
+              historyLimit: 25,
+              typedShortcutsOn: true,
+              pasteMode: 'copy_only',
+            ),
+            ignoredApps: [IgnoredApp('com.example.vault', 'Vault')],
+          ),
+          applySettings: true,
+          notBefore: _now - 30 * Duration.millisecondsPerDay,
+          nowMs: _now,
+        );
+        expect(c.limitKept, isTrue);
+        expect(c.expiryKept, isFalse);
+        expect(store.limit, 200);
+        expect(store.count, 30);
+        expect(store.readSetting('typed_shortcuts_on'), '1');
+        expect(store.readSetting('paste_mode'), 'copy_only');
+        expect(
+          store.ignoredAppStore().list().any(
+            (a) => a.appId == 'com.example.vault',
+          ),
+          isTrue,
+        );
+      });
+
+      test('ticked: a lower limit that every shown item fits under is '
+          'applied, and the file fills only what is left', () {
+        for (var i = 0; i < 20; i++) {
+          store.insertOrBump('mine $i', ClipKind.text, _now - i);
+        }
+        final c = store.importBundle(
+          ExportBundle(
+            snippets: const [],
+            history: [
+              for (var i = 0; i < 10; i++) _h('t$i', 1, _now - 100 - i),
+            ],
+            settings: const ExportSettings(historyLimit: 25),
+          ),
+          applySettings: true,
+          nowMs: _now,
+        );
+        expect(c.limitKept, isFalse);
+        expect(store.limit, 25);
+        expect(c.historyAdded, 5);
+        expect(c.historyNoRoom, 5);
+        expect(mine(), hasLength(20));
+      });
+
+      test('ticked: a shorter auto-delete time that would delete a shown '
+          'item is kept; one that only reaches items already hidden is '
+          'applied', () {
+        const day = Duration.millisecondsPerDay;
+        store.insertOrBump('three days old', ClipKind.text, _now - 3 * day);
+        store.insertOrBump('today', ClipKind.text, _now);
+        final kept = store.importBundle(
+          const ExportBundle(
+            snippets: [],
+            settings: ExportSettings(historyExpiryDays: 1),
+          ),
+          applySettings: true,
+          notBefore: _now - 30 * day,
+          nowMs: _now,
+        );
+        expect(kept.expiryKept, isTrue);
+        expect(store.readSetting(historyExpirySetting), '30');
+        // With a 1-day auto-delete in use, the 3-day-old item is already
+        // hidden: 1 day (the same) is applied.
+        final applied = store.importBundle(
+          const ExportBundle(
+            snippets: [],
+            settings: ExportSettings(historyExpiryDays: 7),
+          ),
+          applySettings: true,
+          notBefore: _now - 2 * day,
+          nowMs: _now,
+        );
+        expect(applied.expiryKept, isFalse);
+        expect(store.readSetting(historyExpirySetting), '7');
+        expect(store.count, 2);
+      });
+
+      test('ticked: both kept, and items older than the kept auto-delete '
+          'time are too old', () {
+        const day = Duration.millisecondsPerDay;
+        // Oldest first: a copy is never saved older than the newest one.
+        for (var i = 9; i >= 0; i--) {
+          store.insertOrBump('mine $i', ClipKind.text, _now - i * day);
+        }
+        final c = store.importBundle(
+          ExportBundle(
+            snippets: const [],
+            history: [_h('two days', 1, _now - 2 * day)],
+            settings: const ExportSettings(
+              historyLimit: 10,
+              historyExpiryDays: 1,
+            ),
+          ),
+          applySettings: true,
+          notBefore: _now - 30 * day,
+          nowMs: _now,
+        );
+        expect(c.limitKept, isFalse, reason: '10 shown fit under 10');
+        expect(c.expiryKept, isTrue);
+        expect(c.historyTooOld, 0, reason: 'the 30 days in use decide');
+        expect(c.historyNoRoom, 1);
+        expect(store.count, 10);
+      });
     });
 
     test('the whole text of a long item, not a preview', () {
@@ -289,7 +508,7 @@ void main() {
       store.importBundle(
         ExportBundle(
           snippets: const [],
-          history: [for (var i = 0; i < 30; i++) _h('h$i', i, i + 1)],
+          history: [for (var i = 0; i < 30; i++) _h('h$i', i, _now - i)],
           settings: settings,
           ignoredApps: apps,
         ),
@@ -297,7 +516,7 @@ void main() {
         nowMs: _now,
       );
       expect(store.limit, 20);
-      expect(store.count, 20, reason: 'trimmed to the new limit');
+      expect(store.count, 20, reason: 'the room under the new limit');
       expect(store.readSetting(historyExpirySetting), '7');
       expect(store.readSetting('typed_shortcuts_on'), '1');
       expect(store.readSetting('paste_mode'), 'copy_only');

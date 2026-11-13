@@ -636,6 +636,50 @@ void main() {
       expect(service.items.length, 13);
     });
 
+    testWidgets('with a full history, ticking a lower limit deletes '
+        'nothing: the confirm still says nothing is removed, and the toast '
+        'says what was kept out and unchanged (R1)', (tester) async {
+      await show(tester);
+      service.setLimit(20);
+      seedHistory(20);
+      final before = service.items.map((i) => i.preview).toList();
+      writeFile(
+        ExportBundle(
+          snippets: const [
+            ExportSnippet(
+              name: 'A',
+              content: 'a',
+              type: SnippetType.other,
+              position: 0,
+            ),
+          ],
+          history: [h('x'), h('y')],
+          settings: const ExportSettings(historyLimit: 10),
+        ),
+      );
+      await pickFile(tester);
+      const text =
+          'Import 1 snippet and 0 history items? Nothing you have now will '
+          'be changed or removed.';
+      expect(find.text(text), findsOneWidget);
+      await tester.tap(find.byType(Checkbox));
+      await tester.pump();
+      expect(find.text(text), findsOneWidget, reason: 'the same when ticked');
+      await tester.tap(hook('import-confirm'));
+      await settle(tester);
+      expect(
+        find.text(
+          'Imported 1 snippet and 0 history items. 2 history items didn\'t '
+          "fit under your history limit and weren't added. Your history "
+          "limit wasn't changed, because that would delete items. Change it "
+          'in Settings.',
+        ),
+        findsOneWidget,
+      );
+      expect(service.items.map((i) => i.preview), before);
+      expect(service.limit, 20);
+    });
+
     testWidgets('no settings in the file: no tick box', (tester) async {
       await show(tester);
       writeFile(
@@ -1080,6 +1124,46 @@ void main() {
       'Imported 0 snippets and 0 history items. 1 snippet was already here. '
       '2 shortcuts were already used, so those snippets have none. 1 history '
       "item was older than your auto-delete time and wasn't added.",
+    );
+  });
+
+  test('the import toast says what never deletes history kept out or '
+      'unchanged (R1; lead copy, 2026-11-13)', () {
+    String m(ImportCounts c) => importedMessage(c);
+    const head = 'Imported 0 snippets and 0 history items.';
+    expect(
+      m(const ImportCounts(historyNoRoom: 1)),
+      "$head 1 history item didn't fit under your history limit and wasn't "
+      'added.',
+    );
+    expect(
+      m(const ImportCounts(historyNoRoom: 3)),
+      "$head 3 history items didn't fit under your history limit and "
+      "weren't added.",
+    );
+    expect(
+      m(const ImportCounts(limitKept: true, expiryKept: true)),
+      "$head Your history limit and auto-delete weren't changed, because "
+      'that would delete items. Change them in Settings.',
+    );
+    expect(
+      m(const ImportCounts(limitKept: true)),
+      "$head Your history limit wasn't changed, because that would delete "
+      'items. Change it in Settings.',
+    );
+    expect(
+      m(const ImportCounts(expiryKept: true)),
+      "$head Your auto-delete time wasn't changed, because that would "
+      'delete items. Change it in Settings.',
+    );
+    expect(
+      m(
+        const ImportCounts(historyTooOld: 1, historyNoRoom: 2, limitKept: true),
+      ),
+      "$head 1 history item was older than your auto-delete time and wasn't "
+      "added. 2 history items didn't fit under your history limit and "
+      "weren't added. Your history limit wasn't changed, because that would "
+      'delete items. Change it in Settings.',
     );
   });
 }

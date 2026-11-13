@@ -84,6 +84,21 @@ String importedMessage(ImportCounts c) {
     if (c.historyTooOld > 1)
       '${c.historyTooOld} history items were older than your auto-delete '
           "time and weren't added.",
+    // An import never deletes history (R1; lead copy, 2026-11-13).
+    if (c.historyNoRoom == 1)
+      "1 history item didn't fit under your history limit and wasn't added.",
+    if (c.historyNoRoom > 1)
+      "${c.historyNoRoom} history items didn't fit under your history limit "
+          "and weren't added.",
+    if (c.limitKept && c.expiryKept)
+      "Your history limit and auto-delete weren't changed, because that "
+          'would delete items. Change them in Settings.',
+    if (c.limitKept && !c.expiryKept)
+      "Your history limit wasn't changed, because that would delete items. "
+          'Change it in Settings.',
+    if (c.expiryKept && !c.limitKept)
+      "Your auto-delete time wasn't changed, because that would delete "
+          'items. Change it in Settings.',
   ];
   return parts.join(' ');
 }

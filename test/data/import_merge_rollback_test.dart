@@ -291,7 +291,7 @@ void main() {
       );
       expect(kept.first.content, 'mine 0');
       expect(kept.where((r) => r.content.startsWith('theirs')), isNotEmpty);
-    });
+    }, skip: 'R1 (PM decision 2026-11-13): an import never deletes history');
 
     test('a ticked limit lower than what is stored trims with the new '
         'limit in the same import', () {
@@ -307,7 +307,7 @@ void main() {
       );
       expect(store.records(), hasLength(25));
       expect(store.limit, 25);
-    });
+    }, skip: 'R1 (PM decision 2026-11-13): an import never deletes history');
 
     test('store level (the 24 h limit is checkImportTimes, tested apart): a '
         'history item with a time in the future is kept as it is (the '
