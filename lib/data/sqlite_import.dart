@@ -6,6 +6,7 @@ import 'package:sqlite3/sqlite3.dart';
 import '../history/clip_item.dart';
 import '../history/expiry_service.dart';
 import '../history/history_store.dart';
+import '../picker/paste_mode.dart';
 import '../shortcuts/ignored_apps.dart';
 import '../snippets/snippet.dart';
 import '../snippets/snippet_shortcut.dart';
@@ -100,9 +101,7 @@ const _minInt = -0x8000000000000000;
   }
   var changed = false;
   void put(String key, Object? value) {
-    if (value == null) return;
-    final old = db.select('SELECT value FROM settings WHERE key = ?', [key]);
-    if (old.isNotEmpty && '${old.single['value']}' == '$value') return;
+    if (value == null || '$value' == _inUse(db, key)) return;
     db.execute(
       'INSERT INTO settings (key, value) VALUES (?, ?) '
       'ON CONFLICT (key) DO UPDATE SET value = excluded.value',
@@ -151,6 +150,23 @@ const _minInt = -0x8000000000000000;
     expiry: expiryKept,
     changed: changed,
   );
+}
+
+/// The value a setting has in use now, read the way the app reads it: the
+/// stored row, or the app's default when there is no row or the row isn't
+/// one the app accepts (lead ruling R11, 2026-11-13). Paste mode: auto.
+/// Auto-delete: Never. Typed shortcuts: off. History limit: 200.
+String _inUse(Database db, String key) {
+  final rows = db.select('SELECT value FROM settings WHERE key = ?', [key]);
+  final raw = rows.isEmpty ? null : '${rows.single['value']}';
+  return switch (key) {
+    'history_limit' =>
+      '${int.tryParse(raw ?? '') ?? HistoryStore.defaultLimit}',
+    historyExpirySetting => '${parseExpiryDays(raw) ?? 0}',
+    'typed_shortcuts_on' => raw == '1' ? '1' : '0',
+    'paste_mode' => PasteMode.parse(raw).stored,
+    _ => raw ?? '',
+  };
 }
 
 /// One history text from the file: repeated lines merge as Undo does.

@@ -969,6 +969,6 @@ void main() {
         settings: true,
       );
       expect(c.settingsApplied, isFalse);
-    }, skip: Platform.environment['KUSUNGA_REPRO'] != '1');
+    });
   });
 }

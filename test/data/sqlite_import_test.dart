@@ -506,6 +506,73 @@ void main() {
       IgnoredApp('com.1password.1password', 'Renamed'),
     ];
 
+    test('ticked: a setting is compared with the value in use, which is the '
+        "app's default where no row is stored or the row isn't one the app "
+        'accepts (R11)', () {
+      ImportCounts run(ExportSettings s) => store.importBundle(
+        ExportBundle(snippets: const [], settings: s),
+        applySettings: true,
+        nowMs: _now,
+      );
+      void setRaw(String key, Object? value) {
+        final db = raw();
+        try {
+          db.execute('DELETE FROM settings WHERE key = ?', [key]);
+          if (value != null) {
+            db.execute('INSERT INTO settings (key, value) VALUES (?, ?)', [
+              key,
+              value,
+            ]);
+          }
+        } finally {
+          db.close();
+        }
+      }
+
+      // No rows: auto, Never, off. The history limit always has its row.
+      setRaw('paste_mode', null);
+      setRaw(historyExpirySetting, null);
+      setRaw('typed_shortcuts_on', null);
+      expect(
+        run(
+          const ExportSettings(
+            historyLimit: 200,
+            pasteMode: 'auto',
+            historyExpiryDays: 0,
+            typedShortcutsOn: false,
+          ),
+        ).settingsApplied,
+        isFalse,
+      );
+      // Rows the app reads as those same defaults.
+      setRaw('paste_mode', 'sometimes');
+      setRaw(historyExpirySetting, 3);
+      setRaw('typed_shortcuts_on', 7);
+      expect(
+        run(
+          const ExportSettings(
+            pasteMode: 'auto',
+            historyExpiryDays: 0,
+            typedShortcutsOn: false,
+          ),
+        ).settingsApplied,
+        isFalse,
+      );
+      // Each one that differs from the value in use is a change.
+      for (final s in const [
+        ExportSettings(pasteMode: 'copy_only'),
+        ExportSettings(historyExpiryDays: 30),
+        ExportSettings(typedShortcutsOn: true),
+        ExportSettings(historyLimit: 300),
+      ]) {
+        expect(run(s).settingsApplied, isTrue);
+      }
+      expect(store.readSetting('paste_mode'), 'copy_only');
+      expect(store.readSetting(historyExpirySetting), '30');
+      expect(store.readSetting('typed_shortcuts_on'), '1');
+      expect(store.limit, 300);
+    });
+
     test('ticked: settingsApplied only when a setting or an ignored app '
         'really changed (R10)', () {
       ImportCounts run(ExportSettings? s, [List<IgnoredApp>? apps]) =>
