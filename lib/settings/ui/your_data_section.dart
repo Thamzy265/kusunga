@@ -114,6 +114,13 @@ String partialMessage(int files) => files == 1
     : "Everything is deleted. $files files couldn't be removed, but they "
           "can't be read any more.";
 
+/// "Everything is deleted. 1 file couldn't be removed." when something
+/// left may still be read: a log, or anything that isn't an encrypted
+/// database file whose key is gone (lead ruling R7a, 2026-11-13).
+String plainPartialMessage(int files) => files == 1
+    ? "Everything is deleted. 1 file couldn't be removed."
+    : "Everything is deleted. $files files couldn't be removed.";
+
 /// The partial message in a debug data profile (T10; lead's wording,
 /// 2026-11-12). The profile shares the key, which is never deleted there,
 /// so a file left behind can still be read.
@@ -669,12 +676,14 @@ class _DeleteEverythingDialogState extends State<_DeleteEverythingDialog> {
           _done = _kDeleteStuck;
         case EraseFailed():
           _failed = true;
-        case Erased(:final filesLeft):
+        case Erased(:final filesLeft, :final leftUnreadable):
           _done = filesLeft == 0
               ? _kDeleted
               : eraser.target is ProfileEraseTarget
               ? profilePartialMessage(filesLeft)
-              : partialMessage(filesLeft);
+              : leftUnreadable
+              ? partialMessage(filesLeft)
+              : plainPartialMessage(filesLeft);
       }
     });
   }

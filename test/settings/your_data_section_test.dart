@@ -1074,6 +1074,38 @@ void main() {
       expect(quits, 1);
     });
 
+    testWidgets('what is left may not be an encrypted database file: the '
+        'partial message without "can\'t be read any more" (R7a)', (
+      tester,
+    ) async {
+      await show(
+        tester,
+        target: DefaultEraseTarget(
+          keys: keys,
+          folder: () async => throw const FileSystemException(
+            'denied',
+            '',
+            OSError('denied', 13),
+          ),
+        ),
+      );
+      await tapHook(tester, 'your-data-delete-everything');
+      await tester.runAsync(() async {
+        await tester.tap(hook('delete-everything-confirm'));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pump();
+      final note = find.text(
+        "Everything is deleted. 1 file couldn't be removed.",
+      );
+      expect(note, findsOneWidget);
+      expect(liveRegionAround(note), findsOneWidget);
+      expect(find.textContaining("can't be read any more"), findsNothing);
+      await tester.tap(hook('delete-everything-ok'));
+      await tester.pumpAndSettle();
+      expect(quits, 1);
+    });
+
     testWidgets('a debug data profile with nothing left: the usual done '
         'message (T10)', (tester) async {
       final profile = Directory(p.join(dir.path, 'profiles', 'qa'))
@@ -1120,6 +1152,17 @@ void main() {
       await tester.pump();
       await tester.pump();
     });
+  });
+
+  test('the partial wording when what is left may be readable (R7a)', () {
+    expect(
+      plainPartialMessage(1),
+      "Everything is deleted. 1 file couldn't be removed.",
+    );
+    expect(
+      plainPartialMessage(3),
+      "Everything is deleted. 3 files couldn't be removed.",
+    );
   });
 
   test('the partial wording in a debug data profile, whose key stays '

@@ -222,6 +222,64 @@ void main() {
       expect(steps, contains('loginOff'), reason: 'carries on');
     });
 
+    group('can what is left be read? (R7a, lead ruling 2026-11-13)', () {
+      Future<Erased> leave(List<String> stuck) async {
+        final h = open(folder);
+        touch(folder, [
+          'kusunga.db.bak',
+          'kusunga.db-shm',
+          'kusunga.log',
+          'kusunga.db.unreadable-1',
+        ]);
+        return await eraser(
+              DefaultEraseTarget(keys: keys, folder: () async => folder),
+              deleteEntity: (e) {
+                if (stuck.contains(p.basename(e.path))) {
+                  throw const FileSystemException('busy', '', OSError('b', 16));
+                }
+                e.deleteSync();
+              },
+            ).run(h.service)
+            as Erased;
+      }
+
+      test('only encrypted database files left, key gone: they can\'t be '
+          'read', () async {
+        final r = await leave(['kusunga.db.bak', 'kusunga.db.unreadable-1']);
+        expect(r.filesLeft, 2);
+        expect(r.leftUnreadable, isTrue);
+      });
+
+      for (final stuck in [
+        ['kusunga.log'],
+        ['kusunga.db-shm'], // the WAL index, not encrypted
+        ['kusunga.db.bak', 'kusunga.log'],
+      ]) {
+        test('$stuck left: not claimed unreadable', () async {
+          final r = await leave(stuck);
+          expect(r.filesLeft, stuck.length);
+          expect(r.leftUnreadable, isFalse);
+        });
+      }
+
+      test(
+        'a folder that could not be listed: not claimed unreadable',
+        () async {
+          final h = open(folder);
+          final r =
+              await eraser(
+                    DefaultEraseTarget(
+                      keys: keys,
+                      folder: () async => throw const FileSystemException('no'),
+                    ),
+                  ).run(h.service)
+                  as Erased;
+          expect(r.filesLeft, 1);
+          expect(r.leftUnreadable, isFalse);
+        },
+      );
+    });
+
     test(
       'a link named like a Kusunga file is removed, never followed',
       () async {
@@ -516,6 +574,28 @@ void main() {
     expect(names(folder), isEmpty);
     expect(log.codes, contains(LogCode.deleteEverythingFailed));
     expect(steps, ['stopFileLog', 'loginOff']);
+  });
+
+  test('memory-only with a failed key delete: a database file left may '
+      'still be read, so it is not claimed unreadable (R7a)', () async {
+    touch(folder, ['kusunga.db']);
+    final service = HistoryService(
+      store: MemoryHistoryStore(),
+      source: source,
+      log: log,
+      notices: {HistoryNotice.memoryOnly},
+    )..start();
+    addTearDown(service.dispose);
+    keys.deleteError = StateError('no keychain');
+    final r =
+        await eraser(
+              DefaultEraseTarget(keys: keys, folder: () async => folder),
+              deleteEntity: (e) =>
+                  throw const FileSystemException('busy', '', OSError('b', 16)),
+            ).run(service)
+            as Erased;
+    expect(r.filesLeft, 1);
+    expect(r.leftUnreadable, isFalse);
   });
 
   test(

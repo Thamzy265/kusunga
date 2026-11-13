@@ -49,11 +49,17 @@ class EraseFailed extends EraseResult {
   final bool stuck;
 }
 
-/// Everything is deleted; [filesLeft] files could not be removed, but with
-/// the key gone they can't be read.
+/// Everything is deleted; [filesLeft] files could not be removed.
 class Erased extends EraseResult {
-  const Erased(this.filesLeft);
+  const Erased(this.filesLeft, {this.leftUnreadable = false});
   final int filesLeft;
+
+  /// True only when every file left is an encrypted database file and the
+  /// key is gone, so none of them can be read and the message may say so.
+  /// False when anything left is something else (a log, the WAL index, a
+  /// link, a folder that couldn't be listed or is a link), or when the key
+  /// may still be there (lead ruling R7a, 2026-11-13).
+  final bool leftUnreadable;
 }
 
 /// The names Kusunga writes in its data folder.
@@ -66,6 +72,16 @@ bool _isKusungaFile(String name) =>
     name.startsWith('kusunga.db.unreadable-') ||
     name == 'kusunga.log' ||
     name == 'kusunga.log.1';
+
+/// Kusunga's encrypted database files: with the key gone, nothing in them
+/// can be read. Not the logs, and not `-shm`, which is only the WAL's index
+/// and isn't encrypted (R7a).
+bool _isEncryptedDbFile(String name) =>
+    name == 'kusunga.db' ||
+    name == 'kusunga.db-wal' ||
+    name == 'kusunga.db-journal' ||
+    name == 'kusunga.db.bak' ||
+    name.startsWith('kusunga.db.unreadable-');
 
 /// Delete everything, in this order (design note, as changed by the lead's
 /// ruling of 2026-11-12):
@@ -102,11 +118,13 @@ class DataEraser {
   Future<EraseResult> run(HistoryService history) async {
     history.stopCapture();
     final target = this.target;
+    var keyGone = false;
     if (target is DefaultEraseTarget) {
       // A memory-only session never opened the file with this key, so a
       // late answer can't hurt it: it is tried once and the rest goes on.
       final memoryOnly = history.keychainUnusable;
       final key = await _deleteKey(target.keys, waitForLate: !memoryOnly);
+      keyGone = key == _Key.gone;
       if (!memoryOnly) {
         switch (key) {
           case _Key.gone:
@@ -129,8 +147,11 @@ class DataEraser {
     _stopFileLog();
     final left = switch (target) {
       DefaultEraseTarget(:final folder) => await _deleteFiles(folder),
-      ProfileEraseTarget(:final folder) => await _deleteFolder(folder),
-      NoDataEraseTarget() => 0,
+      ProfileEraseTarget(:final folder) => (
+        count: await _deleteFolder(folder),
+        encrypted: false, // the profile's key is never deleted
+      ),
+      NoDataEraseTarget() => (count: 0, encrypted: false),
     };
     if (target is DefaultEraseTarget) {
       try {
@@ -139,7 +160,7 @@ class DataEraser {
         // Quitting must go on; the login item service logs its own failure.
       }
     }
-    return Erased(left);
+    return Erased(left.count, leftUnreadable: keyGone && left.encrypted);
   }
 
   /// Deletes the key and says whether it is gone. A call that runs out of
@@ -213,23 +234,31 @@ class DataEraser {
     return 1;
   }
 
-  Future<int> _deleteFiles(Future<Directory> Function() folder) async {
+  /// The files left, and whether they are all encrypted database files.
+  Future<({int count, bool encrypted})> _deleteFiles(
+    Future<Directory> Function() folder,
+  ) async {
     final List<FileSystemEntity> entries;
     try {
       final dir = await folder();
-      if (_refuseLink(dir)) return 1;
-      if (!dir.existsSync()) return 0;
+      if (_refuseLink(dir)) return (count: 1, encrypted: false);
+      if (!dir.existsSync()) return (count: 0, encrypted: true);
       entries = dir.listSync(followLinks: false);
     } catch (error) {
-      return _unlisted(error);
+      return (count: _unlisted(error), encrypted: false);
     }
     var left = 0;
+    var encrypted = true;
     for (final e in entries) {
       if (e is Directory) continue;
-      if (!_isKusungaFile(e.uri.pathSegments.last)) continue;
-      if (!_tryDelete(e)) left++;
+      final name = e.uri.pathSegments.last;
+      if (!_isKusungaFile(name)) continue;
+      if (!_tryDelete(e)) {
+        left++;
+        if (e is! File || !_isEncryptedDbFile(name)) encrypted = false;
+      }
     }
-    return left;
+    return (count: left, encrypted: encrypted);
   }
 
   /// The whole profile folder, files first, then folders from the deepest
