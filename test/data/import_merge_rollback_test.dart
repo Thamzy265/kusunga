@@ -328,22 +328,25 @@ void main() {
       expect(store.records(), hasLength(40));
     });
 
-    test('store level (the 24 h limit is checkImportTimes, tested apart): a '
-        'history item with a time in the future is kept as it is (the '
-        'newest) and does not make Undo-style merging go backwards', () {
+    test('store level (the 24 h limit is checkImportTimes, tested apart), '
+        'R9: a line for a shown text, however far ahead or behind, changes '
+        'nothing: the item keeps its times and its place', () {
       store.insertOrBump('x', ClipKind.text, _now);
-      doImport(
+      final before = store.records().single;
+      final c = doImport(
         ExportBundle(
           snippets: const [],
           history: [_h('x', 0, _now + 3650 * _day)],
         ),
       );
-      expect(store.records().single.lastCopiedAt, _now + 3650 * _day);
-      // A second import of an older copy never lowers it.
+      expect(c.historyAlreadyHere, 1);
+      expect(c.historyAdded, 0);
+      expect(store.records().single.lastCopiedAt, before.lastCopiedAt);
+      expect(store.records().single.createdAt, before.createdAt);
       doImport(ExportBundle(snippets: const [], history: [_h('x', 0, 5)]));
-      expect(store.records().single.lastCopiedAt, _now + 3650 * _day);
-      expect(store.records().single.createdAt, 0);
-    }, skip: 'R9 (lead ruling 2026-11-13): shown items are left unchanged');
+      expect(store.records().single.lastCopiedAt, before.lastCopiedAt);
+      expect(store.records().single.createdAt, before.createdAt);
+    });
 
     test('store level (importBundle, which does not check times; '
         'checkImportTimes does that before it): a last copy before the '

@@ -164,6 +164,17 @@ void main() {
       for (final (name, a, c) in [
         ('historyAdded', preview.historyAdded, real.historyAdded),
         ('historyTooOld', preview.historyTooOld, real.historyTooOld),
+        (
+          'historyAlreadyHere',
+          preview.historyAlreadyHere,
+          real.historyAlreadyHere,
+        ),
+        (
+          'snippetsAlreadyHere',
+          preview.snippetsAlreadyHere,
+          real.snippetsAlreadyHere,
+        ),
+        ('settingsApplied', preview.settingsApplied, real.settingsApplied),
         ('historyNoRoom', preview.historyNoRoom, real.historyNoRoom),
         ('snippetsAdded', preview.snippetsAdded, real.snippetsAdded),
         ('limitKept', preview.limitKept, real.limitKept),
@@ -218,7 +229,8 @@ void main() {
       );
       expect(c.historyAdded, 0);
       expect(c.historyNoRoom, 1);
-      expectNothingRemoved(before, mayChange: {'mine 3', 'mine 4'});
+      expectNothingRemoved(before);
+      expect(c.historyAlreadyHere, 2);
       expect(rows().length, 10);
     });
 
@@ -292,7 +304,8 @@ void main() {
       expect(c.historyAdded, 0);
       expect(c.historyNoRoom, 1);
       expect(rows().length, 15);
-      expectNothingRemoved(before, mayChange: {'mine 1'});
+      expectNothingRemoved(before);
+      expect(c.historyAlreadyHere, 1);
     });
 
     test('an empty history with the smallest limit: exactly the limit is '
@@ -360,13 +373,15 @@ void main() {
       expect(rows(), before);
     });
 
-    test('a shown text merges even when the history is full; a hidden '
-        'twin of another text does not confuse it', () {
+    test('R9: a shown text is left exactly as it is even when the history '
+        'is full (already here, no room needed); a hidden twin of another '
+        'text needs a place and does not confuse it', () {
       seed({
         for (var i = 0; i < 9; i++) 'shown $i': _now - (i + 1) * _day,
         'last shown': _now - 20 * _day,
         'hidden': _now - 50 * _day,
       }, limit: 10);
+      final before = rows();
       final c = run(
         hist([
           _h('last shown', _now - 10 * _day),
@@ -375,12 +390,61 @@ void main() {
         notBefore: cutoff,
       );
       expect(c.historyAdded, 0);
+      expect(c.historyAlreadyHere, 1);
       expect(c.historyNoRoom, 1, reason: 'only the hidden one needs a place');
-      expect(
-        rows().firstWhere((r) => r.content == 'last shown').last,
-        _now - 10 * _day,
+      expect(rows(), before, reason: 'no time, no id, no row changed');
+    });
+
+    test('R9: a hidden text that comes back with room is revived with the '
+        'file\'s times merged; the shown text beside it stays untouched', () {
+      seed({
+        for (var i = 0; i < 8; i++) 'shown $i': _now - (i + 1) * _day,
+        'hidden': _now - 50 * _day,
+      }, limit: 10);
+      final before = rows();
+      final c = run(
+        hist([
+          _h('shown 3', _now, created: _now - 90 * _day),
+          _h('hidden', _now - 9 * _day, created: _now - 60 * _day),
+        ]),
+        notBefore: cutoff,
       );
-    }, skip: 'R9 (lead ruling 2026-11-13): shown items are left unchanged');
+      expect(c.historyAdded, 1);
+      expect(c.historyAlreadyHere, 1);
+      final after = {for (final r in rows()) r.content: r};
+      final was = {for (final r in before) r.content: r};
+      expect(after['shown 3'], was['shown 3']);
+      expect(after['hidden']!.id, was['hidden']!.id, reason: 'same row');
+      expect(after['hidden']!.last, _now - 9 * _day);
+      expect(after['hidden']!.created, _now - 60 * _day);
+    });
+
+    test('R9: repeated lines of a shown text count once; a line older than '
+        'the auto-delete time is "too old", not "already here"', () {
+      seed({'shown': _now - 2 * _day}, limit: 10);
+      final before = rows();
+      final c = run(
+        hist([
+          _h('shown', _now),
+          _h('shown', _now - _day),
+          _h('shown', _now - 40 * _day),
+        ]),
+        notBefore: cutoff,
+      );
+      expect(c.historyAlreadyHere, 1);
+      expect(c.historyTooOld, 1);
+      expect(rows(), before);
+    });
+
+    test('R9: with no auto-delete time every existing text is shown, so '
+        'every matching line is already here', () {
+      seed({'old': _now - 400 * _day, 'new': _now - _day}, limit: 10);
+      final before = rows();
+      final c = run(hist([_h('old', _now), _h('new', 1), _h('fresh', _now)]));
+      expect(c.historyAlreadyHere, 2);
+      expect(c.historyAdded, 1);
+      expect(rows().where((r) => r.content != 'fresh').toList(), before);
+    });
   });
 
   group('the file\'s settings: kept or applied, with and without the tick', () {
@@ -649,7 +713,7 @@ void main() {
             );
             expectNothingRemoved(
               before,
-              mayChange: {'shown 2', 'hidden 1', 'hidden 2'},
+              mayChange: withCutoff ? {'hidden 1'} : {},
             );
           });
         }
@@ -725,10 +789,9 @@ void main() {
     });
   });
 
-  group('finding: merges into shown items change them', () {
-    test('importing a text that is already shown moves its last copy '
-        'forward: the confirm line says nothing you have now will be '
-        'changed', () {
+  group('R9 (was BUG-R9): merges into shown items change nothing', () {
+    test('importing a text that is already shown leaves its row exactly as '
+        'it was, so "nothing you have now will be changed" is true', () {
       seed({'mine': _now - 5 * _day});
       final before = rows();
       run(hist([_h('mine', _now - _day)]));
