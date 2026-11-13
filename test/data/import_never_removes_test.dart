@@ -798,4 +798,177 @@ void main() {
       expect(rows(), before);
     });
   });
+  group('R10: settingsApplied is true only when something really changed', () {
+    ExportSettings current() => ExportSettings(
+      historyLimit: int.parse(rawSetting('history_limit')!),
+      historyExpiryDays: int.parse(rawSetting('history_expiry_days')!),
+      typedShortcutsOn: rawSetting('typed_shortcuts_on') == '1',
+    );
+
+    ExportBundle only({ExportSettings? settings, List<IgnoredApp>? apps}) =>
+        ExportBundle(snippets: const [], settings: settings, ignoredApps: apps);
+
+    test(
+      'values already in use: nothing changed, and no setting row moves',
+      () {
+        final before = settingsDump();
+        final c = run(only(settings: current()), settings: true);
+        expect(c.settingsApplied, isFalse);
+        expect(settingsDump(), before);
+      },
+    );
+
+    test('not ticked: never applied, even with different values', () {
+      final c = run(
+        only(settings: const ExportSettings(pasteMode: 'copy_only')),
+      );
+      expect(c.settingsApplied, isFalse);
+    });
+
+    test('one value that differs: applied; each setting alone counts', () {
+      for (final (s, key, value) in <(ExportSettings, String, String)>[
+        (const ExportSettings(historyLimit: 77), 'history_limit', '77'),
+        (
+          const ExportSettings(historyExpiryDays: 7),
+          'history_expiry_days',
+          '7',
+        ),
+        (
+          const ExportSettings(typedShortcutsOn: true),
+          'typed_shortcuts_on',
+          '1',
+        ),
+        (
+          const ExportSettings(pasteMode: 'copy_only'),
+          'paste_mode',
+          'copy_only',
+        ),
+      ]) {
+        final c = run(only(settings: s), settings: true);
+        expect(c.settingsApplied, isTrue, reason: key);
+        expect(rawSetting(key), value);
+        // the same file again: already in use now
+        final again = run(only(settings: s), settings: true);
+        expect(again.settingsApplied, isFalse, reason: 'second $key');
+      }
+    });
+
+    test('a kept value alone is not a change', () {
+      seed({for (var i = 0; i < 20; i++) 'mine $i': _now - (i + 1) * _day});
+      final c = run(
+        only(settings: const ExportSettings(historyLimit: 10)),
+        settings: true,
+      );
+      expect(c.limitKept, isTrue);
+      expect(c.settingsApplied, isFalse);
+      seed({}); // no-op: keeps the helper symmetrical
+      final c2 = run(
+        only(settings: const ExportSettings(historyExpiryDays: 1)),
+        settings: true,
+        notBefore: expiryCutoff(30, _now),
+      );
+      expect(c2.expiryKept, isTrue);
+      expect(c2.settingsApplied, isFalse);
+    });
+
+    test('a mix: a kept limit with a changed paste mode is applied; a kept '
+        'limit with a paste mode already in use is not', () {
+      seed({for (var i = 0; i < 20; i++) 'mine $i': _now - (i + 1) * _day});
+      final mixed = run(
+        only(
+          settings: const ExportSettings(
+            historyLimit: 10,
+            pasteMode: 'copy_only',
+          ),
+        ),
+        settings: true,
+      );
+      expect(mixed.limitKept, isTrue);
+      expect(mixed.settingsApplied, isTrue);
+      final again = run(
+        only(
+          settings: const ExportSettings(
+            historyLimit: 10,
+            pasteMode: 'copy_only',
+          ),
+        ),
+        settings: true,
+      );
+      expect(again.limitKept, isTrue);
+      expect(again.settingsApplied, isFalse);
+    });
+
+    test('a new ignored app is a change; the same app again, or one that '
+        'is on the list under another name, is not', () {
+      final first = run(
+        only(apps: const [IgnoredApp('com.vault', 'Vault')]),
+        settings: true,
+      );
+      expect(first.settingsApplied, isTrue);
+      final again = run(
+        only(apps: const [IgnoredApp('com.vault', 'Vault')]),
+        settings: true,
+      );
+      expect(again.settingsApplied, isFalse);
+      final renamed = run(
+        only(apps: const [IgnoredApp('com.vault', 'Another name')]),
+        settings: true,
+      );
+      expect(renamed.settingsApplied, isFalse);
+      final list = store.ignoredAppStore().list();
+      expect(
+        list.where((a) => a.appId == 'com.vault').single.displayName,
+        'Vault',
+      );
+    });
+
+    test('a preset already on the list is not a change; one the user '
+        'removed that comes back is', () {
+      final preset = presetIgnoredApps.first;
+      final onList = run(
+        only(apps: [IgnoredApp(preset.appId, preset.displayName)]),
+        settings: true,
+      );
+      expect(onList.settingsApplied, isFalse);
+      final db = raw();
+      db.execute('DELETE FROM ignored_apps WHERE app_id = ?', [preset.appId]);
+      db.close();
+      final back = run(
+        only(apps: [IgnoredApp(preset.appId, preset.displayName)]),
+        settings: true,
+      );
+      expect(back.settingsApplied, isTrue);
+    });
+
+    test('a new app next to settings that are all in use or kept: still '
+        'applied', () {
+      final c = run(
+        only(settings: current(), apps: const [IgnoredApp('com.new', 'New')]),
+        settings: true,
+      );
+      expect(c.settingsApplied, isTrue);
+    });
+
+    test('a file with an empty settings object and no apps: not applied', () {
+      final c = run(
+        only(settings: const ExportSettings(), apps: const []),
+        settings: true,
+      );
+      expect(c.settingsApplied, isFalse);
+    });
+
+    test('BUG-R11 (Low): a setting the file repeats at its default, where no '
+        'row is stored yet (paste mode "auto" on a fresh database), is not '
+        'counted as a change', () {
+      // put() compares with the stored row, and a missing row counts as
+      // "different", so the toast says "Imported the settings and ignored
+      // apps in this file." although nothing the user can see changed.
+      expect(rawSetting('paste_mode'), isNull, reason: 'fresh database');
+      final c = run(
+        only(settings: const ExportSettings(pasteMode: 'auto')),
+        settings: true,
+      );
+      expect(c.settingsApplied, isFalse);
+    }, skip: Platform.environment['KUSUNGA_REPRO'] != '1');
+  });
 }
