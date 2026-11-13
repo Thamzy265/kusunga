@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-13 — M1.8 Your data — tester re-check: R10 closed, 1 Low
+- Changed: Tester commit f08ee61: the three R10-skipped tests rewritten and un-skipped; R10 matrix added. check.sh 3837 passed, 11 skipped (10 older + BUG-R11); native suites all pass.
+- Findings: R11 Low — a setting at its default with no stored row (e.g. paste_mode auto on a fresh database) counts as a change, so the toast says settings were imported when nothing visible changed.
+- Gates: developer fixing R11 · tester open (1 Low) · reviewer re-check after · QA — · PM merge —
+- Open findings: 1 Low (R11)
+- Decisions: none from the PM. Lead: compare with the value in use (the stored row, or the default when there is none).
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-13 — M1.8 Your data — R10 fixed
 - Changed: Developer fixed R10 in 83c6466 (settingsApplied only when a stored value changes or an app is added; "Nothing was imported." when nothing at all changed). BUG-R10 repro passes unedited. Three tester tests skipped for rewrite (lead agreed, option A). check.sh 3824 passed, 13 skipped; native suites all pass. HEAD 83c6466.
 - Gates: developer pass · tester re-check started (rewrite 3 tests) · reviewer re-check after · QA — · PM merge —
