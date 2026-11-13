@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-13 — M1.8 Your data — tester re-check: R8, R9 closed, 1 Low
+- Changed: Tester commit ba9d2cf: the two R9-skipped tests rewritten and un-skipped; older tests tightened so shown rows must be exactly unchanged; preview-equals-import sweep extended. check.sh 3825 passed, 11 skipped (10 older + BUG-R10); native suites all pass.
+- Findings: R10 Low — when the only settings in the file were kept, the toast says "Imported the settings and ignored apps in this file." and then "Your history limit wasn't changed…", which contradict.
+- Gates: developer fixing R10 · tester open (1 Low) · reviewer re-check after · QA — · PM merge —
+- Open findings: 1 Low (R10)
+- Decisions: none from the PM. Lead ruling: settingsApplied only when at least one setting or app actually changed; when nothing at all changed, the toast starts "Nothing was imported." followed by the sentences that apply.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-13 — M1.8 Your data — R8 and R9 fixed
 - Changed: Developer fixed R9 (2304b77: an import never changes an item already shown; counted as already here; toast "{n} history {item was/items were} already here.", lead copy) and R8 (2126ca1: "Imported the settings and ignored apps in this file." followed by every sentence that applies, lead agreed). Both repros pass unedited. Two tester tests asserting the old merge times skipped for rewrite (R9). check.sh 3814 passed, 12 skipped; native suites all pass. HEAD 2126ca1.
 - Gates: developer pass · tester re-check started (rewrite 2 tests) · reviewer re-check after the tester · QA — · PM merge —
