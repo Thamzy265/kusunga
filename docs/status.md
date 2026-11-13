@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-13 — M1.8 Your data — R10 fixed
+- Changed: Developer fixed R10 in 83c6466 (settingsApplied only when a stored value changes or an app is added; "Nothing was imported." when nothing at all changed). BUG-R10 repro passes unedited. Three tester tests skipped for rewrite (lead agreed, option A). check.sh 3824 passed, 13 skipped; native suites all pass. HEAD 83c6466.
+- Gates: developer pass · tester re-check started (rewrite 3 tests) · reviewer re-check after · QA — · PM merge —
+- Open findings: R10 fixed, waiting for re-checks
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.7 PM checks; VoiceOver; optional R5; the banner for a failed Privacy-tab pause; the read-error pause behaviour; M1.4 items; F5
+
 ## 2026-11-13 — M1.8 Your data — tester re-check: R8, R9 closed, 1 Low
 - Changed: Tester commit ba9d2cf: the two R9-skipped tests rewritten and un-skipped; older tests tightened so shown rows must be exactly unchanged; preview-equals-import sweep extended. check.sh 3825 passed, 11 skipped (10 older + BUG-R10); native suites all pass.
 - Findings: R10 Low — when the only settings in the file were kept, the toast says "Imported the settings and ignored apps in this file." and then "Your history limit wasn't changed…", which contradict.
