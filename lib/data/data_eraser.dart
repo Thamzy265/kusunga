@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:win32/win32.dart' show WindowsException;
+
 import '../history/history_opener.dart' show keychainStatus;
 import '../history/history_service.dart';
 import '../history/key_store.dart';
+import '../history/windows_key_store.dart' show win32ErrorNumber;
 import '../log/app_log.dart';
 
 /// What Delete everything removes (M1.8).
@@ -262,5 +265,7 @@ enum _Key { gone, kept, unknown }
 
 int? _errorNumber(Object error) => switch (error) {
   FileSystemException(:final osError) => osError?.errorCode,
+  // Never its message: that is looked up through Win32 calls.
+  WindowsException(:final hr) => win32ErrorNumber(hr),
   _ => keychainStatus(error),
 };

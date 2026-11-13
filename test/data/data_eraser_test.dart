@@ -16,6 +16,12 @@ import 'package:kusunga/history/memory_history_store.dart';
 import 'package:kusunga/history/sqlite_history_store.dart';
 import 'package:kusunga/log/app_log.dart';
 import 'package:path/path.dart' as p;
+import 'package:win32/win32.dart'
+    show
+        E_FAIL,
+        ERROR_ACCESS_DENIED,
+        ERROR_NO_SUCH_LOGON_SESSION,
+        WindowsException;
 
 import '../support/fakes.dart';
 
@@ -160,6 +166,28 @@ void main() {
       expect(log.codes, isNot(contains(LogCode.deleteEverythingDone)));
       source.copy('after');
       expect(h.service.items.map((i) => i.preview), ['after']);
+    });
+
+    test('a Windows Credential Manager refusal is logged with its Win32 '
+        'error number (R7b)', () async {
+      final h = open(folder);
+      for (final (error, expected) in <(Object, int)>[
+        (WindowsException(ERROR_ACCESS_DENIED.toHRESULT()), 5),
+        (WindowsException(ERROR_NO_SUCH_LOGON_SESSION.toHRESULT()), 1312),
+        // Not a Win32 error: the HRESULT itself.
+        (const WindowsException(E_FAIL), E_FAIL),
+      ]) {
+        log.codes.clear();
+        log.details.clear();
+        keys.deleteError = error;
+        final result = await eraser(
+          DefaultEraseTarget(keys: keys, folder: () async => folder),
+        ).run(h.service);
+        expect(result, isA<EraseFailed>());
+        final i = log.codes.indexOf(LogCode.deleteEverythingFailed);
+        // No '$error': its text is looked up through Win32 calls.
+        expect(log.details[i], expected, reason: '$expected');
+      }
     });
 
     test('a key delete that never answers counts as failed', () async {

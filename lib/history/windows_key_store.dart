@@ -83,6 +83,13 @@ class Win32CredentialVault implements CredentialVault {
   });
 }
 
+/// The number to log for a Credential Manager failure (R7b). The vault
+/// throws `WindowsException(HRESULT_FROM_WIN32(error))`, so an HRESULT of
+/// the form 0x8007xxxx carries the Win32 error number in its low 16 bits.
+/// Any other HRESULT is logged as it is.
+int win32ErrorNumber(int hresult) =>
+    (hresult & 0xFFFF0000) == 0x80070000 ? hresult & 0xFFFF : hresult;
+
 /// Windows: Credential Manager. Mac: the keychain package.
 KeyStore keyStoreFor({required bool isWindows, CredentialVault? vault}) =>
     isWindows
