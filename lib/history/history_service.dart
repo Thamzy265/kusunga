@@ -639,26 +639,7 @@ class HistoryService extends ChangeNotifier {
             shortcut: s.shortcut,
           ),
       ],
-      history: includeHistory
-          ? [
-              for (final w in _waiting.reversed)
-                if (cutoff == null || w.time >= cutoff)
-                  ExportHistoryItem(
-                    content: w.text,
-                    kind: w.kind,
-                    createdAt: w.time,
-                    lastCopiedAt: w.time,
-                  ),
-              for (final r in _store.records(notBefore: cutoff))
-                if (!_waiting.any((w) => w.text == r.content))
-                  ExportHistoryItem(
-                    content: r.content,
-                    kind: r.kind,
-                    createdAt: r.createdAt,
-                    lastCopiedAt: r.lastCopiedAt,
-                  ),
-            ]
-          : null,
+      history: includeHistory ? _exportHistory(cutoff) : null,
       settings: ExportSettings(
         historyLimit: _store.limit,
         historyExpiryDays: days != null && historyExpiryChoices.contains(days)
@@ -691,6 +672,37 @@ class HistoryService extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  /// The items shown, newest first, and at most [HistoryStore.maxLimit]:
+  /// copies still waiting to be saved come on top of a full history, and a
+  /// file with more than an import accepts could never be read back (R5).
+  List<ExportHistoryItem> _exportHistory(int? cutoff) {
+    final items = [
+      for (final w in _waiting.reversed)
+        if (cutoff == null || w.time >= cutoff)
+          ExportHistoryItem(
+            content: w.text,
+            kind: w.kind,
+            createdAt: w.time,
+            lastCopiedAt: w.time,
+          ),
+      for (final r in _store.records(notBefore: cutoff))
+        if (!_waiting.any((w) => w.text == r.content))
+          ExportHistoryItem(
+            content: r.content,
+            kind: r.kind,
+            createdAt: r.createdAt,
+            lastCopiedAt: r.lastCopiedAt,
+          ),
+    ];
+    // Newest first; for the same time, in the order above.
+    final order = items.indexed.toList()
+      ..sort((a, b) {
+        final newer = b.$2.lastCopiedAt.compareTo(a.$2.lastCopiedAt);
+        return newer != 0 ? newer : a.$1.compareTo(b.$1);
+      });
+    return [for (final (_, item) in order.take(HistoryStore.maxLimit)) item];
   }
 
   /// How many of the file's history items are not older than the

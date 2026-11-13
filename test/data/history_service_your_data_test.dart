@@ -1,6 +1,7 @@
 // M1.8: what HistoryService gives Your data — the export bundle, import with
 // its live effects, Delete all history, and stopping capture for Delete
 // everything (lead ruling on the order, 2026-11-12).
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -161,6 +162,47 @@ void main() {
       store.insertOrBump('new', ClipKind.text, now - _day);
       final b = service.exportBundle(includeHistory: true);
       expect(b.history!.map((h) => h.content), ['new']);
+    });
+
+    test('with history: at most 5,000 items, newest first, copies waiting '
+        'to be saved included, so the file always imports (R5)', () {
+      store.setLimit(HistoryStore.maxLimit);
+      for (var i = 0; i < HistoryStore.maxLimit; i++) {
+        store.insertOrBump('saved $i', ClipKind.text, now - 10000 + i);
+      }
+      final flaky = FlakyStore(store);
+      // Its own clipboard, so only this service sees the copies.
+      final own = FakeClipboardSource();
+      final s = HistoryService(
+        store: flaky,
+        source: own,
+        log: log,
+        clock: () => now,
+        snippetStore: store.snippetStore(),
+        ignoredAppStore: store.ignoredAppStore(),
+      )..start();
+      addTearDown(s.dispose);
+      flaky.failWrites = true;
+      for (var i = 0; i < 3; i++) {
+        own.copy('waiting $i');
+      }
+      expect(s.items.length, HistoryStore.maxLimit + 3);
+      final b = s.exportBundle(includeHistory: true);
+      final history = b.history!;
+      expect(history, hasLength(HistoryStore.maxLimit));
+      expect(history.take(3).map((h) => h.content), [
+        'waiting 2',
+        'waiting 1',
+        'waiting 0',
+      ]);
+      expect(history.last.content, 'saved 3', reason: 'the 3 oldest left out');
+      final times = history.map((h) => h.lastCopiedAt).toList();
+      expect(times, [...times]..sort((a, b) => b.compareTo(a)));
+      final file = encodeExport(b, exportedAt: DateTime.utc(2026));
+      expect(
+        decodeImport(utf8.encode(file)).history,
+        hasLength(HistoryStore.maxLimit),
+      );
     });
 
     test('the history count for the tick box is the shown count', () {
