@@ -67,6 +67,7 @@ ImportCounts importIntoDatabase(
     historyNoRoom: history.noRoom,
     limitKept: kept.limit,
     expiryKept: kept.expiry,
+    settingsApplied: applySettings && bundle.hasSettings,
   );
 }
 

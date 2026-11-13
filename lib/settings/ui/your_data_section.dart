@@ -71,8 +71,13 @@ String exportedMessage(int snippets, int? history) => history == null
 /// The import summary, with the sentences for what was skipped when they
 /// apply (spec "Copy"; lead ruling G5).
 String importedMessage(ImportCounts c) {
+  final onlySettings =
+      c.settingsApplied && c.snippetsAdded == 0 && c.historyAdded == 0;
   final parts = [
-    'Imported ${_snippets(c.snippetsAdded)} and ${_items(c.historyAdded)}.',
+    // Lead copy, R8 (2026-11-13): nothing added, but the settings were.
+    if (onlySettings) 'Imported the settings and ignored apps in this file.',
+    if (!onlySettings)
+      'Imported ${_snippets(c.snippetsAdded)} and ${_items(c.historyAdded)}.',
     if (c.snippetsAlreadyHere == 1) '1 snippet was already here.',
     if (c.snippetsAlreadyHere > 1)
       '${c.snippetsAlreadyHere} snippets were already here.',

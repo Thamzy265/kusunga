@@ -818,6 +818,11 @@ void main() {
       await tester.tap(hook('import-confirm'));
       await settle(tester);
       expect(find.byType(AlertDialog), findsNothing);
+      expect(
+        find.text('Imported the settings and ignored apps in this file.'),
+        findsOneWidget,
+        reason: 'R8',
+      );
       expect(service.limit, 300);
       expect(
         service.ignoredApps.list().any((a) => a.appId == 'com.example.vault'),
@@ -1207,6 +1212,35 @@ void main() {
       'Imported 0 snippets and 0 history items. 1 snippet was already here. '
       '2 shortcuts were already used, so those snippets have none. 1 history '
       "item was older than your auto-delete time and wasn't added.",
+    );
+  });
+
+  test('nothing added but the settings applied: the toast says so, then '
+      'every sentence that applies (R8; lead copy, 2026-11-13)', () {
+    const head = 'Imported the settings and ignored apps in this file.';
+    expect(importedMessage(const ImportCounts(settingsApplied: true)), head);
+    expect(
+      importedMessage(
+        const ImportCounts(
+          settingsApplied: true,
+          snippetsAlreadyHere: 2,
+          limitKept: true,
+        ),
+      ),
+      '$head 2 snippets were already here. Your history limit wasn\'t '
+      'changed, because that would delete items. Change it in Settings.',
+    );
+    expect(
+      importedMessage(
+        const ImportCounts(settingsApplied: true, historyAdded: 1),
+      ),
+      'Imported 0 snippets and 1 history item.',
+      reason: 'something was added: the usual line',
+    );
+    expect(
+      importedMessage(const ImportCounts()),
+      'Imported 0 snippets and 0 history items.',
+      reason: 'settings not applied: the usual line',
     );
   });
 

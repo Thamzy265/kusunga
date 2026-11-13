@@ -248,7 +248,6 @@ void main() {
         );
         expect(find.byType(SnackBar), findsOneWidget);
       },
-      skip: Platform.environment['KUSUNGA_REPRO'] != '1',
     );
   });
 

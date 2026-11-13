@@ -446,6 +446,7 @@ class ImportCounts {
     this.historyNoRoom = 0,
     this.limitKept = false,
     this.expiryKept = false,
+    this.settingsApplied = false,
   });
 
   final int snippetsAdded;
@@ -475,4 +476,8 @@ class ImportCounts {
   /// applied, because it would have deleted items shown now.
   final bool limitKept;
   final bool expiryKept;
+
+  /// The file's settings or ignored apps were applied (the box was ticked
+  /// and the file has some).
+  final bool settingsApplied;
 }
