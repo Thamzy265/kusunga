@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-18 — F5 Windows CI — homelab runner chosen
+- Changed: lead wrote docs/ci/windows-runner.md, the PM's setup guide for a self-hosted Windows runner (label kusunga-windows). Workflow not changed yet; the developer changes runs-on on a branch once the runner shows Idle.
+- Gates: n/a — guide only; the workflow change will go through every gate
+- Open findings: none
+- Decisions: PM said: "Yes, a Windows VM" (2026-11-18), in answer to "Do you have a Windows machine or VM in the homelab for the runner?".
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead — my-tech-team role agents not available in this session; needed for the workflow change · PM — set up the Windows runner (docs/ci/windows-runner.md); join the Apple Developer Program; D5 Windows part; M1.4–M1.8 PM checks; delete the stray QA export in Documents
+
 ## 2026-11-13 — M1.9 — PM decision D4 (name)
 - Changed: D4 decided; D4 row in docs/PLAN.md updated. The recommended trademark and app-store name check is not done yet.
 - Gates: n/a — decision, no code
