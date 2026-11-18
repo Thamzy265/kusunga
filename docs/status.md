@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-18 — Licence (GPL-3.0) — developer hand-off
+- Changed: size small (no code, UI or data). Developer commit 0add0c2 on chore/licence (not pushed): LICENSE = gnu.org gpl-3.0.txt unchanged, 35149 bytes, SHA-256 3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986; README "Licence" section with "Kusunga is licensed under the GNU GPL v3.0" and "Copyright (C) 2026 William Nasoni"; docs/licences.md table of 14 direct dependencies (BSD-3-Clause or MIT, SQLite public domain); guard test test/ci/licence_test.dart (failed first, +0 -2; then check.sh 3842 passed, 10 skipped, exit 0). Deviation: test in test/ci, not test/repo (lead accepts: the repo's guard tests live there).
+- Gates: developer pass · tester open · reviewer open · QA open · PM merge waiting
+- Open findings: none. Developer flags: SQLite3 Multiple Ciphers licence (MIT) not read from a file and its per-cipher code not checked; only direct dependencies checked; BSD/MIT notices must ship with binaries (no in-app licence screen yet).
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-18 — Repo — PM decision D8 (licence)
 - Changed: D8 added to docs/PLAN.md as decided; plan item "Licence (GPL-3.0)" (small) added before M1.9. Lead advice given before the decision: GPL-3.0 keeps the code open and stops closed copies; the PM as sole copyright holder can still publish to the app stores and sell sync (D6); a contributor agreement is needed only once outsiders contribute.
 - Gates: n/a — decision; the licence item will go through every gate
