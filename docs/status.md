@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-18 — Repo — PM decision D8 (licence)
+- Changed: D8 added to docs/PLAN.md as decided; plan item "Licence (GPL-3.0)" (small) added before M1.9. Lead advice given before the decision: GPL-3.0 keeps the code open and stops closed copies; the PM as sole copyright holder can still publish to the app stores and sell sync (D6); a contributor agreement is needed only once outsiders contribute.
+- Gates: n/a — decision; the licence item will go through every gate
+- Open findings: none
+- Decisions: PM said: "go with GPL-3.0" (2026-11-18), in answer to "what licence do you recommend to have for this one?" (lead recommended GPL-3.0).
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead — my-tech-team role agents may be unavailable in this session · PM — public or private; Windows runner if private; join the Apple Developer Program; D5 Windows part; M1.4–M1.8 PM checks; delete the stray QA export in Documents
+
 ## 2026-11-18 — Repo — pre-publication check of the full history (lead)
 - Changed: lead scanned all 671 commits on all branches (every added line, commit messages, files ever added, deleted files, ignored files, files over 2 MB) before the PM decides whether to make the repo public. No secrets found: no API keys, tokens, private keys, certificates or provisioning profiles; Local.xcconfig never committed; no git-ignored file ever committed; no videos; no file over 2 MB. Test data uses reserved fake values only (07700 900123, 4111 1111 1111 1111, example.com addresses, the standard example IBAN). The 2 screenshots deleted from history were viewed: QA test data only. The 236 current screenshots were checked when committed; not re-viewed now.
 - Found (PM decision needed before going public): (1) the PM's personal Gmail address is the author email of 668 commits (metadata only, not in any file); (2) the local Apple team ID is in the history of docs/qa/m1.md (commits 6269a6a and 7311e39; redacted in cdc3949, absent from main now); (3) the PM's Mac user folder path appears in docs/qa/m1.md and test/ui/m16_real_font_layout_test.dart on main; (4) the PM's name and the id com.wnasoni.kusunga appear in docs and code (the publisher name, public anyway once released). No licence file.

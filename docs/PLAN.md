@@ -33,6 +33,7 @@ One app that keeps your clipboard history and your saved snippets, and pastes th
 | D5 | Code signing (Apple Developer Program, about £79/year; a Windows signing certificate) | Buy now · Buy before first beta | Before first beta (M1.9) — needed so Mac and Windows don't block the app. **Mac: decided 2026-11-13 — PM will join the Apple Developer Program** ("i will get the apple developer account"). Windows: open | M1.9 |
 | D6 | Pricing | Free core + one-off payment for sync · Subscription · Free | Free core + one-off sync unlock (users complain about Paste's subscription) | M3 |
 | D7 | Lawful basis for any data that leaves the device | PM decides (likely contract for sync) | n/a in M1 — nothing leaves the device | M3 |
+| D8 | Licence | GPL-3.0 · MIT · No licence / PolyForm Noncommercial | GPL-3.0. **Decided 2026-11-18 — GPL-3.0** (PM said: "go with GPL-3.0") | Before the repo is made public |
 
 ## M1 — Desktop MVP (Mac + Windows)
 
@@ -83,6 +84,9 @@ Everything stays on the device. No account, no server.
   - Design: `docs/design/your-data.md`, UI spec `docs/ui/your-data.md`, deck `docs/slides/your-data.html` (approved 2026-11-12: D1 A, D2 A, D3 A, D4 A, D5 A, D6 A).
   - AC: export snippets (and optionally history) as a JSON file; import the same file.
   - AC: "Delete all history" and "Delete everything" remove all stored data and the keychain key.
+- [ ] **Licence (GPL-3.0)** — small (no code; one licence file and notices).
+  - AC: a `LICENSE` file with the unchanged GPL-3.0 text from gnu.org at the repo root; `README` (or a new short README) says "Kusunga is licensed under the GNU GPL v3.0" with "Copyright (C) 2026 William Nasoni"; every direct dependency's licence is listed and confirmed compatible with GPL-3.0 (reviewer).
+  - Decision: D8 (PM, 2026-11-18).
 - [ ] **M1.9 Signed installers and first beta** — large (release).
   - AC: a notarised Mac build and a signed Windows installer install and launch without OS security warnings.
   - AC: Hardened Runtime enabled for the macOS build (notarisation needs it).
