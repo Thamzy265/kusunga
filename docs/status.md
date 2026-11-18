@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-18 — Repo — pre-publication check of the full history (lead)
+- Changed: lead scanned all 671 commits on all branches (every added line, commit messages, files ever added, deleted files, ignored files, files over 2 MB) before the PM decides whether to make the repo public. No secrets found: no API keys, tokens, private keys, certificates or provisioning profiles; Local.xcconfig never committed; no git-ignored file ever committed; no videos; no file over 2 MB. Test data uses reserved fake values only (07700 900123, 4111 1111 1111 1111, example.com addresses, the standard example IBAN). The 2 screenshots deleted from history were viewed: QA test data only. The 236 current screenshots were checked when committed; not re-viewed now.
+- Found (PM decision needed before going public): (1) the PM's personal Gmail address is the author email of 668 commits (metadata only, not in any file); (2) the local Apple team ID is in the history of docs/qa/m1.md (commits 6269a6a and 7311e39; redacted in cdc3949, absent from main now); (3) the PM's Mac user folder path appears in docs/qa/m1.md and test/ui/m16_real_font_layout_test.dart on main; (4) the PM's name and the id com.wnasoni.kusunga appear in docs and code (the publisher name, public anyway once released). No licence file.
+- Gates: n/a — read-only check
+- Open findings: none for code; the 4 items above are PM decisions
+- Decisions: PM said: "yes, run the check" (2026-11-18), in answer to "Should I run that check before you decide?".
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — public or private (and, if public: the email in history, the team ID in history, a licence); set up the Windows runner if staying private; join the Apple Developer Program; D5 Windows part; M1.4–M1.8 PM checks; delete the stray QA export in Documents
+
 ## 2026-11-18 — F5 Windows CI — homelab runner chosen
 - Changed: lead wrote docs/ci/windows-runner.md, the PM's setup guide for a self-hosted Windows runner (label kusunga-windows). Workflow not changed yet; the developer changes runs-on on a branch once the runner shows Idle.
 - Gates: n/a — guide only; the workflow change will go through every gate
