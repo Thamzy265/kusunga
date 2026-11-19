@@ -15,6 +15,7 @@ import 'package:kusunga/history/sqlite_history_store.dart';
 import 'package:kusunga/log/app_log.dart';
 import 'package:path/path.dart' as p;
 
+import '../support/close_service.dart';
 import '../support/fakes.dart';
 
 const _key = '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
@@ -96,7 +97,7 @@ void main() {
       snippetStore: store.snippetStore(),
       ignoredAppStore: store.ignoredAppStore(),
     )..start();
-    addTearDown(h.dispose);
+    addCloseTearDown(h);
     return h;
   }
 
@@ -249,7 +250,7 @@ void main() {
       log: log,
       notices: {HistoryNotice.memoryOnly},
     )..start();
-    addTearDown(h.dispose);
+    addCloseTearDown(h);
     File(p.join(dir.path, 'kusunga.db')).writeAsStringSync('x');
     source.copy('in memory');
     final sw = Stopwatch()..start();
@@ -270,7 +271,7 @@ void main() {
       log: log,
       notices: {HistoryNotice.memoryOnly},
     )..start();
-    addTearDown(h.dispose);
+    addCloseTearDown(h);
     expect(await eraser(keys).run(h), isA<Erased>());
   });
 

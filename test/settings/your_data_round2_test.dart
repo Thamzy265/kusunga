@@ -18,6 +18,7 @@ import 'package:kusunga/settings/ui/your_data_section.dart';
 import 'package:kusunga/theme/tokens.dart';
 import 'package:path/path.dart' as p;
 
+import '../support/close_service.dart';
 import '../support/fakes.dart';
 
 const _key = '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
@@ -54,7 +55,7 @@ void main() {
       snippetStore: store.snippetStore(),
       ignoredAppStore: store.ignoredAppStore(),
     )..start();
-    addTearDown(service.dispose);
+    addCloseTearDown(service);
     tester.view.physicalSize = const Size(800, 1200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);

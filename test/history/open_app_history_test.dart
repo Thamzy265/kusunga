@@ -5,6 +5,7 @@ import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/open_app_history.dart';
 import 'package:kusunga/log/app_log.dart';
 
+import '../support/close_service.dart';
 import '../support/fakes.dart';
 
 /// F5/C2: a data folder that cannot be found is still logged (to the unified
@@ -21,7 +22,7 @@ void main() {
       keys: FakeKeyStore(),
       source: FakeClipboardSource(),
     );
-    addTearDown(service.dispose);
+    addCloseTearDown(service);
     expect(service.banners, contains(HistoryBanner.memoryOnly));
     expect(mirror.codes, contains(LogCode.dataFolderUnavailable));
   });
@@ -40,7 +41,7 @@ void main() {
         keys: FakeKeyStore(),
         source: FakeClipboardSource(),
       );
-      addTearDown(service.dispose);
+      addCloseTearDown(service);
       expect(service.banners, isEmpty);
       expect(mirror.codes, [LogCode.hotkeyRegisterFailed]);
       final text = File('${dir.path}/kusunga.log').readAsStringSync();
@@ -60,7 +61,7 @@ void main() {
         supportDirectory: () async => dir,
         keys: FakeKeyStore()..readError = StateError('locked'),
         source: FakeClipboardSource(),
-      ).then((s) => addTearDown(s.dispose));
+      ).then((s) => addCloseTearDown(s));
       expect(
         mirror.codes.where((c) => c == LogCode.keychainReadFailed).length,
         1,
