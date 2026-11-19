@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — Licence (GPL-3.0) — reviewer approve with notes
+- Changed: reviewer re-check at 84892be: approve with notes. check.sh alone 3852 passed, 10 skipped, exit 0. R1 confirmed (CRLF archive 230184f6…/35823 bytes at 14d4c3c, 3972dc97…/35149 at 84892be; check-attr "text: unset"). R2 confirmed against upstream source in scratchpad/s3mc (MIT LICENSE; SQLite 3.53.4 source id matches the binary; AES MIT vs LGPL-3.0-or-later WITH WxWindows exception compatible either way; extensionfunctions.c absent from both macOS binaries, arm64 b237b5ba… and x64 7ea6e7d2…). R3, R4, R6a–c confirmed. Reviewer agrees with the lead's extensionfunctions.c ruling (M1.9 AC).
+- Gates: developer pass · tester pass · reviewer approve with notes · QA n/a — no user-runnable change (a licence file, a README section, a doc and repo guard tests; nothing in the app changes) · PM merge waiting
+- Open findings: R5 Low (PM decision: GPL-3.0-only or -or-later); N1 Low doc (name aes_hardware.c, memory_secure.c MIT; the Ascon helper files under the MIT LICENSE, from CC0 reference; argon2/libargon2.c wrapper) — developer to fix with R5; R6d optional cleanup.
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — R5
+
 ## 2026-11-19 — Licence (GPL-3.0) — developer fixes R1–R4, R6
 - Changed: chore/licence ae74b42 (R1: .gitattributes `LICENSE -text`, test via git check-attr; failed first "text: unspecified"; CRLF archive hash 230184f6… at 14d4c3c, 3972dc97… at ae74b42), 7e73123 (R2–R4, R6a–c), 84892be (one doc line). R2: upstream utelle/SQLite3MultipleCiphers v2.5.0 read (read-only, scratch folder s3mc): own code MIT; AEGIS MIT; Ascon MIT; ChaCha20/Poly1305, SHA-1, MD5 public domain; SHA-2 BSD-3-Clause; fastpbkdf2 CC0-1.0; Argon2 CC0-1.0 OR Apache-2.0; AES MIT (filelist says LGPL-3.0-or-later WITH WxWindows exception; compatible either way); miniz MIT; SQLite and extensions blessing; all GPL-3.0-compatible. Unclear: extensionfunctions.c has no licence text; only built with SQLITE_ENABLE_EXTFUNC; not in the macOS arm64 binary (strings); Windows, iOS, Android binaries not checked. SQLite public-domain dedication confirmed at sqlite.org/copyright.html. check.sh alone on 7e73123: 3852 passed, 10 skipped, exit 0. Not verified on a real Windows checkout.
 - Gates: developer pass (fixes) · tester pass · reviewer re-check open · QA open · PM merge waiting
