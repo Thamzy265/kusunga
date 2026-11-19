@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — Windows CI green — developer hand-off; branch pushed; PR open
+- Changed: developer (opus) handed off fix/windows-ci, 8 commits on main e64ca0e (00bd126 A close-then-dispose helper in 8 files; e14ec91 B stuck files after show(); cd18c05 C export writes in place when anything is at the temp name, with an optional createTemp test seam; e023904 + ae65c68 D `* text=auto eol=lf`, renormalize changed nothing, readSource() for guard tests; 97f7317 E package:path, own_marker false green fixed; 2d20fc7 Mac log test: per-writer order instead of the 90% floor, BUG-L5 note; 54fa956 CI builds Windows with `if: ${{ !cancelled() }}`). check.sh run alone: "+3864 ~10: All tests passed!", exit 0. Failing-first evidence for A, C, D, E, Mac and CI; B needs Windows CI (Mac sqlite3mc replaces the fake file). Needs Windows CI: A, B, E, the eol checkout and the build step. Developer observation (not fixed, BUG-L5 area): in local runs `.1` held only 2 lines. Lead pushed fix/windows-ci (PM decision of 2026-11-19) and opened https://github.com/Thamzy265/kusunga/pull/9. The branch also carries the 8 local docs commits on main that were not pushed (status entries, M1.9 design, Windows CI design and deck).
+- Gates: developer handed off (CI pending) · tester, reviewer, QA open · PM merge not asked
+- Open findings: Windows CI result pending
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead waiting for the PR #9 CI run · PM — M1.9 deck (D1–D7)
+
 ## 2026-11-19 — Windows CI green — deck approved; build started
 - Changed: PM approved the deck docs/slides/windows-ci-green.html with the recommended options. Plan: W1–W3 recorded on the item; W3 added to M1.9 as an AC for part d. Developer briefed on fix/windows-ci.
 - Gates: design approved · developer in progress · tester, reviewer, QA open · PM merge n/a yet
