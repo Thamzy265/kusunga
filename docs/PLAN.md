@@ -33,7 +33,7 @@ One app that keeps your clipboard history and your saved snippets, and pastes th
 | D5 | Code signing (Apple Developer Program, about £79/year; a Windows signing certificate) | Buy now · Buy before first beta | Before first beta (M1.9) — needed so Mac and Windows don't block the app. **Mac: decided 2026-11-13 — PM will join the Apple Developer Program** ("i will get the apple developer account"). Windows: open | M1.9 |
 | D6 | Pricing | Free core + one-off payment for sync · Subscription · Free | Free core + one-off sync unlock (users complain about Paste's subscription) | M3 |
 | D7 | Lawful basis for any data that leaves the device | PM decides (likely contract for sync) | n/a in M1 — nothing leaves the device | M3 |
-| D8 | Licence | GPL-3.0 · MIT · No licence / PolyForm Noncommercial | GPL-3.0. **Decided 2026-11-18 — GPL-3.0** (PM said: "go with GPL-3.0") | Before the repo is made public |
+| D8 | Licence | GPL-3.0 · MIT · No licence / PolyForm Noncommercial | GPL-3.0. **Decided 2026-11-18 — GPL-3.0** (PM said: "go with GPL-3.0"); **2026-11-19 — GPL-3.0-only** (PM said: "go with only") | Before the repo is made public |
 
 ## M1 — Desktop MVP (Mac + Windows)
 

@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — Licence (GPL-3.0) — PM decision R5 (GPL-3.0-only)
+- Changed: D8 in docs/PLAN.md now says GPL-3.0-only. Lead advice before the decision: "only" keeps the choice of future GPL versions with the copyright holder; moving to "or later" is easy later, moving back is not for copies already released. Developer to update the README wording and the SPDX id in docs/licences.md, and fix N1.
+- Gates: developer open (R5, N1) · tester pass · reviewer re-check open · QA n/a — no user-runnable change · PM merge waiting
+- Open findings: N1 Low doc; R6d optional cleanup.
+- Decisions: R5 — GPL-3.0-only (2026-11-19). PM said: "go with only"
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-19 — Licence (GPL-3.0) — reviewer approve with notes
 - Changed: reviewer re-check at 84892be: approve with notes. check.sh alone 3852 passed, 10 skipped, exit 0. R1 confirmed (CRLF archive 230184f6…/35823 bytes at 14d4c3c, 3972dc97…/35149 at 84892be; check-attr "text: unset"). R2 confirmed against upstream source in scratchpad/s3mc (MIT LICENSE; SQLite 3.53.4 source id matches the binary; AES MIT vs LGPL-3.0-or-later WITH WxWindows exception compatible either way; extensionfunctions.c absent from both macOS binaries, arm64 b237b5ba… and x64 7ea6e7d2…). R3, R4, R6a–c confirmed. Reviewer agrees with the lead's extensionfunctions.c ruling (M1.9 AC).
 - Gates: developer pass · tester pass · reviewer approve with notes · QA n/a — no user-runnable change (a licence file, a README section, a doc and repo guard tests; nothing in the app changes) · PM merge waiting
