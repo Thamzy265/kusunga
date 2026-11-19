@@ -88,7 +88,7 @@ Everything stays on the device. No account, no server.
   - AC: a `LICENSE` file with the unchanged GPL-3.0 text from gnu.org at the repo root; `README` (or a new short README) says "Kusunga is licensed under the GNU GPL v3.0" with "Copyright (C) 2026 William Nasoni"; every direct dependency's licence is listed and confirmed compatible with GPL-3.0 (reviewer).
   - Decision: D8 (PM, 2026-11-18).
 - [ ] **M1.9 Signed installers and first beta** — large (release).
-  - AC: the app has an About / licences screen with the GPL notice (GPLv3 section 5(d)) and every third-party notice shipped in the binary, including SQLite3 Multiple Ciphers and SQLite (not collected in NOTICES.Z), before any build is given to anyone — owner developer (moved from Later, reviewer note on the licence item, 2026-11-19).
+  - AC: the app has an About / licences screen with the GPL notice (GPLv3 section 5(d)) and every third-party notice shipped in the binary, including SQLite3 Multiple Ciphers and SQLite (not collected in NOTICES.Z), before any build is given to anyone; and each shipped platform's sqlite3mc binary is checked to contain no extensionfunctions.c code (no licence text upstream; absent from the macOS arm64 binary, 2026-11-19) — owner developer (moved from Later, reviewer note on the licence item, 2026-11-19).
   - AC: a notarised Mac build and a signed Windows installer install and launch without OS security warnings.
   - AC: Hardened Runtime enabled for the macOS build (notarisation needs it).
   - AC: the Mac history key moves from the login keychain to the data-protection keychain, with a key move (read old item, write new, delete old) so no user's history is moved aside; must be done before the first external beta (PM decision 2026-11-03).
