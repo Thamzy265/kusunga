@@ -59,12 +59,27 @@ String exportTempPath(String path, [Random? random]) {
 /// only the file the user picked), the file is written directly, never
 /// through a link, and removed again if the write fails. Nothing is ever
 /// written to any other path.
-void writeExportFile(String path, List<int> bytes, {Random? random}) {
+///
+/// [createTemp] is a test seam for how the temporary file is made (by default
+/// an exclusive create), so a test can give the Windows answer on any OS.
+void writeExportFile(
+  String path,
+  List<int> bytes, {
+  Random? random,
+  void Function(File temp)? createTemp,
+}) {
   _removeLeftovers(path);
   final temp = File(exportTempPath(path, random));
   try {
+    // Anything already at the temp name, a dangling link included, means the
+    // file is written in place. Windows makes the file even over a dangling
+    // link, which the write would then refuse, failing the export.
+    if (FileSystemEntity.typeSync(temp.path, followLinks: false) !=
+        FileSystemEntityType.notFound) {
+      throw FileSystemException('already there', temp.path);
+    }
     // O_CREAT | O_EXCL: fails if anything is there, a link included.
-    temp.createSync(exclusive: true);
+    (createTemp ?? (f) => f.createSync(exclusive: true))(temp);
   } on FileSystemException {
     _writeDirect(File(path), bytes);
     return;

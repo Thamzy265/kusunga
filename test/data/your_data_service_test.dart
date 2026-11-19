@@ -220,6 +220,29 @@ void main() {
       expect(File(nowhere).existsSync(), isFalse);
     });
 
+    test('Windows CI group C: where making the temp file succeeds over a '
+        'dangling link (Windows), the export is still written in place, not '
+        'failed and never through the link', () {
+      final nowhere = p.join(dir.path, 'nowhere');
+      final path = p.join(dir.path, 'c.json');
+      final link = Link(exportTempPath(path, Random(7)))..createSync(nowhere);
+      writeExportFile(
+        path,
+        utf8.encode('{}'),
+        random: Random(7),
+        // On Windows an exclusive create over a dangling link succeeds; on
+        // macOS it throws. This simulates the Windows answer.
+        createTemp: (_) {},
+      );
+      expect(File(path).readAsStringSync(), '{}');
+      expect(File(nowhere).existsSync(), isFalse);
+      expect(
+        FileSystemEntity.typeSync(link.path, followLinks: false),
+        FileSystemEntityType.link,
+        reason: 'the link is left alone',
+      );
+    });
+
     test('temp files an earlier export to the same file left behind are '
         'removed; links, folders and other names are left alone', () {
       final path = p.join(dir.path, 'out.json');
