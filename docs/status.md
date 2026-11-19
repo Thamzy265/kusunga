@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — Licence (GPL-3.0) — developer fixes R5, N1
+- Changed: chore/licence a95f794 (R5: README "version 3 only (SPDX: GPL-3.0-only)"; docs/licences.md title, intro and "Compatible with" headers say GPL-3.0-only; guard tests; first failing run "Expected: contains 'GPL-3.0-only'"), 1f4522d (N1: rows for aes_hardware.c and memory_secure.c (MIT headers), nine Ascon files with MIT headers "Based on: Public domain Ascon reference implementation", argon2/libargon2.c; guard test; first failing run "Expected: contains 'aes_hardware.c'"). LICENSE unchanged. check.sh alone: 3854 passed, 10 skipped, exit 0.
+- Gates: developer pass · tester pass · reviewer re-check open · QA n/a — no user-runnable change · PM merge waiting
+- Open findings: R6d optional cleanup. Developer flags: the Ascon upstream is "public domain", not CC0 (doc says public domain); 12 Ascon files and argon2/libargon2.c (a 30-line wrapper) have no licence header, recorded as covered by the project's MIT LICENSE, marked as an inference (new flag 6 in docs/licences.md); no binary inspected for which files are compiled in.
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-19 — Licence (GPL-3.0) — PM decision R5 (GPL-3.0-only)
 - Changed: D8 in docs/PLAN.md now says GPL-3.0-only. Lead advice before the decision: "only" keeps the choice of future GPL versions with the copyright holder; moving to "or later" is easy later, moving back is not for copies already released. Developer to update the README wording and the SPDX id in docs/licences.md, and fix N1.
 - Gates: developer open (R5, N1) · tester pass · reviewer re-check open · QA n/a — no user-runnable change · PM merge waiting
