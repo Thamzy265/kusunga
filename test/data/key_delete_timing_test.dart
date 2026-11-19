@@ -71,6 +71,30 @@ class _Keys implements KeyStore {
   }
 }
 
+/// Runs [body] and records how long each timer it starts is set for. The
+/// eraser's key time-outs are the timers of exactly [_t], so the count says
+/// how many time-outs were waited for on any runner, however slow. A wall
+/// clock bound can't: on Windows CI the same run took 1.33 s against a
+/// 1.2 s bound for three 0.2 s time-outs.
+Future<T> _recordTimers<T>(List<Duration> timers, Future<T> Function() body) =>
+    runZoned(
+      body,
+      zoneSpecification: ZoneSpecification(
+        createTimer: (self, parent, zone, duration, callback) {
+          timers.add(duration);
+          return parent.createTimer(zone, duration, callback);
+        },
+      ),
+    );
+
+/// The key time-outs among [timers].
+int _timeOuts(List<Duration> timers) => timers.where((d) => d == _t).length;
+
+/// A run that hangs fails here, quickly and with a reason, rather than at
+/// the test's own time-out. 20 time-outs (4 s) is far more than the three
+/// the longest branch waits, so only a missing time-out reaches it.
+const _never = Duration(milliseconds: 4000);
+
 void main() {
   late Directory dir;
   late FakeLog log;
@@ -215,11 +239,22 @@ void main() {
     'late call is waited for once: stuck, in about three time-outs',
     () async {
       final keys = _Keys()..readMode = 'hang';
+      final h = open();
+      final timers = <Duration>[];
       final sw = Stopwatch()..start();
-      final r = await eraser(keys).run(open());
+      final r = await _recordTimers(
+        timers,
+        () => eraser(keys).run(h),
+      ).timeout(_never, onTimeout: () => fail('never waits for ever'));
       sw.stop();
       expect(r, isA<EraseFailed>().having((e) => e.stuck, 'stuck', true));
-      expect(sw.elapsed, lessThan(_t * 6), reason: 'never waits for ever');
+      expect(
+        _timeOuts(timers),
+        3,
+        reason: 'the delete, the re-read, the delete once more',
+      );
+      expect(keys.deleteCalls, 1);
+      expect(keys.readCalls, 1);
       expect(sw.elapsed, greaterThanOrEqualTo(_t * 2));
     },
   );
@@ -253,11 +288,14 @@ void main() {
     addCloseTearDown(h);
     File(p.join(dir.path, 'kusunga.db')).writeAsStringSync('x');
     source.copy('in memory');
-    final sw = Stopwatch()..start();
-    final r = await eraser(keys).run(h);
+    final timers = <Duration>[];
+    final r = await _recordTimers(
+      timers,
+      () => eraser(keys).run(h),
+    ).timeout(_never, onTimeout: () => fail('never waits for ever'));
     expect(r, isA<Erased>());
     expect(keys.readCalls, 0);
-    expect(sw.elapsed, lessThan(_t * 3));
+    expect(_timeOuts(timers), 1, reason: 'one time-out, then it goes on');
     expect(h.items, isEmpty);
     expect(dbExists(), isFalse);
     expect(log.codes, contains(LogCode.deleteEverythingFailed));
