@@ -57,6 +57,16 @@ void main() {
     expect(ownLine, contains('GPL-3.0-only'));
   });
 
+  test('licences.md names the SQLite3 Multiple Ciphers files it relies on', () {
+    // Review note N1: these were covered only by directory or wildcard.
+    final licences = File('docs/licences.md').readAsStringSync();
+    for (final f in ['aes_hardware.c', 'memory_secure.c', 'libargon2.c']) {
+      expect(licences, contains(f));
+    }
+    expect(licences, contains('src/ascon'));
+    expect(licences, contains('aead.c'));
+  });
+
   _testerGuards();
 }
 
