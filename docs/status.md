@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — Licence (GPL-3.0) — tester pass
+- Changed: tester commit 14d4c3c on chore/licence: 6 offline guard tests in test/ci/licence_test.dart (pinned LICENSE SHA-256 and size, LF endings, README links, every direct dependency has a row, pubspec.yaml vs pubspec.lock, table versions match the lock). Mutation runs failed as expected and pass on the branch. Developer claims verified: LICENSE hash matches a fresh gnu.org download; README only gains the Licence section; vs the merge base 2d50b6b the diff is only LICENSE, README.md, docs/licences.md, test/ci/licence_test.dart (git diff main also shows docs/PLAN.md and docs/status.md because main moved on with 8b9979d). check.sh alone: 3848 passed, 10 skipped, exit 0. The tester once started a second check.sh by mistake; the clean third run alone is the evidence.
+- Gates: developer pass · tester pass · reviewer open · QA open · PM merge waiting
+- Open findings: none. Not testable: dependency licence correctness (reviewer), transitive dependencies.
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-18 — Licence (GPL-3.0) — developer hand-off
 - Changed: size small (no code, UI or data). Developer commit 0add0c2 on chore/licence (not pushed): LICENSE = gnu.org gpl-3.0.txt unchanged, 35149 bytes, SHA-256 3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986; README "Licence" section with "Kusunga is licensed under the GNU GPL v3.0" and "Copyright (C) 2026 William Nasoni"; docs/licences.md table of 14 direct dependencies (BSD-3-Clause or MIT, SQLite public domain); guard test test/ci/licence_test.dart (failed first, +0 -2; then check.sh 3842 passed, 10 skipped, exit 0). Deviation: test in test/ci, not test/repo (lead accepts: the repo's guard tests live there).
 - Gates: developer pass · tester open · reviewer open · QA open · PM merge waiting
