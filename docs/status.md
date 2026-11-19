@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — Licence (GPL-3.0) — reviewer check of L5: approve with notes; merge approval asked
+- Changed: reviewer re-check f1a3bfd..38d7518: approve with notes. L5 fixed; doc matches the reviewer's sweep of all upstream .c/.h files (headerless: 12 Ascon files, libargon2.c, mystdint.h in flag 6; extensionfunctions.c in flag 1); "14" agrees in row 19, flag 1 and flag 6. Guard fails on the f1a3bfd text and on flag 1 reverted to "13". Run alone with no flutter_tester running: dart format 0 changed, flutter analyze "No issues found!", licence_test.dart "+15: All tests passed!". Full suite: developer's solo run on 38d7518, 3855 passed, 10 skipped, exit 0. The reviewer's PLAN AC note was done on main in 664a342 (the branch predates it). Lead asks the PM to approve a local `git merge --no-ff chore/licence` into main.
+- Gates: developer pass · tester pass · reviewer approve with notes · QA n/a — no user-runnable change · PM merge waiting
+- Open findings: cleanup only, none blocking: N2 (the mystdint.h assertion does not check the table row; the flag still names the file), L4 (optional note on the ascon-c repo's CC0 licence), R6d (test tidy-up).
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — merge approval
+
 ## 2026-11-19 — Licence (GPL-3.0) — developer fixes L5
 - Changed: chore/licence 38d7518. mystdint.h verified upstream (27 lines of typedefs under `_MSC_VER < 1600`, no licence text, included by sha1.c, fastpbkdf2.h, chacha20poly1305.c, sqlite3mc_vfs.c); added to flag 6 and the table as inferred MIT (project LICENSE); "13" → "14" in row 19, flag 1, flag 6; N1 guard asserts mystdint.h and "14 files". First failing run: `Expected: contains 'mystdint.h'` (14 passed, 1 failed). check.sh alone (pgrep 0 before start): 3855 passed, 10 skipped, exit 0. Developer correction of last round's evidence: of "2 failed", one was the L1 overclaim test on the old text and the other the L2 guard on a planted line; the L3 assertions passed on the old text; "L3 failed too" was wrong.
 - Gates: developer pass · tester pass · reviewer check of L5 open · QA n/a — no user-runnable change · PM merge waiting
