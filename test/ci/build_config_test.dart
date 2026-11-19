@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/source_text.dart';
+
 /// Guards for build settings that a later edit could break without any other
 /// test noticing (ADR 0003, design note "Rollout").
 void main() {
@@ -58,5 +60,17 @@ void main() {
     final yaml = File('.github/workflows/check.yml').readAsStringSync();
     expect(yaml, contains('runs-on: macos-15'));
     expect(yaml, isNot(contains('macos-latest')));
+  });
+
+  test('Windows CI: the build runs even when the tests fail, and the job '
+      'still fails then', () {
+    final yaml = readSource('.github/workflows/check.yml');
+    final windows = yaml.substring(yaml.indexOf('\n  windows:'));
+    final build = RegExp(
+      r'- run: flutter build windows[^\n]*\n\s+if: \$\{\{ !cancelled\(\) \}\}',
+    );
+    expect(windows, matches(build));
+    // A failed test step still fails the job: nothing swallows its failure.
+    expect(yaml, isNot(contains('continue-on-error')));
   });
 }
