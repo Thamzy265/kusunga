@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — Windows CI green — PM decision on the verification route; diagnosis started
+- Changed: new plan item "Windows CI green", before M1.9d. Size: large (spans many test modules and may touch Delete everything on Windows, which deletes personal data). Step 1 is a diagnosis by the developer (no commits): the root cause of each failure group in CI run 44550682517 and whether any product code is wrong on Windows. The lead then writes the design and the deck for the PM before any fix is built.
+- Gates: developer diagnosis in progress · tester, reviewer, QA open · PM merge n/a yet
+- Open findings: 85 Windows test failures, 1 Mac CI timing failure
+- Decisions: PM decision (2026-11-19): the Windows CI fix goes on its own pushed branch with a pull request, so CI tests it on Windows before it reaches main — scope: the "Windows CI green" item only; other branches stay local — PM said: "Yes, branch and PR"
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.9 deck approval
+
 ## 2026-11-19 — CI — first full run on GitHub-hosted runners: both jobs fail
 - Changed: CI run 44550682517 (main 7e9baf5, re-run after the repo went public) finished. macos: check.sh 3854 passed, 1 failed, 10 skipped — the failure is test/log/file_error_log_handle_test.dart "per-line open, real concurrency (two isolates) two writers x 3,000 lines with rotations…" (timing under CI load; it passes locally). windows: check.ps1 3715 passed, 85 failed, 69 skipped — the first time Kusunga's tests ran on Windows; `flutter build windows` did not run. Windows failures by cause (lead's first look at the log, not a diagnosis): (1) temp-folder clean-up fails with "being used by another process" (errno 32) in your_data_section (30), your_data_edge (17), your_data_round2 (13), key_delete_timing (6), data_eraser (5), export_erase_edge (3), open_app_history, your_data_service, round2_fixes — files still open when the test deletes its folder; may also hide a real Windows problem in Delete everything (files open while deleting); (2) guard tests that assume `/` paths (`runner\app_id_test.cpp`); (3) guard tests that read files checked out with CRLF (`#include? "Local.xcconfig"\r`); .gitattributes covers only LICENSE. Logs: scratchpad ci_win.log, ci_mac.log.
 - Gates: n/a — CI result; a fix item goes through every gate
