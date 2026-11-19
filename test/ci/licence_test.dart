@@ -17,9 +17,44 @@ void main() {
 
   test('README states the licence, the copyright and points to LICENSE', () {
     final readme = File('README.md').readAsStringSync();
-    expect(readme, contains('Kusunga is licensed under the GNU GPL v3.0'));
+    expect(
+      readme,
+      contains('Kusunga is licensed under the GNU General Public'),
+    );
     expect(readme, contains('Copyright (C) 2026 William Nasoni'));
     expect(readme, contains('LICENSE'));
+  });
+
+  test('README and docs/licences.md say GPL-3.0-only, never "or later"', () {
+    // PM decision R5 (2026-11-19): Kusunga is GPL-3.0-only.
+    final readme = File('README.md').readAsStringSync();
+    final licences = File('docs/licences.md').readAsStringSync();
+    for (final entry in {
+      'README.md': readme,
+      'docs/licences.md': licences,
+    }.entries) {
+      expect(entry.value, contains('GPL-3.0-only'), reason: entry.key);
+    }
+    // Kusunga's own licence statements: README's Licence section, and every
+    // licences.md line that names Kusunga's licence. Dependency rows (for
+    // example LGPL "or later") are not about Kusunga and are not checked.
+    final section = readme.split('## Licence').last;
+    final own = [
+      section,
+      ...licences.split('\n').where((l) => l.startsWith('Kusunga is licensed')),
+    ];
+    for (final text in own) {
+      expect(text.toLowerCase(), isNot(contains('any later version')));
+      expect(text.toLowerCase(), isNot(contains('or-later')));
+      expect(text.toLowerCase(), isNot(contains('or later')));
+    }
+    final ownLine = licences
+        .split('\n')
+        .firstWhere(
+          (l) => l.startsWith('Kusunga is licensed'),
+          orElse: () => '',
+        );
+    expect(ownLine, contains('GPL-3.0-only'));
   });
 
   _testerGuards();

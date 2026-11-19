@@ -1,10 +1,10 @@
-# Dependency licences (GPL-3.0 check)
+# Dependency licences (GPL-3.0-only check)
 
-Kusunga is licensed under the GNU GPL v3.0 (PM decision D8, 2026-11-18). This lists every direct dependency in `pubspec.yaml`, the version resolved in `pubspec.lock`, and its licence. Checked 2026-11-18 by the developer; revised 2026-11-19 after the review. The reviewer confirms; this is not legal advice.
+Kusunga is licensed under the GNU General Public License, version 3 only (SPDX: `GPL-3.0-only`; PM decisions D8, 2026-11-18, and R5, 2026-11-19). It has no later-version option. This lists every direct dependency in `pubspec.yaml`, the version resolved in `pubspec.lock`, and its licence. Checked 2026-11-18 by the developer; revised 2026-11-19 after the review. The reviewer confirms; this is not legal advice.
 
 "Where read" is the package's `LICENSE` file in the pub cache (`~/.pub-cache/hosted/pub.dev/<package>-<version>/LICENSE`) unless stated.
 
-| Package | Version | Licence (SPDX) | Where read | Compatible with GPL-3.0 |
+| Package | Version | Licence (SPDX) | Where read | Compatible with GPL-3.0-only |
 |---|---|---|---|---|
 | crypto | 3.0.8 | BSD-3-Clause | pub cache LICENSE (Dart project authors) | Yes. Permissive. |
 | ffi | 2.2.0 | BSD-3-Clause | pub cache LICENSE (Dart project authors) | Yes. Permissive. |
@@ -27,7 +27,7 @@ All the BSD files were checked for the three clauses (source and binary redistri
 
 Read from the upstream project at tag v2.5.0 (`src/filelist.md` and the licence header of each source file). The amalgamation `src/sqlite3mc.c` includes the parts below. Which optional parts are compiled into a given prebuilt binary depends on the sqlite3.dart build flags, which are not in the pub cache.
 
-| Component | Licence (SPDX) | Source of the statement | Compatible with GPL-3.0 |
+| Component | Licence (SPDX) | Source of the statement | Compatible with GPL-3.0-only |
 |---|---|---|---|
 | SQLite3 Multiple Ciphers own code (cipher_*.c, codec_algos.c, codecext.c, sqlite3mc*.c, AEGIS wrapper cipher_aegis.c) | MIT | `LICENSE`, `LICENSE.spdx` (`PackageLicenseDeclared: MIT`), headers | Yes |
 | AEGIS (src/aegis) | MIT | `SPDX-License-Identifier: MIT` in each file | Yes |
