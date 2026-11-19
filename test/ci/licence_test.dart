@@ -72,6 +72,26 @@ void main() {
     expect(licences, contains('permutations.c'));
     expect(licences, contains('round64.h'));
     expect(licences, contains('carry no licence header'));
+    // Review note L5: mystdint.h also has no header and must stay listed,
+    // in its table row and in flag 6.
+    expect(licences, contains('mystdint.h'));
+    final flag6 = licences
+        .split('\n')
+        .firstWhere((l) => l.startsWith('6. '), orElse: () => '');
+    expect(flag6, contains('mystdint.h'));
+    expect(flag6, contains('12 files in `src/ascon`'));
+    // The count of headerless files is the same in the row, flag 1, flag 6.
+    final rowAndFlags = licences
+        .split('\n')
+        .where(
+          (l) =>
+              l.startsWith('| SQLite3 Multiple Ciphers | 2.5.0') ||
+              l.startsWith('1. ') ||
+              l.startsWith('6. '),
+        );
+    for (final l in rowAndFlags) {
+      expect(l, contains('14 files'));
+    }
   });
 
   test('SQLite3 Multiple Ciphers row and flag 1 do not overclaim', () {
