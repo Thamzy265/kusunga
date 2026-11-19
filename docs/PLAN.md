@@ -84,7 +84,7 @@ Everything stays on the device. No account, no server.
   - Design: `docs/design/your-data.md`, UI spec `docs/ui/your-data.md`, deck `docs/slides/your-data.html` (approved 2026-11-12: D1 A, D2 A, D3 A, D4 A, D5 A, D6 A).
   - AC: export snippets (and optionally history) as a JSON file; import the same file.
   - AC: "Delete all history" and "Delete everything" remove all stored data and the keychain key.
-- [ ] **Licence (GPL-3.0)** — small (no code; one licence file and notices).
+- [x] **Licence (GPL-3.0)** — small (no code; one licence file and notices).
   - AC: a `LICENSE` file with the unchanged GPL-3.0 text from gnu.org at the repo root; `README` (or a new short README) says Kusunga is licensed under the GNU General Public License, version 3 only (SPDX: GPL-3.0-only; R5, PM 2026-11-19), with no "or later" wording, with "Copyright (C) 2026 William Nasoni"; every direct dependency's licence is listed and confirmed compatible with GPL-3.0 (reviewer).
   - Decision: D8 (PM, 2026-11-18); R5 GPL-3.0-only (PM, 2026-11-19).
 - [ ] **M1.9 Signed installers and first beta** — large (release).

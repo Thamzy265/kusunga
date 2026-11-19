@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — Licence (GPL-3.0) — merged
+- Changed: chore/licence merged into main with a local `git merge --no-ff` (96551bb): LICENSE (SHA-256 3972dc97…, matches the pin), .gitattributes, README Licence section (GPL-3.0-only), docs/licences.md, test/ci/licence_test.dart. On merged main: licence_test.dart "+15: All tests passed!". Plan box ticked. Not pushed.
+- Gates: developer pass · tester pass · reviewer approve with notes · QA n/a — no user-runnable change · PM merge approved
+- Open findings: cleanup only: N2, L4, R6d.
+- Decisions: merge approved by PM (2026-11-19). PM said: "Yes, merge it"
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — push (not asked yet)
+
 ## 2026-11-19 — Licence (GPL-3.0) — reviewer check of L5: approve with notes; merge approval asked
 - Changed: reviewer re-check f1a3bfd..38d7518: approve with notes. L5 fixed; doc matches the reviewer's sweep of all upstream .c/.h files (headerless: 12 Ascon files, libargon2.c, mystdint.h in flag 6; extensionfunctions.c in flag 1); "14" agrees in row 19, flag 1 and flag 6. Guard fails on the f1a3bfd text and on flag 1 reverted to "13". Run alone with no flutter_tester running: dart format 0 changed, flutter analyze "No issues found!", licence_test.dart "+15: All tests passed!". Full suite: developer's solo run on 38d7518, 3855 passed, 10 skipped, exit 0. The reviewer's PLAN AC note was done on main in 664a342 (the branch predates it). Lead asks the PM to approve a local `git merge --no-ff chore/licence` into main.
 - Gates: developer pass · tester pass · reviewer approve with notes · QA n/a — no user-runnable change · PM merge waiting
