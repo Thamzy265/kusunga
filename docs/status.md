@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — Repo — PM decision: make the repo public
+- Changed: the PM decided to make Thamzy265/kusunga public and then re-run CI. The PM changes the visibility on GitHub themselves (standing rule). The lead re-runs CI once the PM confirms.
+- Gates: n/a — decision
+- Open findings: none new
+- Decisions: Risk accepted by PM (2026-11-19): accepted: the repo's commit history becomes public, including the PM's Gmail address in the commit metadata, the Apple team ID in commits 6269a6a and 7311e39, and the home path /Users/williamnasoni in docs/qa/m1.md and test/ui/m16_real_font_layout_test.dart (history check, 2026-11-18: no secrets) — scope: the whole repo history at the time it is made public — expiry/review: none — PM said: "go public then re run the ci". Condition kept: the homelab Windows runner must not be attached while the repo is public (docs/ci/windows-runner.md).
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — change the visibility on GitHub
+
 ## 2026-11-19 — Repo — main pushed
 - Changed: main pushed to origin (8648169..7e9baf5, 28 commits, including the licence merge 96551bb). origin/main was not ahead before the push. Repo still private.
 - Gates: n/a — push of already-gated work
