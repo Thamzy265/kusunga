@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — Licence (GPL-3.0) — reviewer quick re-check: approve with notes
+- Changed: reviewer re-check 1f4522d..f1a3bfd: approve with notes. L1, L2, L3 fixed. Reviewer did not run the full check.sh (one doc and one test file changed); ran with no flutter_tester running: dart format on licence_test.dart 0 changed, flutter analyze "No issues found!", flutter test licence_test.dart "+15: All tests passed!". Full-suite figure is the developer's solo run (3855 passed, 10 skipped, exit 0). Recount: 12 headerless Ascon files + libargon2.c = 13, correct. Reviewer note: against the 1f4522d text only the overclaim test fails; the L2 and L3 guards pass on the old text by design (they guard future edits), so the developer's "2 failed" needs explaining (not a finding). The PLAN AC wording note is already done on main (664a342).
+- Gates: developer pass · tester pass · reviewer approve with notes · QA n/a — no user-runnable change · PM merge waiting
+- Open findings: L5 Low (doc accuracy): upstream src/mystdint.h (27 lines of stdint typedefs, MSVC < 2010 only, included by sha1.c, fastpbkdf2.h, chacha20poly1305.c, sqlite3mc_vfs.c) has no licence text and is missing from flag 6, so flag 1's "the rest has a stated licence" is not true. Lead: developer fixes L5 before the merge (add mystdint.h to flag 6, 13 → 14, test assertion). L4, R6d optional.
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-19 — Licence (GPL-3.0) — developer fixes L1–L3
 - Changed: chore/licence f1a3bfd. L1: licences.md SQLite3MC row now "Yes; extensionfunctions.c is unclear (flag 1) and 13 files' licence is inferred (flag 6)"; flag 1 points to flag 6. L2: the later-version guard scans every non-table licences.md line that mentions Kusunga (planted line "Kusunga may also be used under GPL-3.0 or later." failed it, then removed). L3: N1 guard asserts permutations.c, round64.h and the flag 6 text. New guard: the row and flag 1 never say "every part". First failing run: 13 passed, 2 failed (L1 and L3 guards on the old text). check.sh alone (no flutter_tester before start): 3855 passed, 10 skipped, exit 0.
 - Gates: developer pass · tester pass · reviewer quick re-check open · QA n/a — no user-runnable change · PM merge waiting
