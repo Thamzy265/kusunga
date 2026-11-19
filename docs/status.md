@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — M1.9 Signed installers and first beta — design and deck ready
+- Changed: PM said "Yes, start M1.9". Size: large (release; new trust boundaries: signing keys and the download channel; moves the Mac history key). Lead wrote the design note `docs/design/signed-installers-and-beta.md`, ADR 0006 (release signing on the PM's machine, proposed), ADR 0007 (Mac key in the data-protection keychain, proposed), the UI spec `docs/ui/about-and-licences.md` and the deck `docs/slides/signed-installers-and-beta.html`. Work split: M1.9a About/licences, M1.9b Mac release build, M1.9c key move, M1.9d Windows packaging, M1.9e release script, M1.9f DPIA. Facts from a scout lookup of main at 02369fb. Windows signing facts from Microsoft Learn "Code signing options" (updated 2026-11-10): Store MSIX is free and Microsoft signs it; Azure Artifact Signing for individuals is limited to the USA and Canada; OV certificate about $150–300 a year; EV no longer skips SmartScreen; SignPath Foundation is free for open-source projects (eligibility not confirmed).
+- Gates: design ready · developer not started (waits for deck approval) · tester, reviewer, QA open · PM merge n/a yet
+- Open findings: none
+- Decisions: waiting for the PM: deck approval and D1 Windows signing, D2 sqlite3mc prebuilt or source, D3 Mac architectures, D4 beta size and download place, D5 version, D6 release process, D7 feedback channel plus the lawful basis and retention for tester data.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — deck approval and D1–D7
+
 ## 2026-11-19 — Repo — public; main protected
 - Changed: the PM made Thamzy265/kusunga public (gh: visibility PUBLIC). CI run 44550682517 re-run: both jobs started this time. Main had no branch protection and no rulesets. Lead created the ruleset "Protect main" (id 27648779, active, default branch, no bypass): rules deletion and non_fast_forward (blocks force pushes and deletion). Normal pushes to main still work.
 - Gates: n/a — repo settings

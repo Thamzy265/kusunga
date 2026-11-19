@@ -88,6 +88,7 @@ Everything stays on the device. No account, no server.
   - AC: a `LICENSE` file with the unchanged GPL-3.0 text from gnu.org at the repo root; `README` (or a new short README) says Kusunga is licensed under the GNU General Public License, version 3 only (SPDX: GPL-3.0-only; R5, PM 2026-11-19), with no "or later" wording, with "Copyright (C) 2026 William Nasoni"; every direct dependency's licence is listed and confirmed compatible with GPL-3.0 (reviewer).
   - Decision: D8 (PM, 2026-11-18); R5 GPL-3.0-only (PM, 2026-11-19).
 - [ ] **M1.9 Signed installers and first beta** — large (release).
+  - Design: `docs/design/signed-installers-and-beta.md`, ADR 0006 and 0007 (proposed), UI spec `docs/ui/about-and-licences.md`, deck `docs/slides/signed-installers-and-beta.html` (waiting for PM, 2026-11-19).
   - AC: the app has an About / licences screen with the GPL notice (GPLv3 section 5(d)) and every third-party notice shipped in the binary, including SQLite3 Multiple Ciphers and SQLite (not collected in NOTICES.Z), before any build is given to anyone; and each shipped platform's sqlite3mc binary is checked to contain no extensionfunctions.c code (no licence text upstream; absent from the macOS arm64 binary, 2026-11-19) — owner developer (moved from Later, reviewer note on the licence item, 2026-11-19).
   - AC: a notarised Mac build and a signed Windows installer install and launch without OS security warnings.
   - AC: Hardened Runtime enabled for the macOS build (notarisation needs it).
