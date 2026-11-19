@@ -96,6 +96,20 @@ void _testerGuards() {
     expect(File('LICENSE').readAsStringSync(), isNot(contains('\r')));
   });
 
+  test('.gitattributes keeps LICENSE out of line-ending conversion', () {
+    // Git on Windows (core.autocrlf=true) would otherwise check LICENSE out
+    // with CRLF and change its bytes and hash.
+    final result = Process.runSync('git', ['check-attr', 'text', 'LICENSE']);
+    expect(result.exitCode, 0, reason: '${result.stderr}');
+    expect(result.stdout.toString().trim(), endsWith('text: unset'));
+    final file = File('.gitattributes');
+    expect(file.existsSync(), isTrue, reason: '.gitattributes is missing');
+    expect(
+      file.readAsLinesSync().map((l) => l.trim()),
+      contains('LICENSE -text'),
+    );
+  });
+
   test('README links LICENSE and docs/licences.md, both exist', () {
     final readme = File('README.md').readAsStringSync();
     expect(readme, contains('](LICENSE)'));
