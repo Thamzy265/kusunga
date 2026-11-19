@@ -88,7 +88,7 @@ Everything stays on the device. No account, no server.
   - AC: a `LICENSE` file with the unchanged GPL-3.0 text from gnu.org at the repo root; `README` (or a new short README) says Kusunga is licensed under the GNU General Public License, version 3 only (SPDX: GPL-3.0-only; R5, PM 2026-11-19), with no "or later" wording, with "Copyright (C) 2026 William Nasoni"; every direct dependency's licence is listed and confirmed compatible with GPL-3.0 (reviewer).
   - Decision: D8 (PM, 2026-11-18); R5 GPL-3.0-only (PM, 2026-11-19).
 - [ ] **Windows CI green** — large (spans many test modules; may touch Delete everything on Windows).
-  - Design: `docs/design/windows-ci-green.md`, deck `docs/slides/windows-ci-green.html` (waiting for PM, 2026-11-19).
+  - Design: `docs/design/windows-ci-green.md`, deck `docs/slides/windows-ci-green.html` (approved 2026-11-19: W1 A tests only, W2 A fix the export over a dangling link here, W3 A single instance in M1.9d).
   - AC: the CI windows job passes: check.ps1 with 0 failures, and `flutter build windows` succeeds.
   - AC: the CI macos job passes, with no test that fails only from CI timing.
   - AC: any product bug found on Windows (for example files still open when Delete everything deletes them) is fixed with a test that fails without the fix, or raised to the PM.
@@ -97,6 +97,7 @@ Everything stays on the device. No account, no server.
   - Design: `docs/design/signed-installers-and-beta.md`, ADR 0006 and 0007 (proposed), UI spec `docs/ui/about-and-licences.md`, deck `docs/slides/signed-installers-and-beta.html` (waiting for PM, 2026-11-19).
   - AC: the app has an About / licences screen with the GPL notice (GPLv3 section 5(d)) and every third-party notice shipped in the binary, including SQLite3 Multiple Ciphers and SQLite (not collected in NOTICES.Z), before any build is given to anyone; and each shipped platform's sqlite3mc binary is checked to contain no extensionfunctions.c code (no licence text upstream; absent from the macOS arm64 binary, 2026-11-19) — owner developer (moved from Later, reviewer note on the licence item, 2026-11-19).
   - AC: a notarised Mac build and a signed Windows installer install and launch without OS security warnings.
+  - AC: only one Kusunga runs at a time on Windows; starting a second copy brings the running one forward instead (part d; PM 2026-11-19, W3).
   - AC: Hardened Runtime enabled for the macOS build (notarisation needs it).
   - AC: the Mac history key moves from the login keychain to the data-protection keychain, with a key move (read old item, write new, delete old) so no user's history is moved aside; must be done before the first external beta (PM decision 2026-11-03).
   - AC: release notes and a rollback plan exist; the PM approves the release.

@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — Windows CI green — deck approved; build started
+- Changed: PM approved the deck docs/slides/windows-ci-green.html with the recommended options. Plan: W1–W3 recorded on the item; W3 added to M1.9 as an AC for part d. Developer briefed on fix/windows-ci.
+- Gates: design approved · developer in progress · tester, reviewer, QA open · PM merge n/a yet
+- Open findings: 85 Windows test failures, 1 Mac CI timing failure
+- Decisions: PM decision (2026-11-19): W1 A — fix the tests only; W2 A — fix the export over a dangling link in this item; W3 A — single instance on Windows in M1.9d, before the beta — PM said: "Yes, as recommended"
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.9 deck (D1–D7)
+
 ## 2026-11-19 — Windows CI green — diagnosis done; design and deck ready
 - Changed: developer (opus) diagnosis, no code changed; branch fix/windows-ci made from main 6bfb385 with 0 commits. Report: Windows 85 = A 73 (tests clean up with HistoryService.dispose(), which never closes the store, history_service.dart:831-841; Windows refuses to delete the open kusunga.db, errno 32) + B 3 (1-byte fake kusunga.db, your_data_edge_test.dart:388-391; Windows SQLite "file is not a database", Mac sqlite3mc replaces it) + C 1 (product, minor: export temp createSync(exclusive) succeeds over a dangling link on Windows, then _refuseLink fails the export, your_data_service.dart:67,:117) + D 6 (guard tests vs CRLF checkouts) + E 2 (guard tests assume `/`; also a false green at own_marker_edge_test.dart:264). Mac 1: file_error_log_handle_test.dart:240-258, 90% floor vs non-atomic append (BUG-L5), load-dependent. Delete everything on Windows: works with one Kusunga running (developer about 85% sure; the full-erase tests passed on windows-latest); a second Kusunga process (no single-instance guard on Windows) would leave kusunga.db, shown by the existing partial message. Risk: native Windows code never compiled with MSVC, /W4 /WX (windows/CMakeLists.txt:39). Lead wrote docs/design/windows-ci-green.md and docs/slides/windows-ci-green.html.
 - Gates: design ready · developer build not started (waits for deck approval) · tester, reviewer, QA open · PM merge n/a yet
