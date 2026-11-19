@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — Licence (GPL-3.0) — developer fixes L5
+- Changed: chore/licence 38d7518. mystdint.h verified upstream (27 lines of typedefs under `_MSC_VER < 1600`, no licence text, included by sha1.c, fastpbkdf2.h, chacha20poly1305.c, sqlite3mc_vfs.c); added to flag 6 and the table as inferred MIT (project LICENSE); "13" → "14" in row 19, flag 1, flag 6; N1 guard asserts mystdint.h and "14 files". First failing run: `Expected: contains 'mystdint.h'` (14 passed, 1 failed). check.sh alone (pgrep 0 before start): 3855 passed, 10 skipped, exit 0. Developer correction of last round's evidence: of "2 failed", one was the L1 overclaim test on the old text and the other the L2 guard on a planted line; the L3 assertions passed on the old text; "L3 failed too" was wrong.
+- Gates: developer pass · tester pass · reviewer check of L5 open · QA n/a — no user-runnable change · PM merge waiting
+- Open findings: L4, R6d optional. Developer did not sweep other upstream files; the reviewer's sweep last round found only extensionfunctions.c and mystdint.h headerless outside flag 6.
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-19 — Licence (GPL-3.0) — reviewer quick re-check: approve with notes
 - Changed: reviewer re-check 1f4522d..f1a3bfd: approve with notes. L1, L2, L3 fixed. Reviewer did not run the full check.sh (one doc and one test file changed); ran with no flutter_tester running: dart format on licence_test.dart 0 changed, flutter analyze "No issues found!", flutter test licence_test.dart "+15: All tests passed!". Full-suite figure is the developer's solo run (3855 passed, 10 skipped, exit 0). Recount: 12 headerless Ascon files + libargon2.c = 13, correct. Reviewer note: against the 1f4522d text only the overclaim test fails; the L2 and L3 guards pass on the old text by design (they guard future edits), so the developer's "2 failed" needs explaining (not a finding). The PLAN AC wording note is already done on main (664a342).
 - Gates: developer pass · tester pass · reviewer approve with notes · QA n/a — no user-runnable change · PM merge waiting
