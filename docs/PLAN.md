@@ -88,6 +88,7 @@ Everything stays on the device. No account, no server.
   - AC: a `LICENSE` file with the unchanged GPL-3.0 text from gnu.org at the repo root; `README` (or a new short README) says "Kusunga is licensed under the GNU GPL v3.0" with "Copyright (C) 2026 William Nasoni"; every direct dependency's licence is listed and confirmed compatible with GPL-3.0 (reviewer).
   - Decision: D8 (PM, 2026-11-18).
 - [ ] **M1.9 Signed installers and first beta** — large (release).
+  - AC: the app has an About / licences screen with the GPL notice (GPLv3 section 5(d)) and every third-party notice shipped in the binary, including SQLite3 Multiple Ciphers and SQLite (not collected in NOTICES.Z), before any build is given to anyone — owner developer (moved from Later, reviewer note on the licence item, 2026-11-19).
   - AC: a notarised Mac build and a signed Windows installer install and launch without OS security warnings.
   - AC: Hardened Runtime enabled for the macOS build (notarisation needs it).
   - AC: the Mac history key moves from the login keychain to the data-protection keychain, with a key move (read old item, write new, delete old) so no user's history is moved aside; must be done before the first external beta (PM decision 2026-11-03).
@@ -124,7 +125,6 @@ Needs its own design note and deck. Mobile cannot record clipboard history in th
 
 ## Later
 
-- In-app licence screen (open-source notices for BSD/MIT dependencies shipped with the app) — needed when binaries are distributed — trigger: before the first build is given to anyone (M1.9) — noted 2026-11-18 by lead (developer flag)
 - Lost or garbled log lines when two Kusunga processes write the diagnostic log at the same instant (BUG-L5) — dart:io file locks are per process; a fix needs native append on Mac and Windows — trigger: ≥ 1 support case where a needed log line is missing or garbled, or the next change to the log writer — noted 2026-11-06 by lead (PM chose to skip)
 - End in a long History list is slow (about 4.8 s over 5,000 items in a profile build) because rows are 1–2 lines tall and every row on the way is laid out — fix: one fixed row height for History, as Snippets has — trigger: ≥ 3 beta reports of a slow End or Home, or > 10% of beta users set Keep above 1,000 — noted 2026-11-05 by lead (PM chose to defer)
 - Images and files in history — not needed for the core text use case — trigger: > 30% of beta users ask for it in feedback, or > 20 requests — noted 2026-11-03 by lead
