@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — Licence (GPL-3.0) — developer fixes L1–L3
+- Changed: chore/licence f1a3bfd. L1: licences.md SQLite3MC row now "Yes; extensionfunctions.c is unclear (flag 1) and 13 files' licence is inferred (flag 6)"; flag 1 points to flag 6. L2: the later-version guard scans every non-table licences.md line that mentions Kusunga (planted line "Kusunga may also be used under GPL-3.0 or later." failed it, then removed). L3: N1 guard asserts permutations.c, round64.h and the flag 6 text. New guard: the row and flag 1 never say "every part". First failing run: 13 passed, 2 failed (L1 and L3 guards on the old text). check.sh alone (no flutter_tester before start): 3855 passed, 10 skipped, exit 0.
+- Gates: developer pass · tester pass · reviewer quick re-check open · QA n/a — no user-runnable change · PM merge waiting
+- Open findings: L4 and R6d optional cleanup. Developer: the count "13" (12 Ascon files + libargon2.c) not re-counted this round.
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-19 — Licence (GPL-3.0) — reviewer re-check: approve with notes
 - Changed: reviewer re-check 84892be..1f4522d: approve with notes. check.sh alone (13:02:37–13:11:05 GMT, on 1f4522d, after waiting until no flutter_tester was running): 3854 passed, 10 skipped, exit 0; an earlier reviewer run may have overlapped the developer's background check.sh and is not used. R5 fixed (README:35 and licences.md:3 "version 3 only (SPDX: GPL-3.0-only)"; no "or later" for Kusunga anywhere outside LICENSE; LICENSE hash unchanged; guard fails on the 84892be text and on "or later" and "only dropped" variants). N1 fixed. Developer flags ruled: "public domain" Ascon wording matches the v2.5.0 headers; the 12 headerless Ascon files and argon2/libargon2.c recorded as an inference is acceptable (both candidate licences, MIT and public domain/CC0, are GPL-3.0-only compatible). Lead: plan AC for this item updated to the R5 wording (reviewer note).
 - Gates: developer pass · tester pass · reviewer approve with notes · QA n/a — no user-runnable change · PM merge waiting
