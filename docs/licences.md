@@ -17,7 +17,7 @@ Kusunga is licensed under the GNU GPL v3.0 (PM decision D8, 2026-11-18). This li
 | win32 | 6.4.0 | BSD-3-Clause | pub cache LICENSE (Halil Durmus) | Yes. Permissive. |
 | window_manager | 0.5.2 | MIT | pub cache LICENSE (LiJianying) | Yes. Permissive. |
 | SQLite3 Multiple Ciphers | 2.5.0 | MIT, plus bundled third-party parts (table below) | Upstream `LICENSE`, `LICENSE.spdx`, `src/filelist.md` and source headers at tag v2.5.0 (read 2026-11-19). The version comes from the sqlite3 3.5.2 CHANGELOG and `SQLITE3MC_VERSION_STRING`. | Yes, every part (table below). |
-| SQLite | 3.53.4 | blessing (public domain) | `SQLITE_VERSION` in upstream `src/sqlite3.h` at v2.5.0; terms at https://www.sqlite.org/copyright.html | Yes. Public domain, no restriction. |
+| SQLite | 3.53.4 | blessing (public domain) | `SQLITE_VERSION` in upstream `src/sqlite3.h` at v2.5.0; public-domain dedication confirmed at https://www.sqlite.org/copyright.html (read 2026-11-19); SPDX `blessing` | Yes. Public domain, no restriction. |
 | Flutter SDK | 3.44.6 | BSD-3-Clause (framework); the engine bundles third-party components (see `sky_engine/LICENSE`: Apache-2.0, MPL-2.0 data, FTL, ICU/Unicode, zlib, libpng, CC0); Material Icons font CC-BY-4.0 | `LICENSE` at the SDK root (framework); the rest from the reviewer's scan 2026-11-19 | Yes. None incompatible (reviewer scan 2026-11-19). |
 | Dart SDK | 3.12.2 | BSD-3-Clause | `LICENSE` in `bin/cache/dart-sdk` (Dart project authors) | Yes. Permissive. |
 
