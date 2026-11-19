@@ -41,7 +41,10 @@ void main() {
     final section = readme.split('## Licence').last;
     final own = [
       section,
-      ...licences.split('\n').where((l) => l.startsWith('Kusunga is licensed')),
+      // Every prose line (not a table row) that mentions Kusunga.
+      ...licences
+          .split('\n')
+          .where((l) => !l.startsWith('|') && l.contains('Kusunga')),
     ];
     for (final text in own) {
       expect(text.toLowerCase(), isNot(contains('any later version')));
@@ -65,6 +68,23 @@ void main() {
     }
     expect(licences, contains('src/ascon'));
     expect(licences, contains('aead.c'));
+    // The headerless files, and the flag that says their licence is inferred.
+    expect(licences, contains('permutations.c'));
+    expect(licences, contains('round64.h'));
+    expect(licences, contains('carry no licence header'));
+  });
+
+  test('SQLite3 Multiple Ciphers row and flag 1 do not overclaim', () {
+    // Review note L1: flag 6 and the extensionfunctions.c row say some parts
+    // are unclear or inferred, so no summary may say every part is clear.
+    final lines = File('docs/licences.md').readAsLinesSync();
+    final row = lines.firstWhere((l) => l.startsWith('| SQLite3 Multiple'));
+    expect(row, isNot(contains('every part')));
+    expect(row, contains('flag 1'));
+    expect(row, contains('flag 6'));
+    final flag1 = lines.firstWhere((l) => l.startsWith('1. '));
+    expect(flag1, isNot(contains('Everything else is a clear')));
+    expect(flag1, contains('flag 6'));
   });
 
   _testerGuards();
