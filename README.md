@@ -29,3 +29,7 @@ The same check runs in CI (`.github/workflows/check.yml`) on macOS and Windows, 
 ## Docs
 
 Plan: `docs/PLAN.md`. Decisions: `docs/adr/`.
+
+## Licence
+
+Kusunga is licensed under the GNU General Public License, version 3 only (SPDX: GPL-3.0-only). Copyright (C) 2026 William Nasoni. See [LICENSE](LICENSE) for the full text. Licences of the dependencies are listed in `docs/licences.md`.
