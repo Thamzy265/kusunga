@@ -386,10 +386,6 @@ void main() {
     ]) {
       testWidgets('the partial message when ${stuck.join(' and ')} will not '
           'go', (tester) async {
-        for (final name in stuck) {
-          final f = File(p.join(dir.path, name));
-          if (!f.existsSync()) f.writeAsStringSync('x');
-        }
         deleteEntity = (e) {
           if (stuck.contains(p.basename(e.path))) {
             throw const FileSystemException('busy', '', OSError('busy', 16));
@@ -397,6 +393,18 @@ void main() {
           e.deleteSync();
         };
         await show(tester);
+        // After the history opened its real kusunga.db, and only the files
+        // not there yet: a 1-byte kusunga.db written before the open is "not
+        // a database" to SQLite on Windows (Mac sqlite3mc replaces it).
+        expect(
+          File(p.join(dir.path, 'kusunga.db')).lengthSync(),
+          greaterThan(1),
+          reason: 'the history opened a real database',
+        );
+        for (final name in stuck) {
+          final f = File(p.join(dir.path, name));
+          if (!f.existsSync()) f.writeAsStringSync('x');
+        }
         await tapHook(tester, 'your-data-delete-everything');
         await tester.runAsync(() async {
           await tester.tap(hook('delete-everything-confirm'));
