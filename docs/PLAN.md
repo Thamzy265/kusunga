@@ -30,7 +30,7 @@ One app that keeps your clipboard history and your saved snippets, and pastes th
 | D2 | Bank-details vault in the first release? | In M1 · Own milestone (M2) | M2 — it is the biggest privacy and security risk and needs its own design and review | M1 start |
 | D3 | Crash reports and usage stats | None · Opt-in only, no clipboard content ever | None in M1; revisit with a trigger (see Later) | M1.1 |
 | D4 | Product name "Kusunga" | Keep · Choose another | Keep, after a quick trademark and app-store name check. **Decided 2026-11-13 — keep** (PM said: "we are keeping the name") | M1.9 |
-| D5 | Code signing (Apple Developer Program, about £79/year; a Windows signing certificate) | Buy now · Buy before first beta | Before first beta (M1.9) — needed so Mac and Windows don't block the app. **Mac: decided 2026-11-13 — PM will join the Apple Developer Program** ("i will get the apple developer account"). Windows: open | M1.9 |
+| D5 | Code signing (Apple Developer Program, about £79/year; a Windows signing certificate) | Buy now · Buy before first beta | Before first beta (M1.9) — needed so Mac and Windows don't block the app. **Mac: decided 2026-11-13 — PM will join the Apple Developer Program** ("i will get the apple developer account"). **Windows: decided 2026-11-19 — Microsoft Store (MSIX), SignPath Foundation as the fall-back** (M1.9 D1 A) | M1.9 |
 | D6 | Pricing | Free core + one-off payment for sync · Subscription · Free | Free core + one-off sync unlock (users complain about Paste's subscription) | M3 |
 | D7 | Lawful basis for any data that leaves the device | PM decides (likely contract for sync) | n/a in M1 — nothing leaves the device | M3 |
 | D8 | Licence | GPL-3.0 · MIT · No licence / PolyForm Noncommercial | GPL-3.0. **Decided 2026-11-18 — GPL-3.0** (PM said: "go with GPL-3.0"); **2026-11-19 — GPL-3.0-only** (PM said: "go with only") | Before the repo is made public |
@@ -94,7 +94,7 @@ Everything stays on the device. No account, no server.
   - AC: any product bug found on Windows (for example files still open when Delete everything deletes them) is fixed with a test that fails without the fix, or raised to the PM.
   - AC: verified on a pushed branch with a pull request, so CI runs on Windows before the merge (PM, 2026-11-19: "Yes, branch and PR").
 - [ ] **M1.9 Signed installers and first beta** — large (release).
-  - Design: `docs/design/signed-installers-and-beta.md`, ADR 0006 and 0007 (proposed), UI spec `docs/ui/about-and-licences.md`, deck `docs/slides/signed-installers-and-beta.html` (waiting for PM, 2026-11-19).
+  - Design: `docs/design/signed-installers-and-beta.md`, ADR 0006 and 0007 (accepted), UI spec `docs/ui/about-and-licences.md`, deck `docs/slides/signed-installers-and-beta.html` (approved 2026-11-19: D1 A Store + SignPath fall-back, D2 A pinned prebuilt, D3 A Apple silicon only, D4 A 5–20 testers on GitHub Releases, D5 A 0.9.0, D6 A script on the PM's Mac, D7 A email; open: lawful basis and retention for tester data).
   - AC: the app has an About / licences screen with the GPL notice (GPLv3 section 5(d)) and every third-party notice shipped in the binary, including SQLite3 Multiple Ciphers and SQLite (not collected in NOTICES.Z), before any build is given to anyone; and each shipped platform's sqlite3mc binary is checked to contain no extensionfunctions.c code (no licence text upstream; absent from the macOS arm64 binary, 2026-11-19) — owner developer (moved from Later, reviewer note on the licence item, 2026-11-19).
   - AC: a notarised Mac build and a signed Windows installer install and launch without OS security warnings.
   - AC: only one Kusunga runs at a time on Windows; starting a second copy brings the running one forward instead (part d; PM 2026-11-19, W3).
@@ -106,7 +106,7 @@ Everything stays on the device. No account, no server.
   - AC: profile and release macOS builds succeed on the current macOS (Flutter 3.44.6 fails on macOS 27: the new `lipo` takes one architecture per `-verify_arch`; workaround `ARCHS = arm64` or a Flutter update), and the built architectures are stated (developer note, 2026-11-05).
   - AC: the minimum macOS (12.0, forced by Xcode 27.2 in M1.3) is stated in ADR 0003 or the README and in the release notes (reviewer note C7, 2026-11-04).
   - AC: the release pipeline fails if the shipped Mac binary contains `KusungaAcceptSyntheticKeys` (`strings … | grep -c` is 0), and a guard checks `Local.xcconfig.example` sets no Swift compilation conditions — owner developer, due with M1.9, before the first beta (reviewer note N-R1, 2026-11-09).
-  - Before start: decide whether to build sqlite3mc from source instead of the SHA-256-pinned prebuilt download (reviewer note, 2026-11-03).
+  - Before start: decide whether to build sqlite3mc from source instead of the SHA-256-pinned prebuilt download (reviewer note, 2026-11-03). Decided 2026-11-19: keep the pinned prebuilt (D2 A).
 
 ## M2 — Secure vault (bank details, IDs)
 

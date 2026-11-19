@@ -4,7 +4,7 @@ Date: 2026-11-19
 
 ## Status
 
-Proposed (waiting for PM decision D6, M1.9 deck)
+Accepted (PM decision D6 A, 2026-11-19)
 
 ## Context
 

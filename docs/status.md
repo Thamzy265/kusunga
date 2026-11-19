@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — M1.9 Signed installers and first beta — deck approved
+- Changed: the PM approved the M1.9 deck docs/slides/signed-installers-and-beta.html and its decisions as recommended. Design note status, ADR 0006 and ADR 0007 set to accepted; plan D5 (Windows) closed. Build order (design note): parts a (About and licences), b (Mac release build) and f (DPIA draft, lead) first. Developer work on M1.9 starts after "Windows CI green" hands off, so check runs never overlap.
+- Gates: design approved · developer not started · tester, reviewer, QA open · PM merge n/a yet
+- Open findings: none
+- Decisions: PM decision (2026-11-19): D1 A — Microsoft Store (MSIX), SignPath Foundation as the fall-back; D2 A — keep the SHA-256-pinned sqlite3mc prebuilt; D3 A — Apple silicon only; D4 A — 5–20 invited testers, GitHub Releases pre-release; D5 A — version 0.9.0; D6 A — release script on the PM's Mac (ADR 0006); D7 A — feedback by email to an address the PM chooses — PM said: "approve decisions, am going to sleep you can continue". Not decided: the lawful basis and the retention for tester contact details and feedback (needed before the beta; M1.9f).
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — lawful basis and retention for tester data; feedback email address; Apple Developer Program
+
 ## 2026-11-19 — Windows CI green — PR 9 CI run 1: Windows 1 failure, Windows build passes; Mac build fails
 - Changed: CI run 44590610889 on fix/windows-ci (54fa956). windows: check.ps1 "3808 tests passed, 1 failed, 69 skipped" — the 84 other failures are gone; the failure is test/data/key_delete_timing_test.dart:222 "a re-read that hangs is given up on after one time-out… stuck, in about three time-outs": Expected < 0:00:01.200000, Actual 0:00:01.326100 (timing). `flutter build windows --debug` passed: "Built build\windows\x64\runner\Debug\kusunga.exe" — the first MSVC build of Kusunga. macos: check.sh passed; `flutter build macos --debug` failed on the runner's Xcode 16.4: macos/Runner/LoginItemCore.swift:58:9 "the compiler is unable to type-check this expression in reasonable time" (the closure-in-ternary `let done`); the PM's Xcode 27.2 builds it. The Swift and C++ steps after it were skipped. Logs: scratchpad pr9_win.log, pr9_mac.log. Developer re-dispatched on the same branch for both.
 - Gates: developer round 2 · tester, reviewer, QA open · PM merge not asked

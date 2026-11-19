@@ -1,8 +1,8 @@
 # M1.9 Signed installers and first beta — design note
 
-Date: 2026-11-19 — Author: lead — Size: large — release; new trust boundaries (signing keys, distribution channel); moves the history key — Phase: MVP — Status: draft, waiting for PM
+Date: 2026-11-19 — Author: lead — Size: large — release; new trust boundaries (signing keys, distribution channel); moves the history key — Phase: MVP — Status: approved by PM 2026-11-19 (D1–D7 as recommended)
 
-UI spec: `docs/ui/about-and-licences.md` — Deck: `docs/slides/signed-installers-and-beta.html` — ADRs: 0006 (proposed), 0007 (proposed)
+UI spec: `docs/ui/about-and-licences.md` — Deck: `docs/slides/signed-installers-and-beta.html` — ADRs: 0006 (accepted), 0007 (accepted)
 
 ## Context
 
@@ -132,12 +132,9 @@ Two choices are expensive to undo: how releases are signed and built (ADR 0006),
 
 ## Decision
 
-- **Release process (A or B): waiting for PM (D6).** Recommendation: A for the beta. B is a Later line, with a trigger.
-- **Windows signing route: waiting for PM (D1).** Options and the recommendation are in "Decisions needed" below.
-- **ADRs:**
-  - ADR 0006 (proposed) records the release process.
-  - ADR 0007 (proposed) records the data-protection keychain move.
-  - Both stay "Proposed" until the PM decides.
+- **PM decisions, 2026-11-19 (PM said: "approve decisions, am going to sleep you can continue"):** D1 A (Microsoft Store, SignPath as the fall-back), D2 A (pinned prebuilt), D3 A (Apple silicon only), D4 A (5–20 testers, GitHub Releases pre-release), D5 A (0.9.0), D6 A (release script on the PM's Mac), D7 A (email).
+- **Still open (PM, before the beta, in M1.9f):** the lawful basis and the retention for tester contact details and feedback.
+- **ADRs:** 0006 (release process) and 0007 (data-protection keychain move) are accepted.
 
 ## Work split (each part is its own branch and passes every gate)
 

@@ -4,7 +4,7 @@ Date: 2026-11-19
 
 ## Status
 
-Proposed (M1.9 deck; the move itself was decided by the PM on 2026-11-03)
+Accepted (M1.9 deck approved by the PM, 2026-11-19; the move itself was decided on 2026-11-03)
 
 ## Context
 
