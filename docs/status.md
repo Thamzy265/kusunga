@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — Repo — public; main protected
+- Changed: the PM made Thamzy265/kusunga public (gh: visibility PUBLIC). CI run 44550682517 re-run: both jobs started this time. Main had no branch protection and no rulesets. Lead created the ruleset "Protect main" (id 27648779, active, default branch, no bypass): rules deletion and non_fast_forward (blocks force pushes and deletion). Normal pushes to main still work.
+- Gates: n/a — repo settings
+- Open findings: none new
+- Decisions: PM said: "go public then re run the ci"; "block force pushes and deletion on main" (2026-11-19)
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-19 — Repo — PM decision: make the repo public
 - Changed: the PM decided to make Thamzy265/kusunga public and then re-run CI. The PM changes the visibility on GitHub themselves (standing rule). The lead re-runs CI once the PM confirms.
 - Gates: n/a — decision
