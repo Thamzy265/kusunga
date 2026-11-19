@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — Repo — main pushed
+- Changed: main pushed to origin (8648169..7e9baf5, 28 commits, including the licence merge 96551bb). origin/main was not ahead before the push. Repo still private.
+- Gates: n/a — push of already-gated work
+- Open findings: CI run 44550682517 on 7e9baf5: both jobs (macos and windows) not started — GitHub: "recent account payments have failed or your spending limit needs to be increased". F5 (billing) now blocks the macOS job too. Local check evidence stands.
+- Decisions: push approved by PM (2026-11-19). PM said: "Yes, push main"
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — GitHub billing (Settings → Billing & plans)
+
 ## 2026-11-19 — Licence (GPL-3.0) — merged
 - Changed: chore/licence merged into main with a local `git merge --no-ff` (96551bb): LICENSE (SHA-256 3972dc97…, matches the pin), .gitattributes, README Licence section (GPL-3.0-only), docs/licences.md, test/ci/licence_test.dart. On merged main: licence_test.dart "+15: All tests passed!". Plan box ticked. Not pushed.
 - Gates: developer pass · tester pass · reviewer approve with notes · QA n/a — no user-runnable change · PM merge approved
