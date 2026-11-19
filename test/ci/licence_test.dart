@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -55,7 +56,8 @@ Set<String> _pubspecDirectDeps() {
   return names;
 }
 
-/// package -> version for every `dependency: "direct main"` in pubspec.lock.
+/// package -> version for every direct main or direct overridden entry in
+/// pubspec.lock.
 Map<String, String> _lockDirectMain() {
   final out = <String, String>{};
   String? name;
@@ -66,7 +68,9 @@ Map<String, String> _lockDirectMain() {
       name = n.group(1);
       direct = false;
     }
-    if (line.contains('dependency: "direct main"')) direct = true;
+    if (RegExp(r'dependency: "direct (main|overridden)"').hasMatch(line)) {
+      direct = true;
+    }
     final v = RegExp(r'^    version: "([^"]+)"').firstMatch(line);
     if (v != null && direct && name != null) out[name] = v.group(1)!;
   }
@@ -76,8 +80,13 @@ Map<String, String> _lockDirectMain() {
 /// First-column package token -> second-column version text of each table row.
 Map<String, String> _licenceRows() {
   final rows = <String, String>{};
+  var inTable = false;
   for (final line in File('docs/licences.md').readAsLinesSync()) {
-    if (!line.startsWith('|')) continue;
+    if (!line.startsWith('|')) {
+      if (inTable) break; // only the first table lists packages
+      continue;
+    }
+    inTable = true;
     final cells = line.split('|').map((c) => c.trim()).toList();
     if (cells.length < 4) continue;
     rows[cells[1].split(' ').first] = cells[2];
@@ -147,5 +156,72 @@ void _testerGuards() {
         reason: '$pkg: licences.md says ${rows[pkg]}, lock says $version',
       );
     });
+  });
+
+  test('licences.md has no row for a package that left pubspec.yaml', () {
+    final known = {..._pubspecDirectDeps(), 'flutter'};
+    for (final name in _licenceRows().keys) {
+      // Package rows are lower-case identifiers; the others are named
+      // components (SQLite3 Multiple Ciphers, SQLite, Flutter, Dart).
+      if (RegExp(r'^[a-z0-9_]+$').hasMatch(name)) {
+        expect(
+          known,
+          contains(name),
+          reason: '$name is no longer a dependency',
+        );
+      }
+    }
+  });
+
+  test(
+    'SQLite and SQLite3 Multiple Ciphers rows match the sqlite3 package',
+    () {
+      final lock = _lockDirectMain()['sqlite3']!;
+      final config = jsonDecode(
+        File('.dart_tool/package_config.json').readAsStringSync(),
+      );
+      final entry = (config['packages'] as List).firstWhere(
+        (p) => p['name'] == 'sqlite3',
+      );
+      final dir = Directory.fromUri(
+        File(
+          '.dart_tool/package_config.json',
+        ).absolute.uri.resolve(entry['rootUri'] as String),
+      );
+      final lines = File('${dir.path}/CHANGELOG.md').readAsLinesSync();
+      // Walk down from the locked version's section; the newest line that names
+      // each library is the version that build bundles.
+      var i = lines.indexWhere((l) => l.trim() == '## $lock');
+      expect(
+        i,
+        isNonNegative,
+        reason: 'no CHANGELOG section for sqlite3 $lock',
+      );
+      String? sqlite, mc;
+      for (; i < lines.length && (sqlite == null || mc == null); i++) {
+        sqlite ??= RegExp(
+          r'SQLite (?:to |version |to version )?(3\.\d+\.\d+)',
+        ).firstMatch(lines[i])?.group(1);
+        mc ??= RegExp(
+          r'Multiple Ciphers (?:to |version )?(\d+\.\d+\.\d+)',
+        ).firstMatch(lines[i])?.group(1);
+      }
+      final rows = _licenceRows();
+      expect(rows['SQLite3'], mc, reason: 'SQLite3 Multiple Ciphers row');
+      expect(rows['SQLite'], sqlite, reason: 'SQLite row');
+    },
+  );
+
+  test('Flutter and Dart rows match the SDK the project pins', () {
+    final rows = _licenceRows();
+    final readme = File('README.md').readAsStringSync();
+    final m = RegExp(
+      r'Flutter (\d+\.\d+\.\d+) \(Dart (\d+\.\d+\.\d+)\)',
+    ).firstMatch(readme);
+    expect(m, isNotNull, reason: 'README no longer names the SDK versions');
+    expect(rows['Flutter'], m!.group(1));
+    expect(rows['Dart'], m.group(2));
+    // The Dart running this test is the pinned one.
+    expect(Platform.version, startsWith(rows['Dart']!));
   });
 }
