@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — Windows CI green — developer round 2; pushed; tester started
+- Changed: developer (opus) round 2 on fix/windows-ci: feb11b6 fix(macos) LoginItemCore.swift closure-in-ternary split into `private static func reached(_:on:)`, same checks, plus a type-check-time guard (`-warn-long-expression-type-checking=100`) in tool/test_mac_login_item.sh — old expression took 860 ms locally on Swift 6.4.2, guard failed first; 11c85b7 test(data) key_delete_timing counts time-outs in a Zone (3, and 1 for memory-only) instead of the 1.2 s wall-clock bound; open() moved out of the stopwatch; "never waits for ever" as a 4 s time-out. Failing first: simulated slow runner gave 1.352 s (matches CI 1.326 s); mutation runs fail as expected. check.sh: "+3864 ~10: All tests passed!"; tool/test_mac_login_item.sh 30/30; `flutter build macos --debug` built locally (not launched). Deviation: the CI Swift step uses `xcodebuild test`, which the rules forbid locally; developer ran the same LoginItemCoreTests via tool/test_mac_login_item.sh. Lead pushed 54fa956..11c85b7 to fix/windows-ci (PR 9). Tester dispatched on the branch while CI runs.
+- Gates: developer handed off (CI run 2 pending) · tester in progress · reviewer, QA open · PM merge not asked
+- Open findings: CI run 2 pending
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — DPIA section 7
+
 ## 2026-11-19 — M1.9f DPIA — draft written
 - Changed: lead drafted docs/design/dpia.md (ICO template structure): screening (new technology and invisible processing possible; no other trigger), on-device processing table, beta processing table, necessity and proportionality, risks R1–R9 and measures. App facts checked against main by a scout lookup: the log holds only time, event code and an optional number (lib/log/app_log.dart); limit 10–5,000, default 200 (history_store.dart:24-25); concealed/transient/auto-generated copies skipped on Mac and excluded copies on Windows, no setting (ClipboardWatcher.swift:29-33, clipboard_policy.h); export dialog says "The file isn't encrypted" (your_data_section.dart:33-34); tray icon at launch; typed shortcuts off by default (migrations.dart:112); password and secure-input fields skipped (TypedShortcutCore.swift:215, typed_shortcut_policy.h:354-365); no network code in lib/ or the runners.
 - Gates: n/a — a document; the PM signs it (AC)
