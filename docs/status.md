@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-19 — M1.9f DPIA — draft written
+- Changed: lead drafted docs/design/dpia.md (ICO template structure): screening (new technology and invisible processing possible; no other trigger), on-device processing table, beta processing table, necessity and proportionality, risks R1–R9 and measures. App facts checked against main by a scout lookup: the log holds only time, event code and an optional number (lib/log/app_log.dart); limit 10–5,000, default 200 (history_store.dart:24-25); concealed/transient/auto-generated copies skipped on Mac and excluded copies on Windows, no setting (ClipboardWatcher.swift:29-33, clipboard_policy.h); export dialog says "The file isn't encrypted" (your_data_section.dart:33-34); tray icon at launch; typed shortcuts off by default (migrations.dart:112); password and secure-input fields skipped (TypedShortcutCore.swift:215, typed_shortcut_policy.h:354-365); no network code in lib/ or the runners.
+- Gates: n/a — a document; the PM signs it (AC)
+- Open findings: none
+- Decisions: waiting for the PM (DPIA section 7): lawful basis and retention for tester contact details and for feedback; the feedback email address; acceptance of residual medium risks R1, R5, R9; sign-off.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — DPIA section 7
+
 ## 2026-11-19 — M1.9 Signed installers and first beta — deck approved
 - Changed: the PM approved the M1.9 deck docs/slides/signed-installers-and-beta.html and its decisions as recommended. Design note status, ADR 0006 and ADR 0007 set to accepted; plan D5 (Windows) closed. Build order (design note): parts a (About and licences), b (Mac release build) and f (DPIA draft, lead) first. Developer work on M1.9 starts after "Windows CI green" hands off, so check runs never overlap.
 - Gates: design approved · developer not started · tester, reviewer, QA open · PM merge n/a yet
