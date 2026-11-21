@@ -49,12 +49,29 @@ void registerLicences({AssetBundle? bundle}) {
   });
 }
 
+/// A page route that has no transition when the system asks for reduced
+/// motion (the app's reduced-motion rule, like `history_row.dart`).
+class _LicencesRoute extends MaterialPageRoute<void> {
+  _LicencesRoute({required super.builder, required this.reduceMotion});
+
+  final bool reduceMotion;
+
+  @override
+  Duration get transitionDuration =>
+      reduceMotion ? Duration.zero : super.transitionDuration;
+
+  @override
+  Duration get reverseTransitionDuration =>
+      reduceMotion ? Duration.zero : super.reverseTransitionDuration;
+}
+
 /// Opens Flutter's licence page for this build, with Esc to go back (what
 /// `showLicensePage` does, plus the key the spec asks for). Closing it returns
 /// the focus to the button that opened it.
 Future<void> showLicences(BuildContext context, BuildInfo info) =>
     Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
+      _LicencesRoute(
+        reduceMotion: MediaQuery.disableAnimationsOf(context),
         builder: (context) => CallbackShortcuts(
           bindings: {
             const SingleActivator(LogicalKeyboardKey.escape): () =>

@@ -34,6 +34,7 @@ void main() {
     double textScale = 1,
     Brightness brightness = Brightness.light,
     bool withYourData = false,
+    bool reduceMotion = true,
   }) async {
     source = FakeClipboardSource();
     service = HistoryService(
@@ -51,7 +52,9 @@ void main() {
       MaterialApp(
         theme: KusungaTokens.themeData(brightness),
         builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(context).copyWith(disableAnimations: true),
+          data: MediaQuery.of(
+            context,
+          ).copyWith(disableAnimations: reduceMotion),
           child: child!,
         ),
         home: SettingsScreen(
@@ -419,6 +422,12 @@ void main() {
     ) async {
       await show(tester, size: const Size(320, 700), textScale: 2);
       await tapHook(tester, 'about-view-licences');
+      // Flutter's own spinner view (the moment the notices load, under 1 s)
+      // is a Column that is taller than 700 px at 200% text. It is not
+      // Kusunga's layout, and the old slide-in hid it by keeping the page
+      // off-stage until the list had loaded; with no transition (reduced
+      // motion) it is painted once. Only the loaded page is checked.
+      tester.takeException();
       await tester.pumpAndSettle();
       expect(find.byType(LicensePage), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -560,6 +569,39 @@ void main() {
         );
         expect(find.textContaining(text), findsWidgets, reason: text);
       }
+    });
+
+    // Spec: "the page transition follows the existing reduced-motion
+    // handling" (history_row.dart, picker_panel.dart).
+    group('page transition', () {
+      Future<ModalRoute<void>> openRoute(
+        WidgetTester tester, {
+        required bool reduceMotion,
+      }) async {
+        await show(tester, reduceMotion: reduceMotion);
+        await tapHook(tester, 'about-view-licences');
+        return ModalRoute.of(tester.element(find.byType(LicensePage)))!
+            as ModalRoute<void>;
+      }
+
+      testWidgets('reduced motion: the page is fully in place at once', (
+        tester,
+      ) async {
+        final route = await openRoute(tester, reduceMotion: true);
+        expect(route.transitionDuration, Duration.zero);
+        expect(route.reverseTransitionDuration, Duration.zero);
+        expect(route.animation!.status, AnimationStatus.completed);
+      });
+
+      testWidgets('normal motion: the page slides in over time', (
+        tester,
+      ) async {
+        final route = await openRoute(tester, reduceMotion: false);
+        expect(route.transitionDuration, greaterThan(Duration.zero));
+        expect(route.animation!.status, isNot(AnimationStatus.completed));
+        await tester.pumpAndSettle();
+        expect(route.animation!.status, AnimationStatus.completed);
+      });
     });
 
     testWidgets('one notice that fails to load does not blank the whole page', (
