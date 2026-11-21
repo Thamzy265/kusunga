@@ -65,6 +65,85 @@ class _LicencesRoute extends MaterialPageRoute<void> {
       reduceMotion ? Duration.zero : super.reverseTransitionDuration;
 }
 
+/// Gives the page a focus to hold the Esc binding at once, then moves it to the
+/// first row of the list when the notices have loaded (spec: "Focus moves to
+/// the first row"). Flutter's page gives no signal when its list is ready, so
+/// this looks after each frame. It leaves the focus alone if the user has
+/// already moved it.
+class _FocusFirstRow extends StatefulWidget {
+  const _FocusFirstRow({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_FocusFirstRow> createState() => _FocusFirstRowState();
+}
+
+class _FocusFirstRowState extends State<_FocusFirstRow> {
+  final _start = FocusNode(debugLabel: 'licences start');
+
+  @override
+  void initState() {
+    super.initState();
+    _lookAfterNextFrame();
+  }
+
+  @override
+  void dispose() {
+    _start.dispose();
+    super.dispose();
+  }
+
+  void _lookAfterNextFrame() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _userMovedFocus) return;
+      if (!_focusFirstRow()) _lookAfterNextFrame();
+    });
+  }
+
+  /// True when the focus is on something other than the page's own start
+  /// (the route's scope, or the node below): the user got there first.
+  bool get _userMovedFocus {
+    final focus = FocusManager.instance.primaryFocus;
+    return focus != null && focus != _start && focus is! FocusScopeNode;
+  }
+
+  /// False while the list has not been built yet.
+  bool _focusFirstRow() {
+    Element? row;
+    void visit(Element e) {
+      if (row != null) return;
+      if (e.widget is ListTile) {
+        row = e;
+        return;
+      }
+      e.visitChildren(visit);
+    }
+
+    (context as Element).visitChildren(visit);
+    if (row == null) return false;
+    Element? label;
+    void findLabel(Element e) {
+      if (label != null) return;
+      if (e.widget is Text) {
+        label = e;
+        return;
+      }
+      e.visitChildren(findLabel);
+    }
+
+    row!.visitChildren(findLabel);
+    // The Text sits inside the row's own InkWell, so the nearest Focus above
+    // it is the row's.
+    Focus.maybeOf(label ?? row!)?.requestFocus();
+    return true;
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      Focus(autofocus: true, focusNode: _start, child: widget.child);
+}
+
 /// Opens Flutter's licence page for this build, with Esc to go back (what
 /// `showLicensePage` does, plus the key the spec asks for). Closing it returns
 /// the focus to the button that opened it.
@@ -77,8 +156,7 @@ Future<void> showLicences(BuildContext context, BuildInfo info) =>
             const SingleActivator(LogicalKeyboardKey.escape): () =>
                 Navigator.of(context).maybePop(),
           },
-          child: Focus(
-            autofocus: true,
+          child: _FocusFirstRow(
             child: LicensePage(
               applicationName: 'Kusunga',
               applicationVersion: info.licenceVersion,

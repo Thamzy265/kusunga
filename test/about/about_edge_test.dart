@@ -571,6 +571,28 @@ void main() {
       }
     });
 
+    // Spec: "Focus moves to the first row" once the list has loaded.
+    for (final width in [320.0, 900.0]) {
+      testWidgets('focus moves to the first row, at ${width.toInt()} px', (
+        tester,
+      ) async {
+        await open(tester, Size(width, 800));
+        expect(
+          hasFocus(tester, find.widgetWithText(ListTile, 'Kusunga')),
+          isTrue,
+        );
+      });
+    }
+
+    // Esc after the focus has moved to the first row still goes back.
+    testWidgets('Esc on the first row goes back to Settings', (tester) async {
+      await open(tester, const Size(320, 800));
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.byType(LicensePage), findsNothing);
+      expect(find.text('About'), findsOneWidget);
+    });
+
     // Spec: "the page transition follows the existing reduced-motion
     // handling" (history_row.dart, picker_panel.dart).
     group('page transition', () {
