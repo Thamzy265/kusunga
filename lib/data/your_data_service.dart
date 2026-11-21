@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 
 import '../history/history_service.dart';
@@ -66,7 +67,7 @@ void writeExportFile(
   String path,
   List<int> bytes, {
   Random? random,
-  void Function(File temp)? createTemp,
+  @visibleForTesting void Function(File temp)? createTemp,
 }) {
   _removeLeftovers(path);
   final temp = File(exportTempPath(path, random));
