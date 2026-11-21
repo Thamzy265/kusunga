@@ -296,6 +296,11 @@ void main() {
     expect(r, isA<Erased>());
     expect(keys.readCalls, 0);
     expect(_timeOuts(timers), 1, reason: 'one time-out, then it goes on');
+    expect(
+      timers.where((d) => d > _t),
+      isEmpty,
+      reason: 'no wait longer than one time-out',
+    );
     expect(h.items, isEmpty);
     expect(dbExists(), isFalse);
     expect(log.codes, contains(LogCode.deleteEverythingFailed));
