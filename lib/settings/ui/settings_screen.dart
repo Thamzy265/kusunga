@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
+import '../../about/about_section.dart';
+import '../../about/build_info.dart';
 import '../../history/history_service.dart';
 import '../../history/history_store.dart';
 import '../../history/ui/limit_field.dart';
@@ -52,6 +54,7 @@ class SettingsScreen extends StatefulWidget {
     this.loginItem,
     this.pickerShortcut,
     this.yourData,
+    this.buildInfo = BuildInfo.current,
   });
 
   final HistoryService service;
@@ -59,6 +62,9 @@ class SettingsScreen extends StatefulWidget {
   /// Export, import and delete (M1.8). Without it there is no Your data
   /// section.
   final YourDataSetup? yourData;
+
+  /// Which build this is, for the About section (M1.9a).
+  final BuildInfo buildInfo;
 
   /// Launch at login (desktop). Without it there is no switch.
   final LoginItemService? loginItem;
@@ -208,6 +214,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       toast: _toast,
                     ),
                   ],
+                  SizedBox(height: KusungaTokens.space5),
+                  AboutSection(
+                    info: widget.buildInfo,
+                    copy: _service.copyOwn,
+                    toast: _toast,
+                  ),
                 ],
               ),
             ),
