@@ -281,6 +281,30 @@ void main() {
       expect(file.lengthSync(), lessThan(20000 + 200));
       expect(old.existsSync(), isTrue);
       expect(kept, isNotEmpty);
+      // Some whole line is always kept, so the order check below always has
+      // something to check: a regression that garbles every line fails here.
+      expect(parsed, isNotEmpty, reason: 'no whole line kept');
+      if (oneAfterTheOther) {
+        // The writers never overlap, so BUG-L5 can't garble a line: every
+        // kept line is whole, and the second writer's lines run with no gap
+        // up to its last one.
+        expect(
+          kept.where((l) => !wholeLine.hasMatch(l)),
+          isEmpty,
+          reason: 'a garbled line with no overlap',
+        );
+        final second = [
+          for (final r in parsed)
+            if (r.code == 'storeUnreadable') r.n,
+        ];
+        expect(second, isNotEmpty);
+        expect(second.last, 2999);
+        expect(
+          second,
+          orderedEquals([for (var i = second.first; i < 3000; i++) i]),
+          reason: 'storeUnreadable lines with a gap',
+        );
+      }
       // No floor on the share of whole lines: with non-atomic appends
       // (BUG-L5) it depends on CPU load (85% on a loaded CI Mac, 2026-11-19).
       // No floor per writer either: when one writer finishes before the
