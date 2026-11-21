@@ -1,0 +1,59 @@
+SQLite3 Multiple Ciphers 2.5.0 and the parts it bundles
+
+Kusunga stores its history in a SQLite3 Multiple Ciphers database. The library
+(version 2.5.0, built on SQLite 3.53.4) is licensed under the MIT licence and
+bundles the parts below, each under the licence shown.
+
+* SQLite3 Multiple Ciphers own code (cipher_*.c, codec_algos.c, codecext.c, sqlite3mc*.c, AEGIS wrapper cipher_aegis.c)
+  Licence: MIT
+
+* AEGIS (src/aegis)
+  Licence: MIT
+
+* Ascon (src/ascon): aead.c, hash.c, pbkdf2.c, api.h, crypto_aead.h, crypto_hash.h, crypto_pbkdf2.h, prolog.h, round.h
+  Licence: MIT (Ulrich Telle). Each header says "Based on: Public domain Ascon reference implementation" (ascon-c). The headers say public domain, not CC0.
+
+* Ascon helper files with no licence header: ascon.h, bendian.h, config.h, constants.h, forceinline.h, permutations.c, permutations.h, printstate.c, printstate.h, round32.h, round64.h, word.h
+  Licence: No licence text in the file. They are part of the same src/ascon copy of the Ascon reference code (public domain upstream) and of the project, whose `LICENSE` is MIT.
+
+* aes_hardware.c (AES-NI and ARM crypto code), memory_secure.c (secure memory wipe)
+  Licence: MIT (Ulrich Telle)
+
+* argon2/libargon2.c (wrapper that `#include`s src/argon2 sources and sets the ARGON2_* macros to `static`)
+  Licence: No licence text in the file (30 lines, macros and includes only). It falls under the project `LICENSE` (MIT). The sources it includes are CC0-1.0 OR Apache-2.0 (next rows).
+
+* mystdint.h (stdint typedefs for MSVC before 2010; included by sha1.c, fastpbkdf2.h, chacha20poly1305.c, sqlite3mc_vfs.c)
+  Licence: No licence text in the file (27 lines, typedefs and macros only). It falls under the project `LICENSE` (MIT).
+
+* ChaCha20 and Poly1305 (chacha20poly1305.c)
+  Licence: Public domain
+
+* AES / Rijndael (rijndael.c)
+  Licence: MIT per the file header (original code public domain, S. Stefanek); `filelist.md` says `LGPL-3.0-or-later WITH WxWindows-exception-3.1`
+
+* SHA-1 (sha1.c), MD5 (md5.c)
+  Licence: Public domain
+
+* SHA-2 (sha2.c)
+  Licence: BSD-3-Clause (Olivier Gay)
+
+* PBKDF2 (fastpbkdf2.c)
+  Licence: CC0-1.0
+
+* Argon2 (src/argon2, including blake2)
+  Licence: CC0-1.0 OR Apache-2.0, at the user's option
+
+* SQLite3 Multiple Ciphers RC4 cipher (cipher_sds_rc4.c), SQLCipher-compatible cipher (cipher_sqlcipher.c)
+  Licence: MIT (own code, no SQLCipher source copied; the SQLCipher format is only imitated)
+
+* miniz (miniz.c, used by the compress and zipfile extensions)
+  Licence: MIT
+
+* SQLite core and SQLite extensions (shathree, csv, fileio, series, uuid, regexp, sqlar, zipfile, compress, rekeyvacuum)
+  Licence: Public domain (blessing)
+
+* vsv.c (extension)
+  Licence: Public domain (Keith Medcalf; builds on SQLite's csv.c)
+
+* extensionfunctions.c
+  Licence: No licence text. Upstream `filelist.md` only assumes it is public domain

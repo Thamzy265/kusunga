@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'about/licences.dart';
 import 'app.dart';
 import 'clipboard/channel_clipboard_source.dart';
 import 'data/data_eraser.dart';
@@ -32,6 +33,7 @@ import 'window/window_service.dart';
 /// test data profile); on Windows the command line.
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  registerLicences();
 
   // The unified log mirror is a macOS thing (the Windows side has none).
   final deferredLog = DeferredErrorLog(
