@@ -205,21 +205,30 @@ void main() {
   group('per-line open, real concurrency (two isolates)', () {
     final shape = RegExp(r'^\S+Z (flushFailed|storeUnreadable) \d+$');
 
-    Future<void> twoWriters(String path, int lines, int maxBytes) =>
-        Future.wait([
-          Isolate.run(() {
-            final l = FileErrorLog(File(path), maxBytes: maxBytes);
-            for (var i = 0; i < lines; i++) {
-              l.log(LogCode.flushFailed, i);
-            }
-          }),
-          Isolate.run(() {
-            final l = FileErrorLog(File(path), maxBytes: maxBytes);
-            for (var i = 0; i < lines; i++) {
-              l.log(LogCode.storeUnreadable, i);
-            }
-          }),
-        ]);
+    Future<void> writer(String path, LogCode code, int lines, int maxBytes) =>
+        Isolate.run(() {
+          final l = FileErrorLog(File(path), maxBytes: maxBytes);
+          for (var i = 0; i < lines; i++) {
+            l.log(code, i);
+          }
+        });
+
+    Future<void> twoWriters(
+      String path,
+      int lines,
+      int maxBytes, {
+      bool oneAfterTheOther = false,
+    }) async {
+      if (oneAfterTheOther) {
+        await writer(path, LogCode.flushFailed, lines, maxBytes);
+        await writer(path, LogCode.storeUnreadable, lines, maxBytes);
+        return;
+      }
+      await Future.wait([
+        writer(path, LogCode.flushFailed, lines, maxBytes),
+        writer(path, LogCode.storeUnreadable, lines, maxBytes),
+      ]);
+    }
 
     test('BUG-L5: two real concurrent writers x 1,500 lines, no rotation: '
         '3,000 whole lines, none lost (Dart\'s append open seeks to the end '
@@ -239,22 +248,94 @@ void main() {
       }
     }, skip: posix ?? 'BUG-L5 (low, also in the code before 77a2080)');
 
-    test('two writers x 3,000 lines with rotations in the middle: the live '
-        'file stays bounded, one old file is kept, and nearly every kept '
-        'line is whole (BUG-L5 may garble a few)', () async {
-      await twoWriters(file.path, 3000, 20000);
+    Future<void> rotatingWriters({required bool oneAfterTheOther}) async {
+      await twoWriters(
+        file.path,
+        3000,
+        20000,
+        oneAfterTheOther: oneAfterTheOther,
+      );
       final old = File('${file.path}.1');
+      // Oldest first: the old file, then the live one.
       final kept = [...lines(old), ...lines(file)];
-      final whole = kept.where(shape.hasMatch).length;
+      // A whole line, matched from its first to its last character: a UTC
+      // timestamp, the code, and a line number with no leading zero that the
+      // writer could have written. A line BUG-L5 overwrote, with the tail of
+      // another line (extra digits) at its end, does not match.
+      final wholeLine = RegExp(
+        r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3,6}Z '
+        r'(flushFailed|storeUnreadable) (0|[1-9]\d{0,3})$',
+      );
+      final parsed = [
+        for (final l in kept)
+          if (wholeLine.firstMatch(l) case final m?
+              when int.parse(m[2]!) < 3000)
+            (code: m[1]!, n: int.parse(m[2]!)),
+      ];
       // ignore: avoid_print
       print(
         'LOG rotation x2 writers: live ${lines(file).length} lines, '
-        '.1 ${lines(old).length} lines, whole $whole of ${kept.length}',
+        '.1 ${lines(old).length} lines, whole ${parsed.length} of '
+        '${kept.length}',
       );
       expect(file.lengthSync(), lessThan(20000 + 200));
       expect(old.existsSync(), isTrue);
       expect(kept, isNotEmpty);
-      expect(whole, greaterThanOrEqualTo(kept.length * 0.9));
+      // Some whole line is always kept, so the order check below always has
+      // something to check: a regression that garbles every line fails here.
+      expect(parsed, isNotEmpty, reason: 'no whole line kept');
+      if (oneAfterTheOther) {
+        // The writers never overlap, so BUG-L5 can't garble a line: every
+        // kept line is whole, and the second writer's lines run with no gap
+        // up to its last one.
+        expect(
+          kept.where((l) => !wholeLine.hasMatch(l)),
+          isEmpty,
+          reason: 'a garbled line with no overlap',
+        );
+        final second = [
+          for (final r in parsed)
+            if (r.code == 'storeUnreadable') r.n,
+        ];
+        expect(second, isNotEmpty);
+        expect(second.last, 2999);
+        expect(
+          second,
+          orderedEquals([for (var i = second.first; i < 3000; i++) i]),
+          reason: 'storeUnreadable lines with a gap',
+        );
+      }
+      // No floor on the share of whole lines: with non-atomic appends
+      // (BUG-L5) it depends on CPU load (85% on a loaded CI Mac, 2026-11-19).
+      // No floor per writer either: when one writer finishes before the
+      // other starts (BUG-T1), rotation pushes all of its lines out. What
+      // does not depend on timing: the whole lines a writer kept are in the
+      // order it wrote them.
+      for (final code in ['flushFailed', 'storeUnreadable']) {
+        final n = [
+          for (final r in parsed)
+            if (r.code == code) r.n,
+        ];
+        for (var i = 1; i < n.length; i++) {
+          expect(
+            n[i],
+            greaterThan(n[i - 1]),
+            reason: '$code lines out of order at ${n[i - 1]}, ${n[i]}',
+          );
+        }
+      }
+    }
+
+    test('two writers x 3,000 lines with rotations in the middle: the live '
+        'file stays bounded, one old file is kept, and each writer\'s whole '
+        'kept lines are in order (BUG-L5 may garble some)', () async {
+      await rotatingWriters(oneAfterTheOther: false);
+    });
+
+    test('BUG-T1: the same two writers when one finishes before the other '
+        'starts (a loaded machine): rotation pushes all of the first '
+        'writer\'s lines out, which is not a failure', () async {
+      await rotatingWriters(oneAfterTheOther: true);
     });
   });
 

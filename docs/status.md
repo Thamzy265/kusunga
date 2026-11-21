@@ -1,5 +1,61 @@
 # Status log
 
+## 2026-11-19 — Windows CI green — deck approved; build started
+- Changed: PM approved the deck docs/slides/windows-ci-green.html with the recommended options. Plan: W1–W3 recorded on the item; W3 added to M1.9 as an AC for part d. Developer briefed on fix/windows-ci.
+- Gates: design approved · developer in progress · tester, reviewer, QA open · PM merge n/a yet
+- Open findings: 85 Windows test failures, 1 Mac CI timing failure
+- Decisions: PM decision (2026-11-19): W1 A — fix the tests only; W2 A — fix the export over a dangling link in this item; W3 A — single instance on Windows in M1.9d, before the beta — PM said: "Yes, as recommended"
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.9 deck (D1–D7)
+
+## 2026-11-19 — Windows CI green — diagnosis done; design and deck ready
+- Changed: developer (opus) diagnosis, no code changed; branch fix/windows-ci made from main 6bfb385 with 0 commits. Report: Windows 85 = A 73 (tests clean up with HistoryService.dispose(), which never closes the store, history_service.dart:831-841; Windows refuses to delete the open kusunga.db, errno 32) + B 3 (1-byte fake kusunga.db, your_data_edge_test.dart:388-391; Windows SQLite "file is not a database", Mac sqlite3mc replaces it) + C 1 (product, minor: export temp createSync(exclusive) succeeds over a dangling link on Windows, then _refuseLink fails the export, your_data_service.dart:67,:117) + D 6 (guard tests vs CRLF checkouts) + E 2 (guard tests assume `/`; also a false green at own_marker_edge_test.dart:264). Mac 1: file_error_log_handle_test.dart:240-258, 90% floor vs non-atomic append (BUG-L5), load-dependent. Delete everything on Windows: works with one Kusunga running (developer about 85% sure; the full-erase tests passed on windows-latest); a second Kusunga process (no single-instance guard on Windows) would leave kusunga.db, shown by the existing partial message. Risk: native Windows code never compiled with MSVC, /W4 /WX (windows/CMakeLists.txt:39). Lead wrote docs/design/windows-ci-green.md and docs/slides/windows-ci-green.html.
+- Gates: design ready · developer build not started (waits for deck approval) · tester, reviewer, QA open · PM merge n/a yet
+- Open findings: 85 Windows test failures, 1 Mac CI timing failure
+- Decisions: waiting for the PM: W1 group A fix (tests only, or also dispose() closes the store), W2 export over a dangling link (fix now or Later), W3 single instance on Windows (M1.9d or Later). Lead decisions: CI runs `flutter build windows` even when tests fail; the Mac test change goes to the reviewer to judge whether it weakens the test.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Windows CI green deck (W1–W3); M1.9 deck (D1–D7)
+
+## 2026-11-19 — Windows CI green — PM decision on the verification route; diagnosis started
+- Changed: new plan item "Windows CI green", before M1.9d. Size: large (spans many test modules and may touch Delete everything on Windows, which deletes personal data). Step 1 is a diagnosis by the developer (no commits): the root cause of each failure group in CI run 44550682517 and whether any product code is wrong on Windows. The lead then writes the design and the deck for the PM before any fix is built.
+- Gates: developer diagnosis in progress · tester, reviewer, QA open · PM merge n/a yet
+- Open findings: 85 Windows test failures, 1 Mac CI timing failure
+- Decisions: PM decision (2026-11-19): the Windows CI fix goes on its own pushed branch with a pull request, so CI tests it on Windows before it reaches main — scope: the "Windows CI green" item only; other branches stay local — PM said: "Yes, branch and PR"
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.9 deck approval
+
+## 2026-11-19 — CI — first full run on GitHub-hosted runners: both jobs fail
+- Changed: CI run 44550682517 (main 7e9baf5, re-run after the repo went public) finished. macos: check.sh 3854 passed, 1 failed, 10 skipped — the failure is test/log/file_error_log_handle_test.dart "per-line open, real concurrency (two isolates) two writers x 3,000 lines with rotations…" (timing under CI load; it passes locally). windows: check.ps1 3715 passed, 85 failed, 69 skipped — the first time Kusunga's tests ran on Windows; `flutter build windows` did not run. Windows failures by cause (lead's first look at the log, not a diagnosis): (1) temp-folder clean-up fails with "being used by another process" (errno 32) in your_data_section (30), your_data_edge (17), your_data_round2 (13), key_delete_timing (6), data_eraser (5), export_erase_edge (3), open_app_history, your_data_service, round2_fixes — files still open when the test deletes its folder; may also hide a real Windows problem in Delete everything (files open while deleting); (2) guard tests that assume `/` paths (`runner\app_id_test.cpp`); (3) guard tests that read files checked out with CRLF (`#include? "Local.xcconfig"\r`); .gitattributes covers only LICENSE. Logs: scratchpad ci_win.log, ci_mac.log.
+- Gates: n/a — CI result; a fix item goes through every gate
+- Open findings: 85 Windows test failures, 1 Mac CI timing failure
+- Decisions: none yet. Lead: new plan item "Windows CI green" before M1.9d; verifying it needs Windows runs, and the standing rule is "push only main" — PM decision needed on how the fix is verified.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — verification route for the Windows fix; M1.9 deck approval
+
+## 2026-11-19 — M1.9 Signed installers and first beta — design and deck ready
+- Changed: PM said "Yes, start M1.9". Size: large (release; new trust boundaries: signing keys and the download channel; moves the Mac history key). Lead wrote the design note `docs/design/signed-installers-and-beta.md`, ADR 0006 (release signing on the PM's machine, proposed), ADR 0007 (Mac key in the data-protection keychain, proposed), the UI spec `docs/ui/about-and-licences.md` and the deck `docs/slides/signed-installers-and-beta.html`. Work split: M1.9a About/licences, M1.9b Mac release build, M1.9c key move, M1.9d Windows packaging, M1.9e release script, M1.9f DPIA. Facts from a scout lookup of main at 02369fb. Windows signing facts from Microsoft Learn "Code signing options" (updated 2026-11-10): Store MSIX is free and Microsoft signs it; Azure Artifact Signing for individuals is limited to the USA and Canada; OV certificate about $150–300 a year; EV no longer skips SmartScreen; SignPath Foundation is free for open-source projects (eligibility not confirmed).
+- Gates: design ready · developer not started (waits for deck approval) · tester, reviewer, QA open · PM merge n/a yet
+- Open findings: none
+- Decisions: waiting for the PM: deck approval and D1 Windows signing, D2 sqlite3mc prebuilt or source, D3 Mac architectures, D4 beta size and download place, D5 version, D6 release process, D7 feedback channel plus the lawful basis and retention for tester data.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — deck approval and D1–D7
+
+## 2026-11-19 — Repo — public; main protected
+- Changed: the PM made Thamzy265/kusunga public (gh: visibility PUBLIC). CI run 44550682517 re-run: both jobs started this time. Main had no branch protection and no rulesets. Lead created the ruleset "Protect main" (id 27648779, active, default branch, no bypass): rules deletion and non_fast_forward (blocks force pushes and deletion). Normal pushes to main still work.
+- Gates: n/a — repo settings
+- Open findings: none new
+- Decisions: PM said: "go public then re run the ci"; "block force pushes and deletion on main" (2026-11-19)
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
+## 2026-11-19 — Repo — PM decision: make the repo public
+- Changed: the PM decided to make Thamzy265/kusunga public and then re-run CI. The PM changes the visibility on GitHub themselves (standing rule). The lead re-runs CI once the PM confirms.
+- Gates: n/a — decision
+- Open findings: none new
+- Decisions: Risk accepted by PM (2026-11-19): accepted: the repo's commit history becomes public, including the PM's Gmail address in the commit metadata, the Apple team ID in commits 6269a6a and 7311e39, and the home path /Users/williamnasoni in docs/qa/m1.md and test/ui/m16_real_font_layout_test.dart (history check, 2026-11-18: no secrets) — scope: the whole repo history at the time it is made public — expiry/review: none — PM said: "go public then re run the ci". Condition kept: the homelab Windows runner must not be attached while the repo is public (docs/ci/windows-runner.md).
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — change the visibility on GitHub
+
+## 2026-11-19 — Repo — main pushed
+- Changed: main pushed to origin (8648169..7e9baf5, 28 commits, including the licence merge 96551bb). origin/main was not ahead before the push. Repo still private.
+- Gates: n/a — push of already-gated work
+- Open findings: CI run 44550682517 on 7e9baf5: both jobs (macos and windows) not started — GitHub: "recent account payments have failed or your spending limit needs to be increased". F5 (billing) now blocks the macOS job too. Local check evidence stands.
+- Decisions: push approved by PM (2026-11-19). PM said: "Yes, push main"
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — GitHub billing (Settings → Billing & plans)
+
 ## 2026-11-19 — Licence (GPL-3.0) — merged
 - Changed: chore/licence merged into main with a local `git merge --no-ff` (96551bb): LICENSE (SHA-256 3972dc97…, matches the pin), .gitattributes, README Licence section (GPL-3.0-only), docs/licences.md, test/ci/licence_test.dart. On merged main: licence_test.dart "+15: All tests passed!". Plan box ticked. Not pushed.
 - Gates: developer pass · tester pass · reviewer approve with notes · QA n/a — no user-runnable change · PM merge approved

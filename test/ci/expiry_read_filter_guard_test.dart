@@ -5,6 +5,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   test('only HistoryService reads the clip list from the store, and it '
@@ -12,7 +13,9 @@ void main() {
     final readers = <String>[];
     for (final f in Directory('lib').listSync(recursive: true)) {
       if (f is! File || !f.path.endsWith('.dart')) continue;
-      if (f.path.contains('lib/snippets') ||
+      // The same '/' path on every OS (Windows lists lib\history\…).
+      final path = p.posix.joinAll(p.split(f.path));
+      if (path.startsWith('lib/snippets/') ||
           f.path.contains('sqlite_history_store') ||
           f.path.contains('memory_history_store') ||
           f.path.endsWith('history_store.dart')) {
@@ -20,7 +23,7 @@ void main() {
       }
       final src = f.readAsStringSync();
       if (RegExp(r'_store\.list\(\)|store\.list\(\)').hasMatch(src)) {
-        readers.add(f.path);
+        readers.add(path);
       }
     }
     expect(readers, ['lib/history/history_service.dart']);

@@ -23,6 +23,7 @@ import 'package:win32/win32.dart'
         ERROR_NO_SUCH_LOGON_SESSION,
         WindowsException;
 
+import '../support/close_service.dart';
 import '../support/fakes.dart';
 
 const _key = '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
@@ -74,7 +75,7 @@ void main() {
       snippetStore: sqlite.snippetStore(),
       ignoredAppStore: sqlite.ignoredAppStore(),
     )..start();
-    addTearDown(service.dispose);
+    addCloseTearDown(service);
     return (service: service, store: spy);
   }
 
@@ -422,7 +423,7 @@ void main() {
         log: log,
         notices: {HistoryNotice.memoryOnly},
       )..start();
-      addTearDown(service.dispose);
+      addCloseTearDown(service);
       source.copy('in memory');
       final result = await eraser(const NoDataEraseTarget()).run(service);
       expect(result, isA<Erased>());
@@ -543,7 +544,7 @@ void main() {
         log: log,
         notices: {HistoryNotice.memoryOnly},
       )..start();
-      addTearDown(service.dispose);
+      addCloseTearDown(service);
       final k = _LateKeys();
       final result = await late(k).run(service);
       expect(result, isA<Erased>());
@@ -563,7 +564,7 @@ void main() {
       log: log,
       notices: {HistoryNotice.memoryOnly},
     )..start();
-    addTearDown(service.dispose);
+    addCloseTearDown(service);
     source.copy('in memory');
     keys.deleteError = StateError('no keychain');
     final result = await eraser(
@@ -585,7 +586,7 @@ void main() {
       log: log,
       notices: {HistoryNotice.memoryOnly},
     )..start();
-    addTearDown(service.dispose);
+    addCloseTearDown(service);
     keys.deleteError = StateError('no keychain');
     final r =
         await eraser(
@@ -608,7 +609,7 @@ void main() {
         log: log,
         notices: {HistoryNotice.incompatible},
       )..start();
-      addTearDown(service.dispose);
+      addCloseTearDown(service);
       keys.deleteError = StateError('denied');
       final result = await eraser(
         DefaultEraseTarget(keys: keys, folder: () async => folder),

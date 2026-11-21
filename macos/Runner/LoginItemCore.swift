@@ -55,19 +55,25 @@ final class LoginItemController {
   /// state asked for (already registered, needs approval) is not an error.
   func set(_ on: Bool) -> LoginItemAnswer {
     guard let service = service else { return LoginItemAnswer(state: .unsupported, error: nil) }
-    let done: (LoginItemStatus) -> Bool =
-      on
-      ? { $0 == .enabled || $0 == .requiresApproval }
-      : { $0 == .notRegistered }
-    if done(service.status) { return LoginItemAnswer(state: service.status, error: nil) }
+    if Self.reached(service.status, on: on) {
+      return LoginItemAnswer(state: service.status, error: nil)
+    }
     do {
       if on { try service.register() } else { try service.unregister() }
     } catch {
       let after = service.status
-      if done(after) { return LoginItemAnswer(state: after, error: nil) }
+      if Self.reached(after, on: on) { return LoginItemAnswer(state: after, error: nil) }
       return LoginItemAnswer(state: .error, error: (error as NSError).code)
     }
     return LoginItemAnswer(state: service.status, error: nil)
+  }
+
+  /// Whether macOS is in the state asked for: on is enabled or waiting for
+  /// approval, off is not registered. A plain function, not a closure in a
+  /// ternary, which the Xcode 16.4 compiler could not type-check in time.
+  private static func reached(_ status: LoginItemStatus, on: Bool) -> Bool {
+    if on { return status == .enabled || status == .requiresApproval }
+    return status == .notRegistered
   }
 
   func openSettings() {
