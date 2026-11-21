@@ -176,6 +176,18 @@ void main() {
       expect(text('SQLite'), contains(sqlite));
     });
 
+    // R10: the page joins lines of the same indent into one paragraph, so a
+    // line without a full stop runs into the next sentence.
+    test('extensionfunctions.c paragraph reads as sentences on the page', () {
+      final entry = LicenseEntryWithLineBreaks(const [
+        'SQLite3 Multiple Ciphers',
+      ], File(sqlite3mcNoticesAsset).readAsStringSync());
+      final paragraph = entry.paragraphs
+          .map((p) => p.text)
+          .firstWhere((t) => t.contains('only assumes it is public domain'));
+      expect(paragraph, contains('public domain. It is only compiled'));
+    });
+
     test('the SQLite notice is the public-domain blessing, in full', () {
       final t = text('SQLite');
       for (final line in [

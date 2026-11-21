@@ -56,5 +56,5 @@ bundles the parts below, each under the licence shown.
   Licence: Public domain (Keith Medcalf; builds on SQLite's csv.c)
 
 * extensionfunctions.c
-  Licence: No licence text. Upstream `filelist.md` only assumes it is public domain
+  Licence: No licence text. Upstream `filelist.md` only assumes it is public domain.
   It is only compiled with SQLITE_ENABLE_EXTFUNC. It must not be compiled in; enforced by tool/check_sqlite3mc.sh (macOS checked 2026-11-21; Windows checked before release).
