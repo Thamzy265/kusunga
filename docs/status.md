@@ -1,5 +1,30 @@
 # Status log
 
+## 2026-11-21 — M1.9a About and licences — developer round 2; reviewer started
+- Changed: developer report, word for word:
+
+  > Round 2 is done: all four bugs are fixed in one commit, 31aca27 on feat/about-licences (6 commits now). The full ./tool/check.sh passed once, with no overlapping runs: "04:15 +4025 ~11: All tests passed!" Format and analyze are clean. The 11 skips are the existing ones plus the blocked sqlite3mc MIT test; none of the tester's repro skips remain. Nothing is pushed.
+  > Branch: feat/about-licences (6 commits; round 2 = 31aca27)
+  > Built: no new features, only the fixes below. The skips and the PROBE_BUGS define are removed from the tester's repro tests (build_info_edge_test.dart, about_edge_test.dart, sqlite3mc_extfunc_abuse_test.dart), so they run as normal tests.
+  > Tests: 4025 passing, 11 skipped, 0 failing in the full check. Before the fixes, run with --dart-define=PROBE_BUGS=true: 8 repro tests failed: build_info_edge_test.dart: all 5 "odd defines" tests, including "does not become vv0.9.0"; sqlite3mc_extfunc_abuse_test.dart: "a bad binary is still named in a UTF-8 locale" and "a clean binary with invalid UTF-8 passes in a UTF-8 locale"; about_edge_test.dart: "one notice that fails to load does not blank the whole page". After the fixes, test/about, sqlite3mc_extfunc_check_test.dart and sqlite3mc_extfunc_abuse_test.dart: 170 passed, 1 skipped, 0 failed. The skipped one is the blocked sqlite3mc MIT-text test.
+  > E2E: n/a — no suite
+  > Test hooks: unchanged.
+  > Deviations from plan: BuildInfo keeps its constructor named `version:` and `build:`, but `version` and `build` are now getters (they use private constructor fields). A whitespace run inside a version becomes "-" in the source link only.
+  > Checklists: ui-build (unchanged from round 1). Other items n/a as before.
+  > Risks / unverified: The script ran on the real Mac binaries in both LC_ALL=C and en_US.UTF-8: all 5 files (arm64 and x86_64, dylib and framework) pass with the added marker names. This is a manual run on this machine, not part of the check. The Windows DLL is still unchecked; the added names were not tested against real extensionfunctions code.
+  > Personal data touched: none
+  > Later lines added: none
+  > Spec gaps raised: none
+  > Findings: BUG-M19A-5 — fixed (31aca27, the two UTF-8-locale repros). The script's `tr` now runs with LC_ALL=C, and so do its sed and sort. BUG-M19A-1 — fixed (31aca27, the four "odd defines" repros). Version and build are trimmed, and whitespace-only counts as empty. BUG-M19A-2 — fixed (31aca27, the "does not become vv0.9.0" repro). A leading v or V is stripped from the version, so the tag is v<version> once. BUG-M19A-4 — fixed (31aca27, the "one notice that fails to load" repro). registerLicences now loads each notice on its own and leaves out any that fails; the others still show. Tester note (a), discovery — done. No-argument discovery also finds sqlite3mc.dll, not only libsqlite3mc.*, in the hook-cache folder. The script header documents this. The build/ folder was already covered. Tester note (b), extra marker names — done. I added atn2, cot, coth and proper as whole-string matches. I left out the other names (difference, sign, square, reverse, mode, median) because they are common words that could hit a clean binary. The real Mac binaries still pass. Tester note (c), extensionfunctions.c listed in the notice — left unchanged, deliberately. assets/licences/sqlite3mc.txt row 58 is generated from docs/licences.md, which is the source (table row at line 49). The reachability test derives its list from that table. The row describes upstream's bundle list, and it says the part is compiled only with SQLITE_ENABLE_EXTFUNC. It does not claim the part ships in the binary. Decision for the lead: if you want it dropped from the in-app notice because the check proves it is absent, change the docs row and the asset together. I will not do that without your word.
+  > Blockers: Same as round 1: the verbatim upstream texts for the SQLite3 Multiple Ciphers MIT licence and each bundled part are not in assets/licences/sqlite3mc.txt. I did not try to fetch them. AC1 and AC7 stay open until someone adds them. Needs the lead or PM, and it blocks any build being handed out. The MIT test is still skipped.
+  > How to verify: same steps as the round 1 hand-off, plus: 1. Build with `--dart-define=KUSUNGA_VERSION=v0.9.0 --dart-define=KUSUNGA_BUILD=1`. The About line reads "Kusunga 0.9.0 (build 1)". In a release build, Copy link gives .../tree/v0.9.0 (not vv0.9.0). 2. In Terminal.app (UTF-8 locale), run `./tool/check_sqlite3mc.sh` after a native build. It prints "ok" for every binary and does not report "not a SQLite library".
+
+  Lead: note (c) stays as is — the row describes upstream's bundle and says it is compiled only with SQLITE_ENABLE_EXTFUNC; the check proves it is absent from the shipped binary. Reviewer dispatched (Mode: branch).
+- Gates: developer pass (AC1/AC7 blocked) · tester pass (4 bugs fixed) · reviewer in progress · QA open · PM merge not asked
+- Open findings: AC1/AC7 notice texts (blocked)
+- Decisions: none new
+- Blockers: Developer notice texts (fetch denied) · Tester none · Reviewer none · QA screen locked (PM) · Marketer none · Lead none · PM — unlock the Mac; allow the fetch or supply the texts; DPIA section 7; BUG-C1 residual Later line
+
 ## 2026-11-21 — M1.9a About and licences — tester report; developer round 2
 - Changed: tester report, word for word:
 
