@@ -93,10 +93,18 @@ void writeExportFile(
   }
 }
 
-/// Writes into [file], which was just made empty. It is opened without
-/// truncating, and written only once it is known to still be a plain file:
-/// a link put in its place is never written through.
+/// Writes into [file], which was just made empty. It is opened only if it is
+/// a plain file right then: every dart:io write mode creates a missing file,
+/// so opening a dangling link (Windows makes no error over one, BUG-C1)
+/// would make an empty file where it points. It is opened without
+/// truncating, and checked again once open, so a link put in its place is
+/// never written through. dart:io has no open without create and no
+/// O_NOFOLLOW, so the only gap left is between the first check and the open.
 void _writeInto(File file, List<int> bytes) {
+  if (FileSystemEntity.typeSync(file.path, followLinks: false) !=
+      FileSystemEntityType.file) {
+    throw FileSystemException('not a plain file', file.path);
+  }
   final out = file.openSync(mode: FileMode.writeOnlyAppend);
   try {
     _refuseLink(file);

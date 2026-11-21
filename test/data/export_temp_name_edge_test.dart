@@ -300,10 +300,7 @@ void main() {
         );
         expect(File(path).readAsStringSync(), 'the user\'s export');
       },
-      skip: Platform.isWindows
-          ? links
-          : 'BUG-C1 (low), the repro, fails today: the temp name is opened for '
-                'append, which creates an empty file where a dangling link points',
+      skip: links,
     );
 
     test('the real exclusive create loses to a file made after the check: '
