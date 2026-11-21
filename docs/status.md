@@ -1,5 +1,40 @@
 # Status log
 
+## 2026-11-21 — Windows CI green — developer round 4 (F1–F5 fixed); pushed; reviewer re-check
+- Changed: developer (opus) report, word for word (the "How to verify" steps are in the agent hand-off and repeat the evidence):
+
+  > All five findings are fixed in five commits on fix/windows-ci (HEAD d3a8e6c, not pushed). ./tool/check.sh passes: 3,891 tests pass, 10 skipped. Each strengthened test (F1, F2, F5) fails on a mutation that the test at HEAD 1be521f let through; every mutation was reverted and the tree is clean.
+  > Branch: fix/windows-ci (21 commits ahead of main; this round added 5: d9dcd43, 0f7a103, 981182d, 1eee3b6, d3a8e6c)
+  > Built:
+  > - F1: the rotating-writers log test now fails when no whole line is kept. In the one-after-the-other run it also checks that every kept line is whole and that the storeUnreadable lines end at 2999 with no gaps.
+  > - F2: the memory-only erase test fails if any timer is longer than one key time-out (`timers.where((d) => d > _t)` must be empty).
+  > - F3: `@visibleForTesting` on the `createTemp` parameter of `writeExportFile`, imported from `package:flutter/foundation.dart`. meta 1.18.0 allows this annotation on parameters.
+  > - F4: the BUG-C1 residual Later line now names two gaps. The first is between the plain-file check and the open (every OS). The second is on Windows only: between the nothing-there check and the exclusive create, because CREATE_NEW follows a link. No code change.
+  > - F5: the real-database close is now checked in the group's own tearDown, as close_service_test.dart does. The order-dependent "(checked after the one above)" test is removed.
+  > Tests: check.sh result line: `04:12 +3891 ~10: All tests passed!` (exit 0; format "Formatted 296 files (0 changed)"; analyze "No issues found!"). The test count went down by 1 because F5's test that depended on order is gone. Runs that show each test catching its problem:
+  > - F1, mutation A (every log line garbled: `\n` changed to `x\n` in lib/log/app_log.dart:158) — New test fails in both runs: "whole 0 of 28 … Expected: non-empty Actual: [] no whole line kept". The other run says the same with "whole 0 of 509". Old test at HEAD: "whole 0 of 45 … whole 0 of 508 … All tests passed!"
+  > - F1, mutation B (the line that triggers a rotation is dropped: `return;` after renameSync) — New BUG-T1 test fails: "Which: at location [409] is <2616> instead of <2615> … storeUnreadable lines with a gap". Old test: "All tests passed!"
+  > - F2, mutation (a 2 s `Future.delayed` after `_deleteKey` in lib/data/data_eraser.dart) — New test fails: "Expected: empty Actual: WhereIterable<Duration>:[Duration:0:00:02.000000] no wait longer than one time-out". Old test: "00:02 +1: All tests passed!"
+  > - F5, before the fix: `flutter test test/support/close_service_real_db_test.dart --plain-name '(checked after the one above)'` gave "Expected: ['closed'] Actual: [] … Some tests failed."
+  > - F5, after the fix: `--plain-name 'addCloseTearDown'` run alone: "+1: All tests passed!". The whole file: "+5: All tests passed!". Mutation (the helper only disposes, in test/support/close_service.dart): "Expected: false Actual: <true> open at folder deletion … Some tests failed."
+  > - F3: a scratch file under lib/ that passed `createTemp:` gave `warning • The member 'createTemp' can only be used within 'package:kusunga/data/your_data_service.dart' or a test • invalid_use_of_visible_for_testing_member`. The file was removed, and the real files analyse clean.
+  > E2E: n/a — no suite (end-to-end tools are TBD in Team setup)
+  > Test hooks: n/a — no UI
+  > Deviations from plan: Two small additions beyond the brief's wording. For F1 I used two mutations: garbled lines, plus a dropped line so the new no-gap check is also shown failing. For F5 I also ran a helper mutation to show that the tearDown check fails when the database is left open. All mutations were reverted (`git status` is clean).
+  > Checklists: none — n/a items: data-and-apis and ui-build both n/a. This round is test hardening, one annotation and one plan line, with no new store, API or screen.
+  > Risks / unverified: Windows not run locally. The F1 checks for the oneAfterTheOther run assume the second writer starts after the first has finished, which `await` guarantees. They also assume rotation keeps the second writer's newest lines with no gaps, which holds by design. On Windows CI, F5's tearDown check is skipped with the group's tests (noLsof).
+  > Personal data touched: none. The export write path only gained an analyzer annotation; its behaviour is unchanged.
+  > Later lines added: none new. The existing BUG-C1 residual line in docs/PLAN.md was reworded for F4.
+  > Spec gaps raised: none
+  > Findings: F1 — fixed (981182d, test/log/file_error_log_handle_test.dart rotatingWriters) | F2 — fixed (1eee3b6, test/data/key_delete_timing_test.dart "memory only: a hanging delete…") | F3 — fixed (d9dcd43, analyzer invalid_use_of_visible_for_testing_member shown on a scratch caller) | F4 — fixed (0f7a103, docs/PLAN.md Later line "BUG-C1 residual") | F5 — fixed (d3a8e6c, test/support/close_service_real_db_test.dart group "tear-down order")
+  > Blockers: none
+
+  Lead pushed 1be521f..d3a8e6c to fix/windows-ci (CI run 4) and sent the reviewer the re-check.
+- Gates: developer pass · tester pass · reviewer re-check in progress · QA open · PM merge not asked
+- Open findings: F1–F5 fixed, waiting for re-check
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — DPIA section 7; BUG-C1 residual Later line
+
 ## 2026-11-21 — Windows CI green — reviewer: approve with notes (F1–F5); developer round 4
 - Changed: reviewer (opus, Mode: branch) report, word for word:
 
