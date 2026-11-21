@@ -1,5 +1,17 @@
 # Status log
 
+## 2026-11-21 — M1.9a About and licences — R10 fixed; reviewer confirms
+- Changed: developer report, key lines word for word:
+  > R10 is fixed in 38b4f77 on feat/about-licences (on top of 0f032a7, not pushed). `./tool/check.sh` passed: `04:17 +4046 ~11: All tests passed!`
+  > First failing run, before the full stop: `Expected: contains 'public domain. It is only compiled'  Actual: '... only assumes it is public domain It is only compiled with SQLITE_ENABLE_EXTFUNC. ...'`
+  > Findings: R10 — fixed (38b4f77, "extensionfunctions.c paragraph reads as sentences on the page")
+  > Blockers: none. [...] No flutter_tester or other job is left running.
+  Reviewer asked to confirm R10.
+- Gates: developer pass · tester pass · reviewer approve with notes (R10 confirm pending) · QA open (screen locked) · PM merge not asked
+- Open findings: R6 Low (texts); AC1/AC7 notice texts and Windows DLL check
+- Decisions: none new
+- Blockers: Developer notice texts (fetch denied) · Tester none · Reviewer none · QA screen locked (PM) · Marketer none · Lead none · PM — unlock the Mac; allow the fetch or supply the texts; DPIA section 7; BUG-C1 residual Later line; R1 SQLite notice placement
+
 ## 2026-11-21 — M1.9a About and licences — reviewer re-check 2: approve with notes; R10 to developer
 - Changed: reviewer re-check 2 on 0f032a7, key lines word for word:
   > Verdict: approve with notes
