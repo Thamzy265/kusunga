@@ -1,5 +1,19 @@
 # Status log
 
+## 2026-11-21 — M1.9a About and licences — developer round 3; reviewer re-check
+- Changed: developer (sonnet, high effort) round 3 on feat/about-licences, 5 commits on 31aca27, HEAD 777e36e. Report key lines, word for word:
+  > Findings: R1 — fixed (a4d1e85; binding_order_test.dart, about_edge_test.dart "Kusunga is the first row" and "both SQLite notices are reachable", registry tests) | R2 — fixed (d01a7a8; about_edge_test.dart "page transition" group) | R3 — disputed → no_change_needed (688cfcf adds the tightened test only: one Esc on a notice goes to the list, the next goes to Settings with focus on View licences. On the unchanged old code at 31aca27 that test passes. A probe at 320 px, after tap-open, Tab, then Esc, also left only the detail popped. Cause: flutter/lib/src/material/about.dart:1396 wraps the nested Navigator in `NavigatorPopHandler`, a `PopScope(canPop: false)`. The outer route's `maybePop()` (our Esc binding) is therefore handed to the nested navigator first. I could not reproduce the whole-page close. If the reviewer still sees it, I need the exact steps and focus state.) | R4 — fixed (e3bfe9a; about_edge_test.dart "focus moves to the first row" at 320 and 900 px, plus "Esc on the first row goes back to Settings") | R7 — fixed (777e36e; comment finished by removal, y-position Tab test removed in favour of about_edge_test.dart, docs/licences.md flag 2 updated, extensionfunctions.c line and docs row updated, reachability tests green). R5 and R6 not in this round.
+  > Tests: `./tool/check.sh` ran alone, in the foreground (it was moved to the background after 3 min, but no second copy ran). `pgrep -fl flutter_tester` was empty before it. Result: format "Formatted 301 files (0 changed)", analyze "No issues found!", test "04:14 +4034 ~11: All tests passed!"
+  > First failing runs: R1: `Expected: ['Kusunga'] Actual: ['Copyright 2013 The Flutter Authors']`; R1 reachability: `Bad state: No element`; R2: `Expected: Duration:<0:00:00.000000> Actual: Duration:<0:00:00.450000>`; R4: "focus moves to the first row, at 320 px" and "at 900 px" both failed with `Expected: true Actual: <false>`.
+  > Deviations: the widget test registers `registerLicences()` first and a fake binding-style collector after it, because that is now the real order; the real order is proven by `binding_order_test.dart` with the real binding. Three registry tests adapted to the new entry shape (`['Kusunga']`, `['Kusunga','SQLite3 Multiple Ciphers']`, `['Kusunga','SQLite']`). The 320 px / 200% text test now calls `tester.takeException()` once after opening: with the zero-duration route, Flutter's own loading view overflows by 532 px for under 1 s (debug stripes only); not worked around.
+  > Risks: the `extensionfunctions.c` line says "not compiled into Kusunga's binaries", but only the macOS binaries are checked; the Windows binary is not checked yet. Observation, not changed: the `Focus(autofocus)` that holds the Esc binding is itself a Tab stop with no visible ring; `skipTraversal: true` would remove it.
+  > Blockers: none.
+  Lead: the extensionfunctions.c sentence stays (AC1 requires the Windows DLL check before any build ships; until then the claim is covered by that gate). The invisible Tab stop goes to the reviewer to judge in the re-check. R3 dispute goes to the reviewer.
+- Gates: developer pass · tester pass · reviewer re-check in progress · QA open · PM merge not asked
+- Open findings: R3 disputed; R6 pending texts; AC1/AC7 notice texts (blocked)
+- Decisions: none new
+- Blockers: Developer notice texts (fetch denied) · Tester none · Reviewer none · QA screen locked (PM) · Marketer none · Lead none · PM — unlock the Mac; allow the fetch or supply the texts; DPIA section 7; BUG-C1 residual Later line; R1 SQLite notice placement
+
 ## 2026-11-21 — M1.9a About and licences — reviewer: block (R1–R7); developer round 3
 - Changed: reviewer (opus, Mode: branch) report, word for word:
 
