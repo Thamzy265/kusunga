@@ -107,6 +107,7 @@ Everything stays on the device. No account, no server.
   - AC: profile and release macOS builds succeed on the current macOS (Flutter 3.44.6 fails on macOS 27: the new `lipo` takes one architecture per `-verify_arch`; workaround `ARCHS = arm64` or a Flutter update), and the built architectures are stated (developer note, 2026-11-05).
   - AC: the minimum macOS (12.0, forced by Xcode 27.2 in M1.3) is stated in ADR 0003 or the README and in the release notes (reviewer note C7, 2026-11-04).
   - AC: the release pipeline fails if the shipped Mac binary contains `KusungaAcceptSyntheticKeys` (`strings … | grep -c` is 0), and a guard checks `Local.xcconfig.example` sets no Swift compilation conditions — owner developer, due with M1.9, before the first beta (reviewer note N-R1, 2026-11-09).
+  - AC: the release script passes `--dart-define=KUSUNGA_VERSION` and `KUSUNGA_BUILD` taken from the release tag, and fails if they are missing or differ from the tag, so no release shows "version unknown" or links the wrong source (reviewer note R5, M1.9a review, 2026-11-21).
   - Before start: decide whether to build sqlite3mc from source instead of the SHA-256-pinned prebuilt download (reviewer note, 2026-11-03). Decided 2026-11-19: keep the pinned prebuilt (D2 A).
 
 ## M2 — Secure vault (bank details, IDs)
