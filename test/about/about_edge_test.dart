@@ -509,23 +509,57 @@ void main() {
     });
 
     // Spec: "Kusunga, SQLite3 Multiple Ciphers and SQLite at the top, then
-    // Flutter's collected notices". Flutter's page sorts by name; pub package
-    // names are lower case, so they sort after these capitalised names.
-    testWidgets('the three notices are above the packages Flutter collects', (
+    // Flutter's collected notices". Flutter's page pins only the first package
+    // of the first collector and sorts every other package by its lower-cased
+    // name, so Kusunga must come from the FIRST collector. KusungaBinding
+    // registers ours before the binding's own NOTICES collector, which is the
+    // order modelled here (binding_order_test.dart proves it with the real
+    // binding). A pinned "abseil-cpp" would put Kusunga in the middle.
+    testWidgets(
+      'Kusunga is the first row, above the packages Flutter collects',
+      (tester) async {
+        LicenseRegistry.addLicense(
+          () => Stream.fromIterable([
+            LicenseEntryWithLineBreaks(['abseil-cpp'], 'text'),
+            LicenseEntryWithLineBreaks(['archive', 'zlib'], 'text'),
+            LicenseEntryWithLineBreaks(['path'], 'text'),
+            LicenseEntryWithLineBreaks(['sqlite3'], 'text'),
+          ]),
+        );
+        await open(tester, const Size(900, 3000));
+        final rows = [
+          for (final t in tester.widgetList<ListTile>(find.byType(ListTile)))
+            (t.title! as Text).data!,
+        ];
+        expect(rows.first, 'Kusunga');
+        expect(rows, containsAll(['abseil-cpp', 'archive', 'path', 'sqlite3']));
+        expect(rows.indexOf('abseil-cpp'), greaterThan(0));
+      },
+    );
+
+    // Flutter's list sorts "SQLite" and "SQLite3 Multiple Ciphers" in among
+    // the pub packages, so the Kusunga row also leads to both notices.
+    testWidgets('both SQLite notices are reachable from the Kusunga row', (
       tester,
     ) async {
       LicenseRegistry.addLicense(
-        () => Stream.value(
-          LicenseEntryWithLineBreaks(['archive', 'zlib'], 'text'),
-        ),
+        () => Stream.value(LicenseEntryWithLineBreaks(['abseil-cpp'], 'text')),
       );
-      await open(tester, const Size(900, 800));
-      final mine = tester.getTopLeft(find.text('Kusunga').first).dy;
-      expect(
-        tester.getTopLeft(find.text('archive').first).dy,
-        greaterThan(mine),
-      );
-      expect(tester.getTopLeft(find.text('zlib').first).dy, greaterThan(mine));
+      await open(tester, const Size(320, 800));
+      await tester.tap(find.widgetWithText(ListTile, 'Kusunga'));
+      await tester.pumpAndSettle();
+      for (final text in [
+        'SQLite3 Multiple Ciphers 2.5.0 and the parts it bundles',
+        'May you do good and not evil',
+      ]) {
+        await tester.scrollUntilVisible(
+          find.textContaining(text),
+          1500,
+          scrollable: find.byType(Scrollable).last,
+          maxScrolls: 200,
+        );
+        expect(find.textContaining(text), findsWidgets, reason: text);
+      }
     });
 
     testWidgets('one notice that fails to load does not blank the whole page', (

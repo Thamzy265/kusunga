@@ -58,7 +58,9 @@ void main() {
     // The registry splits the text into paragraphs; compare without
     // whitespace so line breaks do not matter.
     String flat(String s) => s.replaceAll(RegExp(r'\s+'), '');
-    expect(flat(licences['Kusunga']!), flat(gpl));
+    // The Kusunga package also lists the two SQLite notices after the GPL
+    // (so the top row of the licence page reaches every notice).
+    expect(flat(licences['Kusunga']!), startsWith(flat(gpl)));
     expect(licences['Kusunga'], contains('Version 3, 29 June 2007'));
   });
 
@@ -118,9 +120,12 @@ void main() {
     expect(licences['SQLite'], contains('3.53.4'));
   });
 
-  test('the app registers the notices at start-up', () {
-    final main = File('lib/main.dart').readAsStringSync();
-    expect(main, contains('registerLicences();'));
+  test('the app registers the notices at start-up, before Flutter\'s own', () {
+    final binding = File('lib/about/kusunga_binding.dart').readAsStringSync();
+    final ours = binding.indexOf('registerLicences();');
+    final flutters = binding.indexOf('super.initLicenses();');
+    expect(ours, isNonNegative);
+    expect(flutters, greaterThan(ours));
   });
 
   test('the texts are bundled assets, never fetched', () {

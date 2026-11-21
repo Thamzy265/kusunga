@@ -19,23 +19,32 @@ const licenceLegalese =
     'conditions; see the GNU GPL for details.';
 
 /// Adds Kusunga, SQLite3 Multiple Ciphers and SQLite to Flutter's licence
-/// registry, so they are listed at the top of the licence page. Call once at
-/// start-up. Each text is read from [bundle] only when the page is opened.
+/// registry, so they are listed at the top of the licence page. Each text is
+/// read from [bundle] only when the page is opened.
+///
+/// Order matters. Flutter's licence page pins only the first package of the
+/// FIRST collector at the top and sorts every other package by its lower-cased
+/// name. [KusungaBinding] therefore calls this before the binding registers
+/// its own NOTICES collector; otherwise "abseil-cpp" is pinned and Kusunga
+/// lands in the middle of the list. Because "SQLite" and "SQLite3 Multiple
+/// Ciphers" are sorted in with the pub packages, both notices are also listed
+/// under the "Kusunga" package, so the top row leads to every notice.
 void registerLicences({AssetBundle? bundle}) {
   LicenseRegistry.addLicense(() async* {
     final b = bundle ?? rootBundle;
     // Each notice stands alone: one that fails to load is left out and the
-    // others still show.
-    for (final (name, asset) in [
-      ('Kusunga', kusungaLicenceAsset),
-      ('SQLite3 Multiple Ciphers', sqlite3mcNoticesAsset),
-      ('SQLite', sqliteNoticeAsset),
+    // others still show. "Kusunga" is always first in a package list, so it is
+    // the pinned package even if LICENSE itself cannot be read.
+    for (final (packages, asset) in [
+      (const ['Kusunga'], kusungaLicenceAsset),
+      (const ['Kusunga', 'SQLite3 Multiple Ciphers'], sqlite3mcNoticesAsset),
+      (const ['Kusunga', 'SQLite'], sqliteNoticeAsset),
     ]) {
       String? text;
       try {
         text = await b.loadString(asset);
       } catch (_) {}
-      if (text != null) yield LicenseEntryWithLineBreaks([name], text);
+      if (text != null) yield LicenseEntryWithLineBreaks(packages, text);
     }
   });
 }

@@ -79,17 +79,39 @@ void main() {
         for (final p in e.paragraphs) p.text,
     ].join('\n');
 
-    test('exactly the three notices, each under one package name', () {
-      expect(
-        [for (final e in entries) e.packages.join(',')],
-        ['Kusunga', 'SQLite3 Multiple Ciphers', 'SQLite'],
-      );
+    test(
+      'exactly the three notices, Kusunga first, each under its own name',
+      () {
+        expect(
+          [for (final e in entries) e.packages],
+          [
+            ['Kusunga'],
+            ['Kusunga', 'SQLite3 Multiple Ciphers'],
+            ['Kusunga', 'SQLite'],
+          ],
+        );
+      },
+    );
+
+    test('the Kusunga package leads to all three notices', () {
+      final kusunga = entries.where((e) => e.packages.contains('Kusunga'));
+      expect(kusunga, hasLength(3));
+      final all = [
+        for (final e in kusunga)
+          for (final p in e.paragraphs) p.text,
+      ].join('\n');
+      expect(all, contains('Version 3, 29 June 2007'));
+      expect(all, contains('SQLite3 Multiple Ciphers 2.5.0'));
+      expect(all, contains('May you do good and not evil.'));
     });
 
-    test('the Kusunga entry holds every line of LICENSE, in order', () {
+    test('the first entry holds every line of LICENSE, in order', () {
       String squash(String s) => s.replaceAll(RegExp(r'\s+'), ' ').trim();
       final gpl = squash(File('LICENSE').readAsStringSync());
-      expect(squash(text('Kusunga')), gpl);
+      expect(
+        squash([for (final p in entries.first.paragraphs) p.text].join('\n')),
+        gpl,
+      );
     });
 
     test('each part in docs/licences.md has its own block, in table order', () {
