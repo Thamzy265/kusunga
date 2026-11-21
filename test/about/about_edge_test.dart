@@ -461,23 +461,29 @@ void main() {
       expect(find.text('Kusunga'), findsWidgets);
     });
 
-    testWidgets('at 320 px, Esc on a notice goes back, never leaves a trap', (
-      tester,
-    ) async {
-      await open(tester, const Size(320, 800));
+    testWidgets('at 320 px, one Esc on a notice goes to the list, the next to '
+        'Settings with focus on View licences', (tester) async {
+      await show(tester, size: const Size(320, 800));
+      await tabTo(tester, button('about-view-licences'));
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('SQLite').first);
       await tester.pumpAndSettle();
       expect(
         find.textContaining('May you do good and not evil'),
         findsOneWidget,
       );
-      // One or two Esc presses (detail, then list) must reach Settings.
-      for (var i = 0; i < 2; i++) {
-        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-        await tester.pumpAndSettle();
-      }
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      // Detail to list: still on the licences page, text gone.
+      expect(find.byType(LicensePage), findsOneWidget);
+      expect(find.textContaining('May you do good and not evil'), findsNothing);
+      expect(find.widgetWithText(ListTile, 'Kusunga'), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
       expect(find.byType(LicensePage), findsNothing);
       expect(find.text('About'), findsOneWidget);
+      expect(hasFocus(tester, button('about-view-licences')), isTrue);
     });
 
     testWidgets('Esc after moving focus on the page still goes back', (
