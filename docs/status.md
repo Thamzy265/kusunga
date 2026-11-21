@@ -1,5 +1,21 @@
 # Status log
 
+## 2026-11-21 — M1.9a About and licences — reviewer re-check 2: approve with notes; R10 to developer
+- Changed: reviewer re-check 2 on 0f032a7, key lines word for word:
+  > Verdict: approve with notes
+  > Code review: 6 findings (4 fixed, 1 open Low, 1 no_change_needed) [...] Design review: 5 findings (3 fixed, 2 open Low) [...] Security review: 0 findings. [...] Privacy review: no issues.
+  > R10 — Low (cosmetic, in the shipped notice text) — assets/licences/sqlite3mc.txt:59-60. What happens: Flutter's LicenseEntryWithLineBreaks joins lines with the same indent into one paragraph. The "Licence:" line has no full stop, so the page shows: "Licence: No licence text. Upstream `filelist.md` only assumes it is public domain It is only compiled with SQLITE_ENABLE_EXTFUNC. [...]". Expected fix: add a full stop at the end of line 59. A test on the parsed paragraph text would be good.
+  > R6 — Low (carried) [...] R5 — Low (carried) [...]
+  > R4 deviation judged: accepted. The developer's rule is correct, and it is better than mine. [...] Does the loop terminate? Yes. [...]
+  > Fix outcomes: R4 — fixed. R8 — fixed. R9 — fixed. Earlier outcomes stand: R1 fixed, R2 fixed, R3 no_change_needed [...], R5 carried to M1.9e, R7 fixed.
+  > Open items: R10, R6 and R5 are Low [...]. Separate from the code verdict, AC1/AC7 can't be ticked until: the verbatim sqlite3mc texts are in the asset, the MIT test is unskipped, R6's checks are added, and `tool/check_sqlite3mc.sh` has been run and recorded on the Windows sqlite3mc.dll. Nothing else in the branch blocks once those land.
+  > Blockers: none
+  ("[...]" marks lines left out here.) Lead: R5's AC is already in docs/PLAN.md (5d5685a). R10 is a one-line fix plus a test; sent to the developer now. R6 waits for the texts. The Windows DLL check goes with M1.9b/e.
+- Gates: developer R10 · tester pass · reviewer approve with notes · QA open (screen locked) · PM merge not asked
+- Open findings: R10 Low (in progress); R6 Low (texts); AC1/AC7 notice texts and Windows DLL check
+- Decisions: none new
+- Blockers: Developer notice texts (fetch denied) · Tester none · Reviewer none · QA screen locked (PM) · Marketer none · Lead none · PM — unlock the Mac; allow the fetch or supply the texts; DPIA section 7; BUG-C1 residual Later line; R1 SQLite notice placement
+
 ## 2026-11-21 — M1.9a About and licences — developer round 4 (opus); reviewer re-check 2
 - Changed: developer (opus, high effort) report, key lines word for word:
   > All four items are fixed in 4 new commits on feat/about-licences. Nothing is pushed. `./tool/check.sh` passed: `04:14 +4045 ~11: All tests passed!`
