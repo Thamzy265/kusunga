@@ -1,5 +1,37 @@
 # Status log
 
+## 2026-11-21 — Windows CI green — developer round 3 (BUG-T1, BUG-C1); pushed for CI run 3
+- Changed: developer (opus) report, word for word:
+
+  > Branch: fix/windows-ci (3 new commits on a7f30a9, not pushed)
+  > - 6955c1d test(log): no per-writer floor when one writer finishes first (BUG-T1)
+  > - 1b3485e fix(export): never open the temp name unless it is a plain file (BUG-C1)
+  > - 1be521f docs(plan): BUG-T1 note on the log garble line, Later line for the BUG-C1 residual gap
+  > Built:
+  > - BUG-T1 (test only, test/log/file_error_log_handle_test.dart): the two writers are now a helper with a `oneAfterTheOther` option. The rotating check runs in two tests: the existing concurrent one, and a new deterministic one called "BUG-T1: the same two writers when one finishes before the other starts...". I removed the "each writer keeps at least one whole line" assertion. "kept is not empty" stays, and the order check now runs only on the lines a writer actually kept. Whole lines are parsed with a stricter pattern anchored at both ends: `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3,6}Z (flushFailed|storeUnreadable) (0|[1-9]\d{0,3})$`, and the number must also be below 3000. So a line BUG-L5 overwrote, with extra digits on the end, no longer matches. Before, the check used `\d+$` with `split(' ').last`.
+  > - BUG-C1 (lib/data/your_data_service.dart `_writeInto`): before the open, it now checks with `typeSync(followLinks: false)` that the temp name is a plain file. If it is not, it throws a FileSystemException. The existing link check after the open is kept. Why this approach: every dart:io write mode (write, append, writeOnly, writeOnlyAppend) creates a missing file, and dart:io has no O_NOFOLLOW. There is no open mode that refuses to create through a link. Checking before the open is the only fix possible without native code. On a refusal, the export throws, the link is left alone (`_removeQuietly` only removes plain files), and the user's existing export is unchanged. This is the same as the "link to a file wins the race" case.
+  > - I removed the skip on the BUG-C1 repro in test/data/export_temp_name_edge_test.dart. It is now `skip: links`, so it is skipped only on Windows without symlink rights, as its neighbouring tests are.
+  > Tests: ./tool/check.sh exited 0. Its last line: `04:33 +3892 ~10: All tests passed!`. dart format and flutter analyze were clean. `pgrep -fl flutter_tester` was empty before and after.
+  > - Export suites: test/data/export_erase_edge_test.dart, export_format_test.dart, export_temp_name_edge_test.dart, your_data_service_test.dart and recheck_fixes_test.dart: +192, all passed. recheck_fixes_test.dart on its own: +35, all passed.
+  > - BUG-T1, first failing run (the new deterministic test, before the assertion change): `LOG rotation x2 writers: live 396 lines, .1 409 lines, whole 805 of 805` / `Expected: non-empty  Actual: []  flushFailed kept no whole line` (test/log/file_error_log_handle_test.dart 280:9). After the fix the whole file passes: +16 ~1 (the ~1 is the existing BUG-L5 skip).
+  > - BUG-C1, first failing run (skip removed, old code): `a dangling link wins the race: nothing is created at its target` / `Expected: FileSystemEntityType:<notFound>  Actual: FileSystemEntityType:<file>  opening for append creates a missing file through a link`. With the fix, export_temp_name_edge_test.dart passes: +19. I then stashed only lib/data/your_data_service.dart and ran the test again. It failed with the same Expected/Actual, and passed again after the stash pop.
+  > E2E: n/a — no suite yet (end-to-end tools TBD in Team setup)
+  > Test hooks: n/a — no UI
+  > Deviations from plan: BUG-T1 is proven with a deterministic test (the writers run one after the other) instead of the loop with `yes` load. The brief said a deterministic proof is preferred. I did not start any `yes` processes, so none needed killing. I also edited docs/PLAN.md: the garble-rate note under the BUG-L5 Later line said the test "checks that each writer keeps at least one whole line", which is no longer true, so I corrected it.
+  > Checklists: data-and-apis — n/a items: migrations, endpoints/authorisation, outbound calls/timeouts (this is a local file write only)
+  > Risks / unverified: (1) A small gap remains between the new check and `openSync`. Someone who can already write to the export folder, and has listed the random temp name, could swap a dangling link in during that gap and still get an empty file created where it points. The check after the open still stops any bytes being written through it. Closing the gap completely needs a native open; there is a Later line for it. (2) Not run on real Windows. The Windows behaviour was played through the createTemp seam on macOS. Windows CI will confirm it.
+  > Personal data touched: export file write path (the user's snippets and history in the export JSON). The behaviour change is refusal only: no new fields, and nothing written to any new place.
+  > Later lines added: Export temp file opened with no gap at all against a link swapped in (BUG-C1 residual) — [...] — trigger: the pinned Dart SDK gains such an open mode, or ≥ 1 report of a stray empty file next to an export — noted 2026-11-21 by developer
+  > Spec gaps raised: none
+  > Findings: BUG-T1 — fixed (6955c1d [...]) | BUG-C1 — fixed (1b3485e [...])
+  > Blockers: none
+
+  (The two "[...]" shorten text quoted in full in the commits and in docs/PLAN.md on the branch.) Lead: the BUG-C1 residual gap Later line is a deferral of a known low risk, so it goes to the PM as a decision with the merge ask; the lead does not accept it. Lead pushed a7f30a9..1be521f to fix/windows-ci (approved route for this item) for CI run 3, and dispatched the reviewer (Mode: branch).
+- Gates: developer pass · tester pass (BUG-T1, BUG-C1 fixed) · reviewer in progress · QA open · PM merge not asked
+- Open findings: none open; BUG-C1 residual gap waiting for PM decision
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — DPIA section 7; BUG-C1 residual Later line
+
 ## 2026-11-21 — Windows CI green — tester report; CI run 2 green; developer round 3
 - Changed: CI run 2 on 11c85b7 (run 44631551718): macos pass (34m36s), windows pass (37m42s). Tester committed afbf373, bd4ca25, a7f30a9 on fix/windows-ci (not pushed). Tester report, word for word:
 
