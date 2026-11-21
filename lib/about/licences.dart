@@ -65,6 +65,8 @@ class _LicencesRoute extends MaterialPageRoute<void> {
       reduceMotion ? Duration.zero : super.reverseTransitionDuration;
 }
 
+enum _PageFocus { notYet, pageHolds, userMoved }
+
 /// Gives the page a focus to hold the Esc binding at once, then moves it to the
 /// first row of the list when the notices have loaded (spec: "Focus moves to
 /// the first row"). Flutter's page gives no signal when its list is ready, so
@@ -96,16 +98,32 @@ class _FocusFirstRowState extends State<_FocusFirstRow> {
 
   void _lookAfterNextFrame() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _userMovedFocus) return;
-      if (!_focusFirstRow()) _lookAfterNextFrame();
+      if (!mounted) return;
+      switch (_focusNow) {
+        case _PageFocus.notYet:
+          _lookAfterNextFrame();
+        case _PageFocus.pageHolds:
+          if (!_focusFirstRow()) _lookAfterNextFrame();
+        case _PageFocus.userMoved:
+          return;
+      }
     });
   }
 
-  /// True when the focus is on something other than the page's own start
-  /// (the route's scope, or the node below): the user got there first.
-  bool get _userMovedFocus {
+  /// Where the focus is, seen from the page. The route moves the focus in only
+  /// after the first frame (a microtask), so until then it is still on
+  /// whatever opened the page, such as View licences after Tab and Enter: that
+  /// is [_PageFocus.notYet], not the user. Inside the page, [_start] or a
+  /// route's scope (Flutter's page has its own navigator) is the page's own
+  /// focus; the user never Tabs to a scope. Any other node inside the page is
+  /// one the user moved to.
+  _PageFocus get _focusNow {
+    if (!_start.hasFocus) return _PageFocus.notYet;
     final focus = FocusManager.instance.primaryFocus;
-    return focus != null && focus != _start && focus is! FocusScopeNode;
+    if (focus == _start || focus is FocusScopeNode) {
+      return _PageFocus.pageHolds;
+    }
+    return _PageFocus.userMoved;
   }
 
   /// False while the list has not been built yet.

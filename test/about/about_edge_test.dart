@@ -575,18 +575,68 @@ void main() {
       }
     });
 
-    // Spec: "Focus moves to the first row" once the list has loaded.
-    for (final width in [320.0, 900.0]) {
-      testWidgets('focus moves to the first row, at ${width.toInt()} px', (
-        tester,
-      ) async {
-        await open(tester, Size(width, 800));
-        expect(
-          hasFocus(tester, find.widgetWithText(ListTile, 'Kusunga')),
-          isTrue,
-        );
-      });
+    // Spec: "Focus moves to the first row" once the list has loaded, however
+    // the page was opened. A tap does not focus View licences; Tab does, and
+    // the route only takes the focus from it after the first frame (R4).
+    for (final reduceMotion in [true, false]) {
+      final motion = reduceMotion ? 'reduced motion' : 'normal motion';
+      for (final width in [320.0, 900.0]) {
+        testWidgets('tap open: focus moves to the first row, at '
+            '${width.toInt()} px, $motion', (tester) async {
+          await show(
+            tester,
+            size: Size(width, 800),
+            reduceMotion: reduceMotion,
+          );
+          await tapHook(tester, 'about-view-licences');
+          await tester.pumpAndSettle();
+          expect(
+            hasFocus(tester, find.widgetWithText(ListTile, 'Kusunga')),
+            isTrue,
+          );
+        });
+      }
+      for (final (name, key) in [
+        ('Enter', LogicalKeyboardKey.enter),
+        ('Space', LogicalKeyboardKey.space),
+      ]) {
+        testWidgets('Tab and $name open: focus moves to the first row, '
+            '$motion', (tester) async {
+          await show(tester, reduceMotion: reduceMotion);
+          await tabTo(tester, button('about-view-licences'));
+          await tester.sendKeyEvent(key);
+          await tester.pumpAndSettle();
+          expect(find.byType(LicensePage), findsOneWidget);
+          expect(
+            hasFocus(tester, find.widgetWithText(ListTile, 'Kusunga')),
+            isTrue,
+            reason: 'focus is on ${FocusManager.instance.primaryFocus}',
+          );
+        });
+      }
     }
+
+    // The page leaves the focus alone once the user has moved it inside the
+    // page, even before the list has loaded.
+    testWidgets('a Tab before the list loads is kept, not moved to the row', (
+      tester,
+    ) async {
+      await show(tester);
+      await tabTo(tester, button('about-view-licences'));
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(find.byType(LicensePage), findsOneWidget);
+      expect(find.widgetWithText(ListTile, 'Kusunga'), findsNothing);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      final moved = FocusManager.instance.primaryFocus;
+      expect(moved, isNotNull);
+      expect(moved, isNot(isA<FocusScopeNode>()));
+      expect(moved!.debugLabel, isNot('licences start'));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(ListTile, 'Kusunga'), findsOneWidget);
+      expect(FocusManager.instance.primaryFocus, same(moved));
+    });
 
     // Esc after the focus has moved to the first row still goes back.
     testWidgets('Esc on the first row goes back to Settings', (tester) async {
