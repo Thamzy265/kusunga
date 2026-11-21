@@ -1,5 +1,21 @@
 # Status log
 
+## 2026-11-21 — M1.9a About and licences — developer round 4 (opus); reviewer re-check 2
+- Changed: developer (opus, high effort) report, key lines word for word:
+  > All four items are fixed in 4 new commits on feat/about-licences. Nothing is pushed. `./tool/check.sh` passed: `04:14 +4045 ~11: All tests passed!`
+  > Branch: feat/about-licences (4 new commits on 777e36e: fb6350c, ffeffd8, 6b8ca18, 0f032a7).
+  > R4: opening View licences with the keyboard now puts focus on the first row. [...] Focus outside the page (View licences still has it after Tab and Enter): "not yet", keep waiting. `_start`, or a route scope inside the page: the page still holds focus, so move it to the first row. Any other node inside the page: the user moved it, so stop. Why not the rule you suggested [...]: in the real Settings flow, primary focus ends on the scope of LicensePage's own nested Navigator, which sits *inside* `_start`, not on `_start`. Your rule would read that as the user moving focus and stop again.
+  > R8: `skipTraversal: true` on the `_start` Focus. [...] R9: the 320 px / 200% text test now checks that the exception it takes is the overflow. Cleanup: the extensionfunctions.c cell in docs/licences.md and the matching line in assets/licences/sqlite3mc.txt now both read "It must not be compiled in; enforced by tool/check_sqlite3mc.sh (macOS checked 2026-11-21; Windows checked before release)."
+  > First failing runs: R4, run against unchanged 777e36e code: all 4 "Tab and Enter/Space open" tests failed with `Expected: true Actual: <false>` [...]. Your probe [...] on 777e36e printed `keyboard=true ... firstRow=false` [...]. After fb6350c and again after ffeffd8 it prints firstRow=true in all 4 cases. R8 [...] both cycle tests failed with `Expected: not contains 'licences start'`. R9 [...] the old bare `takeException()` passed [...]. The new assertion failed [...]. Cleanup: failed first with `Expected: contains 'must not be compiled in'`.
+  > Deviations from plan: R4 uses the "focus outside the page / page holds / user moved" rule above instead of the exact rule you suggested, for the nested-Navigator reason given under Built.
+  > Findings: R4 — fixed (fb6350c) | R8 — fixed (ffeffd8) | R9 — fixed (6b8ca18) | Cleanup — fixed (0f032a7)
+  > Blockers: none. My one check.sh run (in the foreground) was moved to the background by the tool after 180 s. I waited for it to finish and started nothing else. No flutter_tester or other job is left running.
+  ("[...]" marks lines left out here.) Reviewer re-check 2 dispatched.
+- Gates: developer pass · tester pass · reviewer re-check 2 in progress · QA open · PM merge not asked
+- Open findings: R4, R8, R9 waiting for re-check; R6 pending texts; AC1/AC7 notice texts (blocked)
+- Decisions: none new
+- Blockers: Developer notice texts (fetch denied) · Tester none · Reviewer none · QA screen locked (PM) · Marketer none · Lead none · PM — unlock the Mac; allow the fetch or supply the texts; DPIA section 7; BUG-C1 residual Later line; R1 SQLite notice placement
+
 ## 2026-11-21 — M1.9a About and licences — reviewer re-check: block (R4 reopened, R8, R9); developer round 4 on opus
 - Changed: reviewer re-check on 777e36e, key lines word for word:
   > Verdict: block
