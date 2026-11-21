@@ -1,5 +1,29 @@
 # Status log
 
+## 2026-11-21 — Windows CI green — QA blocked (screen locked)
+- Changed: QA report, word for word:
+
+  > Milestone: Windows CI green (docs/qa/m1.md, section "Windows CI green (2026-11-21)") — 0/4 criteria confirmed by QA; 3 pending the lead on CI run 4, 1 real-app check NOT RUN — Date: 2026-11-21 — Environment: macOS 27.2, Flutter 3.44.6 / Dart 3.12.2, branch fix/windows-ci at d3a8e6c, debug macOS build (signing: Apple Development (redacted), CDHash 8466fdf5...), qa profile
+  > Automated: AC1, AC2, AC4 are CI-only (automated). AC3 rests on unit tests that I did not re-run. Manual: the real-app export check (the BUG-C1 behaviour change) — it needs the real UI and a native save panel, and it did not run (see Blockers).
+  > Fail: none observed. Nothing was exercised.
+  > Spec gaps: none
+  > Re-verified: none. Run 2 (44631551718, green on both jobs on 11c85b7) is recorded as prior evidence from your brief. QA did not re-run it.
+  > Needs PM: 1. Unlock the Mac and keep the screen awake and unlocked, then tell the lead so QA can re-run the export check. This is a real needs-PM item: the macOS session is locked and QA cannot enter a password. Nothing else needs the PM.
+  > Not observed: the real-app export (snippets only and with history ticked; to a new file and over an existing file; valid JSON; old content replaced; no `.kusunga-export-*` temp file left; "The file isn't encrypted" note). The screen is locked, so QA could not see or drive the app. Result of CI run 4: `gh run view 44895275732` read once showed it still in progress (macos and windows jobs running), so AC1, AC2 and AC4 are marked "pending — lead confirms".
+  > Accessibility: n/a — no UI change; the only behaviour change is the export write path.
+  > Privacy: n/a — no new data, storage or network use. The "file isn't encrypted" note was not re-checked (see above).
+  > Claims: n/a
+  > Evidence: docs/qa/m1.md (section "Windows CI green (2026-11-21)"), committed on fix/windows-ci as 275fd20, not pushed; screens: docs/qa/m1/screens/ (0 new files); videos: none — no flow ran.
+  > PM check steps: n/a — no PM steps beyond unlocking the Mac.
+  > Blockers: The macOS session screen is locked (CGSSessionScreenIsLocked = 1). Full-screen `screencapture` returned an all-black image, `screencapture -l` of the window failed, and the app exposed no AX window content. Who can unblock: the PM (unlock the Mac and keep it awake). What I need: an unlocked, awake screen, then a re-dispatch of QA for the real-app export check (about 15 minutes). Impact: the BUG-C1 real-flow check stays NOT RUN; CI and unit-test evidence is unaffected. I did not try to unlock the Mac or change any setting.
+  > Clean-up: the only Kusunga instance I started (pid 60446, qa profile) was quit by pid. No flutter_tester or other process of mine is running. The qa-export folder in the scratchpad is empty. The default profile was never used. The helper tools I built (AX reader) are in the scratchpad and were not committed.
+
+  Lead: CI run 4 still in progress at a second single check. QA re-runs the real-app export check once the PM unlocks the Mac.
+- Gates: developer pass · tester pass · reviewer approve (if CI run 4 green) · QA blocked (real-app export not run; CI pending) · PM merge not asked
+- Open findings: none
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA screen locked (PM) · Marketer none · Lead none · PM — unlock the Mac for QA; DPIA section 7; BUG-C1 residual Later line
+
 ## 2026-11-21 — Windows CI green — reviewer re-check: approve; QA started
 - Changed: reviewer re-check report, word for word:
 
