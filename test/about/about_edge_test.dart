@@ -22,8 +22,6 @@ const release = BuildInfo(version: '0.9.0', build: '1', development: false);
 const _repo = 'https://github.com/Thamzy265/kusunga';
 
 /// Open bugs (see the tester report) are skipped; run them with
-/// `flutter test --dart-define=PROBE_BUGS=true` to see them fail.
-const _probeBugs = bool.fromEnvironment('PROBE_BUGS');
 
 void main() {
   late FakeClipboardSource source;
@@ -530,19 +528,17 @@ void main() {
       expect(tester.getTopLeft(find.text('zlib').first).dy, greaterThan(mine));
     });
 
-    testWidgets(
-      'one notice that fails to load does not blank the whole page',
-      (tester) async {
-        LicenseRegistry.reset();
-        registerLicences(bundle: _BrokenBundle());
-        await show(tester);
-        await tapHook(tester, 'about-view-licences');
-        await tester.pumpAndSettle();
-        // Kusunga was yielded before the failing asset: it must still show.
-        expect(find.text('Kusunga'), findsWidgets);
-      },
-      skip: !_probeBugs, // BUG-M19A-4 (low): a missing asset hides the notices
-    );
+    testWidgets('one notice that fails to load does not blank the whole page', (
+      tester,
+    ) async {
+      LicenseRegistry.reset();
+      registerLicences(bundle: _BrokenBundle());
+      await show(tester);
+      await tapHook(tester, 'about-view-licences');
+      await tester.pumpAndSettle();
+      // Kusunga was yielded before the failing asset: it must still show.
+      expect(find.text('Kusunga'), findsWidgets);
+    });
   });
 }
 

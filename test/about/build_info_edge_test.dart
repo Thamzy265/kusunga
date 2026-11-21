@@ -5,10 +5,6 @@ import 'package:kusunga/about/build_info.dart';
 
 const _repo = 'https://github.com/Thamzy265/kusunga';
 
-/// Open bugs (see the tester report) are skipped; run them with
-/// `flutter test --dart-define=PROBE_BUGS=true` to see them fail.
-const _probeBugs = bool.fromEnvironment('PROBE_BUGS');
-
 BuildInfo info(String version, String build, {bool dev = false}) =>
     BuildInfo(version: version, build: build, development: dev);
 
@@ -88,53 +84,33 @@ void main() {
   // BUGS: a mistyped --dart-define is shown as it is, and builds a broken
   // link. The release script sets these, so the risk is a typo in that
   // script, but the About screen is what a tester reads and copies.
-  group('odd defines (open bugs, see the report)', () {
-    const bug = 'BUG-M19A-1: whitespace in --dart-define is not handled';
+  group('odd defines', () {
+    test('a whitespace-only version is "unknown", not a known version', () {
+      final i = info('   ', '1');
+      expect(i.versionLine, 'Kusunga (version unknown)');
+      expect(i.sourceUrl, _repo);
+    });
 
-    test(
-      'a whitespace-only version is "unknown", not a known version',
-      () {
-        final i = info('   ', '1');
-        expect(i.versionLine, 'Kusunga (version unknown)');
-        expect(i.sourceUrl, _repo);
-      },
-      skip: !_probeBugs ? bug : false,
-    );
+    test('a version with spaces around it gives a link without spaces', () {
+      final i = info(' 0.9.0 ', '1');
+      expect(i.sourceUrl, '$_repo/tree/v0.9.0');
+      expect(i.versionLine, 'Kusunga 0.9.0 (build 1)');
+    });
 
-    test(
-      'a version with spaces around it gives a link without spaces',
-      () {
-        final i = info(' 0.9.0 ', '1');
-        expect(i.sourceUrl, '$_repo/tree/v0.9.0');
-        expect(i.versionLine, 'Kusunga 0.9.0 (build 1)');
-      },
-      skip: !_probeBugs ? bug : false,
-    );
-
-    test(
-      'a whitespace-only build leaves the build out',
-      () {
-        expect(info('0.9.0', '  ').versionLine, 'Kusunga 0.9.0');
-      },
-      skip: !_probeBugs ? bug : false,
-    );
+    test('a whitespace-only build leaves the build out', () {
+      expect(info('0.9.0', '  ').versionLine, 'Kusunga 0.9.0');
+    });
 
     test('the source link never contains whitespace', () {
       expect(info('0.9.0 beta\n', '1').sourceUrl, isNot(matches(r'\s')));
-    }, skip: !_probeBugs ? bug : false);
+    });
 
-    test(
-      'a version already starting with "v" does not become "vv0.9.0"',
-      () {
-        expect(
-          info('v0.9.0', '1').sourceUrl,
-          isNot(contains('/tree/vv')),
-          reason: 'the tag is v<version>; --dart-define=KUSUNGA_VERSION=v0.9.0',
-        );
-      },
-      skip: _probeBugs
-          ? false
-          : 'BUG-M19A-2 (low): a leading "v" in the define is doubled',
-    );
+    test('a version already starting with "v" does not become "vv0.9.0"', () {
+      expect(
+        info('v0.9.0', '1').sourceUrl,
+        isNot(contains('/tree/vv')),
+        reason: 'the tag is v<version>; --dart-define=KUSUNGA_VERSION=v0.9.0',
+      );
+    });
   });
 }

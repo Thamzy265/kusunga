@@ -24,15 +24,19 @@ const licenceLegalese =
 void registerLicences({AssetBundle? bundle}) {
   LicenseRegistry.addLicense(() async* {
     final b = bundle ?? rootBundle;
-    yield LicenseEntryWithLineBreaks([
-      'Kusunga',
-    ], await b.loadString(kusungaLicenceAsset));
-    yield LicenseEntryWithLineBreaks([
-      'SQLite3 Multiple Ciphers',
-    ], await b.loadString(sqlite3mcNoticesAsset));
-    yield LicenseEntryWithLineBreaks([
-      'SQLite',
-    ], await b.loadString(sqliteNoticeAsset));
+    // Each notice stands alone: one that fails to load is left out and the
+    // others still show.
+    for (final (name, asset) in [
+      ('Kusunga', kusungaLicenceAsset),
+      ('SQLite3 Multiple Ciphers', sqlite3mcNoticesAsset),
+      ('SQLite', sqliteNoticeAsset),
+    ]) {
+      String? text;
+      try {
+        text = await b.loadString(asset);
+      } catch (_) {}
+      if (text != null) yield LicenseEntryWithLineBreaks([name], text);
+    }
   });
 }
 

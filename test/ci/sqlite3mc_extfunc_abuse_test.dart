@@ -7,10 +7,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
-/// Open bugs (see the tester report) are skipped; run them with
-/// `flutter test --dart-define=PROBE_BUGS=true` to see them fail.
-const _probeBugs = bool.fromEnvironment('PROBE_BUGS');
-
 final _script = File('tool/check_sqlite3mc.sh').absolute.path;
 
 List<int> fake(List<String> strings) => [
@@ -247,34 +243,26 @@ void main() {
     // real release check gives a false FAIL with a misleading reason, and
     // build/native_assets/macos/libsqlite3mc.dylib shows it. The fix is
     // `LC_ALL=C tr` in strings_of.
-    test(
-      'a bad binary is still named in a UTF-8 locale',
-      () {
-        final f = File(p.join(dir.path, 'bin.dll'))
-          ..writeAsBytesSync(invalidUtf8);
-        final r = run(
-          [f.path],
-          env: {'LC_ALL': 'en_US.UTF-8', 'LANG': 'en_US.UTF-8'},
-        );
-        expect(r.exitCode, isNot(0), reason: out(r));
-        expect(out(r), contains('padl'));
-      },
-      skip: _probeBugs ? false : 'BUG-M19A-5: tr fails on non-UTF-8 bytes',
-    );
+    test('a bad binary is still named in a UTF-8 locale', () {
+      final f = File(p.join(dir.path, 'bin.dll'))
+        ..writeAsBytesSync(invalidUtf8);
+      final r = run(
+        [f.path],
+        env: {'LC_ALL': 'en_US.UTF-8', 'LANG': 'en_US.UTF-8'},
+      );
+      expect(r.exitCode, isNot(0), reason: out(r));
+      expect(out(r), contains('padl'));
+    });
 
-    test(
-      'a clean binary with invalid UTF-8 passes in a UTF-8 locale',
-      () {
-        final f = File(p.join(dir.path, 'bin.dll'))
-          ..writeAsBytesSync([0xff, 0xfe, 0, ...fake(clean), 0xc3, 0x28, 0]);
-        final r = run(
-          [f.path],
-          env: {'LC_ALL': 'en_US.UTF-8', 'LANG': 'en_US.UTF-8'},
-        );
-        expect(r.exitCode, 0, reason: out(r));
-      },
-      skip: _probeBugs ? false : 'BUG-M19A-5: tr fails on non-UTF-8 bytes',
-    );
+    test('a clean binary with invalid UTF-8 passes in a UTF-8 locale', () {
+      final f = File(p.join(dir.path, 'bin.dll'))
+        ..writeAsBytesSync([0xff, 0xfe, 0, ...fake(clean), 0xc3, 0x28, 0]);
+      final r = run(
+        [f.path],
+        env: {'LC_ALL': 'en_US.UTF-8', 'LANG': 'en_US.UTF-8'},
+      );
+      expect(r.exitCode, 0, reason: out(r));
+    });
 
     test('a marker only in UTF-16 text is not seen (known limit)', () {
       // C string tables are 8-bit, so extensionfunctions.c names are not

@@ -7,7 +7,8 @@
 #   tool/check_sqlite3mc.sh [binary ...]
 #
 # With no argument it checks every sqlite3mc binary this machine has built:
-# the downloaded libraries under .dart_tool/hooks_runner/shared/sqlite3/build/,
+# the downloaded libraries under .dart_tool/hooks_runner/shared/sqlite3/build/
+# (libsqlite3mc.dylib, libsqlite3mc.so, or sqlite3mc.dll on Windows),
 # and the ones copied into build/ (the Mac sqlite3mc.framework, the Windows
 # sqlite3mc.dll). It fails if it finds none, so "nothing to check" never passes.
 #
@@ -24,7 +25,7 @@
 # How it works: it splits the binary at NUL bytes (C string tables) and looks
 # for names that extensionfunctions.c registers and SQLite3 Multiple Ciphers
 # does not: padl, padr, padc, strfilter, charindex, leftstr, rightstr, stdev,
-# variance, replicate, lower_quartile, upper_quartile and its
+# variance, replicate, atn2, cot, coth, proper, lower_quartile, upper_quartile and its
 # RegisterExtensionFunctions entry point. Short names must be a whole string
 # (so "padlock" is fine); the long, distinctive ones may sit inside a string. It
 # also fails on a file that is empty or is not a SQLite library, so a wrong
@@ -34,10 +35,12 @@ set -uo pipefail
 root="${KUSUNGA_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 
 # Whole-string matches (short names) and in-string matches (distinctive names).
-exact=(padl padr padc stdev variance replicate)
+exact=(padl padr padc stdev variance replicate atn2 cot coth proper)
 inside=(strfilter charindex leftstr rightstr lower_quartile upper_quartile RegisterExtensionFunctions)
 
-strings_of() { tr '\0' '\n' <"$1"; }
+# LC_ALL=C: bytes, not characters. In a UTF-8 locale tr stops at the first
+# byte that is not valid UTF-8, which every real binary has.
+strings_of() { LC_ALL=C tr '\0' '\n' <"$1"; }
 
 failed=0
 check() {
@@ -60,7 +63,7 @@ check() {
   args=()
   for n in "${inside[@]}"; do args+=(-e "$n"); done
   hits+="$(strings_of "$file" | LC_ALL=C grep -a -o -F "${args[@]}" || true)"
-  hits="$(printf '%s\n' "$hits" | sed '/^$/d' | LC_ALL=C sort -u)"
+  hits="$(printf '%s\n' "$hits" | LC_ALL=C sed '/^$/d' | LC_ALL=C sort -u)"
   if [ -n "$hits" ]; then
     echo "FAIL $file: contains extensionfunctions.c code (no licence): $(echo "$hits" | tr '\n' ' ')" >&2
     return 1
@@ -75,7 +78,7 @@ else
   while IFS= read -r f; do files+=("$f"); done < <(
     {
       [ -d "$root/.dart_tool/hooks_runner/shared/sqlite3/build" ] &&
-        find "$root/.dart_tool/hooks_runner/shared/sqlite3/build" -type f -name 'libsqlite3mc.*'
+        find "$root/.dart_tool/hooks_runner/shared/sqlite3/build" -type f \( -name 'libsqlite3mc.*' -o -name sqlite3mc.dll \)
       [ -d "$root/build" ] &&
         find "$root/build" -type f \( -name sqlite3mc.dll -o -path '*sqlite3mc.framework/*sqlite3mc' \)
     } 2>/dev/null | LC_ALL=C sort -u

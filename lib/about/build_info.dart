@@ -12,8 +12,8 @@ const _repo = 'https://github.com/Thamzy265/kusunga';
 /// them the app says the version is unknown.
 class BuildInfo {
   const BuildInfo({
-    required this.version,
-    required this.build,
+    required this._version,
+    required this._build,
     required this.development,
   });
 
@@ -25,8 +25,19 @@ class BuildInfo {
     development: !kReleaseMode,
   );
 
-  final String version;
-  final String build;
+  final String _version;
+  final String _build;
+
+  /// The version without surrounding whitespace or a leading "v" (so a
+  /// define of `v0.9.0` is the same as `0.9.0`; the tag adds its own "v").
+  /// Whitespace-only means unknown.
+  String get version {
+    final v = _version.trim();
+    return (v.startsWith('v') || v.startsWith('V')) ? v.substring(1).trim() : v;
+  }
+
+  /// The build number without surrounding whitespace.
+  String get build => _build.trim();
 
   /// A debug or profile build.
   final bool development;
@@ -48,8 +59,9 @@ class BuildInfo {
 
   /// The source link: the tag of this build, or the plain repository for a
   /// development build or an unknown version.
-  String get sourceUrl =>
-      (development || !_known) ? _repo : '$_repo/tree/v$version';
+  String get sourceUrl => (development || !_known)
+      ? _repo
+      : '$_repo/tree/v${version.replaceAll(RegExp(r'\s+'), '-')}';
 
   /// Shown under the source link for a development build.
   String? get caption => development ? 'Development build' : null;
