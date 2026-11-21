@@ -1,5 +1,34 @@
 # Status log
 
+## 2026-11-21 — Windows CI green — reviewer re-check: approve; QA started
+- Changed: reviewer re-check report, word for word:
+
+  > Mode: branch
+  > Branch: fix/windows-ci (re-check of 1be521f..d3a8e6c: d9dcd43, 0f7a103, 981182d, 1eee3b6, d3a8e6c) — Verdict: approve. All five findings are fixed and none is open. This holds only if CI run 4 on d3a8e6c is green. I did not poll it, and I could not run check.sh under the brief.
+  > Checks: ./tool/check.sh was not run by me, as briefed. The developer reports "+3891 ~10: All tests passed!". My own checks, with pgrep -fl flutter_tester empty first: `flutter analyze` on the 4 changed Dart files: "No issues found!". The parameter annotation raises no invalid_annotation_target. `dart format --set-exit-if-changed` on those files: 0 changed. Focused `flutter test` on file_error_log_handle, key_delete_timing, test/support/, export_temp_name_edge and your_data_service: "+84 ~1: All tests passed!". The F5 test run alone (--plain-name 'addCloseTearDown'): pass. Both rotation log tests ('rotations in the middle' and 'BUG-T1'): 3 runs each, all pass, no flakes.
+  > Code review: 5 findings (5 fixed, 0 open)
+  > Design review: 0 findings (0 fixed, 0 open)
+  > Security review: 1 finding — S1, Low (no CVSS score: band + basis — local only; the attacker must already be able to write to the chosen export folder, list the random name and win a race; the worst result is an empty new file, with no export bytes and no existing file changed). The Later line now covers it; see F4.
+  > Privacy review: no issues. The re-check changes no data, store, log or integration. n/a for minimisation, retention, consent and logs: none of them are touched.
+  > Later lines: ok. The BUG-C1 residual line was changed in 0f7a103. Format: right. Trigger: measurable ("≥ 1 report of a stray empty file next to an export"). Never-deferred list: not on it. It is hardening against a local attacker who can already write to the folder, and no existing user data can change. It now names both gaps: between the plain-file check and the open (every OS), and between the nothing-there check and CREATE_NEW (Windows). Added by reviewer: none.
+  > Findings (most severe first): none open. Earlier findings F1–F5 are listed below.
+  > Fix outcomes:
+  > - F1 — fixed (981182d), test/log/file_error_log_handle_test.dart:284-307. `expect(parsed, isNotEmpty)` was added, so a regression that garbles every line now fails. In the oneAfterTheOther run, every kept line must match the anchored whole-line pattern, and the storeUnreadable lines must run with no gap to 2999. Neither check depends on timing: the writers don't overlap, and the single-writer rotation test at :27 already shows that the kept lines are contiguous. Old-code run: the developer reports a mutation run that shows the test now catches the problem. I did not repeat it.
+  > - F2 — fixed (1eee3b6), test/data/key_delete_timing_test.dart:299-303. `timers.where((d) => d > _t)` must be empty, so any added wait longer than one key time-out fails. The developer reports the mutation run.
+  > - F3 — fixed (d9dcd43), lib/data/your_data_service.dart:70. `@visibleForTesting` is on `createTemp`, and analyze is clean. Production still can't reach the seam: the only caller is the `ExportWriter` tear-off.
+  > - F4 — fixed (0f7a103), docs/PLAN.md:182. The Later line names both gaps, including the Windows CREATE_NEW gap.
+  > - F5 — fixed (d3a8e6c), test/support/close_service_real_db_test.dart:70-91. The check moved into the group tearDown, and the order-dependent test was removed. It passes when run alone. On Windows the test is skipped, and so is its tearDown. The developer reports a mutation run showing it fails without the helper.
+  > Risk accepted by PM: none needed. For reference, these PM decisions are in docs/status.md: 2026-11-19 W1 A / W2 A / W3 A ("Yes, as recommended"), and BUG-L5 "PM chose to skip" (2026-11-06).
+  > Open items: none. Before merging, CI run 4 on d3a8e6c must be green.
+  > Blockers: none.
+  > Process note: closed. The lead confirmed the tester and developer round 3 status entries are committed on local main, not on this branch.
+
+  CI run 4 (44895275732) on d3a8e6c in progress at one check. Lead dispatched QA (qa profile only) for the export change.
+- Gates: developer pass · tester pass · reviewer approve (if CI run 4 green) · QA in progress · PM merge not asked
+- Open findings: none
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — DPIA section 7; BUG-C1 residual Later line
+
 ## 2026-11-21 — Windows CI green — developer round 4 (F1–F5 fixed); pushed; reviewer re-check
 - Changed: developer (opus) report, word for word (the "How to verify" steps are in the agent hand-off and repeat the evidence):
 
