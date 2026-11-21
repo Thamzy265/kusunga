@@ -36,3 +36,10 @@ We will use option A. Kusunga is distributed as a notarised direct download. The
 - Harder: we handle updates ourselves (an updater is a later item); users download from our website, not the App Store; the M1.9 beta needs the Apple Developer account.
 - If we later want the Mac App Store, we must test whether App Review accepts posting Cmd+V. If not, the store build falls back to "Copied — press ⌘V" and keeps the rest.
 - Every build that posts or listens to events must keep working inside the sandbox; a CI test checks the entitlements file still has `com.apple.security.app-sandbox`.
+
+## Build facts (M1.9b, 2026-11-21)
+
+- The minimum supported version is macOS 12.0 (`MACOSX_DEPLOYMENT_TARGET`, forced by Xcode 27.2 in M1.3). State it in the release notes.
+- The beta is Apple silicon only (`ARCHS = arm64` for release and profile, PM decision D3 A, 2026-11-19). Intel Macs run macOS 26 or older and are not built for.
+- Hardened Runtime is on for release and profile builds (`ENABLE_HARDENED_RUNTIME = YES` in `macos/Runner/Configs/Release.xcconfig`). Debug builds do not use it. The release entitlements file has no Hardened Runtime exceptions.
+- `tool/mac_release_guards.sh` fails a release whose binary contains `KusungaAcceptSyntheticKeys` or whose `Local.xcconfig.example` sets Swift compilation conditions.
