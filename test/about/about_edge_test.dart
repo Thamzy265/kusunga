@@ -425,7 +425,14 @@ void main() {
       // Kusunga's layout, and the old slide-in hid it by keeping the page
       // off-stage until the list had loaded; with no transition (reduced
       // motion) it is painted once. Only the loaded page is checked.
-      tester.takeException();
+      expect(
+        tester.takeException(),
+        isA<FlutterError>().having(
+          (e) => e.toString(),
+          'message',
+          contains('overflowed'),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.byType(LicensePage), findsOneWidget);
       expect(tester.takeException(), isNull);
