@@ -1,5 +1,47 @@
 # Status log
 
+## 2026-11-21 — Windows CI green — reviewer: approve with notes (F1–F5); developer round 4
+- Changed: reviewer (opus, Mode: branch) report, word for word:
+
+  > Mode: branch
+  > Branch: fix/windows-ci (16 item commits, 00bd126..1be521f; base 7e9baf5 = origin/main) — Verdict: approve with notes. This depends on CI run 3 on 1be521f going green: I can't confirm the full check myself, and I did not poll the run.
+  > Checks: ./tool/check.sh was not run, as briefed. I ran focused `flutter test` with no other flutter_tester running (pgrep was empty) — pass — "+102 ~1: All tests passed!" Files: export_temp_name_edge, your_data_service, test/support/*, file_error_log_handle, key_delete_timing, line_endings, line_endings_checkout, build_config, login_item_guards. Also `xcrun swiftc -typecheck -Xfrontend -warn-long-expression-type-checking=100 macos/Runner/LoginItemCore.swift` gave no warnings (1.5 s). CI run 2 on 11c85b7 was green (lead); run 3 is pending.
+  > Code review: 5 findings (0 fixed, 5 open; all Low or cleanup). I did this review by hand at high depth. I did not run the code-review skill.
+  > Design review: 0 findings. The work matches docs/design/windows-ci-green.md and W1 A / W2 A / W3 A. One small difference is an improvement: the design said `if: always()`, and the code uses `if: ${{ !cancelled() }}`. The design's "each writer keeps at least one line" was dropped for BUG-T1, and the PLAN note records it.
+  > Security review: 1 finding — S1, Low (no CVSS score; band + basis: local only; the attacker must already be able to write to the export folder the user picked and must win a race; worst case is an empty new file, with no export bytes and no existing file changed). It is a wording gap in the BUG-C1 residual Later line; see F4. The security-review skill found no high-confidence vulnerability.
+  > Privacy review: no issues.
+  > - Export: nothing is written outside the target path. Bytes are never written through a link. The temp-route failure removes only a plain temp file and leaves the user's existing export as it was. I traced lib/data/your_data_service.dart:65-116.
+  > - The write-in-place fallback empties the existing export and removes it if the write fails. That is the approved R3 design and is not changed here. In production it is now reached only if something is already at a 128-bit random name.
+  > - n/a: data minimisation, retention and consent (no new data, store or integration).
+  > - n/a: logs (no new log lines).
+  > - n/a: CI secrets (permissions: contents read; no secrets; no untrusted input reaches a shell).
+  > Later lines: ok. One line was added: "Export temp file opened with no gap at all … (BUG-C1 residual) … — trigger: … ≥ 1 report of a stray empty file next to an export — noted 2026-11-21 by developer". The format is right and the trigger is measurable. It is not on the never-deferred list: it is hardening against a local attacker who can already write to the folder, and no existing user data can change. The BUG-T1 text is a note under BUG-L5, not a Later line. Added by reviewer: none.
+  > Findings (most severe first):
+  > - F1 — Low (test strength; a false green is possible) — test/log/file_error_log_handle_test.dart:251-305 (rotatingWriters). Failure scenario: a writer or rotation regression garbles every line when two writers rotate. `parsed` is then empty, the order loop checks nothing, and only `kept isNotEmpty` runs, so the test passes. Mitigation: single-writer and BUG-L4 whole-line tests exist, but several of them skip on Windows. Expected fix: add `expect(parsed, isNotEmpty)`; this does not depend on timing. In the oneAfterTheOther run the writers never overlap, so also assert that every kept line matches `wholeLine` and that the storeUnreadable lines end at 2999 with no gaps. That gives the BUG-T1 test real content. My judgement for the lead (the design note asked for it): dropping the 90% floor is acceptable, because BUG-L5 is a PM-skipped product item. The per-writer order check is not flaky: a whole line can't take a wrong number under the anchored regex, and B's line is always longer than A's.
+  > - F2 — Low (test strength) — test/data/key_delete_timing_test.dart:288-298 (memory-only test). Failure scenario: the old wall-clock upper bound (< 3 × _t) is gone. A regression that adds a fixed wait of another length under 4 s, such as a 2 s sleep, still gives `_timeOuts == 1` and passes. Expected fix: also assert that no recorded timer is longer than _t, for example `expect(timers.where((d) => d > _t), isEmpty)`, or keep a generous upper bound on the total time.
+  > - F3 — Low (cleanup) — lib/data/your_data_service.dart:69 (`createTemp` seam). It can't be misused in production. The only production caller is the `ExportWriter` tear-off at :280, whose type is (path, bytes) and can't pass the seam. Whatever the seam makes, `_writeInto` (:104-107) refuses to open anything but a plain file. Expected fix: mark it `@visibleForTesting`, so a future caller doesn't pass it.
+  > - F4 — Low (S1, Later-line wording) — docs/PLAN.md:182, with your_data_service.dart:77-82. On Windows, the exclusive create (CREATE_NEW) follows a link. A link swapped in between the `typeSync` pre-check at :77 and the create at :82 can therefore make an empty file where it points, before `_writeInto`'s checks run. The Later line names only the gap between the check and the open. The consequence is the same as the gap already recorded (an empty file only). Expected fix: reword the Later line to cover the gap before the create on Windows too. No code change.
+  > - F5 — cleanup — test/support/close_service_real_db_test.dart:80-95. The test "(checked after the one above)" depends on test order. Run alone with --plain-name, `h` is not set and `seen` is empty, so it fails. Expected fix: check the result in the group's tearDown itself, as close_service_test.dart:52-55 does.
+  > - Note, not a finding: tool/test_mac_login_item.sh:28-35 keeps only lines containing 'type-check', so other swiftc errors are hidden there. The compile step below it still catches them, and the script is not run in CI. Fine as is.
+  > Verified:
+  > - BUG-C1 regression test. With the new export_temp_name_edge_test.dart on 6955c1d (before the fix), "a dangling link wins the race" fails: Expected notFound, Actual file. It passes on 1be521f. The test was written first and fails without the fix. I used a temp worktree in the scratchpad and removed it afterwards.
+  > - The group C test (your_data_service_test.dart:223) can only pass with the pre-check: without it, the no-op createTemp leads `_writeInto` to refuse, and the export fails.
+  > - Swift: `reached(_:on:)` has the same conditions as the old closure (on: enabled or requiresApproval; off: notRegistered), used before and after register/unregister. Same behaviour.
+  > - CI: `!cancelled()` runs the build after a test failure, and the job still fails. build_config_test guards against `continue-on-error`.
+  > - Group E: own_marker_edge's false green is fixed with p.basename.
+  > - The tear-down order of closeAndDispose is confirmed by close_service_test and the lsof test.
+  > Fix outcomes: none yet.
+  > Risk accepted by PM: none needed. The relevant PM decisions are in docs/status.md: 2026-11-19 W1 A / W2 A / W3 A ("Yes, as recommended"), and BUG-L5 "PM chose to skip" (2026-11-06, Later line).
+  > Open items: F1-F5. All are Low or cleanup, so none blocks the merge (approve with notes). F1 and F2 are cheap test additions; I recommend doing them on this branch before the PR merges.
+  > Blockers: none.
+  > Process note for the lead: you pointed me to the tester report and developer round 3 entries, but they are not in docs/status.md. The newest entry is "2026-11-19 — Windows CI green — deck approved; build started", and the working tree is clean. Please log them, plus this review, before the merge.
+
+  Lead: the process note is because status entries are committed on main (local, unpushed) and the reviewer read the branch; both entries are on main (4be4a6c, and the round 3 entry). F1–F5 are all cheap and go to the developer on this branch now (F4 is a wording change in the BUG-C1 residual Later line, which still goes to the PM with the merge ask). CI run 3 on 1be521f was pending at one check; it will be superseded by the round 4 push.
+- Gates: developer round 4 (F1–F5) · tester pass · reviewer approve with notes (re-check after round 4) · QA open · PM merge not asked
+- Open findings: F1 Low, F2 Low, F3 Low, F4 Low (S1), F5 cleanup
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — DPIA section 7; BUG-C1 residual Later line
+
 ## 2026-11-21 — Windows CI green — developer round 3 (BUG-T1, BUG-C1); pushed for CI run 3
 - Changed: developer (opus) report, word for word:
 
