@@ -46,7 +46,7 @@ Read from the upstream project at tag v2.5.0 (`src/filelist.md` and the licence 
 | miniz (miniz.c, used by the compress and zipfile extensions) | MIT | file header | Yes |
 | SQLite core and SQLite extensions (shathree, csv, fileio, series, uuid, regexp, sqlar, zipfile, compress, rekeyvacuum) | Public domain (blessing) | file headers and `filelist.md` | Yes |
 | vsv.c (extension) | Public domain (Keith Medcalf; builds on SQLite's csv.c) | file header | Yes |
-| extensionfunctions.c | No licence text. Upstream `filelist.md` only assumes it is public domain | `filelist.md` | Unclear. Only compiled with `SQLITE_ENABLE_EXTFUNC`; it is not compiled into Kusunga's binaries (a binary that has it fails `tool/check_sqlite3mc.sh`). The macOS arm64 binary the sqlite3 hook downloaded here has none of its function names (checked with `strings`), so it is not in that binary. Windows binary not checked. See flag 1. |
+| extensionfunctions.c | No licence text. Upstream `filelist.md` only assumes it is public domain | `filelist.md` | Unclear. Only compiled with `SQLITE_ENABLE_EXTFUNC`. It must not be compiled in; enforced by `tool/check_sqlite3mc.sh` (macOS checked 2026-11-21; Windows checked before release). See flag 1. |
 
 Nothing in SQLite3 Multiple Ciphers is GPL-2.0-only, LGPL-only without the "or later" option, AGPL or proprietary.
 
