@@ -1,5 +1,21 @@
 # Status log
 
+## 2026-11-21 — M1.9b Mac release build — developer hand-off; tester started
+- Changed: lead created worktree build/mac-release from main 32d419e and dispatched the developer (sonnet). Size: part of M1.9 (large); this part is build config and guards, one platform, no data. Developer report, key lines word for word:
+  > Branch: build/mac-release (1 commit, cfa9f52, not pushed)
+  > macos/Runner/Configs/Release.xcconfig: `ARCHS = arm64` and `ENABLE_HARDENED_RUNTIME = YES`. This file is the project-level base for both Release and Profile; Debug is untouched (no hardened runtime, so local runs and unit-test hosts load unsigned code as before).
+  > tool/mac_release_guards.sh, for the M1.9e release script to call. `binary <Kusunga.app|file>` exits 1 if any file in the bundle contains KusungaAcceptSyntheticKeys. `xcconfig <file>` exits 1 if non-comment lines set SWIFT_ACTIVE_COMPILATION_CONDITIONS or a -D in OTHER_SWIFT_FLAGS. Exit 2 means the guard could not run [...]. The binary guard uses `grep -a -c -F` on the raw bytes, not `strings`. [...]
+  > ADR 0003 has a new "Build facts" section: minimum macOS 12.0 (AC9), arm64 only (D3 A), Hardened Runtime on for release/profile, and the guards.
+  > Tests: 3870 passing, 10 skipped (the full `./tool/check.sh` ended "All tests passed!"; format and analyze passed). 15 new tests in test/ci/mac_release_build_guards_test.dart. [...] First failing run, before the script and settings: `00:00 +1 -14: Some tests failed.`
+  > Risks / unverified: The Hardened Runtime build was NOT launched (rule: never launch). [...] QA should check it with the qa-profile launch below. [...] The ad-hoc release app carries the entitlement `com.apple.security.get-task-allow = true`. Xcode injects it for non-distribution signing, and notarisation rejects it. M1.9c/e must sign with Developer ID so it is dropped, then check with `codesign -d --entitlements -`. I did not change signing. Entitlements: I added none.
+  > Build evidence: `flutter build macos --release` gave "✓ Built build/macos/Build/Products/Release/Kusunga.app (25.0MB)". `flutter build macos --profile` gave "✓ Built build/macos/Build/Products/Profile/Kusunga.app (35.8MB)". `lipo -archs` on each Mach-O in both apps: arm64 [...]. `codesign -dv --verbose=4` on the release app: `flags=0x10002(adhoc,runtime)`, Signature=adhoc, TeamIdentifier=not set.
+  > Blockers: none. No keychain or signing dialog appeared. No background jobs are left.
+  ("[...]" marks lines left out here.) Lead: the get-task-allow point is noted for M1.9e (the release script's codesign/notarisation checks will fail on it; M1.9e adds an explicit `codesign -d --entitlements -` check). Tester dispatched.
+- Gates: developer pass · tester in progress · reviewer, QA open (QA needs an unlocked screen for the Hardened Runtime launch) · PM merge not asked
+- Open findings: none
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA screen locked (PM) · Marketer none · Lead none · PM — as in the morning report
+
 ## 2026-11-21 — M1.9a About and licences — reviewer: R10 fixed, approve with notes
 - Changed: reviewer confirmation, key lines word for word:
   > R10 is fixed and the verdict stays approve with notes. [...] Verdict: approve with notes [...] My focused run [...] at 38b4f77 passed: "+40 ~1: All tests passed!" [...] Findings (most severe first, both Low): R6 [...] R5 [...] Separate from the code verdict, AC1/AC7 can't be ticked until: the verbatim sqlite3mc texts are in the asset, the MIT test is unskipped, R6's checks are added, and `tool/check_sqlite3mc.sh` has been run and recorded on the Windows sqlite3mc.dll. Nothing else in the branch blocks once those land. Blockers: none
