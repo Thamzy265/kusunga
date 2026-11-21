@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-21 — M1.9a About and licences — reviewer: R10 fixed, approve with notes
+- Changed: reviewer confirmation, key lines word for word:
+  > R10 is fixed and the verdict stays approve with notes. [...] Verdict: approve with notes [...] My focused run [...] at 38b4f77 passed: "+40 ~1: All tests passed!" [...] Findings (most severe first, both Low): R6 [...] R5 [...] Separate from the code verdict, AC1/AC7 can't be ticked until: the verbatim sqlite3mc texts are in the asset, the MIT test is unskipped, R6's checks are added, and `tool/check_sqlite3mc.sh` has been run and recorded on the Windows sqlite3mc.dll. Nothing else in the branch blocks once those land. Blockers: none
+- Gates: developer pass · tester pass · reviewer approve with notes · QA open (needs an unlocked screen; also waits for the texts for AC1/AC7) · PM merge not asked
+- Open findings: R5 Low (AC in plan), R6 Low (texts)
+- Decisions: none new
+- Blockers: Developer notice texts (fetch denied) · Tester none · Reviewer none · QA screen locked (PM) · Marketer none · Lead none · PM — unlock the Mac; allow the fetch or supply the texts; DPIA section 7; BUG-C1 residual Later line; R1 SQLite notice placement
+
 ## 2026-11-21 — M1.9a About and licences — R10 fixed; reviewer confirms
 - Changed: developer report, key lines word for word:
   > R10 is fixed in 38b4f77 on feat/about-licences (on top of 0f032a7, not pushed). `./tool/check.sh` passed: `04:17 +4046 ~11: All tests passed!`
