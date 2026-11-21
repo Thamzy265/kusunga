@@ -21,8 +21,6 @@ import '../support/fakes.dart';
 const release = BuildInfo(version: '0.9.0', build: '1', development: false);
 const _repo = 'https://github.com/Thamzy265/kusunga';
 
-/// Open bugs (see the tester report) are skipped; run them with
-
 void main() {
   late FakeClipboardSource source;
   late HistoryService service;

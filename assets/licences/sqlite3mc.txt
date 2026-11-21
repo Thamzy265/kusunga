@@ -57,3 +57,4 @@ bundles the parts below, each under the licence shown.
 
 * extensionfunctions.c
   Licence: No licence text. Upstream `filelist.md` only assumes it is public domain
+  It is only compiled with SQLITE_ENABLE_EXTFUNC and is not compiled into Kusunga's binaries (a binary that has it fails tool/check_sqlite3mc.sh).

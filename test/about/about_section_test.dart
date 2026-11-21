@@ -262,30 +262,8 @@ void main() {
       expect(find.byType(SelectableText), findsOneWidget);
     });
 
-    testWidgets('Tab order: Copy version, Copy link, View licences', (
-      tester,
-    ) async {
-      await show(tester);
-      final names = <String>[];
-      for (final id in [
-        'about-copy-version',
-        'about-copy-link',
-        'about-view-licences',
-      ]) {
-        await tester.ensureVisible(hook(id));
-        final y = tester
-            .getTopLeft(
-              find.descendant(
-                of: hook(id),
-                matching: find.byType(OutlinedButton),
-              ),
-            )
-            .dy;
-        names.add('$y');
-      }
-      final ys = names.map(double.parse).toList();
-      expect(ys, orderedEquals([...ys]..sort()));
-    });
+    // The focus order (Copy version, Copy link, View licences) is checked by
+    // pressing Tab in about_edge_test.dart ("Tab goes ... in order").
 
     testWidgets('targets are at least 24 x 24', (tester) async {
       await show(tester);
