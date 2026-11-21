@@ -68,29 +68,24 @@ void main() {
   }, skip: noLsof);
 
   group('tear-down order: the helper runs before the folder is deleted', () {
-    final seen = <String>[];
     late HistoryService h;
 
     // Registered before the test body, so it runs after the test's own
     // tear-downs: the same place as the folder deletion in the test files.
+    // The check is made here, so the test needs no other test to run first.
     tearDown(() {
-      seen.add(_heldOpen(db) ? 'open at folder deletion' : 'closed');
-    });
-
-    test('addCloseTearDown', () {
-      seen.clear();
-      h = open();
-      addCloseTearDown(h);
-      expect(_heldOpen(db), isTrue);
-    }, skip: noLsof);
-
-    test('(checked after the one above)', () {
-      expect(seen, ['closed']);
+      expect(_heldOpen(db), isFalse, reason: 'open at folder deletion');
       expect(
         () => h.addListener(() {}),
         throwsFlutterError,
         reason: 'it was disposed too',
       );
+    });
+
+    test('addCloseTearDown', () {
+      h = open();
+      addCloseTearDown(h);
+      expect(_heldOpen(db), isTrue);
     }, skip: noLsof);
   });
 
