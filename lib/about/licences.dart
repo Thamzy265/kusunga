@@ -157,9 +157,16 @@ class _FocusFirstRowState extends State<_FocusFirstRow> {
     return true;
   }
 
+  /// [_start] has no focus ring, so it is never a Tab stop (WCAG 2.4.7).
+  /// Autofocus still gives it the focus at once, so Esc works from the start;
+  /// [_focusNow] reads focus, not traversal, so it still sees [_start].
   @override
-  Widget build(BuildContext context) =>
-      Focus(autofocus: true, focusNode: _start, child: widget.child);
+  Widget build(BuildContext context) => Focus(
+    autofocus: true,
+    skipTraversal: true,
+    focusNode: _start,
+    child: widget.child,
+  );
 }
 
 /// Opens Flutter's licence page for this build, with Esc to go back (what

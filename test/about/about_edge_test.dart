@@ -638,6 +638,58 @@ void main() {
       expect(FocusManager.instance.primaryFocus, same(moved));
     });
 
+    // WCAG 2.4.7: the page's own start has no focus ring, so Tab and
+    // Shift+Tab must never stop on it (R8).
+    for (final width in [320.0, 900.0]) {
+      testWidgets('Tab and Shift+Tab never stop on the page start, at '
+          '${width.toInt()} px', (tester) async {
+        await show(tester, size: Size(width, 800));
+        await tabTo(tester, button('about-view-licences'));
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
+        final stops = <FocusNode?>[];
+        for (final shift in [false, true]) {
+          if (shift) await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
+          for (var i = 0; i < 30; i++) {
+            await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+            await tester.pump();
+            stops.add(FocusManager.instance.primaryFocus);
+          }
+          if (shift) await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
+        }
+        expect(find.byType(LicensePage), findsOneWidget);
+        expect(
+          stops.map((n) => n?.debugLabel),
+          isNot(contains('licences start')),
+        );
+        // The cycle went somewhere: more than one stop was visited.
+        expect(stops.toSet().length, greaterThan(1));
+      });
+    }
+
+    testWidgets('keyboard only: Esc from a notice, then from the first row', (
+      tester,
+    ) async {
+      await show(tester, size: const Size(320, 800));
+      await tabTo(tester, button('about-view-licences'));
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      final row = find.widgetWithText(ListTile, 'Kusunga');
+      expect(hasFocus(tester, row), isTrue);
+      // Enter on the first row opens its notice.
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('GNU GENERAL PUBLIC LICENSE'), findsWidgets);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.byType(LicensePage), findsOneWidget);
+      expect(find.textContaining('GNU GENERAL PUBLIC LICENSE'), findsNothing);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.byType(LicensePage), findsNothing);
+      expect(hasFocus(tester, button('about-view-licences')), isTrue);
+    });
+
     // Esc after the focus has moved to the first row still goes back.
     testWidgets('Esc on the first row goes back to Settings', (tester) async {
       await open(tester, const Size(320, 800));
