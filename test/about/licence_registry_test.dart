@@ -117,7 +117,9 @@ void main() {
   test('the app registers the notices at start-up, before Flutter\'s own', () {
     final binding = File('lib/about/kusunga_binding.dart').readAsStringSync();
     final ours = binding.indexOf('registerLicences();');
-    final flutters = binding.indexOf('super.initLicenses();');
+    final flutters = binding.indexOf(
+      'LicenseRegistry.addLicense(flutterNotices)',
+    );
     expect(ours, isNonNegative);
     expect(flutters, greaterThan(ours));
   });
