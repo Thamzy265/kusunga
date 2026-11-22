@@ -21,7 +21,7 @@ const _copyFailed = "Couldn't copy. Try again.";
 /// The About section at the bottom of Settings (M1.9a): the version and build,
 /// the GPL notice, the source link and the licences. Nothing here uses the
 /// network: the link is text with a Copy link button.
-class AboutSection extends StatelessWidget {
+class AboutSection extends StatefulWidget {
   const AboutSection({
     super.key,
     required this.info,
@@ -36,12 +36,35 @@ class AboutSection extends StatelessWidget {
   final Future<bool> Function(String text) copy;
   final void Function(String message) toast;
 
+  @override
+  State<AboutSection> createState() => _AboutSectionState();
+}
+
+class _AboutSectionState extends State<AboutSection> {
+  final _licencesFocus = FocusNode(debugLabel: 'View licences');
+
+  BuildInfo get info => widget.info;
+
+  @override
+  void dispose() {
+    _licencesFocus.dispose();
+    super.dispose();
+  }
+
   Future<void> _copy(String text, String done) async {
     var ok = false;
     try {
-      ok = await copy(text);
+      ok = await widget.copy(text);
     } catch (_) {}
-    toast(ok ? done : _copyFailed);
+    widget.toast(ok ? done : _copyFailed);
+  }
+
+  /// A mouse click does not focus a button, so the page's route had nothing to
+  /// give the focus back to on Esc (M1.9a B4). The button takes it first, as
+  /// it already does for Enter.
+  void _openLicences() {
+    _licencesFocus.requestFocus();
+    showLicences(context, info);
   }
 
   @override
@@ -53,6 +76,7 @@ class AboutSection extends StatelessWidget {
       String label,
       VoidCallback onPressed, {
       String? name,
+      FocusNode? focusNode,
     }) => Semantics(
       identifier: id,
       label: name ?? label,
@@ -65,6 +89,7 @@ class AboutSection extends StatelessWidget {
           foregroundColor: WidgetStatePropertyAll(t.text),
           minimumSize: const WidgetStatePropertyAll(Size(24, 40)),
         ),
+        focusNode: focusNode,
         onPressed: onPressed,
         child: Text(label),
       ),
@@ -137,7 +162,8 @@ class AboutSection extends StatelessWidget {
           child: button(
             'about-view-licences',
             _viewLicences,
-            () => showLicences(context, info),
+            _openLicences,
+            focusNode: _licencesFocus,
           ),
         ),
       ],
