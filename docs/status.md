@@ -1,5 +1,14 @@
 # Status log
 
+## 2026-11-22 — Windows CI green (PR 9) — PM approves the merge and accepts the BUG-C1 residual
+- Changed: lead asked "May I merge PR 9, accepting the low BUG-C1 risk?" with the QA evidence (5/5 pass) and the merge route (push QA evidence commit 90b2272 to fix/windows-ci, then merge PR 9 on GitHub with a merge commit).
+- Gates: developer pass · tester pass · reviewer approve · QA pass · PM merge approved
+- Open findings: none
+- Decisions:
+  - Merge approved by PM (2026-11-22): PR 9, branch fix/windows-ci, merge commit on GitHub — PM said: "Merge, accept BUG-C1"
+  - Risk accepted by PM (2026-11-22): accepted: BUG-C1 residual (low) — a link swapped into the export folder, by someone who can already write to it and has listed the random temp name, can make an empty file where it points, in the gap between the plain-file check and the open (every OS) and, on Windows, between the nothing-there check and the exclusive create; never the user's data — scope: PR 9 / fix/windows-ci, finding BUG-C1, tracked by the PLAN Later line "Export temp file made and opened with no gap at all against a link swapped in (BUG-C1 residual)" — expiry/review: when that Later line's trigger fires (the pinned Dart SDK gains a no-follow open mode, or ≥ 1 report of a stray empty file next to an export) — PM said: "Merge, accept BUG-C1"
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-22 — Windows CI green (PR 9) — QA pass; merge approval asked
 - Changed: PM unlocked the Mac ("Unlocked, run QA"). QA report (sonnet), word for word (lists joined onto one line, wording unchanged):
   > Milestone: Windows CI green (PR 9, `fix/windows-ci`) — 5/5 criteria pass — Date: 2026-11-22 — Environment: macOS 27.2, Flutter 3.44.6 / Dart 3.12.2, HEAD 275fd20 (code d3a8e6c), debug build from 2026-11-21 10:42, qa profile only
