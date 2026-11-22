@@ -1,5 +1,23 @@
 # Status log
 
+## 2026-11-22 — M1.9a About and licences — developer round 9 (R16 fixed); reviewer re-check dispatched
+- Changed: developer report (sonnet, high effort, round 9), word for word ("How to verify" left out, sub-lists joined, the audit list condensed by the lead):
+  > R16 is fixed and committed (3e74ba5). The CRLF regression test fails on 7f9b241's `problemsIn` and passes after the fix. The one full check passed: `+4191 ~10: All tests passed!`.
+  > Branch: feat/about-licences (1 new commit, 3e74ba5, on top of 7f9b241). Not pushed.
+  > Built: at the top of `problemsIn` in `test/about/flutter_licences_binding_test.dart`: `source = source.replaceAll('\r\n', '\n');` (test-only). A new group, "the check works on a CRLF copy of the source (Windows)", with two tests that run on every OS: `expect(problemsIn(crlf(real())), isEmpty)`, with the `_recheck` reason; and a `substring(split + 1)` CRLF copy still reports a problem.
+  > Tests: 4191 passing, 10 skipped, from the one full `./tool/check.sh`. Format and analyze were clean. Before it I confirmed `pgrep -fl flutter_tester` was empty.
+  > First failing run, on 7f9b241's `problemsIn`: "the real source with CRLF line endings has no problems [E] Expected: empty Actual: ['_parseLicenses no longer has: indexOf('\n\n')', '_parseLicenses no longer has: substring(0, split).split('\n')', '_parseLicenses no longer has: substring(split + 2)']" — "+8: Some tests failed." After the fix: "00:00 +9: All tests passed!". Note: the second new test also passes on 7f9b241, for the wrong reason (the false problems make `isNotEmpty` true); it guards against over-normalising after the fix.
+  > E2E: n/a. Test hooks: n/a. Deviations from plan: none. Checklists: none (test-only change).
+  > Risks / unverified: not run on a real Windows SDK; Windows CI on this branch is the real proof. Audit (other tests with an LF-only assumption): the only SDK source reader is the fixed guard; m16 reads binary font files; test/ci/licence_test.dart reads the sqlite3 CHANGELOG with readAsLinesSync() and trim() (safe). Repo files with an LF-only assumption (break only if the Windows checkout converts them to CRLF): test/ci/typed_shortcut_guards_test.dart:142 (`indexOf('\n}\n')`, would throw RangeError), test/ci/capture_skip_guards_test.dart:103 (same pattern as R16), and `.split('\n')` in licence_test.dart, typed_shortcut_guards_test.dart, typed_shortcut_synthetic_edge_test.dart, capture_skip_guards_test.dart, data_profile_guard_test.dart, snippet_privacy_edge_test.dart and licence_registry_edge_test.dart. The latest main run (45009293707) passed all tests on Windows, which suggests the checkout is LF or those paths are not hit. Cheapest hardening: `* text=auto eol=lf` in .gitattributes, or the same replaceAll in those tests. Not done (outside R16); no Later line (no measurable trigger).
+  > Personal data touched: none. Later lines added: none. Spec gaps raised: none.
+  > Findings: R16 — fixed (3e74ba5)
+  > Blockers: none
+  Lead: reviewer re-check of 7f9b241..3e74ba5 dispatched, with the audit's line-ending question.
+- Gates: developer pass (round 9) · tester pass · reviewer re-check in progress · QA pending · PM merge not asked
+- Open findings: none open (R16 waiting for re-check)
+- Decisions: open for PM: Apache-2.0 / CC0-1.0 texts and the Argon2 CC0 sentence
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-22 — M1.9a About and licences — reviewer re-check: block (R16, Windows CI); developer round 9 dispatched
 - Changed: reviewer re-check report (opus, high), word for word (sub-lists joined; file paths shortened):
   > Mode: branch
