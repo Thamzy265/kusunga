@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io' show gzip;
 
 import 'package:flutter/foundation.dart'
-    show LicenseEntry, LicenseEntryWithLineBreaks;
+    show LicenseEntry, LicenseEntryWithLineBreaks, debugPrint;
 import 'package:flutter/services.dart';
 
 import 'licences.dart';
@@ -33,7 +33,12 @@ Stream<LicenseEntry> flutterNotices({AssetBundle? bundle}) async* {
     entries = _parse(
       data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
     );
-  } catch (_) {
+  } catch (e) {
+    // Debug builds only, and the type alone: the message could hold data.
+    assert(() {
+      debugPrint('NOTICES.Z could not be read (${e.runtimeType})');
+      return true;
+    }());
     return;
   }
   String? own;

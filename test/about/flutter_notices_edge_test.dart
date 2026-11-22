@@ -215,6 +215,22 @@ void main() {
       expect(await s.toList(), isEmpty);
     });
 
+    test('in a debug build the failure is reported by type only, with no data '
+        '(R12)', () async {
+      final lines = <String?>[];
+      final old = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) => lines.add(message);
+      addTearDown(() => debugPrint = old);
+      final s = flutterNotices(
+        bundle: NoticesBundle(utf8.encode('SECRET-CLIPBOARD-TEXT')),
+      );
+      expect(await s.toList(), isEmpty);
+      expect(lines, hasLength(1));
+      expect(lines.single, contains('NOTICES.Z'));
+      expect(lines.single, contains('FormatException'));
+      expect(lines.single, isNot(contains('SECRET')));
+    });
+
     test('a gzip file cut in half does not crash (Dart returns what it could '
         'read)', () async {
       final good = gzip.encode(utf8.encode('a\n\n${'x' * 5000}'));
