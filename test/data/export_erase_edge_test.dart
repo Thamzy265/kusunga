@@ -18,6 +18,7 @@ import 'package:kusunga/log/app_log.dart';
 import 'package:kusunga/snippets/snippet.dart';
 import 'package:path/path.dart' as p;
 
+import '../support/close_service.dart';
 import '../support/fakes.dart';
 
 const _key = '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
@@ -53,10 +54,7 @@ void main() {
       snippetStore: store.snippetStore(),
       ignoredAppStore: store.ignoredAppStore(),
     )..start();
-    addTearDown(() async {
-      await s.close();
-      s.dispose();
-    });
+    addCloseTearDown(s);
     return (service: s, store: store);
   }
 
@@ -389,7 +387,7 @@ void main() {
         snippetStore: store.snippetStore(),
         ignoredAppStore: store.ignoredAppStore(),
       )..start();
-      addTearDown(s.dispose);
+      addCloseTearDown(s);
       return s;
     }
 
@@ -551,7 +549,7 @@ void main() {
         snippetStore: store.snippetStore(),
         ignoredAppStore: store.ignoredAppStore(),
       )..start();
-      addTearDown(h.dispose);
+      addCloseTearDown(h);
       source.copy('before');
       final gate = keys.holdDelete();
       final result = await eraser(

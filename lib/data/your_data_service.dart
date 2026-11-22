@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 
 import '../history/history_service.dart';
@@ -59,12 +60,27 @@ String exportTempPath(String path, [Random? random]) {
 /// only the file the user picked), the file is written directly, never
 /// through a link, and removed again if the write fails. Nothing is ever
 /// written to any other path.
-void writeExportFile(String path, List<int> bytes, {Random? random}) {
+///
+/// [createTemp] is a test seam for how the temporary file is made (by default
+/// an exclusive create), so a test can give the Windows answer on any OS.
+void writeExportFile(
+  String path,
+  List<int> bytes, {
+  Random? random,
+  @visibleForTesting void Function(File temp)? createTemp,
+}) {
   _removeLeftovers(path);
   final temp = File(exportTempPath(path, random));
   try {
+    // Anything already at the temp name, a dangling link included, means the
+    // file is written in place. Windows makes the file even over a dangling
+    // link, which the write would then refuse, failing the export.
+    if (FileSystemEntity.typeSync(temp.path, followLinks: false) !=
+        FileSystemEntityType.notFound) {
+      throw FileSystemException('already there', temp.path);
+    }
     // O_CREAT | O_EXCL: fails if anything is there, a link included.
-    temp.createSync(exclusive: true);
+    (createTemp ?? (f) => f.createSync(exclusive: true))(temp);
   } on FileSystemException {
     _writeDirect(File(path), bytes);
     return;
@@ -78,10 +94,18 @@ void writeExportFile(String path, List<int> bytes, {Random? random}) {
   }
 }
 
-/// Writes into [file], which was just made empty. It is opened without
-/// truncating, and written only once it is known to still be a plain file:
-/// a link put in its place is never written through.
+/// Writes into [file], which was just made empty. It is opened only if it is
+/// a plain file right then: every dart:io write mode creates a missing file,
+/// so opening a dangling link (Windows makes no error over one, BUG-C1)
+/// would make an empty file where it points. It is opened without
+/// truncating, and checked again once open, so a link put in its place is
+/// never written through. dart:io has no open without create and no
+/// O_NOFOLLOW, so the only gap left is between the first check and the open.
 void _writeInto(File file, List<int> bytes) {
+  if (FileSystemEntity.typeSync(file.path, followLinks: false) !=
+      FileSystemEntityType.file) {
+    throw FileSystemException('not a plain file', file.path);
+  }
   final out = file.openSync(mode: FileMode.writeOnlyAppend);
   try {
     _refuseLink(file);

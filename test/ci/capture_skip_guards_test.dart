@@ -10,7 +10,9 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/log/app_log.dart';
 
-String _read(String path) => File(path).readAsStringSync();
+import '../support/source_text.dart';
+
+String _read(String path) => readSource(path);
 
 /// Source without line comments, so a comment can't satisfy or break a check.
 String _code(String path) => _read(

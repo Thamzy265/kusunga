@@ -10,9 +10,10 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/log/app_log.dart';
 
+import '../support/source_text.dart';
 import '../support/swift_conditional.dart';
 
-String _read(String path) => File(path).readAsStringSync();
+String _read(String path) => readSource(path);
 
 /// Source without line comments, so a comment can't satisfy or break a check.
 String _code(String path) => _read(path)
@@ -325,7 +326,7 @@ void main() {
               .listSync(recursive: true)
               .whereType<File>()
               .where((f) => f.path.endsWith('.swift'))) {
-        for (final (line, inDebug) in swiftDebugLines(f.readAsStringSync())) {
+        for (final (line, inDebug) in swiftDebugLines(readSource(f.path))) {
           if (line.trimLeft().startsWith('//')) continue;
           for (final n in needles) {
             if (!line.contains(n)) continue;

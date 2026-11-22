@@ -19,6 +19,20 @@ cat > "$bundle/Contents/Info.plist" <<'PLIST'
 <key>CFBundlePackageType</key><string>BNDL</string>
 </dict></plist>
 PLIST
+# Type-check guard: the Xcode 16.4 compiler on the macos-15 CI runner gave up
+# on a closure-in-ternary here ("unable to type-check this expression in
+# reasonable time") that newer local compilers still accept. Local Swift
+# takes about 1 ms for every other expression in this file and took about
+# 930 ms for that one, so any expression over 100 ms fails this script
+# before CI does.
+slow="$(xcrun swiftc -typecheck \
+  -Xfrontend -warn-long-expression-type-checking=100 \
+  macos/Runner/LoginItemCore.swift 2>&1 | grep 'type-check' || true)"
+if [ -n "$slow" ]; then
+  echo "$slow"
+  echo "FAIL: an expression in LoginItemCore.swift is slow to type-check; split it up" >&2
+  exit 1
+fi
 platform="$(xcrun --show-sdk-platform-path)"
 xcrun swiftc -module-name Kusunga -enable-testing -parse-as-library \
   -suppress-warnings \
