@@ -1,5 +1,29 @@
 # Status log
 
+## 2026-11-22 — M1.9a About and licences — reviewer re-check: block (R16, Windows CI); developer round 9 dispatched
+- Changed: reviewer re-check report (opus, high), word for word (sub-lists joined; file paths shortened):
+  > Mode: branch
+  > Branch: feat/about-licences (re-check of 07426b0..7f9b241, tip 7f9b241) — Verdict: block
+  > Checks: ./tool/check.sh — pass on macOS, but the Windows CI job will fail (R16) — I used the developer's full run on 7f9b241: "05:24 +4189 ~10: All tests passed!", format and analyze clean, exit 0. I checked that no flutter_tester was running (pgrep empty), then ran only the two changed test files myself: "00:01 +11: All tests passed!". On Windows, the guard test at test/about/flutter_licences_binding_test.dart:75 will fail on every run.
+  > Code review: 3 findings to re-check (R15, N1, N2), all fixed. 1 new finding, R16, is open and blocks the merge (it breaks CI).
+  > Design review: 0 findings.
+  > Security review: 0 findings. Test-only changes plus one token swap. No new packages, no network calls in the product, no logging.
+  > Privacy review: no issues. N2 also removes the PM's home path from both test files (grep of lib/ and test/ for it: 0 hits).
+  > Later lines: none added — added by reviewer: none
+  > Findings (most severe first):
+  > - R16 — High for the merge gate (breaks CI; no user impact): the Windows check job fails on every run of this branch — test/about/flutter_licences_binding_test.dart:55. Cause: `source.indexOf('\n  }\n', parseStart)` looks for LF line endings; the Windows runner's Flutter SDK has CRLF line endings. subosito/flutter-action downloads the release zip (run 45009293707: a 1.76G download into C:\hostedtoolcache\windows\flutter\stable-3.44.6-x64), not a git clone. Proof: I used HTTP range reads to pull binding.dart out of the official flutter_windows_3.44.6-stable.zip: 28186 bytes, 705 CRLF in 705 line breaks, no `\n  }\n` anywhere. The guard's own problemsIn on a CRLF copy returns 3 problems (the three `_parseLicenses` needles); on the LF file it returns []. So on windows-latest the guard fails even though Flutter has not changed. The rest of problemsIn is safe with CRLF. Expected fix: at the top of problemsIn, add `source = source.replaceAll('\r\n', '\n');`. Add a regression test that also runs on the Mac: `expect(problemsIn(real().replaceAll('\n', '\r\n')), isEmpty)`. Optionally: a CRLF copy with `substring(split + 1)` still fails. The new CRLF test must fail on 7f9b241 and pass after the fix; both runs needed.
+  > - Risk (2), Roboto: no finding. The test reads `$FLUTTER_ROOT/bin/cache/artifacts/material_fonts/Roboto-Regular.ttf` (MaterialFonts, a universal artifact). On the latest main run, 45009293707, all four "real proportional font" tests ran and passed on Windows and macOS, without the home-folder fallback. Fail instead of skip does not put CI at risk.
+  > Fix outcomes: R15 — fixed (7f9b241) on LF checkouts; on Windows it causes R16. N1 — fixed (678f453), no visual change. N2 — fixed (0d9f6c3, 7f9b241); fail instead of skip is acceptable, CI is proven to have both files.
+  > Risk accepted by PM: none
+  > Open items: R16 (CI-breaking on Windows). Still waiting from earlier rounds: QA on a real build; the PM's decision on the Apache-2.0 and CC0-1.0 texts.
+  > Blockers: none
+  > Evidence in scratchpad: rev_r8_tools/probe.dart, binding_crlf.dart, zipcheck.py; CI logs rev_r8_ci_win.log, rev_r8_ci.log. No git refs, no push, Flutter SDK untouched, Kusunga not launched.
+  Lead: developer round 9 dispatched for R16, escalated one effort level (sonnet, high) after a failed review round. The developer of round 8 was stopped after its work was committed, because it kept re-sending its report.
+- Gates: developer round 9 in progress · tester pass · reviewer block (R16) · QA pending · PM merge not asked
+- Open findings: R16 High (merge gate, CI)
+- Decisions: open for PM: Apache-2.0 / CC0-1.0 texts and the Argon2 CC0 sentence
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-22 — M1.9a About and licences — developer round 8 (R15, N1, N2 fixed); reviewer re-check dispatched
 - Changed: developer report (sonnet, medium, round 8), word for word ("How to verify" left out; its step 2 suggested editing the Flutter SDK, which nobody will do; sub-lists joined):
   > Branch: feat/about-licences (3 new commits on 07426b0: 678f453, 0d9f6c3, 7f9b241). Not pushed.
