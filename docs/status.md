@@ -1,5 +1,26 @@
 # Status log
 
+## 2026-11-22 — M1.9a About and licences — reviewer re-check: approve (R16 fixed); main merged into the branch next
+- Changed: reviewer re-check report (opus, high), word for word (sub-lists joined; evidence paths left out):
+  > Mode: branch
+  > Branch: feat/about-licences (re-check of 7f9b241..3e74ba5, tip 3e74ba5) — Verdict: approve
+  > Checks: ./tool/check.sh — pass — relying on the developer's one full run on 3e74ba5: "+4191 ~10: All tests passed!", format and analyze clean. Before each of my runs I confirmed `pgrep -fl flutter_tester` was empty, one file at a time. On the tip, test/about/flutter_licences_binding_test.dart gave "00:00 +9: All tests passed!".
+  > Code review: 1 finding to re-check (R16), fixed. 0 new.
+  > Design review: 0 findings.
+  > Security review: 0 findings. 20-line, test-only diff: no product code, no new packages, no network, no logging.
+  > Privacy review: no issues.
+  > Later lines: none added — added by reviewer: none
+  > Findings (most severe first): none open.
+  > Fix outcomes: R16 — fixed (3e74ba5). (a) The new problemsIn on binding.dart from the official flutter_windows_3.44.6-stable.zip gives []; the old probe still gives the 3 _parseLicenses problems on it. (b) `crlf(real())` is byte-for-byte equal to the binding.dart in the zip, so the regression test runs on the Mac against exactly what windows-latest reads. (c) Fail first, then pass, both runs mine: old guard "+8 -1: Some tests failed."; tip "+9: All tests passed!". (d) The second new test passes on old code for the wrong reason but is worth keeping against over-normalising.
+  > Risk accepted by PM: none
+  > Open items: The LF-only assumptions in the developer's audit are not a Windows CI risk; no Later line or separate item needed. The developer audited the branch's old base (merge-base 8614d88); main has already dealt with all of them: e023904 adds `* text=auto eol=lf` to .gitattributes; ae65c68 makes typed_shortcut_guards_test and capture_skip_guards_test read sources through test/support/source_text.dart; a7f30a9 adds test/ci/line_endings_checkout_test.dart. On windows-latest, actions/checkout uses Git for Windows with core.autocrlf=true; with the rule every repo text file is LF. The green main run 45009293707 ran all of these on Windows. None of the 65 files the branch adds or changes contains a CR. For the lead, not a finding: the branch is 30+ commits behind main, and `git merge-tree main HEAD` reports a conflict in docs/qa/m1.md only (docs). Main needs to be merged into the branch before the PR. The Windows job on the PR is the real proof for R16. Still open: QA on a real build, and the PM's decision on the Apache-2.0 and CC0-1.0 texts.
+  > Blockers: none
+  Lead: developer dispatched to merge main into feat/about-licences (conflict in docs/qa/m1.md only) and run one full check, so QA tests the merged code.
+- Gates: developer pass · tester pass · reviewer approve · QA pending (after the main merge) · PM merge not asked
+- Open findings: none
+- Decisions: open for PM: Apache-2.0 / CC0-1.0 texts and the Argon2 CC0 sentence
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-22 — M1.9a About and licences — developer round 9 (R16 fixed); reviewer re-check dispatched
 - Changed: developer report (sonnet, high effort, round 9), word for word ("How to verify" left out, sub-lists joined, the audit list condensed by the lead):
   > R16 is fixed and committed (3e74ba5). The CRLF regression test fails on 7f9b241's `problemsIn` and passes after the fix. The one full check passed: `+4191 ~10: All tests passed!`.
