@@ -1,5 +1,42 @@
 # Status log
 
+## 2026-11-22 — Windows CI green (PR 9) — QA pass; merge approval asked
+- Changed: PM unlocked the Mac ("Unlocked, run QA"). QA report (sonnet), word for word (lists joined onto one line, wording unchanged):
+  > Milestone: Windows CI green (PR 9, `fix/windows-ci`) — 5/5 criteria pass — Date: 2026-11-22 — Environment: macOS 27.2, Flutter 3.44.6 / Dart 3.12.2, HEAD 275fd20 (code d3a8e6c), debug build from 2026-11-21 10:42, qa profile only
+  > Automated: 4/5 criteria. Manual: row 5 (and the real-flow part of row 3). The app's Flutter UI exposes no AX tree, and the flow needs the native save panel, so QA used a CGEvent click helper plus System Events keystrokes.
+  > Fail: none
+  > Spec gaps: none
+  > Re-verified:
+  > - Rows 1, 2 and 4: one `gh run view 44895275732` showed the macos job green (35m23s) and the windows job green (33m54s). The run is the `pull_request` run for PR 9. I updated the rows to PASS citing that run.
+  > - Row 3: the real-flow part passes. The BUG-C1 unit tests were not re-run by me, because another session was running `flutter_tester` and I don't run checks in parallel. CI run 4 ran them green.
+  > Needs PM: none
+  > Not observed:
+  > - The export flow on a real Windows machine. Only CI covers Windows (PM or a Windows tester).
+  > - A local re-run of the unit tests (see above).
+  > - Any flaky history for the macos CI job. I looked only at run 4 and the earlier run 2.
+  > Accessibility: n/a — this was a CI and export-correctness check, no new UI. The M1.8 sections above cover the export dialog.
+  > Privacy: n/a — qa profile with made-up data only. The export files stay in git-ignored `qa-artifacts/qa-export/`. The "isn't encrypted" note was shown.
+  > Claims: n/a
+  > Evidence: `docs/qa/m1.md` section "Windows CI green (2026-11-21, updated 2026-11-22)". Screens are in `docs/qa/m1/screens/`, 7 new files, all `ci-5-*.png`: ci-5-settings-your-data.png, ci-5-export-dialog-note.png, ci-5-export-dialog-history-ticked.png, ci-5-save-panel.png, ci-5-replace-confirm.png, ci-5-toast-exported-snippets.png, ci-5-toast-exported-snippets-and-history.png
+  > Video: `qa-artifacts/windows-ci-export-flow.mov` (git-ignored, Kusunga window region only, about 13 MB). The Kusunga window region contains only qa data, and the "Test profile: qa" label was visible in every shot.
+  > Commit: 90b2272 on `fix/windows-ci`, with only `docs/qa` changes and the Opus 5.5 co-author line. Not pushed.
+  > PM check steps: n/a — no PM steps, so nothing to verify.
+  > Blockers: none
+  > Row 5 detail (4 exports, all with made-up qa data: 4 snippets, 3 history items `qa-m18-copy-1..3`):
+  > 1. Snippets only, new file `snippets-only.json`. 2646 bytes, valid JSON, 4 snippets with the expected names and texts, no `history` key. The dialog showed "The file isn't encrypted. Anyone who opens it can read it."
+  > 2. History ticked, new file `with-history.json`. 3175 bytes, valid JSON, 4 snippets and 3 history items. The note was shown again.
+  > 3. Snippets only, over the existing `with-history.json`. The native "replace it?" prompt appeared and I clicked Replace. The toast read "Exported 4 snippets". The file shrank to 2646 bytes and the `history` key was gone, so the old content was replaced, not appended.
+  > 4. History ticked, over the existing `snippets-only.json`. The toast read "Exported 4 snippets and 3 history items". The file grew to 3175 bytes and now holds the 3 history items.
+  > After every save `ls -a` of the folder showed only the two `.json` files, and `find qa-artifacts -name '.kusunga-export-*'` found nothing. No `.kusunga-export-*` temp file was left.
+  > Dialogs seen: the Kusunga export dialog; the native save panel; the native "already exists, replace it?" confirmation. All three are part of the export flow QA started. No keychain, permission or trust dialog appeared.
+  > Minor, not a bug: the save panel's name field already ends in `.json`. A name typed with `.json` became `name.json.json`. The panel opened in the last-used folder (`qa-artifacts/m1.8`), which is macOS behaviour.
+  > Clean-up: the qa Kusunga (pid 61541) was quit by pid, and `pgrep` for it is empty. The screen recording is stopped, with no `screencapture` process left. QA started no `flutter_tester`. The PM's default profile and real data were not touched. The helper binary is only in the session scratchpad.
+  Lead: spot-checked ci-5-save-panel.png and ci-5-toast-exported-snippets-and-history.png: qa label visible, only made-up data. The `name.json.json` observation goes to the PM as a question (possible small UX item), not a gate failure.
+- Gates: developer pass · tester pass · reviewer approve (F1–F5 fixed) · QA pass (5/5) · PM merge waiting
+- Open findings: none on the branch; BUG-C1 residual (low) waits for the PM's risk decision
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — merge approval of PR 9 and the BUG-C1 residual decision
+
 ## 2026-11-22 — M1.9b Mac release build — tester report; bugs back to the developer
 - Changed: tester report (sonnet), word for word:
   > Branch: build/mac-release (2 test commits: 263105a edge tests, 39b7d7a bug repros; not pushed)
