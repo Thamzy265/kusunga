@@ -87,7 +87,7 @@ Everything stays on the device. No account, no server.
 - [x] **Licence (GPL-3.0)** — small (no code; one licence file and notices).
   - AC: a `LICENSE` file with the unchanged GPL-3.0 text from gnu.org at the repo root; `README` (or a new short README) says Kusunga is licensed under the GNU General Public License, version 3 only (SPDX: GPL-3.0-only; R5, PM 2026-11-19), with no "or later" wording, with "Copyright (C) 2026 William Nasoni"; every direct dependency's licence is listed and confirmed compatible with GPL-3.0 (reviewer).
   - Decision: D8 (PM, 2026-11-18); R5 GPL-3.0-only (PM, 2026-11-19).
-- [ ] **Windows CI green** — large (spans many test modules; may touch Delete everything on Windows).
+- [x] **Windows CI green** — large (spans many test modules; may touch Delete everything on Windows).
   - Design: `docs/design/windows-ci-green.md`, deck `docs/slides/windows-ci-green.html` (approved 2026-11-19: W1 A tests only, W2 A fix the export over a dangling link here, W3 A single instance in M1.9d).
   - AC: the CI windows job passes: check.ps1 with 0 failures, and `flutter build windows` succeeds.
   - AC: the CI macos job passes, with no test that fails only from CI timing.

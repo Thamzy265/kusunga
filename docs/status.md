@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-22 — Windows CI green — merged and closed
+- Changed: QA commit 90b2272 pushed to fix/windows-ci; PR 9 merged on GitHub with merge commit 8e9c141 (https://github.com/Thamzy265/kusunga/pull/9). Local main merged origin/main (4cdd25a). Plan box ticked. Local main still holds unpushed docs commits; pushing main waits for the PM.
+- Gates: developer pass · tester pass · reviewer approve · QA pass · PM merge approved ("Merge, accept BUG-C1", 2026-11-22)
+- Open findings: none; BUG-C1 residual accepted by the PM (entry below) and tracked in Later
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — push of main
+
 ## 2026-11-22 — Windows CI green (PR 9) — PM approves the merge and accepts the BUG-C1 residual
 - Changed: lead asked "May I merge PR 9, accepting the low BUG-C1 risk?" with the QA evidence (5/5 pass) and the merge route (push QA evidence commit 90b2272 to fix/windows-ci, then merge PR 9 on GitHub with a merge commit).
 - Gates: developer pass · tester pass · reviewer approve · QA pass · PM merge approved
