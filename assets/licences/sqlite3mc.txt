@@ -4,7 +4,7 @@ Kusunga stores its history in a SQLite3 Multiple Ciphers database. The library
 (version 2.5.0, built on SQLite 3.53.4) is licensed under the MIT licence and
 bundles the parts below, each under the licence shown.
 
-The texts under each part are copied word for word from SQLite3 Multiple Ciphers at tag v2.5.0 (https://github.com/utelle/SQLite3MultipleCiphers), from the file and lines named there. Only the comment marks at the start of lines (/*, */, **, * and //) are left out.
+The texts under each part are copied word for word from SQLite3 Multiple Ciphers at tag v2.5.0 (https://github.com/utelle/SQLite3MultipleCiphers), from the file and lines named there. Only the comment marks at the start of lines (/*, */, **, * and //) are left out, and so are the decorative lines made only of comment characters.
 
 * SQLite3 Multiple Ciphers own code (cipher_*.c, codec_algos.c, codecext.c, sqlite3mc*.c, AEGIS wrapper cipher_aegis.c)
   Licence: MIT

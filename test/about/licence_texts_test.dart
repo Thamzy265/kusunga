@@ -249,6 +249,18 @@ void main() {
     expect(notice, contains('word for word'));
   });
 
+  test('the intro says decorative comment lines were left out too', () {
+    // M1.9a round 6: rijndael.c (lines 14 to 44) and miniz.c (lines 2 to 26)
+    // each have one line made only of comment characters (a "///" opener, a
+    // row of "*") that is not quoted. The intro must not claim that only the
+    // comment marks at the start of lines were left out.
+    final intro = notice
+        .split('\n')
+        .firstWhere((l) => l.contains('word for word'));
+    expect(intro, contains('comment marks at the start of lines'));
+    expect(intro, contains('decorative lines made only of comment characters'));
+  });
+
   test('the MIT text is in the notice for the project and for miniz', () {
     // Not just once: miniz has its own copyright holders.
     final text = squash(notice);
