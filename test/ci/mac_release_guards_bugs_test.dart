@@ -2,10 +2,10 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// M1.9b tester: repros for defects in tool/mac_release_guards.sh. Each of
-/// these FAILS on the branch today and passes once the guard is fixed. Every
-/// one is a false pass (the guard says "ok" when it must not) except BUG-M5,
-/// which is a wrong exit code.
+/// M1.9b regression tests for BUG-M1, M2, M3 and M5 in
+/// tool/mac_release_guards.sh. Each was a defect found by the tester and is
+/// fixed. Every one was a false pass (the guard said "ok" when it must not)
+/// except BUG-M5, which was a wrong exit code.
 final script = File('tool/mac_release_guards.sh').absolute.path;
 const needle = 'KusungaAcceptSyntheticKeys';
 
