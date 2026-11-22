@@ -13,6 +13,9 @@
 # Exit 2 means the guard could not run (missing path, nothing to scan), which
 # is also a failure: a typo must never pass.
 set -euo pipefail
+# Byte-wise text tools whatever the caller's locale: under UTF-8, grep skips
+# lines with invalid UTF-8, so a marker next to a stray byte would be missed.
+export LC_ALL=C
 
 needle="KusungaAcceptSyntheticKeys"
 
@@ -23,9 +26,21 @@ usage() {
 
 guard_binary() {
   local target="$1" files file hits rc total=0
+  # A path starting with "-" would be read as an option by find and grep:
+  # refuse it (exit 2) and ask for ./-name instead.
+  case "$target" in
+    -*) echo "guard: $target starts with a dash, write it as ./$target" >&2; exit 2 ;;
+  esac
   [ -e "$target" ] || { echo "guard: $target does not exist" >&2; exit 2; }
-  files="$(find "$target" -type f -print)"
-  [ -n "$files" ] || { echo "guard: no files under $target" >&2; exit 2; }
+  # Empty files cannot hold the marker; a bundle with only empty files (or
+  # none) scanned nothing, which must not pass. Any find error is exit 2.
+  rc=0
+  files="$(find "$target" -type f -size +0c -print)" || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    echo "guard: could not list $target" >&2
+    exit 2
+  fi
+  [ -n "$files" ] || { echo "guard: nothing to scan under $target" >&2; exit 2; }
   while IFS= read -r file; do
     # Raw bytes, not `strings`: strings parses Mach-O files and errors out on
     # a malformed one, which must not read as "clean". grep -a is a superset
@@ -54,7 +69,7 @@ guard_xcconfig() {
   [ -f "$file" ] || { echo "guard: $file does not exist" >&2; exit 2; }
   # Drop comment lines, then look for the two ways to set a condition.
   if grep -v '^[[:space:]]*//' "$file" |
-    grep -Eq '^[[:space:]]*(SWIFT_ACTIVE_COMPILATION_CONDITIONS|OTHER_SWIFT_FLAGS[^=]*=.*(^|[[:space:]])-D)'; then
+    grep -Eq '^[[:space:]]*(SWIFT_ACTIVE_COMPILATION_CONDITIONS|OTHER_SWIFT_FLAGS[^=]*=(.*[[:space:]"=])?-D)'; then
     echo "guard FAILED: $file sets Swift compilation conditions" >&2
     exit 1
   fi
