@@ -1,5 +1,29 @@
 # Status log
 
+## 2026-11-22 — M1.9a About and licences — reviewer re-check: approve with notes (R15, N1, N2); developer round 8 dispatched
+- Changed: reviewer re-check report (opus, high), word for word (sub-lists joined; the fix-outcome details for R11–R14 condensed by the lead):
+  > Mode: branch
+  > Branch: feat/about-licences (re-check of e10bf9a..07426b0, tip 07426b0) — Verdict: approve with notes
+  > Checks: ./tool/check.sh — pass — I used the lead's single run on 07426b0: "Formatted 315 files (0 changed)", "No issues found!", "06:14 +4187 ~10: All tests passed!", exit 0. I also ran the three changed test files once myself, after confirming no flutter_tester was running: "+29: All tests passed!"
+  > Code review: 4 findings to re-check (R11, R12, R13, R14), all fixed. 1 new Low (R15) and 2 cleanup notes (N1, N2), all open and none blocking.
+  > Design review: 0 new findings. R14 links the button focus ring to the reveal reach, as asked.
+  > Security review: 0 findings. Checked by hand. R12 logs only the error's type, only in debug builds, and NOTICES.Z is a build asset, not user data. No new packages. No network.
+  > Privacy review: no issues. No personal data is touched. The one new log line holds only the type name.
+  > Later lines: none added — added by reviewer: none
+  > Findings (most severe first):
+  > - R15 — Low (licence compliance; reachable only after a Flutter upgrade) — test/about/flutter_licences_binding_test.dart:28-50. The guard does not check how each entry splits package names from text: `license.indexOf('\n\n')` in Flutter's `_parseLicenses` (binding.dart:231-243), which lib/about/flutter_notices.dart:68-76 copies. If a future Flutter changes that split, the guard still passes, `_parse` gives every entry an empty package list, and LicensePage shows no row for them, so every Flutter and engine notice disappears (the same AC1 failure as R11). Expected fix: also check that the `_parseLicenses` body still contains `indexOf('\n\n')` and `substring(split + 2)`, or that the whole `_parseLicenses` body, whitespace squashed, equals the body of `_parse`. Add one mutated-copy test for it.
+  > - N1 — cleanup (can wait) — lib/settings/ui/settings_screen.dart:522 and lib/shortcuts/ui/typed_shortcuts_section.dart:214. These two rings are also drawn outside the control and rely on `focusRingReach`, but still use a literal `width: 2`. Expected fix: use `focusRingWidth` in both.
+  > - N2 — cleanup (can wait) — test/about/flutter_licences_binding_test.dart:19. The fallback path names the developer's home folder. It isn't needed: bin/internal/shared.sh:197 exports FLUTTER_ROOT and flutter.bat sets it. Expected fix: drop the fallback, here and in m16_real_font_layout_test.dart, and rely on FLUTTER_ROOT.
+  > Fix outcomes: R11 — fixed (07426b0); the guard catches every case described (second registration, super call or arrow body, renamed method, other asset name, no gzip or utf8, changed separator; fails safe if renamed; mutated-copy tests are real; works with CRLF on Windows — the Windows CI job should confirm). Gaps: the '\n\n' split (R15); the real-build check is still a QA item. R12 — fixed (4b4299c); debug-only, type name only, test feeds 'SECRET-CLIPBOARD-TEXT' and checks it is absent. R13 — fixed (8eaf5ec); findsOneWidget for 'SQLite' and 'SQLite3 Multiple Ciphers'. R14 — fixed (93dfe8c); no visual change (2 → 2.0), no import cycle, comment names an existing file.
+  > Risk accepted by PM: none
+  > Open items: R15 (Low), N1 and N2 (cleanup), not blocking. QA on a real build: Flutter's notices listed with no lower-case "kusunga" row; the sqlite3mc entry at 360 px and 800 px; the toast at 200% text and 360 px. The PM's decision on the Apache-2.0 and CC0-1.0 texts is still open.
+  > Blockers: none
+  Lead: R15, N1 and N2 are small, so they go to the developer now, before QA.
+- Gates: developer round 8 in progress · tester pass · reviewer approve with notes · QA pending · PM merge not asked
+- Open findings: R15 Low; N1, N2 cleanup
+- Decisions: open for PM: Apache-2.0 / CC0-1.0 texts and the Argon2 CC0 sentence
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-22 — M1.9a About and licences — developer round 7 (R11–R14 fixed); reviewer re-check dispatched
 - Changed: developer report (sonnet, medium, round 7), word for word ("How to verify" left out, sub-lists joined onto one line):
   > Branch: feat/about-licences (4 new commits on e10bf9a; tip 07426b0)
