@@ -1,5 +1,54 @@
 # Status log
 
+## 2026-11-22 — M1.9a About and licences — QA report; bugs B1–B4 queued for the developer
+- Changed: QA report (sonnet), word for word (sub-lists joined onto one line, wording unchanged):
+  > Milestone: M1.9a About and licences — 13/15 rows pass; 1 open (known), 1 not observed — Date: 2026-11-22 — Environment: macOS 27.2, Flutter 3.44.6, branch feat/about-licences at 38b4f77 (not pushed). Debug build A had the 0.9.0 / 1 defines. Debug build B had no defines. Built and run one after the other, qa profile only.
+  > Automated: 0/15. All manual on the real app, because no desktop end-to-end tool is approved. I used AX reads, guarded click and key helpers, window screenshots and ffmpeg.
+  > Per criterion (details in docs/qa/m1.md, section "M1.9a About and licences (2026-11-22)"):
+  > - GPL notice (About text, licence-page legalese, full GPL in the Kusunga entry): PASS.
+  > - Third-party notices, AC1/AC7: OPEN (known, PM decision pending). The Kusunga entry holds 3 notices: the GPL, then the SQLite3 Multiple Ciphers notice, then the SQLite notice. The sqlite3mc notice is the index only: heading "SQLite3 Multiple Ciphers 2.5.0 and the parts it bundles", one intro paragraph, then each part with a "Licence: ..." line. It has no MIT permission text, no copyright-holder line, and no BSD-3-Clause, CC0 or Apache-2.0 text. The SQLite notice shows the blessing and the sqlite.org copyright link.
+  > - Version with defines: PASS. The About line reads "Kusunga 0.9.0 (build 1) — development build". The licence page shows 0.9.0 (build 1). Copy version copies the line.
+  > - No defines: PASS. The line reads "Kusunga (version unknown) — development build". Copy version copies that text.
+  > - Source link: PASS for debug builds (the plain repo URL plus the "Development build" caption).
+  > - Copy buttons and toasts: PASS. "Version copied" and "Link copied" show, and the clipboard contents are correct. Eight own copies did not appear in History, which stayed at 3 items.
+  > - Licences list: PASS (recorded, not failed). "Kusunga" is the first row. "sqlite", "SQLite", "sqlite3" and "SQLite3 Multiple Ciphers" sit in alphabetical order near "s", out of 159 rows.
+  > - Keyboard: PASS, with B2 and B4 below. Tab order in Settings: 12 stops, ending Copy version, Copy link, View licences. The page opens with the first row focused (blue fill), and the back button has a ring. Esc on an entry goes to the list. The next Esc goes to Settings with focus on View licences (keyboard path).
+  > - Reduce motion: not observed (see below).
+  > - Copy word for word: PASS.
+  > - 360 px layout: PASS (About, licences list and entry; buttons stack, link wraps, no sideways scroll).
+  > - Accessibility names: PASS from the AX tree. The names are "Copy version 0.9.0 build 1" and "Copy source code link". Toast text appears in the tree.
+  > - Contrast: PASS. Focus ring 8.39:1; focused row fill 3.69:1; buttons 40 pt high.
+  > - States matrix: PASS for the reachable states.
+  > - Video: done.
+  > Fail: none of the criteria fail. Four bugs, all Minor (B2 arguably Major):
+  > - B1 (Minor): the SQLite blessing runs onto one line ("* May you do good... * May you find...") although assets/licences/sqlite.txt has three lines. Repro: Settings > View licences > Kusunga > scroll to the end. Evidence: screens/m19a-kusunga-entry-bottom-sqlite.png.
+  > - B2 (Minor, arguably Major under WCAG 2.4.7): the focus ring of Copy version, Copy link and View licences is clipped at the bottom edge of the 800x632 window when Tab scrolls them into view. Repro: Settings, press Tab 10, 11 and 12 times from the top. Evidence: screens/m19a-focus-copy-version.png, m19a-focus-copy-link.png, m19a-focus-view-licences.png. At 360x640 the ring is complete.
+  > - B3 (Minor): the toast covers the View licences button for about 3 s when Settings is scrolled to the end. Evidence: screens/m19a-toast-version-copied.png.
+  > - B4 (Minor): after opening the licences page with the mouse, Esc puts focus on the Settings tab, not on View licences, because the click never focused the button. The keyboard path is fine. Evidence: screens/m19a-esc-returns-focus-view-licences.png.
+  > Spec gaps (PM questions):
+  > - R1: the spec says the three notices are "at the top"; in the real list only Kusunga is at the top and the others are alphabetical. Is that acceptable?
+  > - A lower-case "kusunga" row (Flutter's own collection of the app licence) repeats the GPL text next to the pinned row. Keep it or hide it?
+  > - Flutter's page title and counts use the US spelling ("Licenses"), while the app copy says "licences". Accept it?
+  > - The version line says "— development build" and the caption "Development build" repeats it two lines lower (both are in the spec). Keep both?
+  > - The "Test profile: qa" badge is not on the licences page (full-screen route). QA-only; no action unless the PM wants it.
+  > Re-verified: none.
+  > Needs PM: none required. Optional, if the PM wants the two items under Not observed: 1. Turn on Reduce motion in System Settings > Accessibility > Display, open Settings > About > View licences and check there is no slide. Turn it off again. 2. With VoiceOver on (Cmd+F5), Tab to Copy version and listen for "Copy version 0.9.0 build 1". Turn VoiceOver off.
+  > Not observed: Reduce motion (needs a System Settings change, which QA must not make; covered by widget tests). Release-build tag link (v0.9.0): only debug builds were made; covered by BuildInfo unit tests. The "Couldn't copy. Try again." toast: I could not force a clipboard failure. Live VoiceOver: I read the AX tree instead. The licence-list spinner: too brief to catch. 200% text and the 840 px side-by-side layout. Windows. I did not run check.sh or flutter test, because flutter_tester was running in another worktree.
+  > Accessibility: pass on what I could check (keyboard, 360 px, names from the AX tree, contrast), except B2 (focus ring clipped at the window bottom edge, arguably Major). Live screen reader and 200% text were not observed.
+  > Privacy: n/a — no network, cookies or personal data in this item. Nothing was fetched, and the source link is shown as text only.
+  > Claims: n/a
+  > Dialogs and incidents: No keychain, permission or trust dialog appeared. A SecurityAgent helper process started at each launch (pids 74693 and 66873). System Events showed no window for it, Kusunga stayed frontmost and the app loaded, so I clicked nothing. One Return key press went to the Claude app instead of Kusunga, because my first key script had no frontmost check. It had no visible effect. After that every key press goes through a script that refuses unless Kusunga is frontmost. The click helper refused once for the same reason and sent nothing. The Mac clipboard was overwritten with test text (the version string and the link). I wrote one scratch screenshot to /tmp/x.png and deleted it.
+  > Evidence: docs/qa/m1.md (section "M1.9a About and licences (2026-11-22)", with the PM check note); screens: docs/qa/m1/screens/ (22 files, prefix m19a-); videos: m1.9a-about-licences-flow.mp4 (60 s; in qa-artifacts/m1.9a/ in the worktree and in the main checkout, git-ignored, not committed).
+  > Commit: ba6ed2b on feat/about-licences, docs/qa only, message ends with the Co-Authored-By Opus 5.5 line. Not pushed.
+  > PM check steps: verified n/a — nothing needs the PM — docs/qa/m1.md#pm-check-m19a
+  > Stopped: both qa Kusunga instances (pids 74536 and 66746), no ffmpeg left running. The qa profile is unchanged (3 made-up history items).
+  > Blockers: none
+  Lead: spot-checked m19a-focus-copy-version.png (qa label, made-up data only; the clipped ring is visible). Process note: QA's stray Return key went to the Claude app before it added a frontmost check — no effect seen, logged and told to the PM. B1–B4 go to the developer once the M1.9b developer's check run is done (checks never run in parallel). The new spec questions go to the PM.
+- Gates: developer pass · tester pass · reviewer approve with notes · QA pass with 4 minor bugs; AC1/AC7 open (licence texts) · PM merge not asked
+- Open findings: 4 minor (B1–B4); R5 (in plan), R6 open; AC1/AC7 open
+- Decisions: none new
+- Blockers: Developer sqlite3mc licence texts (PM) · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — licence texts, R1 order and 3 new spec questions
+
 ## 2026-11-22 — M1.9b Mac release build — reviewer: block; fixes back to the developer
 - Changed: reviewer report (opus, high), word for word (sub-lists joined onto one line, wording unchanged):
   > Mode: branch
