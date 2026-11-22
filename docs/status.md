@@ -1,5 +1,74 @@
 # Status log
 
+## 2026-11-22 — M1.9b Mac release build — tester report; bugs back to the developer
+- Changed: tester report (sonnet), word for word:
+  > Branch: build/mac-release (2 test commits: 263105a edge tests, 39b7d7a bug repros; not pushed)
+  > Added: 44 tests (37 pass, 7 fail as bug repros) in test/ci/mac_release_guards_edge_test.dart (37) and test/ci/mac_release_guards_bugs_test.dart (7). Worktree: scratchpad/m19b-wt
+  > E2E tests added: 0 (n/a) — no user flow. The only real runs were the two flutter builds below.
+  >
+  > Real builds (macOS 27, bash 3.2.57, no Local.xcconfig so ad-hoc signed; app never launched; no keychain or signing dialog):
+  > - `flutter build macos --release` succeeded (25.0MB). `flutter build macos --profile` succeeded (35.8MB). The lipo failure on macOS 27 is gone (AC8 met).
+  > - Main binary: arm64 only on both. Embedded Frameworks (FlutterMacOS, objective_c): arm64 only.
+  > - codesign on both: `flags=0x10002(adhoc,runtime)`, so Hardened Runtime is on (AC3 met).
+  > - `tool/mac_release_guards.sh binary` on both .app: exit 0, with /bin/bash 3.2 in C and en_US.UTF-8 locales. Neither binary contains the marker.
+  >
+  > Fail-then-pass (mutation proof):
+  > - All edge tests on merge base 32d419e (script gone, old Release.xcconfig): 29 of 37 fail. Binary tests fail with exit 127 (script not found); build-setting tests fail on the missing ARCHS/runtime.
+  > - Release.xcconfig reverted only: "Release.xcconfig sets ARCHS and the runtime once, after its includes" fails.
+  > - ARCHS changed to `arm64 x86_64`: the same test fails (and the developer's two build-setting tests).
+  > - `ENABLE_HARDENED_RUNTIME = NO` added to the Release target in project.pbxproj: "no target or project setting overrides architectures or runtime" fails.
+  > - Debug.xcconfig given an ARCHS line: "Debug gets no ARCHS or Hardened Runtime from its xcconfig files" fails.
+  > - Profile project config re-pointed at Debug.xcconfig: "project-level Release and Profile use Release.xcconfig, Debug not" fails.
+  > - Every mutation was reverted with git checkout. Production files are unchanged and `git status` is clean.
+  > - The 7 bug-repro tests fail on the branch tip (cfa9f52) with the failures below.
+  >
+  > Regression locks (pass on old and new by design):
+  > - Marker in a nested framework, dylib, resource, or across the 64KiB/1MiB/5MiB boundaries: locks that every file is scanned.
+  > - In-bundle symlink, dangling symlink, only-symlinks bundle (2), top-level symlink (2): locks that nothing is silently skipped.
+  > - Path with spaces/quotes, `./-dash.app`, a file named `-n`, unreadable file (2), C-locale invalid bytes.
+  > - Exit codes: wrong arguments always 2, empty path 2, xcconfig on a directory 2, and the /bin/bash 3.2 exit codes.
+  > - xcconfig spellings: `[sdk]`/`[config][sdk]`, tab, CRLF, no-space `SWIFT_...=X`, `$(inherited)`, `-Xfrontend -DX`, `-D X`, trailing `//` comment (caught), key inside a `//` comment (ignored).
+  > - Project mapping: Release and Profile use Release.xcconfig and Debug uses Debug.xcconfig. No ARCHS, ENABLE_HARDENED_RUNTIME or x86_64 override anywhere in the pbxproj. Release.xcconfig sets ARCHS=arm64 and the runtime once, after its includes. Release and Profile have no DEBUG or -Onone settings. Deployment target is 12.0 everywhere.
+  > - Documented limits, pinned so a change is noticed:
+  >   - UTF-16 marker passes.
+  >   - NUL-split marker passes.
+  >   - Lower-case marker passes.
+  >   - Symlink to a file outside the bundle passes (`find -type f` skips it; codesign rejects such bundles anyway).
+  >   - xcconfig `#include` is not followed.
+  >   - Lower-case xcconfig keys are not flagged (Xcode keys are case-sensitive, so they are inert).
+  >
+  > Bugs found (all in tool/mac_release_guards.sh; fix is developer work):
+  > - BUG-M1 HIGH, false pass: in a UTF-8 locale (my terminal's default, LC_ALL/LANG=en_US.UTF-8), `grep -a -c -F` skips any line that has invalid UTF-8, so a marker on the same newline-delimited line as one invalid byte is missed and the release passes (exit 0).
+  >   - Repro: a file of `0xFF` + KusungaAcceptSyntheticKeys, or the marker followed by `0xFF`, with `LC_ALL=en_US.UTF-8`. It exits 0; with `LC_ALL=C` it exits 1.
+  >   - Not triggered on a real /bin/ls: 25 of 25 random offsets were caught, so exposure on real binaries is probable but not demonstrated. The fix is simple: run grep with `LC_ALL=C` inside the guard.
+  >   - Repro tests: "BUG-M1 ... finds the marker next to bytes that are not valid UTF-8" and "... also with LANG only".
+  > - BUG-M2 MEDIUM, false pass: the xcconfig guard misses `OTHER_SWIFT_FLAGS=-DX` (no whitespace before `-D`), `OTHER_SWIFT_FLAGS = "-DX"`, `"-D" "X"` and `$(inherited) "-D" X`. All exit 0. The regex needs whitespace before `-D`, and quoted flags break that.
+  >   - Repro tests: "BUG-M2 ... no space around =" and "... quoted flags".
+  > - BUG-M3 LOW, false pass: an empty file as the target, or a bundle whose files are all empty, exits 0 ("ok") although nothing was scanned. The "nothing to scan" rule (exit 2) is not applied.
+  >   - Repro tests: "BUG-M3 ... an empty file is nothing to scan (2)" and "... a bundle whose files are all empty ...".
+  > - BUG-M5 LOW, wrong exit code: `binary -dash.app` makes `find` fail on the dash-leading path and the script exits 1, which means "marker found". It should exit 2. The failure is safe but misleading.
+  >   - Repro test: "BUG-M5 ... a path starting with a dash exits 2, not 1".
+  > - Also noted, not a bug: the `#include` limit above. `Local.xcconfig.example` has none today.
+  >
+  > Abuse cases covered: n/a — M1.9b has no abuse cases of its own. I worked from the AC10 guard concerns (marker hiding, false passes) and covered all the binary-guard and xcconfig-guard cases you listed, except the two gaps below.
+  > UI states covered: n/a — no UI.
+  >
+  > Gaps not covered:
+  > - Profile and Release were only built and guarded once each, on this Mac. The Debug build and its effective settings were not built or inspected (an xcodebuild settings dump was not run); Debug was checked only statically (xcconfig and pbxproj).
+  > - Notarisation and signing with a real identity (M1.9c/e) were not run.
+  > - No positive control on a real built binary: the marker only exists in Debug builds, which were not built, so the guard was proven on fixtures and a modified /bin/ls only.
+  > - The guard's behaviour on a non-macOS shell (Windows bash) was not run.
+  > - `#include` following and xcconfig backslash continuation are not handled by the guard (documented limits).
+  >
+  > Production code changed: none
+  > Suite: 3907 passing / 7 failing / 10 skipped (was 3870 passing / 0 failing / 10 skipped). `./tool/check.sh` ends with `04:49 +3907 ~10 -7: Some tests failed.` and exits 1. All 7 failures are the BUG-M1/M2/M3/M5 repros above. Format and analyze steps passed. `pgrep -fl flutter_tester` was empty before each run, and no background job is left.
+  > Blockers: none (the check stays red until the developer fixes BUG-M1, M2, M3 and M5)
+  Lead: the 4 bugs (BUG-M1 high, BUG-M2 medium, BUG-M3 and BUG-M5 low) are all in tool/mac_release_guards.sh and go back to the developer (same branch, sonnet, round 2). Reviewer and QA wait for the fix. Also running now: QA re-dispatched for the Windows CI export check (PR 9), the Mac is unlocked (PM: "Unlocked, run QA").
+- Gates: developer round 2 · tester done (7 repro tests red until fixed) · reviewer, QA open · PM merge not asked
+- Open findings: 1 high, 1 medium, 2 low (BUG-M1, M2, M3, M5)
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none (Mac unlocked) · Marketer none · Lead none
+
 ## 2026-11-21 — M1.9b Mac release build — developer hand-off; tester started
 - Changed: lead created worktree build/mac-release from main 32d419e and dispatched the developer (sonnet). Size: part of M1.9 (large); this part is build config and guards, one platform, no data. Developer report, key lines word for word:
   > Branch: build/mac-release (1 commit, cfa9f52, not pushed)
