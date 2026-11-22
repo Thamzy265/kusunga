@@ -1,5 +1,24 @@
 # Status log
 
+## 2026-11-22 — M1.9a About and licences — developer round 7 (R11–R14 fixed); reviewer re-check dispatched
+- Changed: developer report (sonnet, medium, round 7), word for word ("How to verify" left out, sub-lists joined onto one line):
+  > Branch: feat/about-licences (4 new commits on e10bf9a; tip 07426b0)
+  > Built: R13 (8eaf5ec): the garbled-NOTICES.Z page test now also expects exactly one 'SQLite' row and one 'SQLite3 Multiple Ciphers' row, so the page header can no longer satisfy it. R14 (93dfe8c): new const `focusRingWidth = 2.0` in lib/theme/tokens.dart, used by the button focus ring. `focusRingReach` in lib/ui/focus_order.dart is now `= focusRingWidth`. The comment at settings_screen.dart:172 now names test/about/about_toast_room_test.dart. New test test/ui/focus_ring_reach_test.dart checks reach == width and that the themed button ring resolves to that width. R12 (4b4299c): in flutter_notices.dart, the catch now does `assert(() { debugPrint('NOTICES.Z could not be read (${e.runtimeType})'); return true; }())`. It reports the type only, in debug builds only. The empty stream is unchanged. A test checks that exactly one line is printed, that it names NOTICES.Z and FormatException, and that it leaves out the input text. R11 (07426b0): new test/about/flutter_licences_binding_test.dart reads `$FLUTTER_ROOT/packages/flutter/lib/src/services/binding.dart` (FLUTTER_ROOT found as in m16_real_font_layout_test.dart). It checks that the initLicenses body is only `LicenseRegistry.addLicense(_addLicenses);`, that _addLicenses still loads 'NOTICES.Z' and uses gzip.decode and utf8.decode, and that the 80-dash separator is unchanged. On failure it says flutterNotices and KusungaBinding must be re-checked against the new Flutter. Four tests run the same check on mutated in-memory copies of the source (extra registration, other asset name, no gzip, other separator) and expect problems. The real SDK is not edited. If the SDK source is not found, the test fails rather than skips.
+  > Tests: 4187 passing, 10 skipped (./tool/check.sh: Formatted 315 files, 0 changed; No issues found; All tests passed). New tests: R13 strengthened (1), focus_ring_reach (2), R12 (1), binding guard (5).
+  > First failing runs: R13: with `return;` added at the top of registerLicences (temporary mutation, reverted), the strengthened test failed; it passed on the unmutated code. R14: "Undefined name 'focusRingWidth'". R12: failed at expect(lines, hasLength(1)), because no line was printed before the fix. R11: the guard test passes on the real Flutter 3.44.6 source; the four mutated-copy tests show the check fails on each change. No separate failing run of the real-source test, since that would mean editing the SDK.
+  > E2E: n/a. Test hooks: n/a — no UI.
+  > Deviations from plan: the R11 test is a source check only. The reviewer's suggested QA or release-script check on a real build (Flutter notices listed, no lower-case "kusunga" row) is not built; QA should do it on the real build.
+  > Checklists: ui-build and data-and-apis — n/a.
+  > Risks / unverified: Process slip: I started a second ./tool/check.sh while the first was still running, against the rule of never running two at once. I killed my second one. The first run completed with exit 0 and the full pass shown above. If you want a clean single-run record, rerun the check on 07426b0. The R11 guard is a regex and text match on Flutter's private source; a harmless reformat in a future Flutter would also trip it (intended).
+  > Personal data touched: none (the R12 log line has the error type only). Later lines added: none. Spec gaps raised: none.
+  > Findings: R11 — fixed (07426b0; the QA real-build check is left to QA) | R12 — fixed (4b4299c) | R13 — fixed (8eaf5ec) | R14 — fixed (93dfe8c)
+  > Blockers: none
+  Lead: clean single run of the full check on 07426b0 by the lead (`pgrep -fl flutter_tester` empty first): "Formatted 315 files (0 changed)", "No issues found!", "06:14 +4187 ~10: All tests passed!", exit 0. Process note: the developer ran two checks at once, against the PM's rule; it stopped the second itself. Reviewer re-check of e10bf9a..07426b0 dispatched.
+- Gates: developer pass (round 7) · tester pass · reviewer re-check in progress · QA pending · PM merge not asked
+- Open findings: none open (R11–R14 waiting for re-check)
+- Decisions: open for PM: Apache-2.0 / CC0-1.0 texts and the Argon2 CC0 sentence
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-22 — M1.9a About and licences — reviewer re-check: approve with notes (R11–R14); developer round 7 dispatched
 - Changed: reviewer re-check report (opus, high), word for word (shortened where marked by the lead: sub-lists joined, scratchpad paths removed, the "answers" paragraph condensed):
   > Mode: branch
