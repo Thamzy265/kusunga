@@ -519,7 +519,7 @@ class _FocusRingState extends State<_FocusRing> {
       decoration: BoxDecoration(
         border: Border.all(
           color: show ? t.focus : Colors.transparent,
-          width: 2,
+          width: focusRingWidth,
           strokeAlign: BorderSide.strokeAlignOutside,
         ),
         borderRadius: BorderRadius.circular(widget.radius),
