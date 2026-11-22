@@ -169,7 +169,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   /// The height of a floating one-line toast: Material's 28 px of padding and
   /// 15 px of margin around one line of 14/20 text, which grows with the text
-  /// size. `about_focus_toast_test.dart` measures the real toast against it.
+  /// size. `test/about/about_toast_room_test.dart` measures the real toast against it.
   double _toastRoom(BuildContext context) =>
       43 + MediaQuery.textScalerOf(context).scale(20);
 

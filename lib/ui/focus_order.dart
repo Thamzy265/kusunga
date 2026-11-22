@@ -1,6 +1,8 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
+import '../theme/tokens.dart' show focusRingWidth;
+
 /// Tab and Shift+Tab: focuses [node] and scrolls it fully into view, up or
 /// down. Flutter's own callback only scrolls down on Tab and up on
 /// Shift+Tab, so Tab to a control built above the view left the focus
@@ -26,7 +28,7 @@ void revealOnTraversal(
 }
 
 /// How far a focus ring reaches outside the control it marks, in px.
-const focusRingReach = 2.0;
+const focusRingReach = focusRingWidth;
 
 /// Reading order, with [revealOnTraversal].
 FocusTraversalPolicy revealingReadingOrder() =>
