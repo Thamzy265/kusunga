@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-22 — M1.9b Mac release build — PM decision: Hardened Runtime launch check on the signed build (M1.9e); correction
+- Changed: correction to the entry below: QA was **not** dispatched. Before dispatch the lead found that the test-profile switch works in Debug builds only (`lib/history/data_profile.dart`, `#if DEBUG` in `macos/Runner/MainFlutterWindow.swift`, PM decision 2026-11-05), so a Release or Profile build always opens the PM's real history and keychain item. Launching it would break the QA rules (qa or dev profile only; keychain dialogs are the PM's). The lead asked the PM how to do the launch check. Options given: (A) on the Developer ID-signed build in M1.9e, where ADR 0007 already needs QA on a signed build; (B) the PM launches the release build on real data. Lead recommended A. Added to the M1.9 acceptance criteria in docs/PLAN.md: the Hardened Runtime launch check on the signed build (M1.9e).
+- Gates: developer pass · tester pass · reviewer approve · QA: build checks done without launch (arm64 only, `flags=…(runtime)`, guards exit 0 — tester report); launch check moved to M1.9e by PM decision · PM merge waiting
+- Open findings: none
+- Decisions: PM chose the launch check on the signed build (2026-11-22) — PM said: "Do it on signed build"
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-22 — M1.9b Mac release build — reviewer re-check: approve; QA dispatched
 - Changed: reviewer re-check report (opus, high), word for word (sub-lists joined onto one line):
   > Mode: branch
