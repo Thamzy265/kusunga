@@ -167,6 +167,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return ok == true;
   }
 
+  /// The height of a floating one-line toast: Material's 28 px of padding and
+  /// 15 px of margin around one line of 14/20 text, which grows with the text
+  /// size. `about_focus_toast_test.dart` measures the real toast against it.
+  double _toastRoom(BuildContext context) =>
+      43 + MediaQuery.textScalerOf(context).scale(20);
+
   @override
   Widget build(BuildContext context) {
     final t = KusungaTokens.of(context);
@@ -178,7 +184,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         body: Stack(
           children: [
             SingleChildScrollView(
-              padding: EdgeInsets.all(KusungaTokens.space4),
+              // Room under the last control for a one-line toast, so scrolled
+              // to the end the toast sits below View licences, not over it
+              // (M1.9a B3).
+              padding: EdgeInsets.fromLTRB(
+                KusungaTokens.space4,
+                KusungaTokens.space4,
+                KusungaTokens.space4,
+                KusungaTokens.space4 + _toastRoom(context),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
