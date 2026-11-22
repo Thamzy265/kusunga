@@ -1,5 +1,37 @@
 # Status log
 
+## 2026-11-22 — M1.9b Mac release build — developer round 2; reviewer dispatched
+- Changed: developer report (sonnet, round 2), word for word ("How to verify" steps left out here):
+  > Branch: build/mac-release (4 commits on top of main; round 2 added 14ed399 to tip 39b7d7a)
+  > Built:
+  > - All four bugs are fixed in tool/mac_release_guards.sh only. No production config touched.
+  > - BUG-M1: `export LC_ALL=C` at the top of the script, so grep, find and the rest read bytes whatever the caller's locale.
+  > - BUG-M2: the xcconfig regex is now `OTHER_SWIFT_FLAGS[^=]*=(.*[[:space:]"=])?-D`, so -D is caught right after `=`, after whitespace or after a quote. Comments, [sdk] conditions, CRLF, tabs and -Xfrontend -DX behave as before.
+  > - BUG-M3: find now lists only non-empty files (`-size +0c`). An empty file, or a bundle of only empty files, exits 2 with "nothing to scan".
+  > - BUG-M5: a target starting with `-` exits 2 with a hint to write `./-name`. This is by design: the repro test expects exit 2 even for a clean existing dash path. `./-x` still works. A find failure now exits 2, never 1.
+  > Tests: full check.sh passed ("All tests passed!", +3914 ~10, which is 3914 passing and 10 skipped).
+  > - New tests: none added. The 7 existing repros in test/ci/mac_release_guards_bugs_test.dart now pass and were not weakened. The edge test file is unchanged and passes.
+  > - First failing run, before the fix: `flutter test` on the bugs and edge test files gave +5 -7 for the bugs file and +37 -7 overall. Failing: BUG-M1 (LANG only, and marker next to invalid UTF-8), BUG-M2 (no space around =, quoted flags, and others), and the M3 and M5 repros, which were not individually named in the truncated output.
+  > - The only failure after the M1-M3 edits was M5 (`a path starting with a dash exits 2, not 1`), which I then fixed.
+  > E2E: n/a — no suite (desktop UI automation is TBD per CLAUDE.md).
+  > Test hooks: n/a — no UI.
+  > Deviations from plan: none.
+  > Checklists: none — n/a: data-and-apis and ui-build (a shell script fix only).
+  > Risks / unverified:
+  > - I did not run the script under /bin/bash 3.2 myself. The edge-test group "bash 3.2 (stock macOS)" passes and it is part of the 3914.
+  > - Dash-leading paths are rejected rather than normalised. The Mac release script (M1.9e) must pass `./` paths or absolute paths.
+  > - Documented limits remain: UTF-16 and NUL-split markers are not found, and symlinks are not followed.
+  > Personal data touched: none.
+  > Later lines added: none.
+  > Spec gaps raised: none.
+  > Findings: BUG-M1 — fixed (14ed399, mac_release_guards_bugs_test.dart); BUG-M2 — fixed (14ed399, same file); BUG-M3 — fixed (14ed399, same file); BUG-M5 — fixed (14ed399, same file).
+  > Blockers: none.
+  Lead: dispatched the reviewer (Mode: branch) on build/mac-release at 14ed399. M1.9e note added: the release script passes absolute or ./ paths to the guard.
+- Gates: developer pass (round 2) · tester pass (repros green) · reviewer in progress · QA open (Hardened Runtime launch in the qa profile) · PM merge not asked
+- Open findings: none open (BUG-M1, M2, M3, M5 fixed)
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-22 — Windows CI green — merged and closed
 - Changed: QA commit 90b2272 pushed to fix/windows-ci; PR 9 merged on GitHub with merge commit 8e9c141 (https://github.com/Thamzy265/kusunga/pull/9). Local main merged origin/main (4cdd25a). Plan box ticked. Local main still holds unpushed docs commits; pushing main waits for the PM.
 - Gates: developer pass · tester pass · reviewer approve · QA pass · PM merge approved ("Merge, accept BUG-C1", 2026-11-22)
