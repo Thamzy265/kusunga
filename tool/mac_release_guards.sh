@@ -6,9 +6,11 @@
 #       Fails (exit 1) if any file in the bundle contains the QA-only switch
 #       KusungaAcceptSyntheticKeys (it is compiled out of release builds).
 #   tool/mac_release_guards.sh xcconfig <file>
-#       Fails (exit 1) if the file sets Swift compilation conditions
-#       (SWIFT_ACTIVE_COMPILATION_CONDITIONS, or -D in OTHER_SWIFT_FLAGS):
-#       a signing example file must never switch DEBUG code on.
+#       For the signing example file. Fails (exit 1) if, outside whole-line //
+#       comments, the file has a -D token anywhere, or sets any key other than
+#       DEVELOPMENT_TEAM, CODE_SIGN_STYLE, CODE_SIGN_IDENTITY or
+#       PROVISIONING_PROFILE_SPECIFIER (with or without [sdk=..]/[config=..]).
+#       So it can never switch DEBUG code on. CR, LF and CRLF all end a line.
 #
 # Exit 2 means the guard could not run (missing path, nothing to scan), which
 # is also a failure: a typo must never pass.
@@ -18,6 +20,9 @@ set -euo pipefail
 export LC_ALL=C
 
 needle="KusungaAcceptSyntheticKeys"
+# The only keys the signing example may set (Local.xcconfig.example sets the
+# first three; the profile specifier is for manual signing).
+allowed_xcconfig_line='^[[:space:]]*(DEVELOPMENT_TEAM|CODE_SIGN_STYLE|CODE_SIGN_IDENTITY|PROVISIONING_PROFILE_SPECIFIER)(\[[^]]*\])*[[:space:]]*='
 
 usage() {
   echo "usage: $0 binary <app-or-file> | xcconfig <file>" >&2
@@ -65,15 +70,48 @@ guard_binary() {
 }
 
 guard_xcconfig() {
-  local file="$1"
+  local file="$1" text live lines bad rc
   [ -f "$file" ] || { echo "guard: $file does not exist" >&2; exit 2; }
-  # Drop comment lines, then look for the two ways to set a condition.
-  if grep -v '^[[:space:]]*//' "$file" |
-    grep -Eq '^[[:space:]]*(SWIFT_ACTIVE_COMPILATION_CONDITIONS|OTHER_SWIFT_FLAGS[^=]*=(.*[[:space:]"=])?-D)'; then
-    echo "guard FAILED: $file sets Swift compilation conditions" >&2
+  # Read the file first, so an unreadable file is an error (exit 2) and not a
+  # pass. Xcode ends a line at CR as well as LF, so turn CR into LF; a NUL
+  # also starts a new line (conservative). No pipes below: under pipefail a
+  # grep that stops early (SIGPIPE) on a large file would hide a match.
+  rc=0
+  text="$(tr '\r\000' '\n\n' < "$file")" || rc=$?
+  [ "$rc" -eq 0 ] || { echo "guard: could not read $file" >&2; exit 2; }
+  # Drop whole-line // comments. grep -v exits 1 when nothing is left: fine.
+  rc=0
+  live="$(grep -v '^[[:space:]]*//' <<< "$text")" || rc=$?
+  [ "$rc" -le 1 ] || { echo "guard: could not scan $file" >&2; exit 2; }
+  # 1. A -D token anywhere (any quoting, any key, glued to $(inherited)).
+  #    "-D" must not follow a letter, digit or underscore, so a value such as
+  #    My-Dev is not a flag.
+  rc=0
+  grep -Eq '(^|[^[:alnum:]_])-D' <<< "$live" || rc=$?
+  if [ "$rc" -eq 0 ]; then
+    echo "guard FAILED: $file has a -D token" >&2
     exit 1
   fi
-  echo "ok: $file sets no Swift compilation conditions"
+  [ "$rc" -eq 1 ] || { echo "guard: could not scan $file" >&2; exit 2; }
+  # 2. Only the signing keys, each optionally with [sdk=..]/[config=..]
+  #    conditions, may be set. Anything else (another key, #include, a stray
+  #    continuation line) fails: Xcode honours spellings a deny-list misses.
+  rc=0
+  lines="$(grep -Ev '^[[:space:]]*$' <<< "$live")" || rc=$?
+  [ "$rc" -le 1 ] || { echo "guard: could not scan $file" >&2; exit 2; }
+  rc=1
+  # (A here-string of nothing is one empty line, so skip the match then.)
+  if [ -n "$lines" ]; then
+    rc=0
+    bad="$(grep -Ev "$allowed_xcconfig_line" <<< "$lines")" || rc=$?
+  fi
+  if [ "$rc" -eq 0 ]; then
+    echo "guard FAILED: $file sets something other than the signing keys:" >&2
+    echo "$bad" >&2
+    exit 1
+  fi
+  [ "$rc" -eq 1 ] || { echo "guard: could not scan $file" >&2; exit 2; }
+  echo "ok: $file sets only signing keys and no -D flags"
 }
 
 [ "$#" -eq 2 ] || usage

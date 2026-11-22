@@ -299,36 +299,34 @@ void main() {
     });
 
     test('a key that only appears after // on a setting line is a comment', () {
-      expect(check('A = 1 // SWIFT_ACTIVE_COMPILATION_CONDITIONS = X\n'), 0);
+      expect(
+        check(
+          'DEVELOPMENT_TEAM = X // SWIFT_ACTIVE_COMPILATION_CONDITIONS = Y\n',
+        ),
+        0,
+      );
       expect(check('  // c\n// OTHER_SWIFT_FLAGS = -DX\n'), 0);
     });
 
-    test('settings that are not Swift compilation conditions pass', () {
-      expect(check('OTHER_SWIFT_FLAGS = -Onone\n'), 0);
-      expect(check('GCC_PREPROCESSOR_DEFINITIONS = DEBUG=1\n'), 0);
+    test('settings outside the signing allow-list fail (R1)', () {
+      // The guard is an allow-list: GCC_PREPROCESSOR_DEFINITIONS or an
+      // unrelated key is as unwelcome in the signing example as a condition.
+      expect(check('OTHER_SWIFT_FLAGS = -Onone\n'), 1);
+      expect(check('GCC_PREPROCESSOR_DEFINITIONS = DEBUG=1\n'), 1);
+      expect(check('FOO = \$(SWIFT_ACTIVE_COMPILATION_CONDITIONS)\n'), 1);
+      expect(check('A = 1 // SWIFT_ACTIVE_COMPILATION_CONDITIONS = X\n'), 1);
       expect(check(''), 0);
-      expect(check('FOO = \$(SWIFT_ACTIVE_COMPILATION_CONDITIONS)\n'), 0);
     });
 
-    test('documented limit: #include is not followed, lower-case keys', () {
-      // An #include of a file that sets conditions is not read. Xcode keys are
-      // case-sensitive, so a lower-case key is an inert setting, not a risk.
+    test('#include and lower-case keys fail: not allow-listed (R1)', () {
+      // An #include would pull in a file the guard does not read, so it fails
+      // instead of passing. Xcode keys are case-sensitive; a lower-case key is
+      // still not one of the allowed signing keys.
       expect(
         check('#include "Other.xcconfig"\n#include? "Local.xcconfig"\n'),
-        0,
+        1,
       );
-      expect(check('swift_active_compilation_conditions = X\n'), 0);
-    });
-
-    test('the build xcconfig files set no Swift compilation conditions', () {
-      for (final f in [
-        'macos/Runner/Configs/Release.xcconfig',
-        'macos/Runner/Configs/AppInfo.xcconfig',
-        'macos/Runner/Configs/Warnings.xcconfig',
-        'macos/Flutter/Flutter-Release.xcconfig',
-      ]) {
-        expect(guard(['xcconfig', f]).exitCode, 0, reason: f);
-      }
+      expect(check('swift_active_compilation_conditions = X\n'), 1);
     });
   });
 
