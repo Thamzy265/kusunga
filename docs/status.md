@@ -1,5 +1,63 @@
 # Status log
 
+## 2026-11-22 — M1.9b Mac release build — reviewer: block; fixes back to the developer
+- Changed: reviewer report (opus, high), word for word (sub-lists joined onto one line, wording unchanged):
+  > Mode: branch
+  > Branch: build/mac-release (32d419e..14ed399) — Verdict: block (R1 is Medium with no dated task in the plan. It becomes approve with notes if R1 is fixed, or if the lead adds a dated task with an owner and due date)
+  > Checks: ./tool/check.sh — pass — "+3914 ~10: All tests passed!", exit 0. I confirmed `pgrep -fl flutter_tester` was empty before the run. `bash -n` and `/bin/bash -n` (3.2.57) both pass on tool/mac_release_guards.sh.
+  > Code review: 4 findings (0 fixed, 4 open): R2, R3, R4 and the Later-line gap D1. R1 is listed under security.
+  > Design review: 1 finding (0 fixed, 1 open): D1, a missing Later line for the Intel build.
+  > Security review: 2 findings
+  > - R1 Medium (no CVSS score: band + basis). Only someone committing to the tracked Local.xcconfig.example can trigger it, and PR review stands in their way. The xcconfig guard then says "ok" while Xcode turns on Swift conditions such as DEBUG. The binary guard still catches the marker downstream, so this is a gap in defence in depth, but it is in a gate AC10 requires.
+  > - R2 Low (no CVSS score: band + basis). Same reach, with an even less likely trigger: the file is unreadable, or it is bigger than the pipe buffer (about 64 KB). The guard then exits 0 when it should exit 2.
+  > The rest of the OWASP list: A01, A04, A07 and A09 are n/a (no endpoints, auth, crypto or logging). A02 holds: Release.entitlements has no Hardened Runtime exceptions, and the release build was checked with codesign, flags=adhoc,runtime. A03 is n/a (no new packages). A05 holds: the script only takes paths from the release script, quotes every expansion, and refuses paths that start with a dash. A06 holds: the design note's top threat, the test switch in a release, is covered by the binary guard, which I checked on real builds (see Evidence). A08 and A10: see R1 and R2. AI: n/a, no AI features. Secrets: none in the diff. The security-review skill ran against the session cwd (main checkout on fix/windows-ci), so its diff was empty and its result is not usable. I worked through references/security.md by hand on 32d419e..14ed399 instead.
+  > Privacy review: no issues. No personal data, logs, network calls or storage are touched. Retention, erasure, processors, consent, SDKs and regions are n/a: this is build config and a release-time script only.
+  > Later lines: none added by the branch. Added by reviewer: none, because this reviewer cannot edit files. The lead should add this line (see D1): "- Universal (Intel + Apple silicon) Mac build — D3 A ships Apple silicon only to avoid the Flutter 3.44.6 lipo failure on macOS 27, and Intel Macs on macOS 26 or older get no build — trigger: ≥ 1 tester or user asks for an Intel build, or the pinned Flutter is upgraded past 3.44.6 — noted 2026-11-22 by reviewer"
+  > Findings (most severe first):
+  > - R1 — Medium — tool/mac_release_guards.sh:71-72
+  >   - Failure scenario: the xcconfig guard exits 0 ("ok") for four spellings that Xcode does honour. I checked each one with `xcodebuild -showBuildSettings -target Runner -configuration Release`, on a copy of macos/ in the scratchpad, with the probe saved as Local.xcconfig (AppInfo.xcconfig pulls it in with `#include?`):
+  >     - (a) `OTHER_SWIFT_FLAGS = $(inherited) '-DDEBUG'`: Xcode gives `OTHER_SWIFT_FLAGS = '-DDEBUG'`.
+  >     - (b) `KUSUNGA_FLAGS = -DDEBUG` plus `OTHER_SWIFT_FLAGS = $(inherited) $(KUSUNGA_FLAGS)`: Xcode gives `-DDEBUG`.
+  >     - (c) `OTHER_SWIFT_FLAGS = $(inherited)-DDEBUG`: Xcode gives `-DDEBUG`.
+  >     - (d) CR-only line endings, `DEVELOPMENT_TEAM = X\rSWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG\r`: Xcode gives `SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG`.
+  >   - Who is affected: if someone edits the example file this way, developers who copy it build release binaries with DEBUG code in them, including the synthetic-keys switch. AC10's second bullet ("a guard checks that Local.xcconfig.example sets no Swift compilation conditions") is not met, and ADR 0003's last Build-facts line overstates what the guard does.
+  >   - Expected fix: allow-list the keys the signing example may set (DEVELOPMENT_TEAM, CODE_SIGN_STYLE, CODE_SIGN_IDENTITY, PROVISIONING_PROFILE_SPECIFIER). Any other key, or any `-D` token anywhere outside a whole-line `//` comment, exits 1. Turn CR into LF before matching. Add a regression test for each of (a) to (d), and give both runs (fails on 14ed399, passes after).
+  > - R2 — Low — tool/mac_release_guards.sh:71
+  >   - Failure scenario: `grep -v ... | grep -Eq ...` runs under `set -o pipefail`, so any non-zero status from either grep makes the `if` false, and the guard prints "ok".
+  >     - A `chmod 000` file holding `SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG` prints "grep: Permission denied", then "ok", and exits 0.
+  >     - A 789 KB file with that line first exits 0 in 5 out of 5 runs: grep -q stops at the match, and grep -v then dies on SIGPIPE (141).
+  >   - This breaks the script's own rule that exit 2 means the guard could not run. The binary guard handles the same cases correctly.
+  >   - Expected fix: capture the output first with `filtered="$(grep -v '^[[:space:]]*//' "$file")" || rc=$?`, exit 2 if rc > 1, then run `grep -Eq '...' <<< "$filtered"` with no pipe. Add tests: an unreadable file exits 2, and a large file with the setting first exits 1.
+  > - R3 — Low — tool/mac_release_guards.sh:20 against macos/Runner/TypedShortcutCore.swift:287
+  >   - Failure scenario: the needle is hard-coded and no test ties it to `SyntheticKeysSwitch.argument`. test/ci/typed_shortcut_guards_test.dart:343 only checks `seen >= 4` across four needles, so it still passes without the marker. If someone renames the argument (for example to `-KusungaAllowSyntheticKeys`), the release guard passes every build from then on, including one built with DEBUG on.
+  >   - Expected fix: a test that reads `static let argument = "..."` from TypedShortcutCore.swift and checks that it contains the script's needle.
+  > - D1 — Low (design, plan hygiene) — docs/PLAN.md "Later" section
+  >   - Failure scenario: the design note's D3 row says "Intel becomes a Later line", but neither main nor the branch has one, so the Intel deferral has no trigger and could be forgotten.
+  >   - Expected fix: the lead adds the line given under "Later lines" above.
+  > - R4 — cleanup — test/ci/mac_release_guards_bugs_test.dart:5-8
+  >   - The header says "Each of these FAILS on the branch today", which is no longer true after 14ed399. A reader could treat a real regression as an expected failure.
+  >   - Expected fix: reword it as regression tests for BUG-M1, M2, M3 and M5. Optional: the three test files each define the same fixture helpers (bin/app/guard), and these could be shared.
+  > Notes for M1.9e (not findings on this branch):
+  > - The file that actually reaches signed builds is the git-ignored Local.xcconfig. AppInfo.xcconfig includes it at target level for every configuration, so it can also override Release.xcconfig's ARCHS and ENABLE_HARDENED_RUNTIME. The release script should: run `xcconfig` on the real Local.xcconfig as well, if it exists; check `lipo -archs` = arm64 and that the codesign flags include "runtime" on the shipped binary; run `binary` on a Debug build as a positive control, expecting exit 1.
+  > - A dropped code-review idea: Profile signs with DebugProfile.entitlements, which has allow-jit, under Hardened Runtime. The ADR only claims that the release entitlements have no exceptions, which is true, and Profile is not shipped.
+  > - Also dropped: RunnerTests under the Release Hardened Runtime: CI runs XCTest in Debug only (check.yml:25). Per-file grep speed: the Release .app has 36 files and the scan takes 0.16 s.
+  > Evidence I gathered (all reads, nothing launched, built, signed or pushed):
+  > - `xcodebuild -showBuildSettings` on the scratch copy: Release: ARCHS=arm64, ENABLE_HARDENED_RUNTIME=YES, MACOSX_DEPLOYMENT_TARGET=12.0. Profile: ARCHS=arm64, ENABLE_HARDENED_RUNTIME=YES, ONLY_ACTIVE_ARCH=NO. Debug: ARCHS=arm64 x86_64, ONLY_ACTIVE_ARCH=YES, ENABLE_HARDENED_RUNTIME=NO, SWIFT_ACTIVE_COMPILATION_CONDITIONS=DEBUG. So the inheritance works as intended, and Debug is untouched.
+  > - Flutter 3.44.6 `build_macos.dart` passes a generic destination and no ARCHS for release, so the xcconfig ARCHS is what applies.
+  > - The worktree's Release build: `lipo -archs` gives arm64, and codesign gives flags=0x10002(adhoc,runtime).
+  > - Binary guard on real builds, using /bin/bash 3.2: main checkout's Debug Kusunga.app: exit 1 (marker found in Contents/MacOS/Kusunga.debug.dylib); worktree Release and Profile .app: exit 0. I found no false pass in the binary guard: no pipes, find and grep errors give exit 2, there are no locale problems, and symlinked targets give exit 2.
+  > - ADR 0003 Build facts are accurate apart from the R1 overstatement. 12.0 traces back to d94a892 (Xcode 27.2), and D3 A is dated 2026-11-19.
+  > - Probe files are in scratchpad/xcprobe/. No git refs were created.
+  > Fix outcomes: none yet (first review round).
+  > Risk accepted by PM: none
+  > Open items: R1 (Medium, open, no dated task), R2 (Low), R3 (Low), D1 (Low, needs the lead to add the Later line), R4 (cleanup)
+  > Blockers: none. ReportFindings was not available in this session, so the findings are in this report instead.
+  Lead: D1 done — the Intel Later line is in docs/PLAN.md. The M1.9e notes became one M1.9 AC in docs/PLAN.md (real Local.xcconfig guard, lipo and runtime checks, Debug positive control, ./ or absolute paths). R1–R4 go back to the developer (round 3, effort raised to high after a failed review round). No dated-task route for R1: it is fixed now.
+- Gates: developer round 3 · tester pass · reviewer block (R1 Medium) · QA open · PM merge not asked
+- Open findings: 1 medium (R1), 2 low (R2, R3), 1 cleanup (R4); D1 closed by the lead
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-22 — PM decisions: push main; `name.json.json` to Later
 - Changed: Later line added in docs/PLAN.md for the doubled `.json` save name. Main pushed to origin with the PM's approval.
 - Gates: n/a — docs and decisions only
