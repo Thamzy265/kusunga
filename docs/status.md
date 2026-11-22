@@ -1,5 +1,18 @@
 # Status log
 
+## 2026-11-22 — M1.9a About and licences — main merged into the branch; QA next
+- Changed: developer report (sonnet, medium), word for word (sub-lists joined):
+  > Branch: feat/about-licences is merged with main and the full check passes. Nothing was pushed, and main was not touched.
+  > Merge commit: 5b3e377 (`git merge --no-ff refs/heads/main`). Main's tip was c996ae3. The message ends with "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>". I amended the merge commit once, message only, so the trailer is the last line. The first commit had git's "# Conflicts" comment lines after it. The check ran against the same tree.
+  > Conflicts: one, in docs/qa/m1.md (docs only). Both branches appended a new section at the end of the file. Resolution: I kept both sections in full and removed only the conflict markers. Order: "Windows CI green (2026-11-21, updated 2026-11-22)" from main comes first, then "M1.9a About and licences (2026-11-22)" from the branch. Nothing was dropped. The file has no markers left. The other changed files merged cleanly: .gitattributes, check.yml, PLAN.md, ADR 0003, status.md, your_data_service.dart, the macOS xcconfig and LoginItemCore.swift, and the ci tests.
+  > Check: `./tool/check.sh`, one run in the foreground, with `pgrep -fl flutter_tester` empty beforehand. It exited 0, ending with "+4299 ~10: All tests passed!". That is 4299 passing and 10 skipped.
+  > Fixes: none needed. Main's test/support/source_text.dart and the line-ending tests did not clash with the branch's tests.
+  > Blockers: none.
+- Gates: developer pass · tester pass · reviewer approve · QA pending (needs the Mac unlocked) · PM merge not asked
+- Open findings: none
+- Decisions: open for PM: Apache-2.0 / CC0-1.0 texts and the Argon2 CC0 sentence
+- Blockers: Developer none · Tester none · Reviewer none · QA Mac must be unlocked and awake · Marketer none · Lead none
+
 ## 2026-11-22 — M1.9a About and licences — reviewer re-check: approve (R16 fixed); main merged into the branch next
 - Changed: reviewer re-check report (opus, high), word for word (sub-lists joined; evidence paths left out):
   > Mode: branch
