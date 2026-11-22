@@ -3,7 +3,7 @@
 // every letter as wide as the font size. This checks the claim with a real
 // proportional font (Roboto from the Flutter SDK, loaded as 'RealRoboto'):
 // if the layout really fits at 600 px and at 520 x 400 with a real font, the
-// moved tests hide nothing. Skipped when the SDK font files are not found.
+// moved tests hide nothing. Fails when FLUTTER_ROOT or the SDK font files are missing.
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -17,20 +17,25 @@ import 'package:kusunga/theme/tokens.dart';
 
 import '../support/fakes.dart';
 
-String? _fontDir() {
+/// The flutter tool exports FLUTTER_ROOT to every test run. If it is missing,
+/// or the SDK has no Roboto, this fails loudly instead of skipping.
+String _fontDir() {
   final root = Platform.environment['FLUTTER_ROOT'];
-  final candidates = [
-    if (root != null) '$root/bin/cache/artifacts/material_fonts',
-    '/Users/williamnasoni/Developer/flutter/bin/cache/artifacts/material_fonts',
-  ];
-  for (final c in candidates) {
-    if (File('$c/Roboto-Regular.ttf').existsSync()) return c;
+  if (root == null) {
+    throw StateError(
+      'FLUTTER_ROOT is not set: run the tests with flutter test or '
+      './tool/check.sh, which export it.',
+    );
   }
-  return null;
+  final dir = '$root/bin/cache/artifacts/material_fonts';
+  if (!File('$dir/Roboto-Regular.ttf').existsSync()) {
+    throw StateError('Roboto-Regular.ttf not found in $dir');
+  }
+  return dir;
 }
 
 Future<void> _loadReal() async {
-  final dir = _fontDir()!;
+  final dir = _fontDir();
   final loader = FontLoader('RealRoboto')
     ..addFont(
       Future.value(
@@ -46,10 +51,6 @@ Future<void> _loadReal() async {
 }
 
 void main() {
-  final skip = _fontDir() == null
-      ? 'Roboto not found in the Flutter SDK'
-      : null;
-
   Future<void> show(
     WidgetTester tester,
     Size size, {
@@ -92,7 +93,7 @@ void main() {
 
   group('real proportional font', () {
     setUpAll(() async {
-      if (skip == null) await _loadReal();
+      await _loadReal();
     });
 
     testWidgets('600 px: History, Snippets, Privacy, Settings (M1.7) and New '
@@ -111,7 +112,7 @@ void main() {
       expect(n.center.dy, moreOrLessEquals(h.center.dy, epsilon: 12));
       expect(g.right, lessThan(n.left));
       expect(tester.takeException(), isNull);
-    }, skip: skip != null);
+    });
 
     testWidgets('520 px at 200% text: the tabs stay on one row (the claim '
         'behind moving the History test to 440 px high)', (tester) async {
@@ -127,7 +128,7 @@ void main() {
       expect(s.center.dy, moreOrLessEquals(h.center.dy, epsilon: 1));
       expect(p.center.dy, moreOrLessEquals(h.center.dy, epsilon: 1));
       expect(tester.takeException(), isNull);
-    }, skip: skip != null);
+    });
 
     testWidgets('360 px at 200% text: three tabs wrap, nothing overflows, '
         'every tab is reachable inside the window', (tester) async {
@@ -143,7 +144,7 @@ void main() {
         expect(r.right, lessThanOrEqualTo(360), reason: n);
       }
       expect(tester.takeException(), isNull);
-    }, skip: skip != null);
+    });
 
     testWidgets('control: with the Ahem test font the same 600 px does not '
         'fit on one row, so the real font is really in use above', (
@@ -158,6 +159,6 @@ void main() {
           (n.center.dy - h.center.dy).abs() < 12 &&
           p.right < n.left;
       expect(oneRow, isFalse);
-    }, skip: skip != null);
+    });
   });
 }
