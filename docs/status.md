@@ -1,5 +1,32 @@
 # Status log
 
+## 2026-11-22 — M1.9b Mac release build — reviewer re-check: approve; QA dispatched
+- Changed: reviewer re-check report (opus, high), word for word (sub-lists joined onto one line):
+  > Mode: branch
+  > Branch: build/mac-release (32d419e..4e80d18, re-check of a5887de, 3ec359c and 4e80d18) — Verdict: approve
+  > Checks: ./tool/check.sh — pass — "Formatted 293 files (0 changed)", analyze "No issues found!", tests "+3927 ~10: All tests passed!", exit 0. I confirmed `pgrep -fl flutter_tester` was empty before the run, and `/bin/bash -n` passes on tool/mac_release_guards.sh.
+  > Code review: 4 findings (4 fixed, 0 open): R2, R3, R4 and D1. R1 is under security.
+  > Design review: 1 finding (1 fixed, 0 open): D1.
+  > Security review: 2 findings, both fixed. R1 was Medium (no CVSS score: band + basis — only reachable by a commit to the tracked example file, and the binary guard already caught what got through). R2 was Low (same reach, failed only when the file was unreadable or bigger than the pipe buffer). No new security findings: the rest of the OWASP list is unchanged from the first review (n/a or holds).
+  > Privacy review: no issues (build config and a release-time script only; no personal data, logs, network calls or storage).
+  > Later lines: ok. The Intel line is on main at docs/PLAN.md:139, in the right format, with a measurable trigger, and not on the never-deferred list. Added by reviewer: none.
+  > Findings (most severe first): none open.
+  > Fix outcomes:
+  > - R1 — fixed. tool/mac_release_guards.sh:72-115 now does three things: it accepts only these keys: DEVELOPMENT_TEAM, CODE_SIGN_STYLE, CODE_SIGN_IDENTITY, PROVISIONING_PROFILE_SPECIFIER; it turns CR and NUL into LF; it fails on any `-D` token outside whole-line `//` comments. Fails on old code: in round 1 I ran the old script (14ed399) on all four repros (single quote, a variable holding `-DDEBUG`, `$(inherited)-DDEBUG`, CR-only line ends) and it exited 0 on each. Xcode does use all four (checked with xcodebuild -showBuildSettings). Passes on new code: the same probe files now exit 1. So do the BOM, `/* */` and backslash probes. I also tried to get past the new list. Spellings that still pass the guard: `;` chaining, vertical tab, form feed, U+2028, NEL. I checked each with `xcodebuild -showBuildSettings` on a scratch copy of macos/, with the probe as Local.xcconfig. Xcode reads all of them as part of the DEVELOPMENT_TEAM value, and SWIFT_ACTIVE_COMPILATION_CONDITIONS is never set. So none of them is a bypass. Regression tests: test/ci/mac_release_guards_xcconfig_test.dart:26-51 covers (a) to (d) one by one, and also checks that other keys, `#include` and continuation lines fail, and that the real example file passes. ADR 0003 line 45 now describes the allow-list accurately.
+  > - R2 — fixed. The script now reads the file with `tr` before scanning, and uses here-strings instead of pipes; every grep exit code is checked. Fails on old code: in round 1 an unreadable file exited 0, and a 789 KB file exited 0 on 5 of 5 runs. Passes on new code: the same unreadable probe now exits 2, and the large file exits 1. Regression tests: xcconfig_test.dart:125-158 (unreadable file → 2, a large file with the setting first → 1, a large clean file → 0).
+  > - R3 — fixed. test/ci/mac_release_guards_needle_test.dart reads `needle=` from the script and `static let argument = "..."` from TypedShortcutCore.swift, and checks that the argument contains the needle. Renaming either one now fails the test. It passes on old code too, which is expected: the old code had no mismatch, and the test is there to catch a future one.
+  > - R4 — fixed. test/ci/mac_release_guards_bugs_test.dart:5-8 is reworded as regression tests for bugs that are now fixed.
+  > - D1 — fixed (the lead added it). docs/PLAN.md:139 on main. My M1.9e notes are now an AC at docs/PLAN.md:110 on main.
+  > Tester tests that changed (were they weakened?): no. mac_release_guards_edge_test.dart: every changed expectation went from 0 to 1, which is stricter and is what the allow-list requires. That covers OTHER_SWIFT_FLAGS=-Onone, GCC_PREPROCESSOR_DEFINITIONS, `FOO = $(SWIFT_ACTIVE_COMPILATION_CONDITIONS)`, `A = 1 // ...`, `#include`, and lower-case keys. The "key after a trailing //" case still expects 0, now on an allowed key. The one removed test ran the guard on the build .xcconfig files, which the allow-list would now rightly reject. It has been replaced by an equivalent Dart check (xcconfig_test.dart:104-121): no SWIFT_ACTIVE_COMPILATION_CONDITIONS and no `-D` token outside comments in Release, AppInfo, Warnings and Flutter-Release. It covers the same ground as the old deny-list and more. Every other edge test is unchanged and still passes.
+  > Risk accepted by PM: none
+  > Open items: none
+  > Blockers: none. ReportFindings was not available in this session, so the outcomes are in this report instead. The probe files are in scratchpad/xcprobe/. I created no git refs, launched nothing, and pushed nothing.
+  Lead: QA dispatched for the Hardened Runtime launch in the qa profile. M1.9a developer dispatched (B1–B4, hidden row, licence-text download, spec update).
+- Gates: developer pass · tester pass · reviewer approve · QA in progress · PM merge not asked
+- Open findings: none
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-22 — M1.9b Mac release build — developer round 3 (review fixes); reviewer re-check dispatched
 - Changed: developer report (sonnet, high effort, round 3), word for word ("How to verify" left out, sub-lists joined onto one line):
   > Branch: build/mac-release (3 new commits on 14ed399, tip 4e80d18)
