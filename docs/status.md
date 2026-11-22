@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-22 — PM decisions: push main; `name.json.json` to Later
+- Changed: Later line added in docs/PLAN.md for the doubled `.json` save name. Main pushed to origin with the PM's approval.
+- Gates: n/a — docs and decisions only
+- Open findings: none
+- Decisions: PM (2026-11-22) approved pushing main and chose Later for the `name.json.json` observation — PM said: "Yes, push main, and add name.json.json to Later"
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-22 — M1.9b Mac release build — developer round 2; reviewer dispatched
 - Changed: developer report (sonnet, round 2), word for word ("How to verify" steps left out here):
   > Branch: build/mac-release (4 commits on top of main; round 2 added 14ed399 to tip 39b7d7a)
