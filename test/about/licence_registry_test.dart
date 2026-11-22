@@ -99,21 +99,15 @@ void main() {
     }
   });
 
-  // AC7. BLOCKED: the verbatim upstream texts (the MIT licence with its
-  // copyright line, and the notice of each bundled part) have to be copied
-  // from SQLite3 Multiple Ciphers v2.5.0 into assets/licences/sqlite3mc.txt;
-  // the developer had no network access. Remove the skip once they are in.
-  test(
-    'SQLite3 Multiple Ciphers: the MIT notice, with its copyright line',
-    () {
-      final text = licences['SQLite3 Multiple Ciphers']!;
-      expect(text, contains('MIT License'));
-      expect(text, contains('Copyright (c)'));
-      expect(text, contains('Permission is hereby granted, free of charge'));
-      expect(text, contains('THE SOFTWARE IS PROVIDED "AS IS"'));
-    },
-    skip: 'blocked: upstream licence texts not yet copied (see hand-off)',
-  );
+  // AC7: the MIT notice of the project, with its copyright line, as in
+  // LICENSE of SQLite3 Multiple Ciphers v2.5.0 (every part: licence_texts_test).
+  test('SQLite3 Multiple Ciphers: the MIT notice, with its copyright line', () {
+    final text = licences['SQLite3 Multiple Ciphers']!;
+    expect(text, contains('MIT License'));
+    expect(text, contains('Copyright (c) 2019-2026 Ulrich Telle'));
+    expect(text, contains('Permission is hereby granted, free of charge'));
+    expect(text, contains('THE SOFTWARE IS PROVIDED "AS IS"'));
+  });
 
   test('the notice names the dependency version, like docs/licences.md', () {
     expect(licences['SQLite3 Multiple Ciphers'], contains('2.5.0'));
