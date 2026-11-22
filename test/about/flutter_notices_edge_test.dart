@@ -294,7 +294,11 @@ void main() {
       tester.takeException();
       // The page is the user's only place to find the GPL and the SQLite
       // notices (GPLv3 5(d)): a broken Flutter collection must not hide them.
+      // 'Kusunga' alone would also match the page header, so the two package
+      // rows of the notices are checked as well (R13).
       expect(find.text('Kusunga'), findsWidgets);
+      expect(find.text('SQLite'), findsOneWidget);
+      expect(find.text('SQLite3 Multiple Ciphers'), findsOneWidget);
     });
   });
 }
