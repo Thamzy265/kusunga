@@ -16,6 +16,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/log/app_log.dart';
+import 'package:path/path.dart' as p;
 
 String _read(String path) => File(path).readAsStringSync();
 
@@ -271,7 +272,7 @@ void roundThreeGuards() {
           if (f is File &&
               (f.path.endsWith('.cpp') || f.path.endsWith('.h')) &&
               _read(f.path).contains('#include "app_id.h"'))
-            f.path.split('/').last,
+            p.basename(f.path),
       ]..sort();
       expect(users, [
         'app_id_test.cpp',

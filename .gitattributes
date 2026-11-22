@@ -1,3 +1,7 @@
+# Every text file is checked out with LF on every OS, so guard tests that read
+# sources see the same bytes on Windows (core.autocrlf=true) as on macOS.
+* text=auto eol=lf
+
 # The GPL-3.0 text must stay byte-for-byte as published (pinned SHA-256 in
 # test/ci/licence_test.dart). Never convert its line endings (Windows autocrlf).
 LICENSE -text

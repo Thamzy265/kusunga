@@ -20,6 +20,7 @@ import 'package:kusunga/snippets/snippet.dart';
 import 'package:kusunga/theme/tokens.dart';
 import 'package:path/path.dart' as p;
 
+import '../support/close_service.dart';
 import '../support/fakes.dart';
 
 const _key = '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
@@ -70,7 +71,7 @@ void main() {
     EraseTarget? target,
   }) async {
     service = history ?? sqliteService();
-    addTearDown(service.dispose);
+    addCloseTearDown(service);
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);

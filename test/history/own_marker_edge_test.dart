@@ -15,6 +15,7 @@ import 'package:kusunga/history/memory_history_store.dart';
 import 'package:kusunga/history/migrations.dart';
 import 'package:kusunga/history/sqlite_history_store.dart';
 import 'package:kusunga/log/app_log.dart';
+import 'package:path/path.dart' as p;
 
 import '../support/fakes.dart';
 
@@ -261,7 +262,7 @@ void main() {
       expect(opened.notices, {HistoryNotice.incompatible});
       expect(File('${dir.path}/kusunga.db').readAsBytesSync(), before);
       expect(
-        Directory(dir.path).listSync().map((e) => e.path.split('/').last),
+        Directory(dir.path).listSync().map((e) => p.basename(e.path)),
         isNot(contains(startsWith('kusunga.db.unreadable'))),
         reason: 'the file must not be moved aside',
       );

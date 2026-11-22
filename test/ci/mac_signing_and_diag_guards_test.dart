@@ -3,11 +3,13 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/log/app_log.dart';
 
+import '../support/source_text.dart';
+
 /// Guards for 0a56e9b and d94a892 on the Mac: the optional local signing file,
 /// the deployment target, the debug-only force-post switch and the diagnostics
 /// channel. These read the sources and the Xcode settings; nothing is built or
 /// signed.
-String read(String path) => File(path).readAsStringSync();
+String read(String path) => readSource(path);
 
 String stripComments(String swift) =>
     swift.split('\n').where((l) => !l.trimLeft().startsWith('//')).join('\n');
@@ -103,7 +105,7 @@ void main() {
       final teamId = RegExp(r'DEVELOPMENT_TEAM\s*=\s*([A-Z0-9]{10})\b');
       for (final f in tracked) {
         if (f.endsWith('.png') || f.endsWith('.icns')) continue;
-        final text = File(f).readAsStringSync();
+        final text = readSource(f);
         for (final m in teamId.allMatches(text)) {
           expect(m.group(1), 'YOURTEAMID', reason: 'a real team id in $f');
         }
@@ -113,13 +115,13 @@ void main() {
       if (local.existsSync()) {
         final m = RegExp(
           r'DEVELOPMENT_TEAM\s*=\s*(\S+)',
-        ).firstMatch(local.readAsStringSync());
+        ).firstMatch(readSource(local.path));
         final id = m?.group(1);
         if (id != null && id != 'YOURTEAMID') {
           for (final f in tracked) {
             if (f.endsWith('.png') || f.endsWith('.icns')) continue;
             expect(
-              File(f).readAsStringSync().contains(id),
+              readSource(f).contains(id),
               isFalse,
               reason: 'the local team id leaked into $f',
             );
@@ -262,7 +264,7 @@ void main() {
             e.path,
       ];
       for (final f in files) {
-        final text = stripComments(File(f).readAsStringSync());
+        final text = stripComments(readSource(f));
         if (f.endsWith('PasteFlow.swift')) {
           expect('KusungaForcePost'.allMatches(text).length, 1, reason: f);
         } else {
@@ -293,7 +295,7 @@ void main() {
           'macos/Runner.xcodeproj/xcshareddata',
         ).listSync(recursive: true).whereType<File>()) {
           expect(
-            e.readAsStringSync(),
+            readSource(e.path),
             isNot(contains('KusungaForcePost')),
             reason: e.path,
           );
@@ -333,7 +335,7 @@ void main() {
     test('Dart never asks for a forced post', () {
       for (final f in Directory('lib').listSync(recursive: true)) {
         if (f is File && f.path.endsWith('.dart')) {
-          final t = f.readAsStringSync();
+          final t = readSource(f.path);
           expect(t.contains('force:'), isFalse, reason: f.path);
           expect(t.contains("'force'"), isFalse, reason: f.path);
         }
@@ -373,7 +375,7 @@ void main() {
     test('the only writer to the unified log checks the code first', () {
       for (final e in Directory('macos/Runner').listSync(recursive: true)) {
         if (e is! File || !e.path.endsWith('.swift')) continue;
-        final t = stripComments(e.readAsStringSync());
+        final t = stripComments(readSource(e.path));
         if (e.path.endsWith('DiagLog.swift')) continue;
         expect(t, isNot(contains('os_log')), reason: e.path);
         expect(t, isNot(contains('Logger(')), reason: e.path);
@@ -399,7 +401,7 @@ void main() {
       var seen = 0;
       for (final e in Directory('macos/Runner').listSync(recursive: true)) {
         if (e is! File || !e.path.endsWith('.swift')) continue;
-        for (final m in call.allMatches(stripComments(e.readAsStringSync()))) {
+        for (final m in call.allMatches(stripComments(readSource(e.path)))) {
           seen++;
           expect(
             known,
@@ -425,7 +427,7 @@ void main() {
 
     test('Windows has no diag handler, so Dart must ignore its absence', () {
       expect(
-        File('windows/runner/picker_bridge.cpp').readAsStringSync(),
+        readSource('windows/runner/picker_bridge.cpp'),
         isNot(contains('kusunga/diag')),
       );
     });

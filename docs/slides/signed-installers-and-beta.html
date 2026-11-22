@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signed installers and beta</title>
+<!--
+  Deck template: one self-contained file. No external scripts, fonts or trackers.
+  Each <section class="slide"> is one slide. Keys: → ↓ Space PageDown = next; ← ↑ PageUp = back;
+  Home/End = first/last. URL hash (#3) links to a slide. Print (Cmd/Ctrl+P) gives one slide per page.
+-->
+<style>
+  :root {
+    --bg: #f7f6f2; --surface: #ffffff; --text: #1d1d1b; --muted: #5f5e58;
+    --line: #dedcd3; --accent: #c2512f; --accent-soft: #f6e3dc;
+    --ok: #2f7a4f; --ok-soft: #dcefe3; --warn: #9a6a00; --warn-soft: #f7ecd2;
+    --no: #a33a3a; --no-soft: #f6dcdc;
+    --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161614; --surface: #201f1c; --text: #ecebe6; --muted: #a8a69e;
+      --line: #36352f; --accent: #e8805f; --accent-soft: #3a2620;
+      --ok: #6cc290; --ok-soft: #1d3326; --warn: #e0b04d; --warn-soft: #3a3020;
+      --no: #e57f7f; --no-soft: #3d2222;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161614; --surface: #201f1c; --text: #ecebe6; --muted: #a8a69e;
+    --line: #36352f; --accent: #e8805f; --accent-soft: #3a2620;
+    --ok: #6cc290; --ok-soft: #1d3326; --warn: #e0b04d; --warn-soft: #3a3020;
+    --no: #e57f7f; --no-soft: #3d2222;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.45; }
+
+  .slide { display: none; min-height: 100vh; padding: clamp(24px, 6vh, 64px) clamp(16px, 7vw, 96px) 88px; flex-direction: column; justify-content: center; }
+  .slide.active { display: flex; }
+  .slide > .inner { width: 100%; max-width: 1080px; margin: 0 auto; }
+
+  .kicker { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin: 0 0 10px; }
+  h1 { font-size: clamp(34px, 6vw, 64px); line-height: 1.05; margin: 0 0 18px; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(26px, 4vw, 40px); line-height: 1.12; margin: 0 0 22px; letter-spacing: -0.01em; }
+  h3 { font-size: 17px; margin: 0 0 8px; }
+  p, li { font-size: clamp(16px, 1.6vw, 20px); }
+  p.lead { font-size: clamp(18px, 2.1vw, 24px); color: var(--muted); max-width: 46ch; }
+  ul { margin: 0; padding-left: 1.2em; } li { margin: 6px 0; }
+  .small { font-size: 14px; color: var(--muted); }
+  code { font-family: var(--mono); font-size: .9em; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @media (max-width: 760px) { .g2, .g3 { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  .card p, .card li { font-size: 16px; margin: 4px 0; }
+  .card.ok { background: var(--ok-soft); border-color: transparent; }
+  .card.warn { background: var(--warn-soft); border-color: transparent; }
+  .card.no { background: var(--no-soft); border-color: transparent; }
+  .card.accent { background: var(--accent-soft); border-color: transparent; }
+  .tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); margin-right: 6px; }
+
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 14px; }
+  .flow .step { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font-size: 16px; }
+  .flow .step b { color: var(--accent); }
+  .flow .arrow { color: var(--muted); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 16px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+  .table-wrap { overflow-x: auto; }
+
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--bg); border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+  .bar button { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; min-width: 44px; min-height: 36px; }
+  .bar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .bar .title { margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .progress { position: fixed; left: 0; top: 0; height: 3px; background: var(--accent); transition: width .2s ease; }
+
+  @media print {
+    .bar, .progress { display: none; }
+    .slide { display: flex !important; min-height: 0; height: 100vh; page-break-after: always; break-after: page; padding: 40px 56px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .progress { transition: none; } }
+</style>
+</head>
+<body>
+<div class="progress" id="progress" aria-hidden="true"></div>
+<main id="deck">
+
+<section class="slide" aria-label="Title">
+  <div class="inner">
+    <p class="kicker">Kusunga · M1.9 · 2026-11-19</p>
+    <h1>Signed installers and first beta</h1>
+    <p class="lead">Testers can install Kusunga on Mac and Windows with no security warnings, and see its version, licence and source.</p>
+    <p class="small">Use the arrow keys to move between slides · Print to save as PDF · Design note: docs/design/signed-installers-and-beta.md · UI spec: docs/ui/about-and-licences.md · ADR 0006, 0007 (proposed)</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="Problem and users">
+  <div class="inner">
+    <p class="kicker">Problem and users</p>
+    <h2>Kusunga works, but nobody else can install it safely yet</h2>
+    <div class="grid g2">
+      <div class="card"><h3>Who</h3><p>5–20 invited beta testers on Mac and Windows, and you.</p></div>
+      <div class="card"><h3>The job they are doing</h3><p>Download Kusunga, install it, use it every day, and tell us what breaks, naming the exact version.</p></div>
+      <div class="card warn"><h3>Today's pain</h3><p>Builds aren't signed, so macOS and Windows block or warn. The Mac release build fails on macOS 27. There's no licence screen, which the GPL needs, and the Mac history key is in the weaker login keychain.</p></div>
+      <div class="card ok"><h3>Success measure</h3><p>0 install warnings on a clean account · 0 history items lost when updating · every shipped file tied to one public git tag.</p></div>
+    </div>
+    <p class="small">Facts from main at 02369fb (scout lookup, 2026-11-19). Plan acceptance criteria AC1–AC10 are in the design note.</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="Scope for this phase">
+  <div class="inner">
+    <p class="kicker">Scope for this phase</p>
+    <h2>Six parts, each through every gate</h2>
+    <div class="grid g2">
+      <div class="card ok"><h3>In M1.9</h3><ul>
+        <li><b>a</b> About section in Settings: version, copyright, GPL notice, source link, every licence</li>
+        <li><b>b</b> Mac release build fixed for macOS 27; Hardened Runtime; a guard that the test-only switch never ships</li>
+        <li><b>c</b> Mac history key moved to the data-protection keychain, losing nothing</li>
+        <li><b>d</b> Windows installer, signed on the route you choose</li>
+        <li><b>e</b> Release script, checks, release notes, rollback plan</li>
+        <li><b>f</b> Short DPIA for you to sign</li>
+      </ul></div>
+      <div class="card warn"><h3>Deferred (Later lines with triggers)</h3><ul>
+        <li>Release in GitHub Actions, trigger: &gt; 2 releases a month for 2 months, or a second releaser</li>
+        <li>Auto-update, trigger: &gt; 50 beta users, or ≥ 5 reports of testers on an old build</li>
+        <li>Intel Mac build, trigger: ≥ 5 requests from Intel Mac users</li>
+        <li>Build sqlite3mc from source, trigger: a cipher CVE in a pinned build, or a change to the package's prebuilt scheme</li>
+      </ul></div>
+    </div>
+    <p class="small">Not in M1: Mac App Store, Linux, crash reports, website, mobile, sync. All slides apply.</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="Options">
+  <div class="inner">
+    <p class="kicker">Options</p>
+    <h2>Where releases are signed</h2>
+    <div class="grid g2">
+      <div class="card"><h3>Option A: release script on your Mac</h3><ul><li>Signing keys never leave your machine; nothing secret on GitHub, which matters now the repo is public</li><li>Only you can cut a release, and you run the script</li><li>Small–medium effort</li></ul></div>
+      <div class="card"><h3>Option B: GitHub Actions with signing secrets</h3><ul><li>Repeatable, with no set-up on your Mac per release</li><li>Signing keys live in GitHub; a leak lets anyone sign malware as you</li><li>Medium effort</li></ul></div>
+    </div>
+    <div class="card accent" style="margin-top:14px"><h3>Recommendation</h3><p>Option A for the beta, because the keys stay with you and a handful of releases doesn't need automation. B is a Later line.</p></div>
+  </div>
+</section>
+
+<section class="slide" aria-label="Data and privacy">
+  <div class="inner">
+    <p class="kicker">Data and privacy</p>
+    <h2>The app adds no new data; the beta itself does</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Field</th><th>Purpose</th><th>Retention</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Mac history key</td><td>Encrypts history on the device</td><td>Until Delete everything</td><td>Moves to the stricter keychain; never leaves the device</td></tr>
+        <tr><td>Tester feedback</td><td>Fix beta bugs</td><td>You decide (suggest: 90 days after M1 ships)</td><td>May contain personal data; testers are told never to paste clipboard content</td></tr>
+        <tr><td>Tester name and email</td><td>Send the beta and updates</td><td>You decide (suggest: until the beta ends)</td><td>Collected by you, outside the app</td></tr>
+      </tbody>
+    </table></div>
+    <div class="card warn" style="margin-top:14px"><h3>Needs PM</h3><p>Lawful basis for tester contact details and feedback (likely consent or legitimate interests) · DPIA screening: hit (new technology, invisible processing: keystroke watching). The DPIA is drafted in M1.9f and you sign it before the beta, as you decided on 2026-11-08.</p></div>
+    <p class="small">Not legal advice. Apple notarisation and the Windows signing route receive the app binary only, never user data.</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="Security">
+  <div class="inner">
+    <p class="kicker">Security</p>
+    <h2>Protect the download and the signing keys</h2>
+    <div class="grid g3">
+      <div class="card"><h3>Trust boundaries</h3><ul><li>Your signing keys and build machine</li><li>The download place</li><li>The prebuilt encryption library</li><li>The key move (reads an old keychain item)</li></ul></div>
+      <div class="card no"><h3>Abuse cases</h3><ul><li>Swap the download for a trojaned build</li><li>Steal the signing key and sign malware as Kusunga</li><li>Ship a build with the test-only key switch on</li><li>Weaken the cipher with a changed library binary</li></ul></div>
+      <div class="card ok"><h3>Mitigations</h3><ul><li>Signed and notarised builds; SHA-256 of every file on the release page</li><li>Keys only on your Mac (option A)</li><li>The release fails if the switch is in the binary</li><li>Library pinned by SHA-256 and re-checked in the shipped file</li></ul></div>
+    </div>
+    <p class="small">Release checks: codesign --verify --strict, spctl, stapler validate, a strings check, an extensionfunctions check, a Windows signature check. A failed check stops the release.</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="Risks">
+  <div class="inner">
+    <p class="kicker">Risks</p>
+    <h2>The main risks</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td>The key move loses access to history</td><td>A user's history is moved aside</td><td>The old key is deleted only after the new one opens the database; crash-safe at every step; you go first on your own Mac</td></tr>
+        <tr><td>Microsoft Store review rejects or delays the Windows app (keyboard hook, clipboard)</td><td>No signed Windows beta</td><td>Fall back to SignPath (free for open source) or an OV certificate</td></tr>
+        <tr><td>Windows code is compiled and tested for the first time</td><td>Windows bugs surface late</td><td>CI on GitHub's Windows machines is running again now the repo is public; M1.9d includes a Windows QA run on your VM</td></tr>
+        <tr><td>Apple account or notarisation delays</td><td>The Mac beta waits</td><td>Parts a, b and f don't need the account and go first</td></tr>
+        <tr><td>Someone runs an old pre-move build after updating</td><td>Its history is moved aside</td><td>We never hand out a pre-move build; the release page keeps only post-move builds</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<section class="slide" aria-label="Plan and how you'll check it">
+  <div class="inner">
+    <p class="kicker">Plan and how you'll check it</p>
+    <h2>Account-free parts first</h2>
+    <div class="flow">
+      <span class="step"><b>1</b> a About · b Mac build · f DPIA draft</span><span class="arrow">→</span>
+      <span class="step"><b>2</b> c Key move · d Windows (when accounts are ready)</span><span class="arrow">→</span>
+      <span class="step"><b>3</b> e Release script and checks</span><span class="arrow">→</span>
+      <span class="step"><b>4</b> You approve · 2–3 testers · then the rest</span>
+    </div>
+    <div class="card accent"><h3>How we will check it</h3><ul>
+      <li>QA screenshots and a video of the About section and the licences page (qa profile), at 320 px and in dark mode</li>
+      <li>Key move: unit tests for each crash point; QA moves a qa-profile history of 500 items on a signed build and counts them before and after</li>
+      <li>Release: the script's check summary, plus installs on a clean user account on Mac and Windows</li>
+      <li>What only you can check: join the Apple Developer Program and create the signing identity; the Windows account for the route you pick; install the beta over your own copy; sign the DPIA; approve the release</li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="slide" aria-label="Decisions needed">
+  <div class="inner">
+    <p class="kicker">Decisions needed</p>
+    <h2>7 decisions for you</h2>
+    <div class="grid g2">
+      <div class="card warn"><h3>D1. Windows signing</h3><p>A: Microsoft Store (free; Microsoft signs) · B: SignPath Foundation (free for open source; early warnings) · C: an OV certificate (about $150–300 a year) · D: unsigned (testers see a warning; needs your risk acceptance)</p><p><b>Recommendation:</b> A, with B as the fall-back. A changes launch at login and the data folder on Windows, so they are re-tested.</p></div>
+      <div class="card warn"><h3>D2. Encryption library</h3><p>A: keep the SHA-256-pinned prebuilt · B: build it from source</p><p><b>Recommendation:</b> A, because it's hash-pinned and each shipped file is re-checked.</p></div>
+      <div class="card warn"><h3>D3. Mac build</h3><p>A: Apple silicon only · B: Universal (also Intel); needs a Flutter update</p><p><b>Recommendation:</b> A, because macOS 27 only runs on Apple silicon. Intel waits for requests.</p></div>
+      <div class="card warn"><h3>D4. Beta size and download place</h3><p>A: 5–20 testers via GitHub Releases (pre-release) · B: the same testers, files shared privately by you</p><p><b>Recommendation:</b> A, because the source and checksums sit next to the files.</p></div>
+      <div class="card warn"><h3>D5. Version number</h3><p>A: 0.9.0 · B: 1.0.0-beta.1</p><p><b>Recommendation:</b> A; save 1.0.0 for the public release.</p></div>
+      <div class="card warn"><h3>D6. Release process</h3><p>A: script on your Mac · B: GitHub Actions with secrets</p><p><b>Recommendation:</b> A, because the keys stay with you.</p></div>
+      <div class="card warn"><h3>D7. Feedback and tester data</h3><p>A: email to an address you choose · B: GitHub issues (public) · C: both, with a "no clipboard content" rule</p><p><b>Recommendation:</b> A. Also needed: the lawful basis and retention for tester details and feedback.</p></div>
+    </div>
+    <p class="small">Nothing is assumed: the developer starts parts a, b and f only after you approve this deck. The Store's hidden-listing details and SignPath eligibility are not yet confirmed.</p>
+  </div>
+</section>
+
+</main>
+
+<nav class="bar" aria-label="Slide controls">
+  <span class="title" id="title">Kusunga M1.9</span>
+  <span id="count" aria-live="polite"></span>
+  <button type="button" id="prev" aria-label="Previous slide">←</button>
+  <button type="button" id="next" aria-label="Next slide">→</button>
+  <button type="button" id="theme" aria-label="Switch light or dark theme">◐</button>
+</nav>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var i = 0;
+  function fromHash() {
+    var n = parseInt(location.hash.slice(1), 10);
+    return isNaN(n) ? 0 : Math.min(Math.max(n - 1, 0), slides.length - 1);
+  }
+  function show(n) {
+    i = Math.min(Math.max(n, 0), slides.length - 1);
+    slides.forEach(function (s, k) { s.classList.toggle('active', k === i); });
+    document.getElementById('count').textContent = (i + 1) + ' / ' + slides.length;
+    document.getElementById('progress').style.width = ((i + 1) / slides.length * 100) + '%';
+    document.getElementById('title').textContent = slides[i].getAttribute('aria-label') || document.title;
+    if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', '#' + (i + 1));
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.target.closest && e.target.closest('input, textarea')) return;
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].indexOf(e.key) >= 0) { e.preventDefault(); show(i + 1); }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp'].indexOf(e.key) >= 0) { e.preventDefault(); show(i - 1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(slides.length - 1);
+  });
+  document.getElementById('prev').addEventListener('click', function () { show(i - 1); });
+  document.getElementById('next').addEventListener('click', function () { show(i + 1); });
+  document.getElementById('theme').addEventListener('click', function () {
+    var root = document.documentElement;
+    var dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = dark ? 'light' : 'dark';
+  });
+  window.addEventListener('hashchange', function () { show(fromHash()); });
+  show(fromHash());
+})();
+</script>
+</body>
+</html>
