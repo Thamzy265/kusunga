@@ -1,5 +1,23 @@
 # Status log
 
+## 2026-11-22 — M1.9a About and licences — developer round 8 (R15, N1, N2 fixed); reviewer re-check dispatched
+- Changed: developer report (sonnet, medium, round 8), word for word ("How to verify" left out; its step 2 suggested editing the Flutter SDK, which nobody will do; sub-lists joined):
+  > Branch: feat/about-licences (3 new commits on 07426b0: 678f453, 0d9f6c3, 7f9b241). Not pushed.
+  > Built: R15: problemsIn in test/about/flutter_licences_binding_test.dart now also reads the `_parseLicenses` body and requires `indexOf('\n\n')`, `substring(0, split).split('\n')` and `substring(split + 2)`. I did not use whole-body equality with `_parse`, because variable names differ (licenseSeparator/rawLicenses vs separator/raw). The test fails clearly if `_parseLicenses` is renamed. N1: `width: focusRingWidth` in lib/settings/ui/settings_screen.dart:522 and lib/shortcuts/ui/typed_shortcuts_section.dart:214. The value is 2.0, so there is no visual change; tokens.dart was already imported in both files. N2: the home-folder fallback is gone from both tests. Both read FLUTTER_ROOT and throw a StateError with a clear message if it is missing. The m16 real-font test no longer skips: the skip flag is removed, and a missing Roboto file also fails.
+  > Tests: Full check passed: "05:24 +4189 ~10: All tests passed!", with format and analyze clean (exit 0); the ~10 skipped tests are not from my changes. New tests cover the changed split (`substring(split + 1)`) and another blank-line split (`indexOf('\n')`). First failing run, with the new `_parseLicenses` check removed: "+5 -2", and the failing tests were "a changed split of package names from text" and "another blank-line split". I restored the check afterwards.
+  > E2E: n/a. Test hooks: n/a — no new controls.
+  > Deviations from plan: none. I wrote the N2 failure path as a thrown StateError, which makes the test fail, and I also made the m16 missing-font case fail. You asked for fail-not-skip only for a missing FLUTTER_ROOT.
+  > Checklists: ui-build — n/a. data-and-apis — n/a.
+  > Risks / unverified: With FLUTTER_ROOT missing, I checked the failure path by reading the code only; I did not run it. The Windows CI job still needs to confirm the guard works with CRLF line endings: the `\n  }\n` end-of-body search could miss under CRLF and then fail safe, with an error that does not point at the real cause.
+  > Personal data touched: none. Later lines added: none. Spec gaps raised: none.
+  > Findings: R15 — fixed (7f9b241) | N1 — fixed (678f453) | N2 — fixed (0d9f6c3 and 7f9b241)
+  > Blockers: none
+  Lead: reviewer re-check of 07426b0..7f9b241 dispatched. Asked it to check two Windows CI risks: CRLF in the guard, and the m16 test now failing instead of skipping when the Roboto file is missing.
+- Gates: developer pass (round 8) · tester pass · reviewer re-check in progress · QA pending · PM merge not asked
+- Open findings: none open (R15, N1, N2 waiting for re-check)
+- Decisions: open for PM: Apache-2.0 / CC0-1.0 texts and the Argon2 CC0 sentence
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-22 — M1.9a About and licences — reviewer re-check: approve with notes (R15, N1, N2); developer round 8 dispatched
 - Changed: reviewer re-check report (opus, high), word for word (sub-lists joined; the fix-outcome details for R11–R14 condensed by the lead):
   > Mode: branch
