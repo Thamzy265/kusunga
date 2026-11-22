@@ -1,5 +1,47 @@
 # Status log
 
+## 2026-11-22 — M1.9b Mac release build — developer round 3 (review fixes); reviewer re-check dispatched
+- Changed: developer report (sonnet, high effort, round 3), word for word ("How to verify" left out, sub-lists joined onto one line):
+  > Branch: build/mac-release (3 new commits on 14ed399, tip 4e80d18)
+  > Commits: a5887de fix(mac-release): xcconfig guard allow-lists the signing keys, reads CR line ends, and fails on an unreadable or large file (R1, R2; also the ADR 0003 line and the old tests whose expectations changed); 3ec359c test(mac-release): the binary guard needle is the SyntheticKeysSwitch argument in Swift (R3); 4e80d18 test(mac-release): bug repro header reworded as regression tests (R4). All commit messages end with the Claude Opus 5.5 Co-Authored-By line. Worktree is clean. No push, no background jobs left. The Release.xcconfig and signing are untouched.
+  > Built:
+  > - R1 (tool/mac_release_guards.sh, guard_xcconfig): It is now an allow-list. After CR and NUL are turned into LF and whole-line `//` comments are dropped, any `-D` token fails (exit 1). Any non-blank line that is not `KEY[...]* =` for an allowed key also fails. Allowed keys are DEVELOPMENT_TEAM, CODE_SIGN_STYLE, CODE_SIGN_IDENTITY and PROVISIONING_PROFILE_SPECIFIER. The real Local.xcconfig.example sets only the first three. I added PROVISIONING_PROFILE_SPECIFIER on your instruction, for manual signing. No other key is needed. `[sdk=..]` and `[config=..]` conditions still work on allowed keys. `-D` is matched as `(^|[^[:alnum:]_])-D`, so `My-Dev Profile` passes. `$(inherited)-DDEBUG`, `'-DDEBUG'`, `"-D" X` and `-D` after a tab or in a trailing comment all fail. `#include`, lower-case keys, unknown keys and continuation lines all exit 1. ADR 0003's last Build-facts line now says exactly this. It also says the build `.xcconfig` files are not run through the guard.
+  > - R2: the file is read with `tr ... < file` into a variable (exit 2 if that fails). All matching is on here-strings with `grep -E`, with no pipes, and each grep's rc is checked (>1 exits 2). A here-string of nothing is one empty line, so the match is skipped when no lines are left. Works on /bin/bash 3.2.57 (the tests resolve `bash` to /bin/bash).
+  > - R3: new test/ci/mac_release_guards_needle_test.dart reads `needle="..."` from the script and `static let argument = "..."` from macos/Runner/TypedShortcutCore.swift, then asserts the argument contains the needle.
+  > - R4: the header of test/ci/mac_release_guards_bugs_test.dart now reads as regression tests for BUG-M1, M2, M3 and M5. I did not share the duplicated fixture helpers (optional).
+  > Tests: full ./tool/check.sh passes: `04:53 +3927 ~10: All tests passed!`, with format and analyze clean.
+  > First failing run, on 14ed399's script with the new test/ci/mac_release_guards_xcconfig_test.dart (14 tests, 9 failed, 5 passed): (a) single-quoted -D: expected 1, got 0; (b) variable holding -D: failed; (c) `$(inherited)-DDEBUG`: failed; (d) CR-only line endings: failed; any key outside the allow-list: failed; a -D token in an allowed key: failed; a -D in a trailing comment: failed; unreadable file: expected 2, got 0, and it prints "ok"; large file (about 790 KB, 25000 setting lines after the first): setting first, expected 1, got 0. After the fix, all 14 pass. Tests that pass on both: the real Local.xcconfig.example exits 0, the build-xcconfig check, a large clean file exits 0, and the signing keys pass.
+  > - R3 mutation check: changing the script's needle to `...Keyz` makes the new test fail, with Actual '-KusungaAcceptSyntheticKeys'. It passes on 14ed399 because that code was already consistent. It is a coupling guard, not a bug repro.
+  > - The unreadable-file test is skipped when run as root (uid 0).
+  > - Note: a large file whose filler is only `//` comment lines did not trigger the old SIGPIPE false pass. The filler must be non-comment lines, as in the committed test.
+  > E2E: n/a — no suite for these scripts. No UI flow was run, and Kusunga was never launched.
+  > Test hooks: n/a — no UI
+  > Deviations from plan: Existing tester tests in test/ci/mac_release_guards_edge_test.dart pinned the old deny-list behaviour and had to change with the allow-list: `OTHER_SWIFT_FLAGS = -Onone`, `GCC_PREPROCESSOR_DEFINITIONS`, `FOO = ...` and `A = 1 // ...` now expect 1 instead of 0. The "documented limit" test for `#include` and lower-case keys now expects 1. A trailing-comment test now uses an allowed key. The "build xcconfig files pass the guard" test moved to the new xcconfig test file. It now greps those files in Dart for SWIFT_ACTIVE_COMPILATION_CONDITIONS and `-D`, because Release.xcconfig (ARCHS and so on) legitimately sets other keys and would fail an allow-list. Splitting R1 and R2 into separate commits was not practical: both rewrite the same function, so they share one commit.
+  > Checklists: none — n/a items: data-and-apis, ui-build (shell guard and tests only)
+  > Risks / unverified: A `-D` inside an allowed key's value, such as a profile named `Foo -DBar`, fails. That is intended and conservative. `#include` is rejected rather than followed. Local.xcconfig.example has none today. NUL bytes start a new line (conservative). I did not check against xcodebuild how Xcode treats NUL. I did not re-run `xcodebuild -showBuildSettings` for (a) to (d). I relied on your confirmation, and the guard no longer depends on how Xcode parses them. UTF-16 and BOM-prefixed xcconfig files were not tested. A BOM would make the first line fail, which is safe.
+  > Personal data touched: none
+  > Later lines added: none
+  > Spec gaps raised: none
+  > Findings: R1 — fixed (a5887de, test/ci/mac_release_guards_xcconfig_test.dart); R2 — fixed (a5887de, same file: unreadable file exits 2, large file exits 1); R3 — fixed (3ec359c, test/ci/mac_release_guards_needle_test.dart); R4 — fixed (4e80d18)
+  > Blockers: none
+  Lead: reviewer re-check dispatched on 4e80d18. The M1.9a developer starts after the re-check, so checks don't run in parallel.
+- Gates: developer pass (round 3) · tester pass · reviewer re-check in progress · QA open · PM merge not asked
+- Open findings: R1–R4 fixed, waiting for the reviewer's re-check
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
+## 2026-11-22 — M1.9a About and licences — PM decisions on the spec questions and the licence texts
+- Changed: lead asked four questions (QA spec gaps and the open licence-text decision); the PM chose:
+- Gates: unchanged (QA pass with B1–B4; AC1/AC7 open)
+- Open findings: B1–B4 (minor)
+- Decisions (PM, 2026-11-22, answers as chosen word for word):
+  - R1 licence order — question "Is that OK?" — PM chose: "OK as it is (Recommended)" (keep Kusunga first; the spec is updated to match)
+  - Lower-case "kusunga" row — PM chose: "Hide it (Recommended)"
+  - Flutter's US spelling "Licenses" — PM chose: "Accept it (Recommended)"
+  - SQLite3 Multiple Ciphers licence texts — PM chose: "Allow the download" (developer may download utelle/SQLite3MultipleCiphers tag v2.5.0: LICENSE and the bundled parts' licence headers, from GitHub)
+  - Not asked, default kept: "— development build" plus the "Development build" caption both stay, as in the spec.
+- Blockers: Developer none (licence-text download now allowed) · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-22 — M1.9a About and licences — QA report; bugs B1–B4 queued for the developer
 - Changed: QA report (sonnet), word for word (sub-lists joined onto one line, wording unchanged):
   > Milestone: M1.9a About and licences — 13/15 rows pass; 1 open (known), 1 not observed — Date: 2026-11-22 — Environment: macOS 27.2, Flutter 3.44.6, branch feat/about-licences at 38b4f77 (not pushed). Debug build A had the 0.9.0 / 1 defines. Debug build B had no defines. Built and run one after the other, qa profile only.
