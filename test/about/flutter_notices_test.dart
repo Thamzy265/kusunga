@@ -86,12 +86,12 @@ void main() {
     ]);
   });
 
-  test('without NOTICES.Z the error reaches the licence page, as Flutter\'s '
-      'own collector does', () async {
-    expect(
-      flutterNotices(bundle: _Missing()).toList(),
-      throwsA(isA<FlutterError>()),
-    );
+  // BUG-T1 (M1.9a round 6): this used to expect the error on the stream, as
+  // Flutter's own collector does. On the licence page that error replaces the
+  // whole list, Kusunga's GPL and SQLite notices too, so now nothing is given.
+  test('without NOTICES.Z it gives no notices and no error, so the page still '
+      'lists Kusunga\'s own', () async {
+    expect(await flutterNotices(bundle: _Missing()).toList(), isEmpty);
   });
 
   test('the binding registers it, after ours, in place of Flutter\'s own', () {

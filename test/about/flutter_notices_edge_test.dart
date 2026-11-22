@@ -204,11 +204,15 @@ void main() {
       expect(entries.expand((e) => e.paragraphs), isEmpty);
     });
 
-    test('bytes that are not gzip fail with an error on the stream', () async {
+    // BUG-T1 (M1.9a round 6): these two used to expect the decode error on
+    // the stream. That error made the licence page show only the error text
+    // and hid Kusunga's own notices, so a NOTICES.Z that cannot be read now
+    // gives no notices and no error.
+    test('bytes that are not gzip give no notices and no error', () async {
       final s = flutterNotices(
         bundle: NoticesBundle(utf8.encode('not gzip at all')),
       );
-      await expectLater(s.toList(), throwsA(isA<FormatException>()));
+      expect(await s.toList(), isEmpty);
     });
 
     test('a gzip file cut in half does not crash (Dart returns what it could '
@@ -220,14 +224,17 @@ void main() {
       expect(entries.length, lessThanOrEqualTo(1));
     });
 
-    test('gzip of bytes that are not UTF-8 fails on the stream', () async {
-      final s = flutterNotices(
-        bundle: NoticesBundle(
-          gzip.encode([0xff, 0xfe, 0xfa, 0x0a, 0x0a, 0xc3]),
-        ),
-      );
-      await expectLater(s.toList(), throwsA(isA<FormatException>()));
-    });
+    test(
+      'gzip of bytes that are not UTF-8 gives no notices and no error',
+      () async {
+        final s = flutterNotices(
+          bundle: NoticesBundle(
+            gzip.encode([0xff, 0xfe, 0xfa, 0x0a, 0x0a, 0xc3]),
+          ),
+        );
+        expect(await s.toList(), isEmpty);
+      },
+    );
   });
 
   group('the licence page with a broken NOTICES.Z', () {

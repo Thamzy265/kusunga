@@ -17,15 +17,25 @@ import 'licences.dart';
 /// Flutter's licence page lists whatever the registry holds and has no way to
 /// hide a row, and the registry has no way to take Flutter's collector out
 /// again, so [KusungaBinding] registers this in its place.
+///
+/// A `NOTICES.Z` that is missing or cannot be read, unpacked or decoded gives
+/// no notices and no error (BUG-T1): an error on this stream makes the licence
+/// page show only the error text, which would hide Kusunga's own GPL, SQLite
+/// and SQLite3 Multiple Ciphers notices.
 Stream<LicenseEntry> flutterNotices({AssetBundle? bundle}) async* {
   final b = bundle ?? rootBundle;
-  final data = await b.load('NOTICES.Z');
-  // On the main isolate: the app has one zone and no isolates
-  // (`test/ci/zone_assumption_test.dart`). It runs only when the licence page
-  // is opened.
-  final entries = _parse(
-    data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
-  );
+  final List<LicenseEntry> entries;
+  try {
+    final data = await b.load('NOTICES.Z');
+    // On the main isolate: the app has one zone and no isolates
+    // (`test/ci/zone_assumption_test.dart`). It runs only when the licence
+    // page is opened.
+    entries = _parse(
+      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+    );
+  } catch (_) {
+    return;
+  }
   String? own;
   try {
     own = _squash(await b.loadString(kusungaLicenceAsset));
