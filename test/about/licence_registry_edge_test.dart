@@ -179,7 +179,7 @@ void main() {
     // R10: the page joins lines of the same indent into one paragraph, so a
     // line without a full stop runs into the next sentence.
     test('extensionfunctions.c paragraph reads as sentences on the page', () {
-      final entry = LicenseEntryWithLineBreaks(const [
+      final entry = NoticeEntry(const [
         'SQLite3 Multiple Ciphers',
       ], File(sqlite3mcNoticesAsset).readAsStringSync());
       final paragraph = entry.paragraphs
@@ -199,11 +199,61 @@ void main() {
       }
     });
 
+    // B1 (QA M1.9a): the three blessing lines ran together on one line.
+    test('the SQLite blessing keeps its three lines on the page', () {
+      final sqlite = entries.firstWhere(
+        (e) => e.packages.contains('SQLite') && e.packages.length == 2,
+      );
+      final blessing = sqlite.paragraphs
+          .map((p) => p.text)
+          .firstWhere((t) => t.contains('May you do good and not evil.'));
+      expect(
+        [for (final l in blessing.split('\n')) l.trim()],
+        [
+          '*   May you do good and not evil.',
+          '*   May you find forgiveness for yourself and forgive others.',
+          '*   May you share freely, never taking more than you give.',
+        ],
+      );
+    });
+
     test('the legalese is the GPL interactive notice, version 3 only', () {
       expect(licenceLegalese, contains('version 3 only'));
       expect(licenceLegalese, contains('ABSOLUTELY NO WARRANTY'));
       expect(licenceLegalese, isNot(contains('any later version')));
       expect(licenceLegalese, startsWith('Copyright (C) 2026 William Nasoni'));
+    });
+  });
+
+  group('NoticeEntry', () {
+    List<String> texts(String t) => [
+      for (final p in NoticeEntry(const ['x'], t).paragraphs) p.text,
+    ];
+
+    test('unindented lines run together, blank lines split paragraphs', () {
+      expect(texts('one\ntwo\n\nthree'), ['one two', 'three']);
+    });
+
+    test('lines indented by four or more keep their breaks and the rest of '
+        'the indent', () {
+      expect(texts('head\n\n    a\n      b\n    c\n\n    d\n\ntail'), [
+        'head',
+        'a\n  b\nc',
+        'd',
+        'tail',
+      ]);
+    });
+
+    test('an indent of three is still prose', () {
+      expect(texts('   a\n   b'), ['a b']);
+    });
+
+    test('CRLF line ends read like LF', () {
+      expect(texts('    a\r\n    b\r\n\r\nc'), ['a\nb', 'c']);
+    });
+
+    test('text that ends inside an indented run keeps its last line', () {
+      expect(texts('    a\n    b'), ['a\nb']);
     });
   });
 

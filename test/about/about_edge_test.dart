@@ -466,6 +466,17 @@ void main() {
       expect(find.text('Kusunga'), findsWidgets);
     });
 
+    // B1 (QA M1.9a): the blessing showed as one line.
+    testWidgets('the blessing is shown on three lines', (tester) async {
+      await open(tester, const Size(900, 800));
+      await tester.tap(find.text('SQLite').first);
+      await tester.pumpAndSettle();
+      final shown = tester.widget<Text>(
+        find.textContaining('May you do good and not evil'),
+      );
+      expect(shown.data!.split('\n'), hasLength(3));
+    });
+
     testWidgets('at 320 px, one Esc on a notice goes to the list, the next to '
         'Settings with focus on View licences', (tester) async {
       await show(tester, size: const Size(320, 800));

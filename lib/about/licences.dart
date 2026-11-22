@@ -1,5 +1,9 @@
 import 'package:flutter/foundation.dart'
-    show LicenseEntryWithLineBreaks, LicenseRegistry;
+    show
+        LicenseEntry,
+        LicenseEntryWithLineBreaks,
+        LicenseParagraph,
+        LicenseRegistry;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -18,6 +22,75 @@ const licenceLegalese =
     'software, and you are welcome to redistribute it under certain '
     'conditions; see the GNU GPL for details.';
 
+/// A notice text for the licence page in which lines indented by four or more
+/// spaces keep their line breaks (the SQLite blessing, the copyright lines of
+/// a source header). Everything else is read as Flutter reads
+/// [LicenseEntryWithLineBreaks]: lines of a paragraph run together, a blank
+/// line starts a new paragraph. An indented run is shown as written, one
+/// paragraph per blank-line block, without the indent they all share.
+class NoticeEntry extends LicenseEntry {
+  const NoticeEntry(this.packages, this.text);
+
+  @override
+  final List<String> packages;
+
+  final String text;
+
+  static const _preIndent = 4;
+
+  static int _indent(String line) => line.length - line.trimLeft().length;
+
+  static bool _isPre(String line) =>
+      line.trim().isNotEmpty && _indent(line) >= _preIndent;
+
+  @override
+  Iterable<LicenseParagraph> get paragraphs sync* {
+    final lines = text.replaceAll('\r\n', '\n').split('\n');
+    var flowed = <String>[];
+    var i = 0;
+    while (i < lines.length) {
+      if (!_isPre(lines[i])) {
+        flowed.add(lines[i++]);
+        continue;
+      }
+      if (flowed.isNotEmpty) {
+        yield* LicenseEntryWithLineBreaks(
+          packages,
+          flowed.join('\n'),
+        ).paragraphs;
+        flowed = [];
+      }
+      // The run goes on over blank lines while an indented line follows.
+      var end = i;
+      for (var j = i; j < lines.length; j++) {
+        if (_isPre(lines[j])) {
+          end = j;
+        } else if (lines[j].trim().isNotEmpty) {
+          break;
+        }
+      }
+      final run = lines.sublist(i, end + 1);
+      final common = run
+          .where((l) => l.trim().isNotEmpty)
+          .map(_indent)
+          .reduce((a, b) => a < b ? a : b);
+      var block = <String>[];
+      for (final line in [...run, '']) {
+        if (line.trim().isEmpty) {
+          if (block.isNotEmpty) yield LicenseParagraph(block.join('\n'), 1);
+          block = [];
+        } else {
+          block.add(line.substring(common).trimRight());
+        }
+      }
+      i = end + 1;
+    }
+    if (flowed.isNotEmpty) {
+      yield* LicenseEntryWithLineBreaks(packages, flowed.join('\n')).paragraphs;
+    }
+  }
+}
+
 /// Adds Kusunga, SQLite3 Multiple Ciphers and SQLite to Flutter's licence
 /// registry, so they are listed at the top of the licence page. Each text is
 /// read from [bundle] only when the page is opened.
@@ -35,16 +108,25 @@ void registerLicences({AssetBundle? bundle}) {
     // Each notice stands alone: one that fails to load is left out and the
     // others still show. "Kusunga" is always first in a package list, so it is
     // the pinned package even if LICENSE itself cannot be read.
-    for (final (packages, asset) in [
-      (const ['Kusunga'], kusungaLicenceAsset),
-      (const ['Kusunga', 'SQLite3 Multiple Ciphers'], sqlite3mcNoticesAsset),
-      (const ['Kusunga', 'SQLite'], sqliteNoticeAsset),
+    // LICENSE is the GPL text, laid out the way Flutter reads licence files.
+    // The two notices are ours, so they may keep line breaks ([NoticeEntry]).
+    for (final (packages, asset, ours) in [
+      (const ['Kusunga'], kusungaLicenceAsset, false),
+      (
+        const ['Kusunga', 'SQLite3 Multiple Ciphers'],
+        sqlite3mcNoticesAsset,
+        true,
+      ),
+      (const ['Kusunga', 'SQLite'], sqliteNoticeAsset, true),
     ]) {
       String? text;
       try {
         text = await b.loadString(asset);
       } catch (_) {}
-      if (text != null) yield LicenseEntryWithLineBreaks(packages, text);
+      if (text == null) continue;
+      yield ours
+          ? NoticeEntry(packages, text)
+          : LicenseEntryWithLineBreaks(packages, text);
     }
   });
 }
