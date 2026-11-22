@@ -12,16 +12,21 @@ const _recheck =
     'against the new Flutter, or the build ships without the Flutter and '
     'engine notices.';
 
-String? _bindingPath() {
+/// The flutter tool exports FLUTTER_ROOT to every test run. If it is missing
+/// this fails with a clear message; it does not skip.
+String _bindingPath() {
   final root = Platform.environment['FLUTTER_ROOT'];
-  final candidates = [
-    if (root != null) '$root/packages/flutter/lib/src/services/binding.dart',
-    '/Users/williamnasoni/Developer/flutter/packages/flutter/lib/src/services/binding.dart',
-  ];
-  for (final c in candidates) {
-    if (File(c).existsSync()) return c;
+  if (root == null) {
+    throw StateError(
+      'FLUTTER_ROOT is not set: run the tests with flutter test or '
+      './tool/check.sh, which export it.',
+    );
   }
-  return null;
+  final path = '$root/packages/flutter/lib/src/services/binding.dart';
+  if (!File(path).existsSync()) {
+    throw StateError('Flutter SDK source not found at $path');
+  }
+  return path;
 }
 
 /// What is wrong with [source], one line each; empty when it matches.
@@ -46,17 +51,27 @@ List<String> problemsIn(String source) {
   if (!source.contains(r"'\n${'-' * 80}\n'")) {
     problems.add('the 80-dash separator is gone or changed');
   }
+  final parseStart = source.indexOf('_parseLicenses(String');
+  final parseEnd = parseStart < 0 ? -1 : source.indexOf('\n  }\n', parseStart);
+  final parse = parseEnd < 0 ? '' : source.substring(parseStart, parseEnd);
+  for (final needle in [
+    "indexOf('\\n\\n')",
+    "substring(0, split).split('\\n')",
+    'substring(split + 2)',
+  ]) {
+    if (!parse.contains(needle)) {
+      problems.add('_parseLicenses no longer has: $needle');
+    }
+  }
   return problems;
 }
 
 void main() {
-  final path = _bindingPath();
-  String real() => File(path!).readAsStringSync();
+  String real() => File(_bindingPath()).readAsStringSync();
 
   test(
     'Flutter still registers its licences the way flutterNotices copies',
     () {
-      expect(path, isNotNull, reason: 'Flutter SDK source not found');
       expect(problemsIn(real()), isEmpty, reason: _recheck);
     },
   );
@@ -80,6 +95,19 @@ void main() {
         problemsIn(real().replaceAll('gzip.decode', 'zlib.decode')),
         isNotEmpty,
       );
+    });
+
+    test('a changed split of package names from text', () {
+      final m = real().replaceFirst(
+        'substring(split + 2)',
+        'substring(split + 1)',
+      );
+      expect(problemsIn(m), isNotEmpty);
+    });
+
+    test('another blank-line split', () {
+      final m = real().replaceFirst("indexOf('\\n\\n')", "indexOf('\\n')");
+      expect(problemsIn(m), isNotEmpty);
     });
 
     test('another separator', () {
