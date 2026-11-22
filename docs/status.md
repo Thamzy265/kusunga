@@ -1,5 +1,24 @@
 # Status log
 
+## 2026-11-22 — M1.9a About and licences — developer round 6 (BUG-T1 fixed); reviewer re-check dispatched
+- Changed: developer report (opus, high effort, round 6), word for word ("How to verify" and file list left out, sub-lists joined onto one line):
+  > Both fixes are committed on feat/about-licences and the full check passes: format clean, analyze reports no issues, 4179 tests pass and 10 are skipped (exit 0). Nothing is pushed.
+  > Branch: feat/about-licences (2 new commits on top of the tester's f83541c): ac584d4 fix(licences): a NOTICES.Z that cannot be read gives no notices, so Kusunga's own still list (BUG-T1, M1.9a); e10bf9a docs(licences): the sqlite3mc intro says decorative comment-only lines were left out too (M1.9a)
+  > Built: `lib/about/flutter_notices.dart`: loading, unpacking, decoding and parsing NOTICES.Z now sit inside one try/catch. On any failure the stream ends empty with no error, so the licence page still lists Kusunga and its GPL, SQLite and sqlite3mc notices. Reading LICENSE was already caught this way, and the drop-the-duplicate rule is unchanged. `assets/licences/sqlite3mc.txt` line 7: the intro now reads "Only the comment marks at the start of lines (/*, */, **, * and //) are left out, and so are the decorative lines made only of comment characters." No quoted words changed. `docs/ui/about-and-licences.md` line 54: the same addition.
+  > Tests: 4179 passing, 10 skipped (`./tool/check.sh`, exit 0, "No issues found!", "Formatted 313 files (0 changed)"). One new test: `test/about/licence_texts_test.dart` "the intro says decorative comment lines were left out too".
+  > First failing runs, before each fix: the tester's repro failed with `Expected: at least one matching candidate / Actual: _TextWidgetFinder:<Found 0 widgets with text "Kusunga": []>`; the 3 changed tests failed with `FormatException: Filter error, bad data` (not gzip), `FormatException: Invalid UTF-8 byte (at offset 0)` (not UTF-8) and `Unable to load asset: "NOTICES.Z".` (missing); the wording test failed with `Expected: contains 'decorative lines made only of comment characters'`.
+  > Tests changed to match the new behaviour (each now expects an empty list and no error, with a comment naming BUG-T1): 1. flutter_notices_test.dart "without NOTICES.Z the error reaches the licence page, as Flutter's own collector does" (was throwsA(isA<FlutterError>())) is now "without NOTICES.Z it gives no notices and no error, so the page still lists Kusunga's own". 2. flutter_notices_edge_test.dart "bytes that are not gzip fail with an error on the stream" (was throwsA(isA<FormatException>())) is now "... give no notices and no error" (tester's). 3. flutter_notices_edge_test.dart "gzip of bytes that are not UTF-8 fails on the stream" is now "... gives no notices and no error" (tester's). Tests 2 and 3 are outside your list; they are the same inputs as the tester's repro checked one level lower, so the repro could not pass while they still expected an error. No other tester test changed.
+  > Deviations from plan: (1) no log code added (flutterNotices is a tear-off with no ErrorLog in reach; optional in the brief). (2) the matching UI spec line changed to the new intro wording.
+  > Risks / unverified: the rijndael.c/miniz.c decorative-line claim is from the brief, not re-checked against the sources. A broken NOTICES.Z now fails silently, so the Flutter package notices vanish with no log line; intended trade-off for keeping the GPL notices visible. Kusunga not launched.
+  > Personal data touched: none. Later lines added: none. Spec gaps raised: none.
+  > Findings: BUG-T1 — fixed (ac584d4). sqlite3mc intro wording — fixed (e10bf9a).
+  > Blockers: none
+  Lead: the tester's rijndael.c/miniz.c note (tester round 5 report above) confirms the decorative-line claim. Reviewer re-check dispatched for ba6ed2b..e10bf9a, including the two tester tests the developer changed.
+- Gates: developer pass (round 6) · tester BUG-T1 repro passes · reviewer re-check in progress · QA re-check pending · PM merge not asked
+- Open findings: none
+- Decisions: open for PM: Apache-2.0 and CC0-1.0 full texts
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-22 — M1.9a About and licences — tester round 5: BUG-T1 (low); developer round 6 dispatched
 - Changed: tester report (sonnet, medium), word for word (sub-lists joined onto one line, scratchpad paths shortened):
   > Branch: feat/about-licences (5 test commits on 2317e6b: 3c2a891, 3bfe84c, e40c050, 0b737ce, f83541c; not pushed)
