@@ -1,5 +1,32 @@
 # Status log
 
+## 2026-11-22 — M1.9a About and licences — reviewer re-check: approve with notes (R11–R14); developer round 7 dispatched
+- Changed: reviewer re-check report (opus, high), word for word (shortened where marked by the lead: sub-lists joined, scratchpad paths removed, the "answers" paragraph condensed):
+  > Mode: branch
+  > Branch: feat/about-licences (re-check of ba6ed2b..e10bf9a, tip e10bf9a) — Verdict: approve with notes
+  > Checks: `./tool/check.sh` (on e10bf9a; `pgrep -fl flutter_tester` was empty first, nothing left running, worktree clean) — pass — "Formatted 313 files (0 changed)", "No issues found!", "04:51 +4179 ~10: All tests passed!", exit 0.
+  > Code review: 3 findings (0 fixed, 3 open, all Low or cleanup). Done by hand for this narrow re-check range; the code-review skill was not run.
+  > Design review: 0 new findings. B1–B4, the hidden row and the spec update match docs/ui/about-and-licences.md and the PM decisions.
+  > Security review: 0 findings. Done by hand against references/security.md (the security-review skill diffs against origin/HEAD, and new refs are banned). A03: no new packages; only the text asset is committed, no downloaded file or script is in the repo. A10: failure now leaves out Flutter's notices instead of the whole page (see R12). Others n/a.
+  > Privacy review: no issues. No personal data touched, nothing logged, no network at runtime.
+  > Later lines: none added — added by reviewer: none
+  > Findings (most severe first):
+  > - R11 — Low (correctness and licence compliance; reachable only after a toolchain change) — lib/about/kusunga_binding.dart:27-32 and lib/about/flutter_notices.dart:25-38. flutterNotices is a hand copy of Flutter's private `ServicesBinding._addLicenses`, and nothing ties it to the Flutter version. If the pin moves to a Flutter release that renames or re-formats NOTICES.Z, or adds a second registration in `initLicenses`, every test still passes (fake bundles), flutterNotices yields nothing, and a beta build ships with every Flutter and engine notice missing, breaking AC1 unseen. Expected fix: a test that reads `$FLUTTER_ROOT/packages/flutter/lib/src/services/binding.dart` and checks that the `initLicenses` body is still only `LicenseRegistry.addLicense(_addLicenses);` and that `_addLicenses` still loads 'NOTICES.Z' with gzip plus utf8 and the 80-dash separator. Also a QA or release-script check on a real build: Flutter's notices are listed and there is no lower-case "kusunga" row.
+  > - R12 — Low (diagnosability) — lib/about/flutter_notices.dart:36-38 `catch (_) { return; }`. A build with a bad or missing NOTICES.Z silently shows only Kusunga's three notices with no console line. Expected fix: in debug only, report the caught error without any data (for example an assert-wrapped debugPrint of the runtimeType, or FlutterError.reportError). The empty-stream behaviour stays.
+  > - R13 — Low (test strength) — test/about/flutter_notices_edge_test.dart:290-297. `find.text('Kusunga')` also matches the LicensePage header, so the test passes even if the rows go missing. Expected fix: also expect the 'SQLite' and 'SQLite3 Multiple Ciphers' rows, or match 'Kusunga' inside the package list.
+  > - R14 — cleanup (comment only) — lib/settings/ui/settings_screen.dart:172 names `about_focus_toast_test.dart`, which does not exist (it is test/about/about_toast_room_test.dart). The 43 px is a magic number from Material's SnackBar (the B3 tests would catch drift). `focusRingReach` = 2.0 matches the 2 px ring in lib/theme/tokens.dart:114-121, but nothing links the two constants.
+  > Answers to the lead's points: initLicenses without super on Flutter 3.44.6: safe (binding.dart:185-226 only calls `LicenseRegistry.addLicense(_addLicenses)`; no other override; no web target); risk only on future upgrades (R11). Hide rule: precise and fails safe. BUG-T1 swallow: acceptable, better for GPLv3 5(d) than before; the try body is only load, gzip, utf8 and split. Changed tests: not weakened; they assert the new intended behaviour exactly; weak spot is the repro's own assertion (R13). Shared revealOnTraversal: safe; whole history suite passes. B3: correct at the sizes tested; 200% at 360 px with a real font needs QA. B4: correct. Licence completeness: GPL notice unchanged; AC7 met; AC1 met for every part whose files carry text.
+  > Apache-2.0 and CC0-1.0 texts (the PM's decision): in my view this does not block on licence grounds. fastpbkdf2 is CC0-1.0, which has no notice or text-copy duty. Argon2 is "CC0 1.0 or Apache 2.0, at your option"; Apache 2.0 §4(a) applies only if Kusunga takes Argon2 under Apache. My recommendation: add one sentence to the Argon2 block saying Kusunga uses Argon2 under CC0 1.0. Optionally also bundle the canonical CC0 and Apache-2.0 texts (apache.org or SPDX), if the PM allows the download. Without either, a reader cannot tell which option Kusunga took. Not legal advice; the PM decides.
+  > Fix outcomes: B1, B2, B3, B4, hidden row, R6/AC7 texts, BUG-T1, intro wording — fixed (with old-code failures shown). R11–R14 — new this round, open.
+  > Risk accepted by PM: none (the 2026-11-22 PM decisions cover scope, not risk).
+  > Open items: R11, R12, R13 (Low) and R14 (cleanup). Apache-2.0 and CC0-1.0 texts: open PM decision. QA re-check still needed on a real build: Flutter's notices listed with no lower-case "kusunga" row; the sqlite3mc entry at 360 and 800 px; the toast at 200% text and 360 px.
+  > Blockers: none
+  Lead: R11–R13 (Low) and R14 (cleanup) go to the developer now, before QA, so the QA run covers the final code. The Argon2 "used under CC0 1.0" sentence is a licensing choice and goes to the PM.
+- Gates: developer round 7 in progress · tester pass · reviewer approve with notes · QA pending · PM merge not asked
+- Open findings: R11, R12, R13 Low; R14 cleanup
+- Decisions: open for PM: Apache-2.0 / CC0-1.0 texts, and whether Kusunga states it uses Argon2 under CC0 1.0
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-22 — M1.9a About and licences — developer round 6 (BUG-T1 fixed); reviewer re-check dispatched
 - Changed: developer report (opus, high effort, round 6), word for word ("How to verify" and file list left out, sub-lists joined onto one line):
   > Both fixes are committed on feat/about-licences and the full check passes: format clean, analyze reports no issues, 4179 tests pass and 10 are skipped (exit 0). Nothing is pushed.
