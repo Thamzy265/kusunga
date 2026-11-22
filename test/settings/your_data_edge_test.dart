@@ -23,6 +23,7 @@ import 'package:kusunga/snippets/snippet.dart';
 import 'package:kusunga/theme/tokens.dart';
 import 'package:path/path.dart' as p;
 
+import '../support/close_service.dart';
 import '../support/fakes.dart';
 
 const _key = '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
@@ -82,7 +83,7 @@ void main() {
     EraseTarget Function()? target,
   }) async {
     service = history ?? sqliteService();
-    addTearDown(service.dispose);
+    addCloseTearDown(service);
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -385,10 +386,6 @@ void main() {
     ]) {
       testWidgets('the partial message when ${stuck.join(' and ')} will not '
           'go', (tester) async {
-        for (final name in stuck) {
-          final f = File(p.join(dir.path, name));
-          if (!f.existsSync()) f.writeAsStringSync('x');
-        }
         deleteEntity = (e) {
           if (stuck.contains(p.basename(e.path))) {
             throw const FileSystemException('busy', '', OSError('busy', 16));
@@ -396,6 +393,18 @@ void main() {
           e.deleteSync();
         };
         await show(tester);
+        // After the history opened its real kusunga.db, and only the files
+        // not there yet: a 1-byte kusunga.db written before the open is "not
+        // a database" to SQLite on Windows (Mac sqlite3mc replaces it).
+        expect(
+          File(p.join(dir.path, 'kusunga.db')).lengthSync(),
+          greaterThan(1),
+          reason: 'the history opened a real database',
+        );
+        for (final name in stuck) {
+          final f = File(p.join(dir.path, name));
+          if (!f.existsSync()) f.writeAsStringSync('x');
+        }
         await tapHook(tester, 'your-data-delete-everything');
         await tester.runAsync(() async {
           await tester.tap(hook('delete-everything-confirm'));
@@ -690,7 +699,7 @@ void recheckMain() {
         snippetStore: store.snippetStore(),
         ignoredAppStore: store.ignoredAppStore(),
       )..start();
-      addTearDown(service.dispose);
+      addCloseTearDown(service);
       File(p.join(profile.path, 'kusunga.log')).writeAsStringSync('x');
       await pumpSettings(
         tester,
@@ -734,7 +743,7 @@ void recheckMain() {
       snippetStore: store.snippetStore(),
       ignoredAppStore: store.ignoredAppStore(),
     )..start();
-    addTearDown(service.dispose);
+    addCloseTearDown(service);
     keys.holdDelete();
     await pumpSettings(
       tester,

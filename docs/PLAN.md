@@ -87,7 +87,7 @@ Everything stays on the device. No account, no server.
 - [x] **Licence (GPL-3.0)** — small (no code; one licence file and notices).
   - AC: a `LICENSE` file with the unchanged GPL-3.0 text from gnu.org at the repo root; `README` (or a new short README) says Kusunga is licensed under the GNU General Public License, version 3 only (SPDX: GPL-3.0-only; R5, PM 2026-11-19), with no "or later" wording, with "Copyright (C) 2026 William Nasoni"; every direct dependency's licence is listed and confirmed compatible with GPL-3.0 (reviewer).
   - Decision: D8 (PM, 2026-11-18); R5 GPL-3.0-only (PM, 2026-11-19).
-- [ ] **Windows CI green** — large (spans many test modules; may touch Delete everything on Windows).
+- [x] **Windows CI green** — large (spans many test modules; may touch Delete everything on Windows).
   - Design: `docs/design/windows-ci-green.md`, deck `docs/slides/windows-ci-green.html` (approved 2026-11-19: W1 A tests only, W2 A fix the export over a dangling link here, W3 A single instance in M1.9d).
   - AC: the CI windows job passes: check.ps1 with 0 failures, and `flutter build windows` succeeds.
   - AC: the CI macos job passes, with no test that fails only from CI timing.
@@ -102,11 +102,15 @@ Everything stays on the device. No account, no server.
   - AC: the Mac history key moves from the login keychain to the data-protection keychain, with a key move (read old item, write new, delete old) so no user's history is moved aside; must be done before the first external beta (PM decision 2026-11-03).
   - AC: release notes and a rollback plan exist; the PM approves the release.
   - AC: a short DPIA is written in `docs/design/dpia.md` and the PM signs it off before the beta; it covers typed-shortcut keystroke watching (M1.5 D6, PM 2026-11-08).
+  - M1.9b (Mac release build: Apple silicon only, Hardened Runtime, release guards) merged to main 2026-11-22; its launch check is in M1.9e.
   - M1.9f: DPIA drafted 2026-11-19 (lead); waiting for the PM's decisions in its section 7 and sign-off.
   - AC: the app's licence page includes the SQLite3 Multiple Ciphers MIT notice (reviewer note, 2026-11-03).
   - AC: profile and release macOS builds succeed on the current macOS (Flutter 3.44.6 fails on macOS 27: the new `lipo` takes one architecture per `-verify_arch`; workaround `ARCHS = arm64` or a Flutter update), and the built architectures are stated (developer note, 2026-11-05).
   - AC: the minimum macOS (12.0, forced by Xcode 27.2 in M1.3) is stated in ADR 0003 or the README and in the release notes (reviewer note C7, 2026-11-04).
   - AC: the release pipeline fails if the shipped Mac binary contains `KusungaAcceptSyntheticKeys` (`strings … | grep -c` is 0), and a guard checks `Local.xcconfig.example` sets no Swift compilation conditions — owner developer, due with M1.9, before the first beta (reviewer note N-R1, 2026-11-09).
+  - AC: the release script runs `tool/mac_release_guards.sh xcconfig` on the real `Local.xcconfig` too (it is included for every configuration and can override ARCHS and Hardened Runtime), checks `lipo -archs` is arm64 and the codesign flags include `runtime` on the shipped binary, runs the `binary` guard on a Debug build as a positive control expecting exit 1, and passes the guard absolute or `./` paths (reviewer notes, M1.9b review, 2026-11-22).
+  - AC: QA launches the Developer ID-signed Release build (Hardened Runtime on) and checks it starts, captures a copy and opens the picker; done in M1.9e, because Release builds ignore the test profile (PM 2026-11-22: "Do it on signed build").
+  - AC: the release script passes `--dart-define=KUSUNGA_VERSION` and `KUSUNGA_BUILD` taken from the release tag, and fails if they are missing or differ from the tag, so no release shows "version unknown" or links the wrong source (reviewer note R5, M1.9a review, 2026-11-21).
   - Before start: decide whether to build sqlite3mc from source instead of the SHA-256-pinned prebuilt download (reviewer note, 2026-11-03). Decided 2026-11-19: keep the pinned prebuilt (D2 A).
 
 ## M2 — Secure vault (bank details, IDs)
@@ -134,7 +138,10 @@ Needs its own design note and deck. Mobile cannot record clipboard history in th
 
 ## Later
 
+- Universal (Intel + Apple silicon) Mac build — D3 A ships Apple silicon only to avoid the Flutter 3.44.6 lipo failure on macOS 27, and Intel Macs on macOS 26 or older get no build — trigger: ≥ 1 tester or user asks for an Intel build, or the pinned Flutter is upgraded past 3.44.6 — noted 2026-11-22 by reviewer (M1.9b review D1)
+- Export save name typed with `.json` becomes `name.json.json` (the Mac save panel's name field already ends in `.json`; QA, Windows CI green, 2026-11-22) — small polish, the file still exports correctly — trigger: ≥ 2 beta reports of a doubled `.json`, or the next change to the export dialog — noted 2026-11-22 by lead (PM chose Later)
 - Lost or garbled log lines when two Kusunga processes write the diagnostic log at the same instant (BUG-L5) — dart:io file locks are per process; a fix needs native append on Mac and Windows — trigger: ≥ 1 support case where a needed log line is missing or garbled, or the next change to the log writer — noted 2026-11-06 by lead (PM chose to skip)
+  - Garble rate note (developer, 2026-11-19, Windows CI green): with two isolates writing 3,000 lines each and rotating every 20,000 bytes, a loaded CI Mac kept 501 whole lines of 591 (85%; CI run 44550682517); locally 98–100%. The rate depends on CPU load, so test/log/file_error_log_handle_test.dart no longer has a 90% floor: it checks that the log kept lines and that each writer's whole lines stay in order (no per-writer floor: when one writer finishes before the other starts, rotation pushes all its lines out, BUG-T1, 2026-11-21).
 - End in a long History list is slow (about 4.8 s over 5,000 items in a profile build) because rows are 1–2 lines tall and every row on the way is laid out — fix: one fixed row height for History, as Snippets has — trigger: ≥ 3 beta reports of a slow End or Home, or > 10% of beta users set Keep above 1,000 — noted 2026-11-05 by lead (PM chose to defer)
 - Images and files in history — not needed for the core text use case — trigger: > 30% of beta users ask for it in feedback, or > 20 requests — noted 2026-11-03 by lead
 - Linux desktop — small share of users — trigger: > 100 requests or > 5% of website visits from Linux — noted 2026-11-03 by lead
@@ -179,3 +186,4 @@ Needs its own design note and deck. Mobile cannot record clipboard history in th
 - Auto-delete per app — one global time covers personal use — trigger: ≥ 5 beta requests — noted 2026-11-10 by lead
 - Password-protected export — plain JSON matches the plan and the warning covers the risk — trigger: ≥ 5 beta requests — noted 2026-11-12 by lead
 - Import from other clipboard apps (Paste, Maccy, Ditto, Windows clipboard history) — each needs its own format reader — trigger: ≥ 10 beta requests naming one app — noted 2026-11-12 by lead
+- Export temp file made and opened with no gap at all against a link swapped in (BUG-C1 residual) — Kusunga checks that nothing is at the temp name before the exclusive create, and opens the temp name only if it is a plain file and checks again once open, but dart:io has no write open without create and no O_NOFOLLOW, so a link swapped in (by someone who can already write to the export folder and has listed the random name) could still make an empty file where it points in two gaps: between the plain-file check and the open (every OS), and on Windows also between the nothing-there check and the exclusive create, because Windows' exclusive create (CREATE_NEW) follows a link, so the empty file is made before the write's own checks run; closing them needs native create and open (O_NOFOLLOW on Mac, FILE_FLAG_OPEN_REPARSE_POINT on Windows) — trigger: the pinned Dart SDK gains such an open mode, or ≥ 1 report of a stray empty file next to an export — noted 2026-11-21 by developer

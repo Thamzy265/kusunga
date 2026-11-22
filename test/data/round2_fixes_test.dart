@@ -20,6 +20,7 @@ import 'package:kusunga/log/app_log.dart';
 import 'package:path/path.dart' as p;
 import 'package:win32/win32.dart';
 
+import '../support/close_service.dart';
 import '../support/fakes.dart';
 
 const _key = '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
@@ -107,7 +108,7 @@ void main() {
         source: FakeClipboardSource(),
         log: log,
       )..start();
-      addTearDown(service.dispose);
+      addCloseTearDown(service);
       final r = await YourDataService(
         history: service,
         log: log,
@@ -136,7 +137,7 @@ void main() {
         log: FakeLog(),
         clock: () => now++,
       )..start();
-      addTearDown(service.dispose);
+      addCloseTearDown(service);
       store.failWrites = true; // new copies wait in memory
       source.copy('waiting 1');
       source.copy('waiting 2');
@@ -175,7 +176,7 @@ void main() {
         log: FakeLog(),
         clock: () => 10000000,
       )..start();
-      addTearDown(service.dispose);
+      addCloseTearDown(service);
       store.failWrites = true;
       source.copy('waiting');
       expect(
@@ -191,7 +192,7 @@ void main() {
         source: FakeClipboardSource(),
         log: FakeLog(),
       )..start();
-      addTearDown(service.dispose);
+      addCloseTearDown(service);
       expect(service.exportBundle(includeHistory: false).history, isNull);
       expect(HistoryStore.maxLimit, 5000);
     });
@@ -227,7 +228,7 @@ void main() {
           snippetStore: store.snippetStore(),
           ignoredAppStore: store.ignoredAppStore(),
         )..start();
-        addTearDown(h.dispose);
+        addCloseTearDown(h);
         final r = await DataEraser(
           target: DefaultEraseTarget(keys: keys, folder: () async => dir),
           log: log,
@@ -272,7 +273,7 @@ void main() {
           snippetStore: store.snippetStore(),
           ignoredAppStore: store.ignoredAppStore(),
         )..start();
-        addTearDown(h.dispose);
+        addCloseTearDown(h);
       }
       return DataEraser(
         target: DefaultEraseTarget(
@@ -351,7 +352,7 @@ void main() {
         log: log,
         notices: {HistoryNotice.memoryOnly},
       )..start();
-      addTearDown(h.dispose);
+      addCloseTearDown(h);
       final r = await run(['kusunga.db'], history: h);
       expect(
         r,
@@ -374,7 +375,7 @@ void main() {
         snippetStore: store.snippetStore(),
         ignoredAppStore: store.ignoredAppStore(),
       )..start();
-      addTearDown(h.dispose);
+      addCloseTearDown(h);
       final r = await DataEraser(
         target: ProfileEraseTarget(folder: () async => profile),
         log: log,
