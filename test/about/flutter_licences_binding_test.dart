@@ -31,6 +31,9 @@ String _bindingPath() {
 
 /// What is wrong with [source], one line each; empty when it matches.
 List<String> problemsIn(String source) {
+  // The Flutter SDK zip on Windows has CRLF line endings; the needles below
+  // use LF.
+  source = source.replaceAll('\r\n', '\n');
   final problems = <String>[];
   final init = RegExp(
     r'void initLicenses\(\)\s*\{([^}]*)\}',
@@ -75,6 +78,23 @@ void main() {
       expect(problemsIn(real()), isEmpty, reason: _recheck);
     },
   );
+
+  // R16: the Windows CI Flutter SDK (release zip) has CRLF line endings.
+  group('the check works on a CRLF copy of the source (Windows)', () {
+    String crlf(String s) => s.replaceAll('\n', '\r\n');
+
+    test('the real source with CRLF line endings has no problems', () {
+      expect(problemsIn(crlf(real())), isEmpty, reason: _recheck);
+    });
+
+    test('a changed split of package names from text, with CRLF', () {
+      final m = real().replaceFirst(
+        'substring(split + 2)',
+        'substring(split + 1)',
+      );
+      expect(problemsIn(crlf(m)), isNotEmpty);
+    });
+  });
 
   group('the check fails on a changed copy of the source', () {
     test('a second registration in initLicenses', () {
