@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
+import '../../about/about_section.dart';
+import '../../about/build_info.dart';
 import '../../history/history_service.dart';
 import '../../history/history_store.dart';
 import '../../history/ui/limit_field.dart';
@@ -52,6 +54,7 @@ class SettingsScreen extends StatefulWidget {
     this.loginItem,
     this.pickerShortcut,
     this.yourData,
+    this.buildInfo = BuildInfo.current,
   });
 
   final HistoryService service;
@@ -59,6 +62,9 @@ class SettingsScreen extends StatefulWidget {
   /// Export, import and delete (M1.8). Without it there is no Your data
   /// section.
   final YourDataSetup? yourData;
+
+  /// Which build this is, for the About section (M1.9a).
+  final BuildInfo buildInfo;
 
   /// Launch at login (desktop). Without it there is no switch.
   final LoginItemService? loginItem;
@@ -161,6 +167,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return ok == true;
   }
 
+  /// The height of a floating one-line toast: Material's 28 px of padding and
+  /// 15 px of margin around one line of 14/20 text, which grows with the text
+  /// size. `test/about/about_toast_room_test.dart` measures the real toast against it.
+  double _toastRoom(BuildContext context) =>
+      43 + MediaQuery.textScalerOf(context).scale(20);
+
   @override
   Widget build(BuildContext context) {
     final t = KusungaTokens.of(context);
@@ -172,7 +184,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         body: Stack(
           children: [
             SingleChildScrollView(
-              padding: EdgeInsets.all(KusungaTokens.space4),
+              // Room under the last control for a one-line toast, so scrolled
+              // to the end the toast sits below View licences, not over it
+              // (M1.9a B3).
+              padding: EdgeInsets.fromLTRB(
+                KusungaTokens.space4,
+                KusungaTokens.space4,
+                KusungaTokens.space4,
+                KusungaTokens.space4 + _toastRoom(context),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -208,6 +228,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       toast: _toast,
                     ),
                   ],
+                  SizedBox(height: KusungaTokens.space5),
+                  AboutSection(
+                    info: widget.buildInfo,
+                    copy: _service.copyOwn,
+                    toast: _toast,
+                  ),
                 ],
               ),
             ),
@@ -493,7 +519,7 @@ class _FocusRingState extends State<_FocusRing> {
       decoration: BoxDecoration(
         border: Border.all(
           color: show ? t.focus : Colors.transparent,
-          width: 2,
+          width: focusRingWidth,
           strokeAlign: BorderSide.strokeAlignOutside,
         ),
         borderRadius: BorderRadius.circular(widget.radius),

@@ -1,0 +1,459 @@
+SQLite3 Multiple Ciphers 2.5.0 and the parts it bundles
+
+Kusunga stores its history in a SQLite3 Multiple Ciphers database. The library
+(version 2.5.0, built on SQLite 3.53.4) is licensed under the MIT licence and
+bundles the parts below, each under the licence shown.
+
+The texts under each part are copied word for word from SQLite3 Multiple Ciphers at tag v2.5.0 (https://github.com/utelle/SQLite3MultipleCiphers), from the file and lines named there. Only the comment marks at the start of lines (/*, */, **, * and //) are left out, and so are the decorative lines made only of comment characters.
+
+* SQLite3 Multiple Ciphers own code (cipher_*.c, codec_algos.c, codecext.c, sqlite3mc*.c, AEGIS wrapper cipher_aegis.c)
+  Licence: MIT
+
+  Text of LICENSE, lines 1 to 21:
+
+    MIT License
+
+    Copyright (c) 2019-2026 Ulrich Telle
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+* AEGIS (src/aegis)
+  Licence: MIT
+
+  Text of src/aegis/include/aegis.h, lines 1 to 6 (and every file of src/aegis has the same licence line):
+
+    Name:        aegis.h
+    Purpose:     Header for AEGIS API
+    Copyright:   (c) 2023-2024 Frank Denis
+    SPDX-License-Identifier: MIT
+
+  Text of src/aegis/common/common.c, lines 1 to 6:
+
+    Name:        common.c
+    Purpose:     Implementation of common utility functions
+    Copyright:   (c) 2023-2024 Frank Denis
+    SPDX-License-Identifier: MIT
+
+* Ascon (src/ascon): aead.c, hash.c, pbkdf2.c, api.h, crypto_aead.h, crypto_hash.h, crypto_pbkdf2.h, prolog.h, round.h
+  Licence: MIT (Ulrich Telle). Each header says "Based on: Public domain Ascon reference implementation" (ascon-c). The headers say public domain, not CC0.
+
+  Text of src/ascon/aead.c, lines 1 to 11 (hash.c, crypto_aead.h, crypto_hash.h, crypto_pbkdf2.h, prolog.h and round.h carry the same copyright and licence lines):
+
+    Name:        aead.c
+    Purpose:     Stream encryption/decryption with Ascon
+    Based on:    Public domain Ascon reference implementation
+                 and optimized variants for 32- and 64-bit
+                 (see https://github.com/ascon/ascon-c)
+    Remarks:     API functions adapted for use in SQLite3 Multiple Ciphers
+    Modified by: Ulrich Telle
+    Copyright:   (c) 2023-2023 Ulrich Telle
+    License:     MIT
+
+  Text of src/ascon/pbkdf2.c, lines 1 to 13:
+
+    Name:        pbkdf2.c
+    Purpose:     Implementation of PBKDF2 algoritm with Ascon
+    Based on:    Public domain Ascon reference implementation
+                 and optimized variants for 32- and 64-bit
+                 (see https://github.com/ascon/ascon-c)
+                 and the paper "Additional Modes for ASCON Version 1.1"
+                 by Rhys Weatherley, Southern Storm Software, Pty Ltd.
+    Remarks:     API functions adapted for use in SQLite3 Multiple Ciphers
+    Created by:  Ulrich Telle
+    Copyright:   (c) 2023-2023 Ulrich Telle
+    License:     MIT
+
+  Text of src/ascon/api.h, lines 1 to 12:
+
+    Name:        api.h
+    Purpose:     Definition of preprocessor symbols
+    Based on:    Public domain Ascon reference implementation
+                 and optimized variants for 32- and 64-bit
+                 (see https://github.com/ascon/ascon-c)
+    Remarks:     API functions adapted for use in SQLite3 Multiple Ciphers
+                 Combined symbols from AEAD and HASH
+    Modified by: Ulrich Telle
+    Copyright:   (c) 2023-2026 Ulrich Telle
+    License:     MIT
+
+* Ascon helper files with no licence header: ascon.h, bendian.h, config.h, constants.h, forceinline.h, permutations.c, permutations.h, printstate.c, printstate.h, round32.h, round64.h, word.h
+  Licence: No licence text in the file. They are part of the same src/ascon copy of the Ascon reference code (public domain upstream) and of the project, whose `LICENSE` is MIT.
+
+* aes_hardware.c (AES-NI and ARM crypto code), memory_secure.c (secure memory wipe)
+  Licence: MIT (Ulrich Telle)
+
+  Text of src/aes_hardware.c, lines 1 to 8:
+
+    Name:        aes_hardware.c
+    Purpose:     AES algorithms based on AES NI
+    Author:      Ulrich Telle
+    Created:     2020-12-01
+    Copyright:   (c) 2020 Ulrich Telle
+    License:     MIT
+
+  Text of src/memory_secure.c, lines 1 to 8:
+
+    Name:        mem_secure.c
+    Purpose:     Memory manager for SQLite3 Multiple Ciphers
+    Author:      Ulrich Telle
+    Created:     2023-09-17
+    Copyright:   (c) 2023 Ulrich Telle
+    License:     MIT
+
+* argon2/libargon2.c (wrapper that `#include`s src/argon2 sources and sets the ARGON2_* macros to `static`)
+  Licence: No licence text in the file (30 lines, macros and includes only). It falls under the project `LICENSE` (MIT). The sources it includes are CC0-1.0 OR Apache-2.0 (next rows).
+
+* mystdint.h (stdint typedefs for MSVC before 2010; included by sha1.c, fastpbkdf2.h, chacha20poly1305.c, sqlite3mc_vfs.c)
+  Licence: No licence text in the file (27 lines, typedefs and macros only). It falls under the project `LICENSE` (MIT).
+
+* ChaCha20 and Poly1305 (chacha20poly1305.c)
+  Licence: Public domain
+
+  Text of src/chacha20poly1305.c, lines 1 to 8:
+
+    This file contains the implementation for
+      - the ChaCha20 cipher
+      - the Poly1305 message digest
+
+    The code was taken from the public domain implementation
+    of the sqleet project (https://github.com/resilar/sqleet)
+
+* AES / Rijndael (rijndael.c)
+  Licence: MIT per the file header (original code public domain, S. Stefanek); `filelist.md` says `LGPL-3.0-or-later WITH WxWindows-exception-3.1`
+
+  Text of src/rijndael.c, lines 1 to 12:
+
+    Name:        rijndael.c
+    Purpose:     Implementation of the Rijndael cipher
+    Author:      Ulrich Telle
+    Created:     2006-12-06
+    Copyright:   (c) 2006-2020 Ulrich Telle
+    License:     MIT
+
+    Adjustments were made to make this code work with the wxSQLite3's
+    SQLite encryption extension.
+    The original code is public domain (see comments below).
+
+  Text of src/rijndael.c, lines 14 to 44:
+
+    \file rijndael.cpp Implementation of the Rijndael cipher
+
+    File : rijndael.cpp
+    Creation date : Sun Nov 5 2000 03:22:10 CEST
+    Author : Szymon Stefanek (stefanek@tin.it)
+
+    Another implementation of the Rijndael cipher.
+    This is intended to be an easily usable library file.
+    This code is public domain.
+    Based on the Vincent Rijmen and K.U.Leuven implementation 2.4.
+
+    Original Copyright notice:
+
+       rijndael-alg-fst.c   v2.4   April '2000
+       rijndael-alg-fst.h
+       rijndael-api-fst.c
+       rijndael-api-fst.h
+
+       Optimised ANSI C code
+
+       authors: v1.0: Antoon Bosselaers
+                v2.0: Vincent Rijmen, K.U.Leuven
+                v2.3: Paulo Barreto
+                v2.4: Vincent Rijmen, K.U.Leuven
+
+       This code is placed in the public domain.
+
+    This implementation works on 128 , 192 , 256 bit keys
+    and on 128 bit blocks
+
+* SHA-1 (sha1.c), MD5 (md5.c)
+  Licence: Public domain
+
+  Text of src/sha1.c, lines 5 to 77:
+
+    By Steve Reid <sreid@sea-to-sky.net>
+    100% Public Domain
+
+    -----------------
+    Modified 7/98
+    By James H. Brown <jbrown@burgoyne.com>
+    Still 100% Public Domain
+
+    Corrected a problem which generated improper hash values on 16 bit machines
+    Routine SHA1Update changed from
+      void SHA1Update(SHA1_CTX* context, unsigned char* data, unsigned int
+    len)
+    to
+      void SHA1Update(SHA1_CTX* context, unsigned char* data, unsigned
+    long len)
+
+    The 'len' parameter was declared an int which works fine on 32 bit machines.
+    However, on 16 bit machines an int is too small for the shifts being done
+    against
+    it.  This caused the hash function to generate incorrect values if len was
+    greater than 8191 (8K - 1) due to the 'len << 3' on line 3 of SHA1Update().
+
+    Since the file IO in main() reads 16K at a time, any file 8K or larger would
+    be guaranteed to generate the wrong hash (e.g. Test Vector #3, a million
+    "a"s).
+
+    I also changed the declaration of variables i & j in SHA1Update to
+    unsigned long from unsigned int for the same reason.
+
+    These changes should make no difference to any 32 bit implementations since
+    an
+    int and a long are the same size in those environments.
+
+    --
+    I also corrected a few compiler warnings generated by Borland C.
+    1. Added #include <process.h> for exit() prototype
+    2. Removed unused variable 'j' in SHA1Final
+    3. Changed exit(0) to return(0) at end of main.
+
+    ALL changes I made can be located by searching for comments containing 'JHB'
+    -----------------
+    Modified 8/98
+    By Steve Reid <sreid@sea-to-sky.net>
+    Still 100% public domain
+
+    1- Removed #include <process.h> and used return() instead of exit()
+    2- Fixed overwriting of finalcount in SHA1Final() (discovered by Chris Hall)
+    3- Changed email address from steve@edmweb.com to sreid@sea-to-sky.net
+
+    -----------------
+    Modified 4/01
+    By Saul Kravitz <Saul.Kravitz@celera.com>
+    Still 100% PD
+    Modified to run on Compaq Alpha hardware.
+
+    -----------------
+    Modified 07/2002
+    By Ralph Giles <giles@artofcode.com>
+    Still 100% public domain
+    modified for use with stdint types, autoconf
+    code cleanup, removed attribution comments
+    switched SHA1Final() argument order for consistency
+    use SHA1_ prefix for public api
+    move public api to sha1.h
+
+    -----------------
+    Modified 02/2018
+    By Ulrich Telle <github@telle-online.de>
+    Still 100% public domain
+    modified for use with fast-pbkdf2 (written by Joseph Birr-Pixton)
+    detect endianess at run-time
+
+  Text of src/md5.c, lines 1 to 36:
+
+    This is an OpenSSL-compatible implementation of the RSA Data Security, Inc.
+    MD5 Message-Digest Algorithm (RFC 1321).
+
+    Homepage:
+    http://openwall.info/wiki/people/solar/software/public-domain-source-code/md5
+
+    Author:
+    Alexander Peslyak, better known as Solar Designer <solar at openwall.com>
+
+    This software was written by Alexander Peslyak in 2001.  No copyright is
+    claimed, and the software is hereby placed in the public domain.
+    In case this attempt to disclaim copyright and place the software in the
+    public domain is deemed null and void, then the software is
+    Copyright (c) 2001 Alexander Peslyak and it is hereby released to the
+    general public under the following terms:
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted.
+
+    There's ABSOLUTELY NO WARRANTY, express or implied.
+
+    (This is a heavily cut-down "BSD license".)
+
+    This differs from Colin Plumb's older public domain implementation in that
+    no exactly 32-bit integer data type is required (any 32-bit or wider
+    unsigned integer data type will do), there's no compile-time endianness
+    configuration, and the function prototypes match OpenSSL's.  No code from
+    Colin Plumb's implementation has been reused; this comment merely compares
+    the properties of the two independent implementations.
+
+    The primary goals of this implementation are portability and ease of use.
+    It is meant to be fast, but not as fast as possible.  Some known
+    optimizations are not included to reduce source code size and avoid
+    compile-time configuration.
+
+* SHA-2 (sha2.c)
+  Licence: BSD-3-Clause (Olivier Gay)
+
+  Text of src/sha2.c, lines 1 to 32:
+
+    FIPS 180-2 SHA-224/256/384/512 implementation
+    Last update: 02/02/2007
+    Issue date:  04/30/2005
+
+    Copyright (C) 2005, 2007 Olivier Gay <olivier.gay@a3.epfl.ch>
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions
+    are met:
+    1. Redistributions of source code must retain the above copyright
+       notice, this list of conditions and the following disclaimer.
+    2. Redistributions in binary form must reproduce the above copyright
+       notice, this list of conditions and the following disclaimer in the
+       documentation and/or other materials provided with the distribution.
+    3. Neither the name of the project nor the names of its contributors
+       may be used to endorse or promote products derived from this software
+       without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+    ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+    FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+    DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+    OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+    LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+    OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+    SUCH DAMAGE.
+
+* PBKDF2 (fastpbkdf2.c)
+  Licence: CC0-1.0
+
+  Text of src/fastpbkdf2.c, lines 1 to 13:
+
+    fast-pbkdf2 - Optimal PBKDF2-HMAC calculation
+    Written in 2015 by Joseph Birr-Pixton <jpixton@gmail.com>
+
+    To the extent possible under law, the author(s) have dedicated all
+    copyright and related and neighboring rights to this software to the
+    public domain worldwide. This software is distributed without any
+    warranty.
+
+    You should have received a copy of the CC0 Public Domain Dedication
+    along with this software. If not, see
+    <http://creativecommons.org/publicdomain/zero/1.0/>.
+
+* Argon2 (src/argon2, including blake2)
+  Licence: CC0-1.0 OR Apache-2.0, at the user's option
+
+  Kusunga uses Argon2 under the CC0 1.0 option.
+
+  Text of src/argon2/src/argon2.c, lines 1 to 16 (every file under src/argon2/src, src/argon2/src/blake2/blake2b.c included, opens with the same text):
+
+    Argon2 reference source code package - reference C implementations
+
+    Copyright 2015
+    Daniel Dinu, Dmitry Khovratovich, Jean-Philippe Aumasson, and Samuel Neves
+
+    You may use this work under the terms of a Creative Commons CC0 1.0
+    License/Waiver or the Apache Public License 2.0, at your option. The terms of
+    these licenses can be found at:
+
+    - CC0 1.0 Universal : https://creativecommons.org/publicdomain/zero/1.0
+    - Apache 2.0        : https://www.apache.org/licenses/LICENSE-2.0
+
+    You should have received a copy of both of these licenses along with this
+    software. If not, they may be obtained at the above URLs.
+
+  The texts of CC0 1.0 and Apache 2.0 themselves are not in these files; the addresses above lead to them.
+
+* SQLite3 Multiple Ciphers RC4 cipher (cipher_sds_rc4.c), SQLCipher-compatible cipher (cipher_sqlcipher.c)
+  Licence: MIT (own code, no SQLCipher source copied; the SQLCipher format is only imitated)
+
+  Text of src/cipher_sds_rc4.c, lines 1 to 8:
+
+    Name:        cipher_sds_rc4.c
+    Purpose:     Implementation of cipher System.Data.SQLite3 RC4
+    Author:      Ulrich Telle
+    Created:     2020-02-02
+    Copyright:   (c) 2006-2024 Ulrich Telle
+    License:     MIT
+
+  Text of src/cipher_sqlcipher.c, lines 1 to 8:
+
+    Name:        cipher_sqlcipher.c
+    Purpose:     Implementation of cipher SQLCipher (version 1 to 4)
+    Author:      Ulrich Telle
+    Created:     2020-02-02
+    Copyright:   (c) 2006-2026 Ulrich Telle
+    License:     MIT
+
+* miniz (miniz.c, used by the compress and zipfile extensions)
+  Licence: MIT
+
+  Text of src/miniz.c, lines 2 to 26:
+
+    Copyright 2013-2014 RAD Game Tools and Valve Software
+    Copyright 2010-2014 Rich Geldreich and Tenacious Software LLC
+    All Rights Reserved.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+* SQLite core and SQLite extensions (shathree, csv, fileio, series, uuid, regexp, sqlar, zipfile, compress, rekeyvacuum)
+  Licence: Public domain (blessing)
+
+  Text of src/csv.c, lines 1 to 9:
+
+    2016-05-28
+
+    The author disclaims copyright to this source code.  In place of
+    a legal notice, here is a blessing:
+
+       May you do good and not evil.
+       May you find forgiveness for yourself and forgive others.
+       May you share freely, never taking more than you give.
+
+  Text of src/rekeyvacuum.c, lines 1 to 9:
+
+    2020-11-14
+
+    The author disclaims copyright to this source code.  In place of
+    a legal notice, here is a blessing:
+
+       May you do good and not evil.
+       May you find forgiveness for yourself and forgive others.
+       May you share freely, never taking more than you give.
+
+* vsv.c (extension)
+  Licence: Public domain (Keith Medcalf; builds on SQLite's csv.c)
+
+  Text of src/vsv.c, lines 1 to 3:
+
+    2020-02-08 modified by Keith Medcalf who also disclaims all copyright
+    on the modifications and hereby places this code in the public domain
+
+* extensionfunctions.c
+  Licence: No licence text. Upstream `filelist.md` only assumes it is public domain.
+  It is only compiled with SQLITE_ENABLE_EXTFUNC. It must not be compiled in; enforced by tool/check_sqlite3mc.sh (macOS checked 2026-11-21; Windows checked before release).

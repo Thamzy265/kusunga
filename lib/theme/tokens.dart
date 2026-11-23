@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+/// The width of the `focus` ring drawn outside a focused button, in px.
+const focusRingWidth = 2.0;
+
 /// Semantic design tokens (UI spec, "Tokens used"). Widgets read these and
 /// never hard-code a colour or size. Light and dark values are defined here
 /// once; `test/theme/tokens_test.dart` checks their contrast.
@@ -116,7 +119,7 @@ class KusungaTokens extends ThemeExtension<KusungaTokens> {
         (states) => states.contains(WidgetState.focused)
             ? BorderSide(
                 color: tokens.focus,
-                width: 2,
+                width: focusRingWidth,
                 strokeAlign: BorderSide.strokeAlignOutside,
               )
             : null,

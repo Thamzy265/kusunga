@@ -454,6 +454,18 @@ class HistoryService extends ChangeNotifier {
     }
   }
 
+  /// Puts [text] on the clipboard as Kusunga's own change, so the watcher
+  /// skips it and it is not added to history (PM decision D1; the rule the
+  /// snippets use). For the About copy buttons: only the version or the link.
+  /// Returns false if the copy failed.
+  Future<bool> copyOwn(String text) async {
+    try {
+      return await _source.writeOwn(text);
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// The whole text of an item (also one still waiting to be saved), or null
   /// if it is gone or expired (R1: the read filter holds for an id kept
   /// from before, too).

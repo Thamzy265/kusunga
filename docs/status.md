@@ -1,5 +1,412 @@
 # Status log
 
+## 2026-11-22 — M1.9a About and licences — reviewer re-check: approve (R16 fixed); main merged into the branch next
+- Changed: reviewer re-check report (opus, high), word for word (sub-lists joined; evidence paths left out):
+  > Mode: branch
+  > Branch: feat/about-licences (re-check of 7f9b241..3e74ba5, tip 3e74ba5) — Verdict: approve
+  > Checks: ./tool/check.sh — pass — relying on the developer's one full run on 3e74ba5: "+4191 ~10: All tests passed!", format and analyze clean. Before each of my runs I confirmed `pgrep -fl flutter_tester` was empty, one file at a time. On the tip, test/about/flutter_licences_binding_test.dart gave "00:00 +9: All tests passed!".
+  > Code review: 1 finding to re-check (R16), fixed. 0 new.
+  > Design review: 0 findings.
+  > Security review: 0 findings. 20-line, test-only diff: no product code, no new packages, no network, no logging.
+  > Privacy review: no issues.
+  > Later lines: none added — added by reviewer: none
+  > Findings (most severe first): none open.
+  > Fix outcomes: R16 — fixed (3e74ba5). (a) The new problemsIn on binding.dart from the official flutter_windows_3.44.6-stable.zip gives []; the old probe still gives the 3 _parseLicenses problems on it. (b) `crlf(real())` is byte-for-byte equal to the binding.dart in the zip, so the regression test runs on the Mac against exactly what windows-latest reads. (c) Fail first, then pass, both runs mine: old guard "+8 -1: Some tests failed."; tip "+9: All tests passed!". (d) The second new test passes on old code for the wrong reason but is worth keeping against over-normalising.
+  > Risk accepted by PM: none
+  > Open items: The LF-only assumptions in the developer's audit are not a Windows CI risk; no Later line or separate item needed. The developer audited the branch's old base (merge-base 8614d88); main has already dealt with all of them: e023904 adds `* text=auto eol=lf` to .gitattributes; ae65c68 makes typed_shortcut_guards_test and capture_skip_guards_test read sources through test/support/source_text.dart; a7f30a9 adds test/ci/line_endings_checkout_test.dart. On windows-latest, actions/checkout uses Git for Windows with core.autocrlf=true; with the rule every repo text file is LF. The green main run 45009293707 ran all of these on Windows. None of the 65 files the branch adds or changes contains a CR. For the lead, not a finding: the branch is 30+ commits behind main, and `git merge-tree main HEAD` reports a conflict in docs/qa/m1.md only (docs). Main needs to be merged into the branch before the PR. The Windows job on the PR is the real proof for R16. Still open: QA on a real build, and the PM's decision on the Apache-2.0 and CC0-1.0 texts.
+  > Blockers: none
+  Lead: developer dispatched to merge main into feat/about-licences (conflict in docs/qa/m1.md only) and run one full check, so QA tests the merged code.
+- Gates: developer pass · tester pass · reviewer approve · QA pending (after the main merge) · PM merge not asked
+- Open findings: none
+- Decisions: open for PM: Apache-2.0 / CC0-1.0 texts and the Argon2 CC0 sentence
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
+## 2026-11-22 — M1.9a About and licences — developer round 9 (R16 fixed); reviewer re-check dispatched
+- Changed: developer report (sonnet, high effort, round 9), word for word ("How to verify" left out, sub-lists joined, the audit list condensed by the lead):
+  > R16 is fixed and committed (3e74ba5). The CRLF regression test fails on 7f9b241's `problemsIn` and passes after the fix. The one full check passed: `+4191 ~10: All tests passed!`.
+  > Branch: feat/about-licences (1 new commit, 3e74ba5, on top of 7f9b241). Not pushed.
+  > Built: at the top of `problemsIn` in `test/about/flutter_licences_binding_test.dart`: `source = source.replaceAll('\r\n', '\n');` (test-only). A new group, "the check works on a CRLF copy of the source (Windows)", with two tests that run on every OS: `expect(problemsIn(crlf(real())), isEmpty)`, with the `_recheck` reason; and a `substring(split + 1)` CRLF copy still reports a problem.
+  > Tests: 4191 passing, 10 skipped, from the one full `./tool/check.sh`. Format and analyze were clean. Before it I confirmed `pgrep -fl flutter_tester` was empty.
+  > First failing run, on 7f9b241's `problemsIn`: "the real source with CRLF line endings has no problems [E] Expected: empty Actual: ['_parseLicenses no longer has: indexOf('\n\n')', '_parseLicenses no longer has: substring(0, split).split('\n')', '_parseLicenses no longer has: substring(split + 2)']" — "+8: Some tests failed." After the fix: "00:00 +9: All tests passed!". Note: the second new test also passes on 7f9b241, for the wrong reason (the false problems make `isNotEmpty` true); it guards against over-normalising after the fix.
+  > E2E: n/a. Test hooks: n/a. Deviations from plan: none. Checklists: none (test-only change).
+  > Risks / unverified: not run on a real Windows SDK; Windows CI on this branch is the real proof. Audit (other tests with an LF-only assumption): the only SDK source reader is the fixed guard; m16 reads binary font files; test/ci/licence_test.dart reads the sqlite3 CHANGELOG with readAsLinesSync() and trim() (safe). Repo files with an LF-only assumption (break only if the Windows checkout converts them to CRLF): test/ci/typed_shortcut_guards_test.dart:142 (`indexOf('\n}\n')`, would throw RangeError), test/ci/capture_skip_guards_test.dart:103 (same pattern as R16), and `.split('\n')` in licence_test.dart, typed_shortcut_guards_test.dart, typed_shortcut_synthetic_edge_test.dart, capture_skip_guards_test.dart, data_profile_guard_test.dart, snippet_privacy_edge_test.dart and licence_registry_edge_test.dart. The latest main run (45009293707) passed all tests on Windows, which suggests the checkout is LF or those paths are not hit. Cheapest hardening: `* text=auto eol=lf` in .gitattributes, or the same replaceAll in those tests. Not done (outside R16); no Later line (no measurable trigger).
+  > Personal data touched: none. Later lines added: none. Spec gaps raised: none.
+  > Findings: R16 — fixed (3e74ba5)
+  > Blockers: none
+  Lead: reviewer re-check of 7f9b241..3e74ba5 dispatched, with the audit's line-ending question.
+- Gates: developer pass (round 9) · tester pass · reviewer re-check in progress · QA pending · PM merge not asked
+- Open findings: none open (R16 waiting for re-check)
+- Decisions: open for PM: Apache-2.0 / CC0-1.0 texts and the Argon2 CC0 sentence
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
+## 2026-11-22 — M1.9a About and licences — reviewer re-check: block (R16, Windows CI); developer round 9 dispatched
+- Changed: reviewer re-check report (opus, high), word for word (sub-lists joined; file paths shortened):
+  > Mode: branch
+  > Branch: feat/about-licences (re-check of 07426b0..7f9b241, tip 7f9b241) — Verdict: block
+  > Checks: ./tool/check.sh — pass on macOS, but the Windows CI job will fail (R16) — I used the developer's full run on 7f9b241: "05:24 +4189 ~10: All tests passed!", format and analyze clean, exit 0. I checked that no flutter_tester was running (pgrep empty), then ran only the two changed test files myself: "00:01 +11: All tests passed!". On Windows, the guard test at test/about/flutter_licences_binding_test.dart:75 will fail on every run.
+  > Code review: 3 findings to re-check (R15, N1, N2), all fixed. 1 new finding, R16, is open and blocks the merge (it breaks CI).
+  > Design review: 0 findings.
+  > Security review: 0 findings. Test-only changes plus one token swap. No new packages, no network calls in the product, no logging.
+  > Privacy review: no issues. N2 also removes the PM's home path from both test files (grep of lib/ and test/ for it: 0 hits).
+  > Later lines: none added — added by reviewer: none
+  > Findings (most severe first):
+  > - R16 — High for the merge gate (breaks CI; no user impact): the Windows check job fails on every run of this branch — test/about/flutter_licences_binding_test.dart:55. Cause: `source.indexOf('\n  }\n', parseStart)` looks for LF line endings; the Windows runner's Flutter SDK has CRLF line endings. subosito/flutter-action downloads the release zip (run 45009293707: a 1.76G download into C:\hostedtoolcache\windows\flutter\stable-3.44.6-x64), not a git clone. Proof: I used HTTP range reads to pull binding.dart out of the official flutter_windows_3.44.6-stable.zip: 28186 bytes, 705 CRLF in 705 line breaks, no `\n  }\n` anywhere. The guard's own problemsIn on a CRLF copy returns 3 problems (the three `_parseLicenses` needles); on the LF file it returns []. So on windows-latest the guard fails even though Flutter has not changed. The rest of problemsIn is safe with CRLF. Expected fix: at the top of problemsIn, add `source = source.replaceAll('\r\n', '\n');`. Add a regression test that also runs on the Mac: `expect(problemsIn(real().replaceAll('\n', '\r\n')), isEmpty)`. Optionally: a CRLF copy with `substring(split + 1)` still fails. The new CRLF test must fail on 7f9b241 and pass after the fix; both runs needed.
+  > - Risk (2), Roboto: no finding. The test reads `$FLUTTER_ROOT/bin/cache/artifacts/material_fonts/Roboto-Regular.ttf` (MaterialFonts, a universal artifact). On the latest main run, 45009293707, all four "real proportional font" tests ran and passed on Windows and macOS, without the home-folder fallback. Fail instead of skip does not put CI at risk.
+  > Fix outcomes: R15 — fixed (7f9b241) on LF checkouts; on Windows it causes R16. N1 — fixed (678f453), no visual change. N2 — fixed (0d9f6c3, 7f9b241); fail instead of skip is acceptable, CI is proven to have both files.
+  > Risk accepted by PM: none
+  > Open items: R16 (CI-breaking on Windows). Still waiting from earlier rounds: QA on a real build; the PM's decision on the Apache-2.0 and CC0-1.0 texts.
+  > Blockers: none
+  > Evidence in scratchpad: rev_r8_tools/probe.dart, binding_crlf.dart, zipcheck.py; CI logs rev_r8_ci_win.log, rev_r8_ci.log. No git refs, no push, Flutter SDK untouched, Kusunga not launched.
+  Lead: developer round 9 dispatched for R16, escalated one effort level (sonnet, high) after a failed review round. The developer of round 8 was stopped after its work was committed, because it kept re-sending its report.
+- Gates: developer round 9 in progress · tester pass · reviewer block (R16) · QA pending · PM merge not asked
+- Open findings: R16 High (merge gate, CI)
+- Decisions: open for PM: Apache-2.0 / CC0-1.0 texts and the Argon2 CC0 sentence
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
+## 2026-11-22 — M1.9a About and licences — developer round 8 (R15, N1, N2 fixed); reviewer re-check dispatched
+- Changed: developer report (sonnet, medium, round 8), word for word ("How to verify" left out; its step 2 suggested editing the Flutter SDK, which nobody will do; sub-lists joined):
+  > Branch: feat/about-licences (3 new commits on 07426b0: 678f453, 0d9f6c3, 7f9b241). Not pushed.
+  > Built: R15: problemsIn in test/about/flutter_licences_binding_test.dart now also reads the `_parseLicenses` body and requires `indexOf('\n\n')`, `substring(0, split).split('\n')` and `substring(split + 2)`. I did not use whole-body equality with `_parse`, because variable names differ (licenseSeparator/rawLicenses vs separator/raw). The test fails clearly if `_parseLicenses` is renamed. N1: `width: focusRingWidth` in lib/settings/ui/settings_screen.dart:522 and lib/shortcuts/ui/typed_shortcuts_section.dart:214. The value is 2.0, so there is no visual change; tokens.dart was already imported in both files. N2: the home-folder fallback is gone from both tests. Both read FLUTTER_ROOT and throw a StateError with a clear message if it is missing. The m16 real-font test no longer skips: the skip flag is removed, and a missing Roboto file also fails.
+  > Tests: Full check passed: "05:24 +4189 ~10: All tests passed!", with format and analyze clean (exit 0); the ~10 skipped tests are not from my changes. New tests cover the changed split (`substring(split + 1)`) and another blank-line split (`indexOf('\n')`). First failing run, with the new `_parseLicenses` check removed: "+5 -2", and the failing tests were "a changed split of package names from text" and "another blank-line split". I restored the check afterwards.
+  > E2E: n/a. Test hooks: n/a — no new controls.
+  > Deviations from plan: none. I wrote the N2 failure path as a thrown StateError, which makes the test fail, and I also made the m16 missing-font case fail. You asked for fail-not-skip only for a missing FLUTTER_ROOT.
+  > Checklists: ui-build — n/a. data-and-apis — n/a.
+  > Risks / unverified: With FLUTTER_ROOT missing, I checked the failure path by reading the code only; I did not run it. The Windows CI job still needs to confirm the guard works with CRLF line endings: the `\n  }\n` end-of-body search could miss under CRLF and then fail safe, with an error that does not point at the real cause.
+  > Personal data touched: none. Later lines added: none. Spec gaps raised: none.
+  > Findings: R15 — fixed (7f9b241) | N1 — fixed (678f453) | N2 — fixed (0d9f6c3 and 7f9b241)
+  > Blockers: none
+  Lead: reviewer re-check of 07426b0..7f9b241 dispatched. Asked it to check two Windows CI risks: CRLF in the guard, and the m16 test now failing instead of skipping when the Roboto file is missing.
+- Gates: developer pass (round 8) · tester pass · reviewer re-check in progress · QA pending · PM merge not asked
+- Open findings: none open (R15, N1, N2 waiting for re-check)
+- Decisions: open for PM: Apache-2.0 / CC0-1.0 texts and the Argon2 CC0 sentence
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
+## 2026-11-22 — M1.9a About and licences — reviewer re-check: approve with notes (R15, N1, N2); developer round 8 dispatched
+- Changed: reviewer re-check report (opus, high), word for word (sub-lists joined; the fix-outcome details for R11–R14 condensed by the lead):
+  > Mode: branch
+  > Branch: feat/about-licences (re-check of e10bf9a..07426b0, tip 07426b0) — Verdict: approve with notes
+  > Checks: ./tool/check.sh — pass — I used the lead's single run on 07426b0: "Formatted 315 files (0 changed)", "No issues found!", "06:14 +4187 ~10: All tests passed!", exit 0. I also ran the three changed test files once myself, after confirming no flutter_tester was running: "+29: All tests passed!"
+  > Code review: 4 findings to re-check (R11, R12, R13, R14), all fixed. 1 new Low (R15) and 2 cleanup notes (N1, N2), all open and none blocking.
+  > Design review: 0 new findings. R14 links the button focus ring to the reveal reach, as asked.
+  > Security review: 0 findings. Checked by hand. R12 logs only the error's type, only in debug builds, and NOTICES.Z is a build asset, not user data. No new packages. No network.
+  > Privacy review: no issues. No personal data is touched. The one new log line holds only the type name.
+  > Later lines: none added — added by reviewer: none
+  > Findings (most severe first):
+  > - R15 — Low (licence compliance; reachable only after a Flutter upgrade) — test/about/flutter_licences_binding_test.dart:28-50. The guard does not check how each entry splits package names from text: `license.indexOf('\n\n')` in Flutter's `_parseLicenses` (binding.dart:231-243), which lib/about/flutter_notices.dart:68-76 copies. If a future Flutter changes that split, the guard still passes, `_parse` gives every entry an empty package list, and LicensePage shows no row for them, so every Flutter and engine notice disappears (the same AC1 failure as R11). Expected fix: also check that the `_parseLicenses` body still contains `indexOf('\n\n')` and `substring(split + 2)`, or that the whole `_parseLicenses` body, whitespace squashed, equals the body of `_parse`. Add one mutated-copy test for it.
+  > - N1 — cleanup (can wait) — lib/settings/ui/settings_screen.dart:522 and lib/shortcuts/ui/typed_shortcuts_section.dart:214. These two rings are also drawn outside the control and rely on `focusRingReach`, but still use a literal `width: 2`. Expected fix: use `focusRingWidth` in both.
+  > - N2 — cleanup (can wait) — test/about/flutter_licences_binding_test.dart:19. The fallback path names the developer's home folder. It isn't needed: bin/internal/shared.sh:197 exports FLUTTER_ROOT and flutter.bat sets it. Expected fix: drop the fallback, here and in m16_real_font_layout_test.dart, and rely on FLUTTER_ROOT.
+  > Fix outcomes: R11 — fixed (07426b0); the guard catches every case described (second registration, super call or arrow body, renamed method, other asset name, no gzip or utf8, changed separator; fails safe if renamed; mutated-copy tests are real; works with CRLF on Windows — the Windows CI job should confirm). Gaps: the '\n\n' split (R15); the real-build check is still a QA item. R12 — fixed (4b4299c); debug-only, type name only, test feeds 'SECRET-CLIPBOARD-TEXT' and checks it is absent. R13 — fixed (8eaf5ec); findsOneWidget for 'SQLite' and 'SQLite3 Multiple Ciphers'. R14 — fixed (93dfe8c); no visual change (2 → 2.0), no import cycle, comment names an existing file.
+  > Risk accepted by PM: none
+  > Open items: R15 (Low), N1 and N2 (cleanup), not blocking. QA on a real build: Flutter's notices listed with no lower-case "kusunga" row; the sqlite3mc entry at 360 px and 800 px; the toast at 200% text and 360 px. The PM's decision on the Apache-2.0 and CC0-1.0 texts is still open.
+  > Blockers: none
+  Lead: R15, N1 and N2 are small, so they go to the developer now, before QA.
+- Gates: developer round 8 in progress · tester pass · reviewer approve with notes · QA pending · PM merge not asked
+- Open findings: R15 Low; N1, N2 cleanup
+- Decisions: open for PM: Apache-2.0 / CC0-1.0 texts and the Argon2 CC0 sentence
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
+## 2026-11-22 — M1.9a About and licences — developer round 7 (R11–R14 fixed); reviewer re-check dispatched
+- Changed: developer report (sonnet, medium, round 7), word for word ("How to verify" left out, sub-lists joined onto one line):
+  > Branch: feat/about-licences (4 new commits on e10bf9a; tip 07426b0)
+  > Built: R13 (8eaf5ec): the garbled-NOTICES.Z page test now also expects exactly one 'SQLite' row and one 'SQLite3 Multiple Ciphers' row, so the page header can no longer satisfy it. R14 (93dfe8c): new const `focusRingWidth = 2.0` in lib/theme/tokens.dart, used by the button focus ring. `focusRingReach` in lib/ui/focus_order.dart is now `= focusRingWidth`. The comment at settings_screen.dart:172 now names test/about/about_toast_room_test.dart. New test test/ui/focus_ring_reach_test.dart checks reach == width and that the themed button ring resolves to that width. R12 (4b4299c): in flutter_notices.dart, the catch now does `assert(() { debugPrint('NOTICES.Z could not be read (${e.runtimeType})'); return true; }())`. It reports the type only, in debug builds only. The empty stream is unchanged. A test checks that exactly one line is printed, that it names NOTICES.Z and FormatException, and that it leaves out the input text. R11 (07426b0): new test/about/flutter_licences_binding_test.dart reads `$FLUTTER_ROOT/packages/flutter/lib/src/services/binding.dart` (FLUTTER_ROOT found as in m16_real_font_layout_test.dart). It checks that the initLicenses body is only `LicenseRegistry.addLicense(_addLicenses);`, that _addLicenses still loads 'NOTICES.Z' and uses gzip.decode and utf8.decode, and that the 80-dash separator is unchanged. On failure it says flutterNotices and KusungaBinding must be re-checked against the new Flutter. Four tests run the same check on mutated in-memory copies of the source (extra registration, other asset name, no gzip, other separator) and expect problems. The real SDK is not edited. If the SDK source is not found, the test fails rather than skips.
+  > Tests: 4187 passing, 10 skipped (./tool/check.sh: Formatted 315 files, 0 changed; No issues found; All tests passed). New tests: R13 strengthened (1), focus_ring_reach (2), R12 (1), binding guard (5).
+  > First failing runs: R13: with `return;` added at the top of registerLicences (temporary mutation, reverted), the strengthened test failed; it passed on the unmutated code. R14: "Undefined name 'focusRingWidth'". R12: failed at expect(lines, hasLength(1)), because no line was printed before the fix. R11: the guard test passes on the real Flutter 3.44.6 source; the four mutated-copy tests show the check fails on each change. No separate failing run of the real-source test, since that would mean editing the SDK.
+  > E2E: n/a. Test hooks: n/a — no UI.
+  > Deviations from plan: the R11 test is a source check only. The reviewer's suggested QA or release-script check on a real build (Flutter notices listed, no lower-case "kusunga" row) is not built; QA should do it on the real build.
+  > Checklists: ui-build and data-and-apis — n/a.
+  > Risks / unverified: Process slip: I started a second ./tool/check.sh while the first was still running, against the rule of never running two at once. I killed my second one. The first run completed with exit 0 and the full pass shown above. If you want a clean single-run record, rerun the check on 07426b0. The R11 guard is a regex and text match on Flutter's private source; a harmless reformat in a future Flutter would also trip it (intended).
+  > Personal data touched: none (the R12 log line has the error type only). Later lines added: none. Spec gaps raised: none.
+  > Findings: R11 — fixed (07426b0; the QA real-build check is left to QA) | R12 — fixed (4b4299c) | R13 — fixed (8eaf5ec) | R14 — fixed (93dfe8c)
+  > Blockers: none
+  Lead: clean single run of the full check on 07426b0 by the lead (`pgrep -fl flutter_tester` empty first): "Formatted 315 files (0 changed)", "No issues found!", "06:14 +4187 ~10: All tests passed!", exit 0. Process note: the developer ran two checks at once, against the PM's rule; it stopped the second itself. Reviewer re-check of e10bf9a..07426b0 dispatched.
+- Gates: developer pass (round 7) · tester pass · reviewer re-check in progress · QA pending · PM merge not asked
+- Open findings: none open (R11–R14 waiting for re-check)
+- Decisions: open for PM: Apache-2.0 / CC0-1.0 texts and the Argon2 CC0 sentence
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
+## 2026-11-22 — M1.9a About and licences — reviewer re-check: approve with notes (R11–R14); developer round 7 dispatched
+- Changed: reviewer re-check report (opus, high), word for word (shortened where marked by the lead: sub-lists joined, scratchpad paths removed, the "answers" paragraph condensed):
+  > Mode: branch
+  > Branch: feat/about-licences (re-check of ba6ed2b..e10bf9a, tip e10bf9a) — Verdict: approve with notes
+  > Checks: `./tool/check.sh` (on e10bf9a; `pgrep -fl flutter_tester` was empty first, nothing left running, worktree clean) — pass — "Formatted 313 files (0 changed)", "No issues found!", "04:51 +4179 ~10: All tests passed!", exit 0.
+  > Code review: 3 findings (0 fixed, 3 open, all Low or cleanup). Done by hand for this narrow re-check range; the code-review skill was not run.
+  > Design review: 0 new findings. B1–B4, the hidden row and the spec update match docs/ui/about-and-licences.md and the PM decisions.
+  > Security review: 0 findings. Done by hand against references/security.md (the security-review skill diffs against origin/HEAD, and new refs are banned). A03: no new packages; only the text asset is committed, no downloaded file or script is in the repo. A10: failure now leaves out Flutter's notices instead of the whole page (see R12). Others n/a.
+  > Privacy review: no issues. No personal data touched, nothing logged, no network at runtime.
+  > Later lines: none added — added by reviewer: none
+  > Findings (most severe first):
+  > - R11 — Low (correctness and licence compliance; reachable only after a toolchain change) — lib/about/kusunga_binding.dart:27-32 and lib/about/flutter_notices.dart:25-38. flutterNotices is a hand copy of Flutter's private `ServicesBinding._addLicenses`, and nothing ties it to the Flutter version. If the pin moves to a Flutter release that renames or re-formats NOTICES.Z, or adds a second registration in `initLicenses`, every test still passes (fake bundles), flutterNotices yields nothing, and a beta build ships with every Flutter and engine notice missing, breaking AC1 unseen. Expected fix: a test that reads `$FLUTTER_ROOT/packages/flutter/lib/src/services/binding.dart` and checks that the `initLicenses` body is still only `LicenseRegistry.addLicense(_addLicenses);` and that `_addLicenses` still loads 'NOTICES.Z' with gzip plus utf8 and the 80-dash separator. Also a QA or release-script check on a real build: Flutter's notices are listed and there is no lower-case "kusunga" row.
+  > - R12 — Low (diagnosability) — lib/about/flutter_notices.dart:36-38 `catch (_) { return; }`. A build with a bad or missing NOTICES.Z silently shows only Kusunga's three notices with no console line. Expected fix: in debug only, report the caught error without any data (for example an assert-wrapped debugPrint of the runtimeType, or FlutterError.reportError). The empty-stream behaviour stays.
+  > - R13 — Low (test strength) — test/about/flutter_notices_edge_test.dart:290-297. `find.text('Kusunga')` also matches the LicensePage header, so the test passes even if the rows go missing. Expected fix: also expect the 'SQLite' and 'SQLite3 Multiple Ciphers' rows, or match 'Kusunga' inside the package list.
+  > - R14 — cleanup (comment only) — lib/settings/ui/settings_screen.dart:172 names `about_focus_toast_test.dart`, which does not exist (it is test/about/about_toast_room_test.dart). The 43 px is a magic number from Material's SnackBar (the B3 tests would catch drift). `focusRingReach` = 2.0 matches the 2 px ring in lib/theme/tokens.dart:114-121, but nothing links the two constants.
+  > Answers to the lead's points: initLicenses without super on Flutter 3.44.6: safe (binding.dart:185-226 only calls `LicenseRegistry.addLicense(_addLicenses)`; no other override; no web target); risk only on future upgrades (R11). Hide rule: precise and fails safe. BUG-T1 swallow: acceptable, better for GPLv3 5(d) than before; the try body is only load, gzip, utf8 and split. Changed tests: not weakened; they assert the new intended behaviour exactly; weak spot is the repro's own assertion (R13). Shared revealOnTraversal: safe; whole history suite passes. B3: correct at the sizes tested; 200% at 360 px with a real font needs QA. B4: correct. Licence completeness: GPL notice unchanged; AC7 met; AC1 met for every part whose files carry text.
+  > Apache-2.0 and CC0-1.0 texts (the PM's decision): in my view this does not block on licence grounds. fastpbkdf2 is CC0-1.0, which has no notice or text-copy duty. Argon2 is "CC0 1.0 or Apache 2.0, at your option"; Apache 2.0 §4(a) applies only if Kusunga takes Argon2 under Apache. My recommendation: add one sentence to the Argon2 block saying Kusunga uses Argon2 under CC0 1.0. Optionally also bundle the canonical CC0 and Apache-2.0 texts (apache.org or SPDX), if the PM allows the download. Without either, a reader cannot tell which option Kusunga took. Not legal advice; the PM decides.
+  > Fix outcomes: B1, B2, B3, B4, hidden row, R6/AC7 texts, BUG-T1, intro wording — fixed (with old-code failures shown). R11–R14 — new this round, open.
+  > Risk accepted by PM: none (the 2026-11-22 PM decisions cover scope, not risk).
+  > Open items: R11, R12, R13 (Low) and R14 (cleanup). Apache-2.0 and CC0-1.0 texts: open PM decision. QA re-check still needed on a real build: Flutter's notices listed with no lower-case "kusunga" row; the sqlite3mc entry at 360 and 800 px; the toast at 200% text and 360 px.
+  > Blockers: none
+  Lead: R11–R13 (Low) and R14 (cleanup) go to the developer now, before QA, so the QA run covers the final code. The Argon2 "used under CC0 1.0" sentence is a licensing choice and goes to the PM.
+- Gates: developer round 7 in progress · tester pass · reviewer approve with notes · QA pending · PM merge not asked
+- Open findings: R11, R12, R13 Low; R14 cleanup
+- Decisions: open for PM: Apache-2.0 / CC0-1.0 texts, and whether Kusunga states it uses Argon2 under CC0 1.0
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
+## 2026-11-22 — M1.9a About and licences — developer round 6 (BUG-T1 fixed); reviewer re-check dispatched
+- Changed: developer report (opus, high effort, round 6), word for word ("How to verify" and file list left out, sub-lists joined onto one line):
+  > Both fixes are committed on feat/about-licences and the full check passes: format clean, analyze reports no issues, 4179 tests pass and 10 are skipped (exit 0). Nothing is pushed.
+  > Branch: feat/about-licences (2 new commits on top of the tester's f83541c): ac584d4 fix(licences): a NOTICES.Z that cannot be read gives no notices, so Kusunga's own still list (BUG-T1, M1.9a); e10bf9a docs(licences): the sqlite3mc intro says decorative comment-only lines were left out too (M1.9a)
+  > Built: `lib/about/flutter_notices.dart`: loading, unpacking, decoding and parsing NOTICES.Z now sit inside one try/catch. On any failure the stream ends empty with no error, so the licence page still lists Kusunga and its GPL, SQLite and sqlite3mc notices. Reading LICENSE was already caught this way, and the drop-the-duplicate rule is unchanged. `assets/licences/sqlite3mc.txt` line 7: the intro now reads "Only the comment marks at the start of lines (/*, */, **, * and //) are left out, and so are the decorative lines made only of comment characters." No quoted words changed. `docs/ui/about-and-licences.md` line 54: the same addition.
+  > Tests: 4179 passing, 10 skipped (`./tool/check.sh`, exit 0, "No issues found!", "Formatted 313 files (0 changed)"). One new test: `test/about/licence_texts_test.dart` "the intro says decorative comment lines were left out too".
+  > First failing runs, before each fix: the tester's repro failed with `Expected: at least one matching candidate / Actual: _TextWidgetFinder:<Found 0 widgets with text "Kusunga": []>`; the 3 changed tests failed with `FormatException: Filter error, bad data` (not gzip), `FormatException: Invalid UTF-8 byte (at offset 0)` (not UTF-8) and `Unable to load asset: "NOTICES.Z".` (missing); the wording test failed with `Expected: contains 'decorative lines made only of comment characters'`.
+  > Tests changed to match the new behaviour (each now expects an empty list and no error, with a comment naming BUG-T1): 1. flutter_notices_test.dart "without NOTICES.Z the error reaches the licence page, as Flutter's own collector does" (was throwsA(isA<FlutterError>())) is now "without NOTICES.Z it gives no notices and no error, so the page still lists Kusunga's own". 2. flutter_notices_edge_test.dart "bytes that are not gzip fail with an error on the stream" (was throwsA(isA<FormatException>())) is now "... give no notices and no error" (tester's). 3. flutter_notices_edge_test.dart "gzip of bytes that are not UTF-8 fails on the stream" is now "... gives no notices and no error" (tester's). Tests 2 and 3 are outside your list; they are the same inputs as the tester's repro checked one level lower, so the repro could not pass while they still expected an error. No other tester test changed.
+  > Deviations from plan: (1) no log code added (flutterNotices is a tear-off with no ErrorLog in reach; optional in the brief). (2) the matching UI spec line changed to the new intro wording.
+  > Risks / unverified: the rijndael.c/miniz.c decorative-line claim is from the brief, not re-checked against the sources. A broken NOTICES.Z now fails silently, so the Flutter package notices vanish with no log line; intended trade-off for keeping the GPL notices visible. Kusunga not launched.
+  > Personal data touched: none. Later lines added: none. Spec gaps raised: none.
+  > Findings: BUG-T1 — fixed (ac584d4). sqlite3mc intro wording — fixed (e10bf9a).
+  > Blockers: none
+  Lead: the tester's rijndael.c/miniz.c note (tester round 5 report above) confirms the decorative-line claim. Reviewer re-check dispatched for ba6ed2b..e10bf9a, including the two tester tests the developer changed.
+- Gates: developer pass (round 6) · tester BUG-T1 repro passes · reviewer re-check in progress · QA re-check pending · PM merge not asked
+- Open findings: none
+- Decisions: open for PM: Apache-2.0 and CC0-1.0 full texts
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
+## 2026-11-22 — M1.9a About and licences — tester round 5: BUG-T1 (low); developer round 6 dispatched
+- Changed: tester report (sonnet, medium), word for word (sub-lists joined onto one line, scratchpad paths shortened):
+  > Branch: feat/about-licences (5 test commits on 2317e6b: 3c2a891, 3bfe84c, e40c050, 0b737ce, f83541c; not pushed)
+  > Added: 67 tests in 5 new files: test/about/notice_entry_edge_test.dart (15); test/about/flutter_notices_edge_test.dart (21); test/ui/reveal_on_traversal_edge_test.dart (9); test/about/about_round5_edge_test.dart (12); test/about/sqlite3mc_notice_shape_test.dart (7)
+  > E2E tests added: 0 (n/a: no desktop end-to-end tool approved; the widget tests drive Tab, click, Esc and Back on the real Settings screen)
+  > Fail-then-pass (old code = ba6ed2b for lib/ and assets/, new file flutter_notices.dart moved aside; restored afterwards, git status clean, no production file differs from 2317e6b): notice_entry_edge_test (all 15): "Method not found: 'NoticeEntry'" on ba6ed2b. Pass on 2317e6b. flutter_notices_edge_test (all): "Method not found: 'flutterNotices'" on ba6ed2b. 20 pass on 2317e6b, 1 fails (BUG-T1). reveal_on_traversal_edge_test: 4 fail on ba6ed2b, for example "step 0: Rect.fromLTRB(28.0, 158.0, 72.0, 202.0) in Rect.fromLTRB(0.0, 0.0, 100.0, 200.0)" (the ring is 2 px past the view). The failing ones are Tab down, Shift+Tab up, the horizontal axis, and bouncing physics. Pass on 2317e6b. about_round5_edge_test: 7 fail on ba6ed2b. These are the toast room at 150% text, 360x640 and 320x480, the room under View licences at 100%, the delete-count toast, and click-then-Esc focus return (2 tests). Pass on 2317e6b. sqlite3mc_notice_shape_test: the "22 blocks" test fails on ba6ed2b (the old asset has no "Text of" blocks). Pass on 2317e6b.
+  > Regression locks (both-pass, kept deliberately): reveal_on_traversal_edge_test, five tests (no padding at the content end, a view smaller than the control, a view exactly control plus ring, no scroll ancestor, a node not in the tree); about_round5_edge_test, five tests (Space opens, a click on Copy version does not take focus, two quick clicks open one page, the section is disposed while the page is open, the long import toast still leaves View licences reachable by keyboard); sqlite3mc_notice_shape_test, six tests (file shape); notice_entry_edge_test: "NoticeEntry on the GPL reads it differently".
+  > Bugs found: BUG-T1 (low, no regression versus before): a garbled NOTICES.Z (not gzip, or invalid UTF-8) makes the whole licence page show only the error text. Kusunga's GPL, SQLite and sqlite3mc notices vanish with it, because flutterNotices lets the error out of the shared stream and Flutter's page folds the whole registry. Flutter's own collector in the same state left the page loading forever, so this is no worse than before. The existing test "without NOTICES.Z the error reaches the licence page, as Flutter's own does" locks the opposite on purpose. The notices are GPLv3 5(d) material, so a fix would be: catch the NOTICES.Z read, decode and parse in flutterNotices and yield nothing. The developer or PM should decide, and then change the old test too. Repro (fails today): test/about/flutter_notices_edge_test.dart, "the licence page with a broken NOTICES.Z a garbled NOTICES.Z still lists Kusunga and its notices". It is the only failing test, left failing on purpose. Not bugs: an empty or zero-byte NOTICES.Z gives one empty entry (the same as Flutter's parser). A gzip cut in half is read silently by Dart (no error, partial text).
+  > Checked and found correct (all locked in tests): NoticeEntry rules (indent, tabs, CRLF, trailing spaces, blank runs, common indent, 10000 blocks fast; GPL entry paragraphs equal LicenseEntryWithLineBreaks(LICENSE) exactly). flutterNotices drops only exactly ["kusunga"] with the LICENSE text, whitespace-insensitive; keeps all other variants and 300 other notices in order; not calling super.initLicenses() loses nothing (Flutter 3.44's ServicesBinding.initLicenses only registers the NOTICES.Z collector). revealOnTraversal: ring in view on Tab, Shift+Tab, horizontal axis, bouncing physics; no throw. B3: no overlap at 150% text, 100% at 360x640 and 320x480, or with the "12 items deleted" toast; at least 60 px under View licences; multi-line import toast (pre-existing) can still cover the end, View licences stays reachable by keyboard. B4: click then Esc/Back, Space, repeated rounds, Shift+Tab, Copy version click does not move focus; keyboard path unchanged. sqlite3mc.txt vs the downloaded v2.5.0 sources (read-only script, `python3 -I`): all 22 "Text of <path>, lines a to b" blocks match the named lines; words verbatim apart from comment marks in 19 of 22; rijndael.c 14-44 and miniz.c 2-26 omit one decorative line each (no words lost); the argon2 block adds one sentence of the notice's own after the quote; Apache-2.0 and CC0-1.0 full texts are not in the notice (PM decision).
+  > Abuse cases covered: n/a. UI states covered: B2, B3 and B4 rows plus the hidden-row state. Not covered: the 200% text and 360 px toast case.
+  > Gaps not covered: toast at 200% text and 360 px wide (Ahem test font wraps "Link copied" to two lines and overlaps; left out of the suite with a comment; needs a real-font QA check, as does the sqlite3mc entry at 360 and 800 px). Real NOTICES.Z from a release build untested. The sqlite3mc quote check is a manual script run, not a repo test.
+  > Production code changed: none
+  > Suite: 4177 passing / 1 failing (the BUG-T1 repro) / 10 skipped (was 4114). `./tool/check.sh`: format 313 files, 0 changed; analyze: no issues; test: "+4177 ~10 -1".
+  > Blockers: none (BUG-T1 needs a decision from the developer or PM; the Apache-2.0 and CC0-1.0 texts decision is already with the PM)
+  Lead: BUG-T1 is a correctness fix, so it goes to the developer (round 6, escalated to opus at high effort after a second failed round), with the old "error reaches the licence page" test changed to match. Also asked: the sqlite3mc intro names the decorative lines left out (rijndael.c, miniz.c).
+- Gates: developer round 6 in progress · tester found BUG-T1 · reviewer re-check pending · QA re-check pending · PM merge not asked
+- Open findings: BUG-T1 low
+- Decisions: open for PM: Apache-2.0 and CC0-1.0 full texts
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
+## 2026-11-22 — M1.9a About and licences — developer round 5 (QA bugs, hidden row, licence texts); tester dispatched
+- Changed: developer report (sonnet, high effort, round 5), word for word ("How to verify" left out, sub-lists joined onto one line, scratchpad paths shortened):
+  > Branch: feat/about-licences (7 new commits on top of ba6ed2b; not pushed). Worktree: scratchpad/m19a-wt
+  > Commits (oldest first): df8fbbc fix(licences): SQLite blessing keeps its three lines (B1); 5ad128d feat(licences): sqlite3mc notice carries the MIT text and every part's licence text, verbatim from v2.5.0 (AC1, AC7, R6); 4e0e6e8 fix(ui): Tab reveals the whole focus ring (B2); 61bd538 fix(settings): room under the last control for a toast (B3); 578491d fix(about): View licences takes focus when clicked (B4); 80fc383 fix(licences): hide Flutter's second copy of the app licence (lower-case "kusunga" row); 2317e6b docs(ui): spec follows the PM decisions (R1 order, hidden row, verbatim texts)
+  > Built:
+  > - B1: new `NoticeEntry` in lib/about/licences.dart. Lines indented 4+ spaces keep their line breaks; everything else is read the way Flutter reads it. The SQLite and sqlite3mc notices use it; LICENSE (GPL) stays on LicenseEntryWithLineBreaks. sqlite.txt only had its first blessing sentence joined onto one line.
+  > - Licence texts: assets/licences/sqlite3mc.txt now has, under each of the 18 part blocks, "Text of <path>, lines a to b" followed by the verbatim text. The intro names the project and tag v2.5.0 and says only the comment marks at the start of lines (/*, */, **, *, //) were left out.
+  > - B2: `revealOnTraversal` (lib/ui/focus_order.dart) now calls `showOnScreen` with the control's box inflated by 2 px (`focusRingReach`). This is the shared helper, so it also applies to other screens that use it. The root cause was that the control was scrolled flush to the view edge, so the 2 px outside ring was clipped.
+  > - B3: Settings scroll padding at the bottom is now space4 + one-line toast height (43 + textScaler.scale(20)), so the toast sits below View licences at 100% and 200% text.
+  > - B4: `AboutSection` is now Stateful with a FocusNode on View licences. Click or Enter first requests focus on that node, then opens the page.
+  > - Hidden row: new lib/about/flutter_notices.dart (`flutterNotices`) reads NOTICES.Z like Flutter does and drops only an entry whose package list is exactly ["kusunga"] and whose text equals LICENSE (whitespace-insensitive). `KusungaBinding.initLicenses` registers ours, then `flutterNotices`, and no longer calls `super.initLicenses()` (marked `// ignore: must_call_super`). Reason: Flutter's collector cannot be removed from the registry and the licence page cannot hide a row. NOTICES.Z is decoded on the main isolate because `test/ci/zone_assumption_test.dart` forbids `compute` in lib.
+  > - Spec docs/ui/about-and-licences.md updated: list order, hidden duplicate row, verbatim texts. "— development build" and the "Development build" caption are untouched. "Licenses" (US) is untouched.
+  > Tests: full check.sh: "Formatted 308 files (0 changed)", "No issues found!", "04:19 +4114 ~10: All tests passed!", exit 0 (flutter_tester was not running beforehand; no background jobs left). New tests: test/about/licence_texts_test.dart (R6): per part, key lines word for word (copyright holders, MIT/BSD/miniz full text, CC0/Apache URLs, blessing), each source file and the tag named, and the MIT text appears exactly twice (project and miniz); licence_registry_edge_test.dart: B1 paragraph test plus NoticeEntry unit tests; about_edge_test.dart: "the blessing is shown on three lines"; about_focus_ring_test.dart (B2), about_toast_room_test.dart (B3), about_licences_focus_test.dart (B4), shared harness about_settings_harness.dart; flutter_notices_test.dart (hidden row); the skipped MIT test in licence_registry_test.dart is un-skipped.
+  > First failing runs, before each fix: B1: licence_registry_edge_test "the SQLite blessing keeps its three lines on the page" — Actual: one line; widget test "Expected: an object with length of <3>, Actual has length of <1>". R6/AC7: licence_texts_test with the old asset: 38 failures; un-skipped MIT test on the old asset: "Expected: contains 'MIT License' ...". B2: ring bottom 634 vs view bottom 632 at 800x632 (and 642 vs 640 at 360x640). B3: toast Rect(0,569,800,632) overlaps View licences Rect(16,566,...); at 200% toast top is 549. All 4 cases fail. B4: "Expected: true Actual: <false>" after a mouse click (Esc and Back both). Hidden row: compile failure (`flutter_notices.dart` did not exist). Behaviour tests then pass. Failing outputs for B2-B4 are saved at scratchpad/fail-b2b3b4.txt. Each regression test was run against the old code before the fix.
+  > Downloads (plain curl of raw.githubusercontent.com at tag v2.5.0, into a new directory scratchpad/sqlite3mc-dl; read as text only, nothing run; no prompt or sandbox refusal). Base URL: https://raw.githubusercontent.com/utelle/SQLite3MultipleCiphers/v2.5.0/ — LICENSE, LICENSE.spdx, src/filelist.md (read only, to find part paths); 21 part files quoted in the notice; others downloaded but not quoted (checked only that they carry the same licence lines, or have no header). Generator (not in repo): scratchpad/sqlite3mc-gen/gen.py, run with `python3 -I`. Paths that returned 404 and were dropped: src/argon2/LICENSE, LICENSES/*, src/aegis/LICENSE and similar. Parts with no licence text in their files (Ascon helper files, libargon2.c, mystdint.h, extensionfunctions.c) keep the existing "No licence text ..." wording. Nothing was invented for them.
+  > Deviations from plan: `super.initLicenses()` is no longer called (reason above). The two tests that checked that string now check `registerLicences();` before `LicenseRegistry.addLicense(flutterNotices)`. B2 changed the shared `revealOnTraversal`, not only About. Comment markers were stripped from the quoted headers (the words are verbatim). The tester's R10 test now builds a `NoticeEntry` instead of a LicenseEntryWithLineBreaks. PM decisions confirmed in docs/status.md on main (line 65-68).
+  > Checklists: ui-build — n/a items: states-matrix additions, new breakpoints, new copy, new tokens. data-and-apis — n/a. Test hooks: no new interactive controls. E2E: n/a — no desktop end-to-end tool approved. Kusunga was not launched; no xcodebuild test.
+  > Risks / unverified: Apache-2.0 and CC0-1.0 FULL texts are NOT in the notice. The v2.5.0 tree has no such file in the paths I could fetch (src/argon2/LICENSE and LICENSES/* are 404). The Argon2 and fastpbkdf2 headers are quoted verbatim and name the texts by URL; the notice says the texts themselves are not in the files. AC1/AC7 asked for them "as applicable". PM needs to decide: either allow a download of the canonical texts from another source (e.g. the Argon2 reference repo or SPDX), or accept the headers plus URLs, since Argon2 is CC0 "or" Apache at the user's option and CC0 needs no text to travel. No non-allowed host was used. The rijndael filelist.md "LGPL-3.0+ WITH WxWindows" claim has no LGPL text; the file header says MIT. Existing wording is kept. Not visually checked in the real app; QA should look at the sqlite3mc entry at 360 px and 800 px. The toast room is a measured constant for a one-line toast; the long import toast can still cover the end of the scroll (already so, not in B3). Row hiding only works with a real build that has NOTICES.Z; unit-tested with a fake NOTICES.Z. NOTICES.Z is decoded on the main isolate when the page opens (not measured). I used /tmp/x once by mistake (a cp into an existing directory). I removed the file I created; the directory was already there. A local history fix-up happened (a fixup squashed into the hide-row commit so every commit passes alone); nothing was pushed.
+  > Personal data touched: none. Later lines added: none. Spec gaps raised: none new.
+  > Findings: B1 — fixed (df8fbbc). B2 — fixed (4e0e6e8). B3 — fixed (61bd538). B4 — fixed (578491d). R6 — fixed (5ad128d). R1 and hide-row decisions — done (2317e6b, 80fc383).
+  > Blockers: none that stop the work. Open decision for PM: Apache-2.0/CC0 full texts (see Risks).
+  Lead: tester dispatched on feat/about-licences (2317e6b) for the round-5 changes. The Apache-2.0 / CC0-1.0 full-text question goes to the PM.
+- Gates: developer pass (round 5) · tester in progress · reviewer re-check pending · QA re-check pending · PM merge not asked
+- Open findings: none open from QA (B1–B4 fixed, waiting for re-test)
+- Decisions: open for PM: Apache-2.0 and CC0-1.0 full texts for the Argon2 and fastpbkdf2 parts
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
+## 2026-11-22 — M1.9b Mac release build — merged to local main
+- Changed: `git merge --no-ff build/mac-release` into local main (6ff4cd7). Full check on merged main: "Formatted 301 files (0 changed)", "No issues found!", "04:32 +3963 ~10: All tests passed!", exit 0 (`pgrep -fl flutter_tester` empty before the run). Not pushed.
+- Gates: developer pass · tester pass · reviewer approve · QA build checks pass, launch check moved to M1.9e (PM, 2026-11-22) · PM merge approved
+- Open findings: none
+- Decisions: PM approved the local merge (2026-11-22) — PM said: "Yes, merge locally"
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
+## 2026-11-22 — M1.9b Mac release build — PM decision: Hardened Runtime launch check on the signed build (M1.9e); correction
+- Changed: correction to the entry below: QA was **not** dispatched. Before dispatch the lead found that the test-profile switch works in Debug builds only (`lib/history/data_profile.dart`, `#if DEBUG` in `macos/Runner/MainFlutterWindow.swift`, PM decision 2026-11-05), so a Release or Profile build always opens the PM's real history and keychain item. Launching it would break the QA rules (qa or dev profile only; keychain dialogs are the PM's). The lead asked the PM how to do the launch check. Options given: (A) on the Developer ID-signed build in M1.9e, where ADR 0007 already needs QA on a signed build; (B) the PM launches the release build on real data. Lead recommended A. Added to the M1.9 acceptance criteria in docs/PLAN.md: the Hardened Runtime launch check on the signed build (M1.9e).
+- Gates: developer pass · tester pass · reviewer approve · QA: build checks done without launch (arm64 only, `flags=…(runtime)`, guards exit 0 — tester report); launch check moved to M1.9e by PM decision · PM merge waiting
+- Open findings: none
+- Decisions: PM chose the launch check on the signed build (2026-11-22) — PM said: "Do it on signed build"
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
+## 2026-11-22 — M1.9b Mac release build — reviewer re-check: approve; QA dispatched
+- Changed: reviewer re-check report (opus, high), word for word (sub-lists joined onto one line):
+  > Mode: branch
+  > Branch: build/mac-release (32d419e..4e80d18, re-check of a5887de, 3ec359c and 4e80d18) — Verdict: approve
+  > Checks: ./tool/check.sh — pass — "Formatted 293 files (0 changed)", analyze "No issues found!", tests "+3927 ~10: All tests passed!", exit 0. I confirmed `pgrep -fl flutter_tester` was empty before the run, and `/bin/bash -n` passes on tool/mac_release_guards.sh.
+  > Code review: 4 findings (4 fixed, 0 open): R2, R3, R4 and D1. R1 is under security.
+  > Design review: 1 finding (1 fixed, 0 open): D1.
+  > Security review: 2 findings, both fixed. R1 was Medium (no CVSS score: band + basis — only reachable by a commit to the tracked example file, and the binary guard already caught what got through). R2 was Low (same reach, failed only when the file was unreadable or bigger than the pipe buffer). No new security findings: the rest of the OWASP list is unchanged from the first review (n/a or holds).
+  > Privacy review: no issues (build config and a release-time script only; no personal data, logs, network calls or storage).
+  > Later lines: ok. The Intel line is on main at docs/PLAN.md:139, in the right format, with a measurable trigger, and not on the never-deferred list. Added by reviewer: none.
+  > Findings (most severe first): none open.
+  > Fix outcomes:
+  > - R1 — fixed. tool/mac_release_guards.sh:72-115 now does three things: it accepts only these keys: DEVELOPMENT_TEAM, CODE_SIGN_STYLE, CODE_SIGN_IDENTITY, PROVISIONING_PROFILE_SPECIFIER; it turns CR and NUL into LF; it fails on any `-D` token outside whole-line `//` comments. Fails on old code: in round 1 I ran the old script (14ed399) on all four repros (single quote, a variable holding `-DDEBUG`, `$(inherited)-DDEBUG`, CR-only line ends) and it exited 0 on each. Xcode does use all four (checked with xcodebuild -showBuildSettings). Passes on new code: the same probe files now exit 1. So do the BOM, `/* */` and backslash probes. I also tried to get past the new list. Spellings that still pass the guard: `;` chaining, vertical tab, form feed, U+2028, NEL. I checked each with `xcodebuild -showBuildSettings` on a scratch copy of macos/, with the probe as Local.xcconfig. Xcode reads all of them as part of the DEVELOPMENT_TEAM value, and SWIFT_ACTIVE_COMPILATION_CONDITIONS is never set. So none of them is a bypass. Regression tests: test/ci/mac_release_guards_xcconfig_test.dart:26-51 covers (a) to (d) one by one, and also checks that other keys, `#include` and continuation lines fail, and that the real example file passes. ADR 0003 line 45 now describes the allow-list accurately.
+  > - R2 — fixed. The script now reads the file with `tr` before scanning, and uses here-strings instead of pipes; every grep exit code is checked. Fails on old code: in round 1 an unreadable file exited 0, and a 789 KB file exited 0 on 5 of 5 runs. Passes on new code: the same unreadable probe now exits 2, and the large file exits 1. Regression tests: xcconfig_test.dart:125-158 (unreadable file → 2, a large file with the setting first → 1, a large clean file → 0).
+  > - R3 — fixed. test/ci/mac_release_guards_needle_test.dart reads `needle=` from the script and `static let argument = "..."` from TypedShortcutCore.swift, and checks that the argument contains the needle. Renaming either one now fails the test. It passes on old code too, which is expected: the old code had no mismatch, and the test is there to catch a future one.
+  > - R4 — fixed. test/ci/mac_release_guards_bugs_test.dart:5-8 is reworded as regression tests for bugs that are now fixed.
+  > - D1 — fixed (the lead added it). docs/PLAN.md:139 on main. My M1.9e notes are now an AC at docs/PLAN.md:110 on main.
+  > Tester tests that changed (were they weakened?): no. mac_release_guards_edge_test.dart: every changed expectation went from 0 to 1, which is stricter and is what the allow-list requires. That covers OTHER_SWIFT_FLAGS=-Onone, GCC_PREPROCESSOR_DEFINITIONS, `FOO = $(SWIFT_ACTIVE_COMPILATION_CONDITIONS)`, `A = 1 // ...`, `#include`, and lower-case keys. The "key after a trailing //" case still expects 0, now on an allowed key. The one removed test ran the guard on the build .xcconfig files, which the allow-list would now rightly reject. It has been replaced by an equivalent Dart check (xcconfig_test.dart:104-121): no SWIFT_ACTIVE_COMPILATION_CONDITIONS and no `-D` token outside comments in Release, AppInfo, Warnings and Flutter-Release. It covers the same ground as the old deny-list and more. Every other edge test is unchanged and still passes.
+  > Risk accepted by PM: none
+  > Open items: none
+  > Blockers: none. ReportFindings was not available in this session, so the outcomes are in this report instead. The probe files are in scratchpad/xcprobe/. I created no git refs, launched nothing, and pushed nothing.
+  Lead: QA dispatched for the Hardened Runtime launch in the qa profile. M1.9a developer dispatched (B1–B4, hidden row, licence-text download, spec update).
+- Gates: developer pass · tester pass · reviewer approve · QA in progress · PM merge not asked
+- Open findings: none
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
+## 2026-11-22 — M1.9b Mac release build — developer round 3 (review fixes); reviewer re-check dispatched
+- Changed: developer report (sonnet, high effort, round 3), word for word ("How to verify" left out, sub-lists joined onto one line):
+  > Branch: build/mac-release (3 new commits on 14ed399, tip 4e80d18)
+  > Commits: a5887de fix(mac-release): xcconfig guard allow-lists the signing keys, reads CR line ends, and fails on an unreadable or large file (R1, R2; also the ADR 0003 line and the old tests whose expectations changed); 3ec359c test(mac-release): the binary guard needle is the SyntheticKeysSwitch argument in Swift (R3); 4e80d18 test(mac-release): bug repro header reworded as regression tests (R4). All commit messages end with the Claude Opus 5.5 Co-Authored-By line. Worktree is clean. No push, no background jobs left. The Release.xcconfig and signing are untouched.
+  > Built:
+  > - R1 (tool/mac_release_guards.sh, guard_xcconfig): It is now an allow-list. After CR and NUL are turned into LF and whole-line `//` comments are dropped, any `-D` token fails (exit 1). Any non-blank line that is not `KEY[...]* =` for an allowed key also fails. Allowed keys are DEVELOPMENT_TEAM, CODE_SIGN_STYLE, CODE_SIGN_IDENTITY and PROVISIONING_PROFILE_SPECIFIER. The real Local.xcconfig.example sets only the first three. I added PROVISIONING_PROFILE_SPECIFIER on your instruction, for manual signing. No other key is needed. `[sdk=..]` and `[config=..]` conditions still work on allowed keys. `-D` is matched as `(^|[^[:alnum:]_])-D`, so `My-Dev Profile` passes. `$(inherited)-DDEBUG`, `'-DDEBUG'`, `"-D" X` and `-D` after a tab or in a trailing comment all fail. `#include`, lower-case keys, unknown keys and continuation lines all exit 1. ADR 0003's last Build-facts line now says exactly this. It also says the build `.xcconfig` files are not run through the guard.
+  > - R2: the file is read with `tr ... < file` into a variable (exit 2 if that fails). All matching is on here-strings with `grep -E`, with no pipes, and each grep's rc is checked (>1 exits 2). A here-string of nothing is one empty line, so the match is skipped when no lines are left. Works on /bin/bash 3.2.57 (the tests resolve `bash` to /bin/bash).
+  > - R3: new test/ci/mac_release_guards_needle_test.dart reads `needle="..."` from the script and `static let argument = "..."` from macos/Runner/TypedShortcutCore.swift, then asserts the argument contains the needle.
+  > - R4: the header of test/ci/mac_release_guards_bugs_test.dart now reads as regression tests for BUG-M1, M2, M3 and M5. I did not share the duplicated fixture helpers (optional).
+  > Tests: full ./tool/check.sh passes: `04:53 +3927 ~10: All tests passed!`, with format and analyze clean.
+  > First failing run, on 14ed399's script with the new test/ci/mac_release_guards_xcconfig_test.dart (14 tests, 9 failed, 5 passed): (a) single-quoted -D: expected 1, got 0; (b) variable holding -D: failed; (c) `$(inherited)-DDEBUG`: failed; (d) CR-only line endings: failed; any key outside the allow-list: failed; a -D token in an allowed key: failed; a -D in a trailing comment: failed; unreadable file: expected 2, got 0, and it prints "ok"; large file (about 790 KB, 25000 setting lines after the first): setting first, expected 1, got 0. After the fix, all 14 pass. Tests that pass on both: the real Local.xcconfig.example exits 0, the build-xcconfig check, a large clean file exits 0, and the signing keys pass.
+  > - R3 mutation check: changing the script's needle to `...Keyz` makes the new test fail, with Actual '-KusungaAcceptSyntheticKeys'. It passes on 14ed399 because that code was already consistent. It is a coupling guard, not a bug repro.
+  > - The unreadable-file test is skipped when run as root (uid 0).
+  > - Note: a large file whose filler is only `//` comment lines did not trigger the old SIGPIPE false pass. The filler must be non-comment lines, as in the committed test.
+  > E2E: n/a — no suite for these scripts. No UI flow was run, and Kusunga was never launched.
+  > Test hooks: n/a — no UI
+  > Deviations from plan: Existing tester tests in test/ci/mac_release_guards_edge_test.dart pinned the old deny-list behaviour and had to change with the allow-list: `OTHER_SWIFT_FLAGS = -Onone`, `GCC_PREPROCESSOR_DEFINITIONS`, `FOO = ...` and `A = 1 // ...` now expect 1 instead of 0. The "documented limit" test for `#include` and lower-case keys now expects 1. A trailing-comment test now uses an allowed key. The "build xcconfig files pass the guard" test moved to the new xcconfig test file. It now greps those files in Dart for SWIFT_ACTIVE_COMPILATION_CONDITIONS and `-D`, because Release.xcconfig (ARCHS and so on) legitimately sets other keys and would fail an allow-list. Splitting R1 and R2 into separate commits was not practical: both rewrite the same function, so they share one commit.
+  > Checklists: none — n/a items: data-and-apis, ui-build (shell guard and tests only)
+  > Risks / unverified: A `-D` inside an allowed key's value, such as a profile named `Foo -DBar`, fails. That is intended and conservative. `#include` is rejected rather than followed. Local.xcconfig.example has none today. NUL bytes start a new line (conservative). I did not check against xcodebuild how Xcode treats NUL. I did not re-run `xcodebuild -showBuildSettings` for (a) to (d). I relied on your confirmation, and the guard no longer depends on how Xcode parses them. UTF-16 and BOM-prefixed xcconfig files were not tested. A BOM would make the first line fail, which is safe.
+  > Personal data touched: none
+  > Later lines added: none
+  > Spec gaps raised: none
+  > Findings: R1 — fixed (a5887de, test/ci/mac_release_guards_xcconfig_test.dart); R2 — fixed (a5887de, same file: unreadable file exits 2, large file exits 1); R3 — fixed (3ec359c, test/ci/mac_release_guards_needle_test.dart); R4 — fixed (4e80d18)
+  > Blockers: none
+  Lead: reviewer re-check dispatched on 4e80d18. The M1.9a developer starts after the re-check, so checks don't run in parallel.
+- Gates: developer pass (round 3) · tester pass · reviewer re-check in progress · QA open · PM merge not asked
+- Open findings: R1–R4 fixed, waiting for the reviewer's re-check
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
+## 2026-11-22 — M1.9a About and licences — PM decisions on the spec questions and the licence texts
+- Changed: lead asked four questions (QA spec gaps and the open licence-text decision); the PM chose:
+- Gates: unchanged (QA pass with B1–B4; AC1/AC7 open)
+- Open findings: B1–B4 (minor)
+- Decisions (PM, 2026-11-22, answers as chosen word for word):
+  - R1 licence order — question "Is that OK?" — PM chose: "OK as it is (Recommended)" (keep Kusunga first; the spec is updated to match)
+  - Lower-case "kusunga" row — PM chose: "Hide it (Recommended)"
+  - Flutter's US spelling "Licenses" — PM chose: "Accept it (Recommended)"
+  - SQLite3 Multiple Ciphers licence texts — PM chose: "Allow the download" (developer may download utelle/SQLite3MultipleCiphers tag v2.5.0: LICENSE and the bundled parts' licence headers, from GitHub)
+  - Not asked, default kept: "— development build" plus the "Development build" caption both stay, as in the spec.
+- Blockers: Developer none (licence-text download now allowed) · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
+## 2026-11-22 — M1.9a About and licences — QA report; bugs B1–B4 queued for the developer
+- Changed: QA report (sonnet), word for word (sub-lists joined onto one line, wording unchanged):
+  > Milestone: M1.9a About and licences — 13/15 rows pass; 1 open (known), 1 not observed — Date: 2026-11-22 — Environment: macOS 27.2, Flutter 3.44.6, branch feat/about-licences at 38b4f77 (not pushed). Debug build A had the 0.9.0 / 1 defines. Debug build B had no defines. Built and run one after the other, qa profile only.
+  > Automated: 0/15. All manual on the real app, because no desktop end-to-end tool is approved. I used AX reads, guarded click and key helpers, window screenshots and ffmpeg.
+  > Per criterion (details in docs/qa/m1.md, section "M1.9a About and licences (2026-11-22)"):
+  > - GPL notice (About text, licence-page legalese, full GPL in the Kusunga entry): PASS.
+  > - Third-party notices, AC1/AC7: OPEN (known, PM decision pending). The Kusunga entry holds 3 notices: the GPL, then the SQLite3 Multiple Ciphers notice, then the SQLite notice. The sqlite3mc notice is the index only: heading "SQLite3 Multiple Ciphers 2.5.0 and the parts it bundles", one intro paragraph, then each part with a "Licence: ..." line. It has no MIT permission text, no copyright-holder line, and no BSD-3-Clause, CC0 or Apache-2.0 text. The SQLite notice shows the blessing and the sqlite.org copyright link.
+  > - Version with defines: PASS. The About line reads "Kusunga 0.9.0 (build 1) — development build". The licence page shows 0.9.0 (build 1). Copy version copies the line.
+  > - No defines: PASS. The line reads "Kusunga (version unknown) — development build". Copy version copies that text.
+  > - Source link: PASS for debug builds (the plain repo URL plus the "Development build" caption).
+  > - Copy buttons and toasts: PASS. "Version copied" and "Link copied" show, and the clipboard contents are correct. Eight own copies did not appear in History, which stayed at 3 items.
+  > - Licences list: PASS (recorded, not failed). "Kusunga" is the first row. "sqlite", "SQLite", "sqlite3" and "SQLite3 Multiple Ciphers" sit in alphabetical order near "s", out of 159 rows.
+  > - Keyboard: PASS, with B2 and B4 below. Tab order in Settings: 12 stops, ending Copy version, Copy link, View licences. The page opens with the first row focused (blue fill), and the back button has a ring. Esc on an entry goes to the list. The next Esc goes to Settings with focus on View licences (keyboard path).
+  > - Reduce motion: not observed (see below).
+  > - Copy word for word: PASS.
+  > - 360 px layout: PASS (About, licences list and entry; buttons stack, link wraps, no sideways scroll).
+  > - Accessibility names: PASS from the AX tree. The names are "Copy version 0.9.0 build 1" and "Copy source code link". Toast text appears in the tree.
+  > - Contrast: PASS. Focus ring 8.39:1; focused row fill 3.69:1; buttons 40 pt high.
+  > - States matrix: PASS for the reachable states.
+  > - Video: done.
+  > Fail: none of the criteria fail. Four bugs, all Minor (B2 arguably Major):
+  > - B1 (Minor): the SQLite blessing runs onto one line ("* May you do good... * May you find...") although assets/licences/sqlite.txt has three lines. Repro: Settings > View licences > Kusunga > scroll to the end. Evidence: screens/m19a-kusunga-entry-bottom-sqlite.png.
+  > - B2 (Minor, arguably Major under WCAG 2.4.7): the focus ring of Copy version, Copy link and View licences is clipped at the bottom edge of the 800x632 window when Tab scrolls them into view. Repro: Settings, press Tab 10, 11 and 12 times from the top. Evidence: screens/m19a-focus-copy-version.png, m19a-focus-copy-link.png, m19a-focus-view-licences.png. At 360x640 the ring is complete.
+  > - B3 (Minor): the toast covers the View licences button for about 3 s when Settings is scrolled to the end. Evidence: screens/m19a-toast-version-copied.png.
+  > - B4 (Minor): after opening the licences page with the mouse, Esc puts focus on the Settings tab, not on View licences, because the click never focused the button. The keyboard path is fine. Evidence: screens/m19a-esc-returns-focus-view-licences.png.
+  > Spec gaps (PM questions):
+  > - R1: the spec says the three notices are "at the top"; in the real list only Kusunga is at the top and the others are alphabetical. Is that acceptable?
+  > - A lower-case "kusunga" row (Flutter's own collection of the app licence) repeats the GPL text next to the pinned row. Keep it or hide it?
+  > - Flutter's page title and counts use the US spelling ("Licenses"), while the app copy says "licences". Accept it?
+  > - The version line says "— development build" and the caption "Development build" repeats it two lines lower (both are in the spec). Keep both?
+  > - The "Test profile: qa" badge is not on the licences page (full-screen route). QA-only; no action unless the PM wants it.
+  > Re-verified: none.
+  > Needs PM: none required. Optional, if the PM wants the two items under Not observed: 1. Turn on Reduce motion in System Settings > Accessibility > Display, open Settings > About > View licences and check there is no slide. Turn it off again. 2. With VoiceOver on (Cmd+F5), Tab to Copy version and listen for "Copy version 0.9.0 build 1". Turn VoiceOver off.
+  > Not observed: Reduce motion (needs a System Settings change, which QA must not make; covered by widget tests). Release-build tag link (v0.9.0): only debug builds were made; covered by BuildInfo unit tests. The "Couldn't copy. Try again." toast: I could not force a clipboard failure. Live VoiceOver: I read the AX tree instead. The licence-list spinner: too brief to catch. 200% text and the 840 px side-by-side layout. Windows. I did not run check.sh or flutter test, because flutter_tester was running in another worktree.
+  > Accessibility: pass on what I could check (keyboard, 360 px, names from the AX tree, contrast), except B2 (focus ring clipped at the window bottom edge, arguably Major). Live screen reader and 200% text were not observed.
+  > Privacy: n/a — no network, cookies or personal data in this item. Nothing was fetched, and the source link is shown as text only.
+  > Claims: n/a
+  > Dialogs and incidents: No keychain, permission or trust dialog appeared. A SecurityAgent helper process started at each launch (pids 74693 and 66873). System Events showed no window for it, Kusunga stayed frontmost and the app loaded, so I clicked nothing. One Return key press went to the Claude app instead of Kusunga, because my first key script had no frontmost check. It had no visible effect. After that every key press goes through a script that refuses unless Kusunga is frontmost. The click helper refused once for the same reason and sent nothing. The Mac clipboard was overwritten with test text (the version string and the link). I wrote one scratch screenshot to /tmp/x.png and deleted it.
+  > Evidence: docs/qa/m1.md (section "M1.9a About and licences (2026-11-22)", with the PM check note); screens: docs/qa/m1/screens/ (22 files, prefix m19a-); videos: m1.9a-about-licences-flow.mp4 (60 s; in qa-artifacts/m1.9a/ in the worktree and in the main checkout, git-ignored, not committed).
+  > Commit: ba6ed2b on feat/about-licences, docs/qa only, message ends with the Co-Authored-By Opus 5.5 line. Not pushed.
+  > PM check steps: verified n/a — nothing needs the PM — docs/qa/m1.md#pm-check-m19a
+  > Stopped: both qa Kusunga instances (pids 74536 and 66746), no ffmpeg left running. The qa profile is unchanged (3 made-up history items).
+  > Blockers: none
+  Lead: spot-checked m19a-focus-copy-version.png (qa label, made-up data only; the clipped ring is visible). Process note: QA's stray Return key went to the Claude app before it added a frontmost check — no effect seen, logged and told to the PM. B1–B4 go to the developer once the M1.9b developer's check run is done (checks never run in parallel). The new spec questions go to the PM.
+- Gates: developer pass · tester pass · reviewer approve with notes · QA pass with 4 minor bugs; AC1/AC7 open (licence texts) · PM merge not asked
+- Open findings: 4 minor (B1–B4); R5 (in plan), R6 open; AC1/AC7 open
+- Decisions: none new
+- Blockers: Developer sqlite3mc licence texts (PM) · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — licence texts, R1 order and 3 new spec questions
+
+## 2026-11-22 — M1.9b Mac release build — reviewer: block; fixes back to the developer
+- Changed: reviewer report (opus, high), word for word (sub-lists joined onto one line, wording unchanged):
+  > Mode: branch
+  > Branch: build/mac-release (32d419e..14ed399) — Verdict: block (R1 is Medium with no dated task in the plan. It becomes approve with notes if R1 is fixed, or if the lead adds a dated task with an owner and due date)
+  > Checks: ./tool/check.sh — pass — "+3914 ~10: All tests passed!", exit 0. I confirmed `pgrep -fl flutter_tester` was empty before the run. `bash -n` and `/bin/bash -n` (3.2.57) both pass on tool/mac_release_guards.sh.
+  > Code review: 4 findings (0 fixed, 4 open): R2, R3, R4 and the Later-line gap D1. R1 is listed under security.
+  > Design review: 1 finding (0 fixed, 1 open): D1, a missing Later line for the Intel build.
+  > Security review: 2 findings
+  > - R1 Medium (no CVSS score: band + basis). Only someone committing to the tracked Local.xcconfig.example can trigger it, and PR review stands in their way. The xcconfig guard then says "ok" while Xcode turns on Swift conditions such as DEBUG. The binary guard still catches the marker downstream, so this is a gap in defence in depth, but it is in a gate AC10 requires.
+  > - R2 Low (no CVSS score: band + basis). Same reach, with an even less likely trigger: the file is unreadable, or it is bigger than the pipe buffer (about 64 KB). The guard then exits 0 when it should exit 2.
+  > The rest of the OWASP list: A01, A04, A07 and A09 are n/a (no endpoints, auth, crypto or logging). A02 holds: Release.entitlements has no Hardened Runtime exceptions, and the release build was checked with codesign, flags=adhoc,runtime. A03 is n/a (no new packages). A05 holds: the script only takes paths from the release script, quotes every expansion, and refuses paths that start with a dash. A06 holds: the design note's top threat, the test switch in a release, is covered by the binary guard, which I checked on real builds (see Evidence). A08 and A10: see R1 and R2. AI: n/a, no AI features. Secrets: none in the diff. The security-review skill ran against the session cwd (main checkout on fix/windows-ci), so its diff was empty and its result is not usable. I worked through references/security.md by hand on 32d419e..14ed399 instead.
+  > Privacy review: no issues. No personal data, logs, network calls or storage are touched. Retention, erasure, processors, consent, SDKs and regions are n/a: this is build config and a release-time script only.
+  > Later lines: none added by the branch. Added by reviewer: none, because this reviewer cannot edit files. The lead should add this line (see D1): "- Universal (Intel + Apple silicon) Mac build — D3 A ships Apple silicon only to avoid the Flutter 3.44.6 lipo failure on macOS 27, and Intel Macs on macOS 26 or older get no build — trigger: ≥ 1 tester or user asks for an Intel build, or the pinned Flutter is upgraded past 3.44.6 — noted 2026-11-22 by reviewer"
+  > Findings (most severe first):
+  > - R1 — Medium — tool/mac_release_guards.sh:71-72
+  >   - Failure scenario: the xcconfig guard exits 0 ("ok") for four spellings that Xcode does honour. I checked each one with `xcodebuild -showBuildSettings -target Runner -configuration Release`, on a copy of macos/ in the scratchpad, with the probe saved as Local.xcconfig (AppInfo.xcconfig pulls it in with `#include?`):
+  >     - (a) `OTHER_SWIFT_FLAGS = $(inherited) '-DDEBUG'`: Xcode gives `OTHER_SWIFT_FLAGS = '-DDEBUG'`.
+  >     - (b) `KUSUNGA_FLAGS = -DDEBUG` plus `OTHER_SWIFT_FLAGS = $(inherited) $(KUSUNGA_FLAGS)`: Xcode gives `-DDEBUG`.
+  >     - (c) `OTHER_SWIFT_FLAGS = $(inherited)-DDEBUG`: Xcode gives `-DDEBUG`.
+  >     - (d) CR-only line endings, `DEVELOPMENT_TEAM = X\rSWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG\r`: Xcode gives `SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG`.
+  >   - Who is affected: if someone edits the example file this way, developers who copy it build release binaries with DEBUG code in them, including the synthetic-keys switch. AC10's second bullet ("a guard checks that Local.xcconfig.example sets no Swift compilation conditions") is not met, and ADR 0003's last Build-facts line overstates what the guard does.
+  >   - Expected fix: allow-list the keys the signing example may set (DEVELOPMENT_TEAM, CODE_SIGN_STYLE, CODE_SIGN_IDENTITY, PROVISIONING_PROFILE_SPECIFIER). Any other key, or any `-D` token anywhere outside a whole-line `//` comment, exits 1. Turn CR into LF before matching. Add a regression test for each of (a) to (d), and give both runs (fails on 14ed399, passes after).
+  > - R2 — Low — tool/mac_release_guards.sh:71
+  >   - Failure scenario: `grep -v ... | grep -Eq ...` runs under `set -o pipefail`, so any non-zero status from either grep makes the `if` false, and the guard prints "ok".
+  >     - A `chmod 000` file holding `SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG` prints "grep: Permission denied", then "ok", and exits 0.
+  >     - A 789 KB file with that line first exits 0 in 5 out of 5 runs: grep -q stops at the match, and grep -v then dies on SIGPIPE (141).
+  >   - This breaks the script's own rule that exit 2 means the guard could not run. The binary guard handles the same cases correctly.
+  >   - Expected fix: capture the output first with `filtered="$(grep -v '^[[:space:]]*//' "$file")" || rc=$?`, exit 2 if rc > 1, then run `grep -Eq '...' <<< "$filtered"` with no pipe. Add tests: an unreadable file exits 2, and a large file with the setting first exits 1.
+  > - R3 — Low — tool/mac_release_guards.sh:20 against macos/Runner/TypedShortcutCore.swift:287
+  >   - Failure scenario: the needle is hard-coded and no test ties it to `SyntheticKeysSwitch.argument`. test/ci/typed_shortcut_guards_test.dart:343 only checks `seen >= 4` across four needles, so it still passes without the marker. If someone renames the argument (for example to `-KusungaAllowSyntheticKeys`), the release guard passes every build from then on, including one built with DEBUG on.
+  >   - Expected fix: a test that reads `static let argument = "..."` from TypedShortcutCore.swift and checks that it contains the script's needle.
+  > - D1 — Low (design, plan hygiene) — docs/PLAN.md "Later" section
+  >   - Failure scenario: the design note's D3 row says "Intel becomes a Later line", but neither main nor the branch has one, so the Intel deferral has no trigger and could be forgotten.
+  >   - Expected fix: the lead adds the line given under "Later lines" above.
+  > - R4 — cleanup — test/ci/mac_release_guards_bugs_test.dart:5-8
+  >   - The header says "Each of these FAILS on the branch today", which is no longer true after 14ed399. A reader could treat a real regression as an expected failure.
+  >   - Expected fix: reword it as regression tests for BUG-M1, M2, M3 and M5. Optional: the three test files each define the same fixture helpers (bin/app/guard), and these could be shared.
+  > Notes for M1.9e (not findings on this branch):
+  > - The file that actually reaches signed builds is the git-ignored Local.xcconfig. AppInfo.xcconfig includes it at target level for every configuration, so it can also override Release.xcconfig's ARCHS and ENABLE_HARDENED_RUNTIME. The release script should: run `xcconfig` on the real Local.xcconfig as well, if it exists; check `lipo -archs` = arm64 and that the codesign flags include "runtime" on the shipped binary; run `binary` on a Debug build as a positive control, expecting exit 1.
+  > - A dropped code-review idea: Profile signs with DebugProfile.entitlements, which has allow-jit, under Hardened Runtime. The ADR only claims that the release entitlements have no exceptions, which is true, and Profile is not shipped.
+  > - Also dropped: RunnerTests under the Release Hardened Runtime: CI runs XCTest in Debug only (check.yml:25). Per-file grep speed: the Release .app has 36 files and the scan takes 0.16 s.
+  > Evidence I gathered (all reads, nothing launched, built, signed or pushed):
+  > - `xcodebuild -showBuildSettings` on the scratch copy: Release: ARCHS=arm64, ENABLE_HARDENED_RUNTIME=YES, MACOSX_DEPLOYMENT_TARGET=12.0. Profile: ARCHS=arm64, ENABLE_HARDENED_RUNTIME=YES, ONLY_ACTIVE_ARCH=NO. Debug: ARCHS=arm64 x86_64, ONLY_ACTIVE_ARCH=YES, ENABLE_HARDENED_RUNTIME=NO, SWIFT_ACTIVE_COMPILATION_CONDITIONS=DEBUG. So the inheritance works as intended, and Debug is untouched.
+  > - Flutter 3.44.6 `build_macos.dart` passes a generic destination and no ARCHS for release, so the xcconfig ARCHS is what applies.
+  > - The worktree's Release build: `lipo -archs` gives arm64, and codesign gives flags=0x10002(adhoc,runtime).
+  > - Binary guard on real builds, using /bin/bash 3.2: main checkout's Debug Kusunga.app: exit 1 (marker found in Contents/MacOS/Kusunga.debug.dylib); worktree Release and Profile .app: exit 0. I found no false pass in the binary guard: no pipes, find and grep errors give exit 2, there are no locale problems, and symlinked targets give exit 2.
+  > - ADR 0003 Build facts are accurate apart from the R1 overstatement. 12.0 traces back to d94a892 (Xcode 27.2), and D3 A is dated 2026-11-19.
+  > - Probe files are in scratchpad/xcprobe/. No git refs were created.
+  > Fix outcomes: none yet (first review round).
+  > Risk accepted by PM: none
+  > Open items: R1 (Medium, open, no dated task), R2 (Low), R3 (Low), D1 (Low, needs the lead to add the Later line), R4 (cleanup)
+  > Blockers: none. ReportFindings was not available in this session, so the findings are in this report instead.
+  Lead: D1 done — the Intel Later line is in docs/PLAN.md. The M1.9e notes became one M1.9 AC in docs/PLAN.md (real Local.xcconfig guard, lipo and runtime checks, Debug positive control, ./ or absolute paths). R1–R4 go back to the developer (round 3, effort raised to high after a failed review round). No dated-task route for R1: it is fixed now.
+- Gates: developer round 3 · tester pass · reviewer block (R1 Medium) · QA open · PM merge not asked
+- Open findings: 1 medium (R1), 2 low (R2, R3), 1 cleanup (R4); D1 closed by the lead
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-22 — PM decisions: push main; `name.json.json` to Later
 - Changed: Later line added in docs/PLAN.md for the doubled `.json` save name. Main pushed to origin with the PM's approval.
 - Gates: n/a — docs and decisions only
