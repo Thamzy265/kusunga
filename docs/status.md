@@ -1,5 +1,46 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — developer fixed R1, L1, L2, C1, C2
+- Changed: developer report (opus, high), word for word:
+  > Branch: feat/about-licences (5 new commits on 66d711f, tip af3f502, not pushed). Worktree: scratchpad/m19a-wt
+  > Built:
+  > - R1: on Windows, bash_windows_edge_test now tries the reader edge cases under Git Bash (`[findBash()]`) instead of an empty list. I removed the false "Nothing here needs Windows" header. Tests that behave differently under Git Bash now have a Windows branch, or a skip with a printed reason.
+  > - L1: the Windows reader in bash.dart runs `set +f` before `exec "$BASH"`, and the comment now says why. There is a new test with SHELLOPTS in the environment.
+  > - L2: the `_symlinks` skip reason is reworded to the reason the reviewer gave, in both files.
+  > - C1/C2: the three stale comments now describe current behaviour. I removed the duplicate "each SQLite notice is reachable" group, the unused `_FileBundle` and the unused import from argon2_page_test.dart. The copy in about_edge_test.dart:579ff stays.
+  > Tests: 4397 passing, ~10 skipped (`./tool/check.sh`, run once at the end, alone): "Formatted 334 files (0 changed)", "No issues found!", "05:13 +4397 ~10: All tests passed!". Full log: scratchpad/check_r10_fix.txt. That is 4398 + 1 new L1 test − 2 removed duplicate tests.
+  > - New tests cover: an exported SHELLOPTS not carrying noglob into the script (per shell). The parent-environment test now uses a witness variable that Git Bash does not create, instead of HOME. As a mutation check I changed the reader to `exec env -i "$BASH"`: this test failed, along with 3 others, then I reverted the change.
+  > - First failing run (L1, before the fix): "with /bin/bash an exported SHELLOPTS does not carry the reader's set -f into the script (L1) [E] Expected: 'glob\n' 'a.sh\n' Actual: 'noglob\n' '*.sh\n'". After the fix, the 4 bash harness files passed (+91).
+  > E2E: n/a, no suite (end-to-end tools are TBD in Team setup).
+  > Test hooks: n/a, no UI.
+  > Deviations from plan: R1 uses the reviewer's preferred fix. I could not run anything on Windows. What I expect from each test under Git Bash on the windows-latest job:
+  > - zero args, 200 args, empty strings, new lines/CR, option-like args, shell syntax/unicode, glob args, relative script path, stdout/stderr/exit codes, missing script gives 127, no KUSUNGA_BASH_ left, stray short names, IFS/set -f not leaking, SHELLOPTS (L1): pass unchanged. They use the same env-transfer route that bash_windows_args_test already proved on Git Bash in run 45185425374. That run also proved CR, LF, unicode and empty values.
+  > - "no KUSUNGA_BASH_ left" now runs the child as `"$BASH" -c`, not `bash -c` by name, so the child can never be the WSL bash from PATH.
+  > - script paths: `q"q.sh` is left out on Windows (NTFS forbids `"`). $0 is compared with `forBash(s.path)` (forward slashes), as in bash_windows_args_test.
+  > - working directory and env: on Windows only the last segment of $PWD is compared (Git Bash shows Temp as /tmp), the same rule as in bash_edge_test. The relative-script test proves the real cwd. The env values are still compared in full.
+  > - parent environment: compares one inherited variable, chosen by sorted name, that neither bash nor Git Bash's runtime or launcher creates or changes (the full exclusion list is in `_inheritedWitness`). Names are compared without case on Windows.
+  > - caller BASH/IFS/GLOBIGNORE: on Windows the plain `bash script '*'` command line would be globbed by MSYS, so the expected text is now written out. $BASH is taken from `shell -c 'echo $BASH'`. Off Windows the plain invocation still runs and must give the same text (it passes on the Mac).
+  > - signal: `skip: skipOnWindows(...)`, reason: a Windows process does not die of a signal, and Dart reports negative signal codes only on POSIX.
+  > - If findBash finds no Git Bash, the file fails to load with findBash's StateError message. It does not pass silently.
+  > Checklists: none. Test harness and test text only: no data store, API or UI.
+  > Risks / unverified: none of the Windows behaviour above has been run. The one case I am least sure of is "a 100000 character argument arrives whole". Under Git Bash this means a 100000-character environment value. Windows documents 32,767 characters per variable but no limit on the environment block, and Dart and Cygwin pass the raw block, so I expect it to pass. If it fails on windows-latest, it is that test alone and would need a true skip reason.
+  > Personal data touched: none.
+  > Later lines added: none.
+  > Spec gaps raised: none.
+  > Findings:
+  > - R1 — fixed (5e5b19f, test/support/bash_windows_edge_test.dart). Needs a Windows run as evidence.
+  > - L1 — fixed (4643db0, "an exported SHELLOPTS does not carry the reader's set -f into the script (L1)"). Fails before the fix (output above), passes after.
+  > - L2 — fixed (adf86a7, reason text only, in test/ci/mac_release_guards_edge_test.dart and test/ci/sqlite3mc_extfunc_abuse_test.dart).
+  > - C1 — fixed (4e30eac for bash_windows_edge_test; af3f502 for argon2_page_test.dart:30 and :93, and the :99 comment, which was removed with its group).
+  > - C2 — fixed (af3f502, the copy in about_edge_test.dart is kept).
+  > Blockers: none. `pgrep -fl flutter_tester` was empty before and after each run, and the worktree is clean.
+  > How to verify: 1. git log --oneline 66d711f..HEAD shows 4643db0, 5e5b19f, adf86a7, 4e30eac, af3f502. 2. ./tool/check.sh gives "Formatted 334 files (0 changed)", "No issues found!" and "+4397 ~10: All tests passed!". 3. To see L1 fail first: git show 4643db0 -- test/support/bash.dart | git apply -R, then flutter test test/support/bash_windows_edge_test.dart --plain-name SHELLOPTS shows Actual 'noglob\n*.sh\n'; restore with git checkout test/support/bash.dart. 4. After the push, the windows-latest log should show "there is a bash to try" passing, about 20 tests in a "with C:\...\Git\bin\bash.exe" group passing, and one skip with the "a Windows process does not die of a signal" reason.
+- Lead note: pushed to PR 10 at af3f502; reviewer re-check dispatched.
+- Gates: developer pass · tester pass · reviewer re-check pending · QA pending · CI pending · PM merge approved when green
+- Open findings: R1 (needs a Windows run as evidence)
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-23 — M1.9a About and licences — reviewer: block (R1, Windows CI)
 - Changed: reviewer report (opus, high), word for word:
   > Mode: branch
