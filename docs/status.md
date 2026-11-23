@@ -5,7 +5,8 @@
 - Gates: developer pass · tester pass · reviewer approve with notes (CI condition met) · QA pass · CI green on c52d77b · PM merge approved ("Yes, merge when green")
 - Open findings: none
 - Decisions: PM said: "Yes, wait and merge" (2026-11-23), allowing the lead to wait on this one CI run (gh run watch) as a one-time exception to "never poll CI".
-- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead local main not pushed (needs the PM's approval) · PM — Apple Developer account (M1.9c, M1.9e); Microsoft Store account (M1.9d); DPIA section 7 (M1.9f)
+- Push: PM said: "Go ahead" (2026-11-23), answering whether to push local main (30 docs-only commits); main pushed.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e); Microsoft Store account (M1.9d); DPIA section 7 (M1.9f)
 
 ## 2026-11-23 — M1.9a About and licences — QA re-run: CC0 sentence screenshots pass
 - Changed: QA report (sonnet, medium), word for word:
