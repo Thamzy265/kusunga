@@ -1,25 +1,95 @@
 // Edge cases of the Windows argument transfer in test/support/bash.dart
-// (bashInvocation), added by the tester. The Windows invocation is run here
-// on any machine under real bash: the stock /bin/bash (3.2 on a Mac) and any
-// other bash found (Homebrew), so the reader code is tried on old and new
-// bash. Nothing here needs Windows.
+// (bashInvocation), added by the tester. The Windows invocation is run under
+// real bash on every system. On a Mac or Linux: the stock /bin/bash (3.2 on a
+// Mac) and any other bash found (Homebrew), so the reader code is tried on
+// old and new bash. On Windows: the Git Bash that findBash finds, the bash the
+// invocation is for. Where Git Bash differs from a POSIX bash, the test says
+// so in a Windows branch or in its skip reason.
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 import 'bash.dart';
 import 'bash_windows_args_test.dart' show dartWindowsCommandLine, msysArgv;
 
-/// Bashes to try: the stock one, and Homebrew's when it is installed.
-final _shells = <String>[
-  for (final s in [
-    '/bin/bash',
-    '/opt/homebrew/bin/bash',
-    '/usr/local/bin/bash',
-  ])
-    if (File(s).existsSync()) s,
-];
+/// Bashes to try. Off Windows: the stock one, and Homebrew's when it is
+/// installed. On Windows: Git Bash ([findBash]), as `/bin/bash` there is
+/// `\bin\bash` on the current drive and never exists. findBash throws when
+/// there is no Git Bash, so this file then fails to load with its message.
+final _shells = Platform.isWindows
+    ? [findBash()]
+    : <String>[
+        for (final s in [
+          '/bin/bash',
+          '/opt/homebrew/bin/bash',
+          '/usr/local/bin/bash',
+        ])
+          if (File(s).existsSync()) s,
+      ];
+
+/// What `$BASH` is in a bash started as [shell]: the path the reader execs.
+String _bashVariable(String shell) =>
+    '${Process.runSync(shell, const ['-c', r'echo $BASH']).stdout}'.trim();
+
+/// A variable of this process that no bash, nor Git Bash's runtime or its
+/// launcher, makes or changes on its own, so seeing it in the script proves
+/// it was inherited. HOME is not one: Git Bash makes it when Windows has
+/// none. Names are compared without case on Windows, where they have none.
+MapEntry<String, String>? _inheritedWitness() {
+  const madeOrChanged = {
+    'HOME',
+    'PATH',
+    'PWD',
+    'OLDPWD',
+    'SHLVL',
+    '_',
+    'SHELLOPTS',
+    'BASHOPTS',
+    'IFS',
+    'TMP',
+    'TEMP',
+    'TMPDIR',
+    'LD_LIBRARY_PATH',
+    'SHELL',
+    'TERM',
+    'LANG',
+    'HOSTNAME',
+    'OSTYPE',
+    'MACHTYPE',
+    'HOSTTYPE',
+    'EXEPATH',
+    'PLINK_PROTOCOL',
+    'SYSTEMROOT',
+    'SYSTEMDRIVE',
+    'WINDIR',
+    'COMSPEC',
+    'USERPROFILE',
+    'HOMEDRIVE',
+    'HOMEPATH',
+    'LOGONSERVER',
+    'USERDOMAIN',
+    'USERNAME',
+    'ORIGINAL_PATH',
+    'ORIGINAL_TEMP',
+    'ORIGINAL_TMP',
+  };
+  final identifier = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$');
+  final names = [
+    for (final e in Platform.environment.entries)
+      if (identifier.hasMatch(e.key) &&
+          !madeOrChanged.contains(e.key.toUpperCase()) &&
+          !RegExp(
+            r'^(BASH|MSYS|MINGW|LC_|KUSUNGA_BASH_)',
+          ).hasMatch(e.key.toUpperCase()) &&
+          e.value.isNotEmpty &&
+          !e.value.contains('\n'))
+        e.key,
+  ]..sort();
+  if (names.isEmpty) return null;
+  return MapEntry(names.first, Platform.environment[names.first]!);
+}
 
 void main() {
   late Directory dir;
@@ -185,7 +255,8 @@ void main() {
         for (final name in [
           'a b.sh',
           "it's.sh",
-          'q"q.sh',
+          // NTFS does not allow a double quote in a file name.
+          if (!Platform.isWindows) 'q"q.sh',
           r'$HOME.sh',
           r'$(id).sh',
           'é 日本.sh',
@@ -197,7 +268,12 @@ void main() {
           final s = script(r'printf "%s\0" "$0" "$#" "$1"', name: name);
           final r = run(shell, s.path, ['one']);
           expect(r.exitCode, 0, reason: '$name: ${r.stderr}');
-          expect('${r.stdout}', '${s.path}\x001\x00one\x00', reason: name);
+          // On Windows the reader is given the path with forward slashes.
+          expect(
+            '${r.stdout}',
+            '${forBash(s.path)}\x001\x00one\x00',
+            reason: name,
+          );
         }
       });
 
@@ -228,19 +304,43 @@ void main() {
           },
         );
         expect(r.exitCode, 0, reason: '${r.stderr}');
-        expect(
-          '${r.stdout}',
-          '$real\x00one\x00three\x00multi\nline \'v\'\x00\x00bare\x00',
-        );
+        final out = '${r.stdout}'.split('\x00');
+        if (Platform.isWindows) {
+          // Git Bash prints its own form of the folder (Temp is /tmp there),
+          // so only the last segment can be compared. The relative script
+          // test proves the real working directory.
+          expect(out.first.split('/').last, p.basename(dir.path));
+        } else {
+          expect(out.first, real);
+        }
+        expect(out.sublist(1), [
+          'one',
+          'three',
+          "multi\nline 'v'",
+          '',
+          'bare',
+          '',
+        ]);
       });
 
       test('the parent environment is still inherited', () {
-        final s = script(r'printf "%s" "${HOME:+home}"');
-        final r = run(shell, s.path, const []);
+        final witness = _inheritedWitness();
         expect(
-          '${r.stdout}',
-          Platform.environment['HOME'] == null ? '' : 'home',
+          witness,
+          isNotNull,
+          reason: 'this process has no variable to check with',
         );
+        final s = script('env');
+        final r = run(shell, s.path, const []);
+        expect(r.exitCode, 0, reason: '${r.stderr}');
+        String key(String n) => Platform.isWindows ? n.toUpperCase() : n;
+        final seen = [
+          for (final line in '${r.stdout}'.split('\n'))
+            if (line.contains('=') &&
+                key(line.substring(0, line.indexOf('='))) == key(witness!.key))
+              line.substring(line.indexOf('=') + 1),
+        ];
+        expect(seen, [witness!.value], reason: witness.key);
       });
 
       test(
@@ -248,7 +348,7 @@ void main() {
         () {
           final s = script(
             r'env | grep -c "^KUSUNGA_BASH_" ; '
-            r'bash -c "env | grep -c ^KUSUNGA_BASH_"; '
+            r'"$BASH" -c "env | grep -c ^KUSUNGA_BASH_"; '
             r'compgen -v | grep -c "^KUSUNGA_BASH_"',
           );
           final r = run(shell, s.path, ['a', 'b', 'c']);
@@ -273,8 +373,12 @@ void main() {
       test('caller BASH, IFS, GLOBIGNORE, PATH-like and lower names: the '
           'Windows path gives the script what the plain path gives', () {
         // The reader runs `eval` with IFS= and set -f, then `exec "$BASH"`.
-        // A caller who exports these names must not change that: compare with
-        // the plain invocation, which has no reader at all.
+        // A caller who exports these names must not change that. The script
+        // must get what the plain invocation (no reader at all) gives: the
+        // caller's values, but $BASH and IFS set by bash itself. That text is
+        // written out, because on Windows the plain invocation cannot be run
+        // as it is (Git Bash would expand the `*` on its command line); off
+        // Windows the plain invocation is run too and must give the same.
         final s = script(
           r'printf "%s\0" "$#" "$1" "$BASH" "$IFS" "$GLOBIGNORE" "$ARGC" '
           r'"$RUN" "$SCRIPT" "$x"; case $- in *f*) echo f;; *) echo nof;; esac',
@@ -288,15 +392,30 @@ void main() {
           'SCRIPT': 'sc',
           'x': 'ex',
         };
+        final expected = [
+          '2',
+          '*',
+          _bashVariable(shell),
+          ' \t\n',
+          '*',
+          '9',
+          'r',
+          'sc',
+          'ex',
+          'nof\n',
+        ].join('\x00');
         final win = run(shell, s.path, ['*', 'a b'], env: env);
-        final plain = Process.runSync(
-          shell,
-          [s.path, '*', 'a b'],
-          environment: env,
-          stdoutEncoding: utf8,
-        );
         expect(win.exitCode, 0, reason: '${win.stderr}');
-        expect('${win.stdout}', '${plain.stdout}');
+        expect('${win.stdout}', expected);
+        if (!Platform.isWindows) {
+          final plain = Process.runSync(
+            shell,
+            [s.path, '*', 'a b'],
+            environment: env,
+            stdoutEncoding: utf8,
+          );
+          expect('${plain.stdout}', expected);
+        }
       });
 
       test('IFS, set -f and positional state do not leak into the script', () {
@@ -343,13 +462,21 @@ void main() {
         expect('${r.stderr}', contains('nope.sh'));
       });
 
-      test('a signal that kills the script is reported as the signal', () {
-        final s = script(r'kill -TERM $$; sleep 5');
-        final r = run(shell, s.path, const []);
-        // Dart reports a signal death as a negative code on POSIX, and the
-        // reader must not have turned it into a normal exit.
-        expect(r.exitCode, anyOf(-15, 143));
-      });
+      test(
+        'a signal that kills the script is reported as the signal',
+        () {
+          final s = script(r'kill -TERM $$; sleep 5');
+          final r = run(shell, s.path, const []);
+          // Dart reports a signal death as a negative code on POSIX, and the
+          // reader must not have turned it into a normal exit.
+          expect(r.exitCode, anyOf(-15, 143));
+        },
+        skip: skipOnWindows(
+          'a Windows process does not die of a signal: Git Bash ends with an '
+          'exit code of its own, and Dart reports a negative signal code only '
+          'on POSIX, so there is no signal to see',
+        ),
+      );
     });
   }
 
