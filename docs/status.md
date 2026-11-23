@@ -1,5 +1,26 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — QA CC0 check stopped by a macOS screen-recording dialog
+- Changed: QA report (sonnet, medium), word for word:
+  > Milestone: M1.9a CC0 sentence check — 1/3 checks pass, 1 partial (AX tree only), 1 not run — Date: 2026-11-23 — Environment: macOS 27.2, Flutter 3.44.6, debug build at 5a6f5cd (KUSUNGA_VERSION=v0.9.0, KUSUNGA_BUILD=1), qa profile only
+  > Automated: 0/3 — manual: all (no desktop end-to-end tool approved)
+  > Fail: none
+  > Spec gaps: none
+  > Re-verified: licences list — still pass (158 rows, no lower-case "kusunga" row, identical to rows_r2.txt)
+  > Needs PM: 1. Please look at the macOS dialog "Claude is requesting to bypass the system private window picker and directly access your screen and audio" (Allow / Open System Settings). I clicked nothing. Decide whether to allow it (a System Settings change that only you may make), then ask QA to re-run the two screenshots (800 px and 360 px).
+  > Not observed: the CC0 sentence by screenshot at 800 px and 360 px (blocked by the dialog); the Kusunga entry; the SQLite blessing on three lines. Only the AX tree was read: after "Licence: CC0-1.0 OR Apache-2.0, at the user's option" comes a separate text item "Kusunga uses Argon2 under the CC0 1.0 option.", then the "Text of src/argon2/src/argon2.c ..." item. This shows the sentence is its own item above the quoted header, but not how it looks.
+  > Accessibility: n/a — text-only change
+  > Privacy: pass — only the qa profile was used. A full-screen capture taken to look at the dialog showed the PM's browser, so I deleted it. No m19a-r3 screenshots were kept or committed.
+  > Claims: n/a
+  > Evidence: docs/qa/m1.md section "M1.9a About and licences — CC0 sentence check (2026-11-23)" in the worktree, committed as d299f69 on feat/about-licences (docs/qa only, not pushed); screens: docs/qa/m1/screens/ (0 new files); videos: none (not asked for)
+  > PM check steps: n/a — nothing for the PM except the dialog above
+  > Blockers: macOS permission dialog (screen recording request) — PM — decide whether to allow it, or tell me not to — the two screenshots cannot be taken without it. I stopped at once, as the rules say. Kusunga (pid 57443) is quit; no Kusunga, ffmpeg or flutter_tester process is left. The Mac was unlocked at the start and the end.
+  > Notes: the worktree is at scratchpad/m19a-wt. The "Test profile: qa" label was read on the Settings screen before the licences page opened; that page is full-screen and has no badge. The rebuild at the current tip finished cleanly.
+- Gates: developer pass · tester pass · reviewer approve with notes (CI condition) · QA partial (sentence confirmed in the accessibility tree; screenshots blocked by a permission dialog left for the PM) · CI pending · PM merge approved when green
+- Open findings: none
+- Decisions: open for PM: the screen-recording dialog
+- Blockers: Developer none · Tester none · Reviewer none · QA macOS screen-recording dialog (PM) · Marketer none · Lead none · PM — the dialog; Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-23 — M1.9a About and licences — reviewer re-check of N1: approve with notes (Windows-log condition on 5a6f5cd)
 - Changed: reviewer report (opus, high), word for word:
   > Mode: branch (re-check of N1 only)
