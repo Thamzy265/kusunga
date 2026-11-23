@@ -1,5 +1,50 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — Windows CI fix round 2 built (tests only)
+- Changed: developer report (opus, high), word for word:
+  > Branch: feat/about-licences (1 new commit, 17413f3, on top of the tester's 182d204). Not pushed. edd258f is pushed; 182d204 and 17413f3 are local only.
+  > Built:
+  > - Root cause (taken from the source): Git Bash builds its own argv from the Windows command line, using `build_argv`, `quoted` and `globify` in winsup/cygwin/dcrt0.cc of git-for-windows/msys2-runtime. When a Windows program such as Dart starts it, a `'` opens a quoted run even outside double quotes. An unclosed one runs to the end of the line. `globify` then removes the quote characters (glob with GLOB_NOCHECK|GLOB_QUOTE gives the pattern back minus quoting). Dart only adds double quotes when an argument has a space, a tab or a `"`. So `C:/Users/RUNNER~1/.../quote'.dll` went in unquoted and came out as `.../quote.dll`, which is exactly the CI message. The same parser also eats backslashes in some words, expands `*`, `?`, `[`, `{a,b}` and a leading `~` against the disk, reads `@name` as an argument file, and splits on an unquoted new line. Git's `bin\bash.exe` wrapper passes the rest of the command line through unchanged (I checked git-wrapper.c), so the bug is not in the wrapper.
+  > - Why the edge test passed on Windows: its bundle path `My Kusunga 'x'.app` has spaces, so Dart wrapped it in double quotes. Inside `"..."` the MSYS2 parser treats `'` as an ordinary character, and `globify` escapes every character inside. The abuse test's path had no space, so its `'` was bare.
+  > - Fix in test/support/bash.dart: new pure function `bashInvocation(script, args, {environment, required bool windows})`, which `runBash` now uses.
+  >   - On Windows, no argument goes on the command line. Bash gets the fixed text `-c 'set -f; IFS=; eval $KUSUNGA_BASH_RUN'`. It has no quote, backslash or wildcard, so it has the same shape as the probe `echo kusunga-bash-ok` that already works on CI.
+  >   - The script, the argument count, each argument and a short reader script (bash 3.2 safe) travel in `KUSUNGA_BASH_*` environment variables. The reader rebuilds `"$@"`, unsets every `KUSUNGA_BASH_` variable, then runs `exec "$BASH" "$script" "$@"`, so `$0` and the exit code behave as before.
+  >   - A caller that passes a `KUSUNGA_BASH_*` variable (compared case-insensitively) now gets an `ArgumentError`, on every system.
+  >   - Off Windows, the invocation is unchanged: `bash script args`.
+  > - forBash is now gated to Windows (tester observation 1), via `forBash(s, {bool? windows})`, which defaults to `Platform.isWindows`. I updated the existing rule tests in bash_test.dart and bash_edge_test.dart to pass `windows: true`. The edge test "a drive path in an argument or an env value…" now expects `/` on Windows and an unchanged value elsewhere.
+  > Tests: 4357 passing, ~10 skipped (the same 10 as before), from `./tool/check.sh` run once, alone, after `pgrep -fl flutter_tester` was empty. Format: 332 files, 0 changed. Analyze: no issues. Log: scratchpad/m19a_win2_check.log
+  > New file test/support/bash_windows_args_test.dart (9 tests):
+  > - A pure model of Dart's Windows quoting (copied from the SDK's `_windowsArgumentEscape`) and of MSYS2's `build_argv`, `quoted` and `globify`. The model throws on any word whose result could depend on the disk.
+  > - The model is anchored to three things the Windows CI showed: the quote loss, the spaced path that passed, and the probe and plain names that passed.
+  > - A property test over 38 hard arguments: `'`, `"`, `""`, empty, spaces, tab, new line, CR, backslashes, trailing `\`, UNC, drive paths, `; & | < >`, `$()` and backticks, `!`, `* ? [ ] { } ( )`, `~`, `@file`, `%PATH%`, `^`, unicode.
+  > - The Windows-mode invocation run under the real bash, checking that `$0`, `$#`, every argument and the environment arrive byte for byte, with no `KUSUNGA_BASH_*` left over.
+  > - The reserved-name check, and "off Windows nothing changes".
+  > First failing run, with `bashInvocation` holding the old behaviour (scratchpad/m19a_win2_red.txt):
+  > - "the command line survives the MSYS2 parser for any argument": `Expected: [..., 'quote\'.dll', 'xquote\'.dll'] Actual: [..., 'quote.dll xquote.dll']`. This is the CI quote loss. It also shows the unclosed `'` swallowing the next argument.
+  > - Also red: the reserved-name test (returned instead of throwing) and the two off-Windows tests (`'C:/a' instead of 'C:\\a'`).
+  > Extra Mac check, not committed: I temporarily forced `windows: true` in `runBash` and ran all six script test files plus bash_test and bash_edge_test through the environment transfer. Result: +190 -1. The one failure is expected: that edge test expects Mac output because it checks `Platform.isWindows`. The `quote'.dll` case and the stock /bin/bash 3.2 test passed. Log: scratchpad/m19a_win2_forced.txt
+  > E2E: n/a — no suite (desktop UI automation tool is TBD in Team setup).
+  > Test hooks: n/a — no UI.
+  > Deviations from plan: I chose the environment route over escaping for MSYS2. Escaping would have to defeat globbing, which depends on the files on disk, as well as `@file`, `~` and drive-letter backslash rules. The environment route leaves only one fixed `-c` string exposed to the parser. I kept it Windows-only, so Mac CI runs exactly as before.
+  > Checklists: none (test harness only) — n/a items: data-and-apis, ui-build.
+  > Risks / unverified (no Windows machine; all of this is unproven until the Windows CI job runs):
+  > - That Git Bash passes the environment through unparsed, with UTF-8 conversion, including empty values and values containing new lines. The reader treats a missing variable as an empty string.
+  > - That `exec "$BASH"` (`/usr/bin/bash`) runs as expected under Git Bash.
+  > - That the fixed `-c` text arrives intact. The model says yes, and it has the same shape as the probe that already works.
+  > - The new test file runs on the Windows job too, against real Git Bash, so CI will test the transfer directly. Its unicode case assumes Git Bash writes UTF-8. If only that assertion fails, the problem is the output encoding, not the transfer.
+  > - The model covers the parsing rules for a word that matches no file. The disk-dependent cases are kept out by design: the model throws on them.
+  > Personal data touched: none.
+  > Later lines added: none.
+  > Spec gaps raised: none.
+  > Findings: CI failure "file names \"quote'.dll\": a clean file passes and a bad one fails" — fixed (17413f3, test/support/bash_windows_args_test.dart). Tester observation 1 (forBash not gated) — fixed (17413f3, "off Windows nothing changes" tests). Observations 2–4 — no change; they hold for the current callers.
+  > Blockers: none.
+  > How to verify: 1. In scratchpad/m19a-wt run `pgrep -fl flutter_tester` (expect no output), then `./tool/check.sh`. Expect "All tests passed!" with about 4357 passed and ~10 skipped. 2. Quick run: `flutter test test/support/bash_windows_args_test.dart test/support/bash_test.dart test/support/bash_edge_test.dart test/ci/sqlite3mc_extfunc_abuse_test.dart`. Expect all passed. 3. Push the branch and open the Windows job on PR 10. Expect `test/ci/sqlite3mc_extfunc_abuse_test.dart: file names "quote'.dll"` to pass, and all 9 tests in bash_windows_args_test.dart to pass under Git Bash. If one fails, its reason names the argument as JSON, which shows what Git Bash changed.
+- Lead note: 182d204 (tester) and 17413f3 pushed to PR 10 so the Windows job runs on the new transfer; tester and reviewer follow. Lead confirmed the check log ends "05:24 +4357 ~10: All tests passed!".
+- Gates: developer pass · tester pending (round 2) · reviewer pending · QA pass (on 406537d; test-only change since) · CI pending · PM merge approved when green
+- Open findings: none
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-23 — M1.9a About and licences — tester pass on the Windows fix; Windows CI fails again (1 test)
 - Changed: tester report (sonnet, medium), word for word:
   > Branch: feat/about-licences (1 test commit, 182d204 on edd258f, not pushed)
