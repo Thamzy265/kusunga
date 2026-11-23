@@ -306,13 +306,17 @@ void main() {
     });
   });
 
-  group('forBash', () {
+  group('forBash (the Windows rule)', () {
     test('lower-case and upper-case drive letters, back or forward slash', () {
-      expect(forBash(r'c:\a\b'), 'c:/a/b');
-      expect(forBash(r'Z:\a'), 'Z:/a');
-      expect(forBash(r'C:\'), 'C:/');
-      expect(forBash(r'C:/a\b'), 'C:/a/b', reason: 'mixed slashes');
-      expect(forBash('C:/a/b'), 'C:/a/b');
+      expect(forBash(r'c:\a\b', windows: true), 'c:/a/b');
+      expect(forBash(r'Z:\a', windows: true), 'Z:/a');
+      expect(forBash(r'C:\', windows: true), 'C:/');
+      expect(
+        forBash(r'C:/a\b', windows: true),
+        'C:/a/b',
+        reason: 'mixed slashes',
+      );
+      expect(forBash('C:/a/b', windows: true), 'C:/a/b');
     });
 
     test(
@@ -328,7 +332,7 @@ void main() {
           r' C:\x',
           'key:value',
         ]) {
-          expect(forBash(s), s);
+          expect(forBash(s, windows: true), s);
         }
       },
     );
@@ -339,24 +343,27 @@ void main() {
         r'\\?\C:\long\path',
         '//server/share/f',
       ]) {
-        expect(forBash(s), s);
+        expect(forBash(s, windows: true), s);
       }
     });
 
     test('relative paths keep their slashes', () {
       for (final s in [r'tool\x.sh', './tool/x.sh', r'.\tool\x.sh', '../x']) {
-        expect(forBash(s), s);
+        expect(forBash(s, windows: true), s);
       }
     });
 
     test('a value that starts with a drive path is changed in every part', () {
-      expect(forBash(r'C:\a;D:\b'), 'C:/a;D:/b');
-      expect(forBash(r'C:\a b\c d'), 'C:/a b/c d');
+      expect(forBash(r'C:\a;D:\b', windows: true), 'C:/a;D:/b');
+      expect(forBash(r'C:\a b\c d', windows: true), 'C:/a b/c d');
     });
 
     test('is idempotent', () {
       for (final s in [r'C:\a\b', 'C:/a', r'\\s\h', 'x', r'c:\a;d:\b']) {
-        expect(forBash(forBash(s)), forBash(s));
+        expect(
+          forBash(forBash(s, windows: true), windows: true),
+          forBash(s, windows: true),
+        );
       }
     });
   });
@@ -382,13 +389,19 @@ void main() {
       expect(r.stdout, r'[C:][a:b][\\server\share][C:foo][]');
     });
 
-    test('a drive path in an argument or an env value arrives with /', () {
+    test('a drive path in an argument or an env value arrives with / on '
+        'Windows, and unchanged elsewhere', () {
       final r = runBash(
         script(r'printf "[%s][%s]" "$1" "$KUSUNGA_P"').path,
         [r'c:\a b\c'],
         environment: {'KUSUNGA_P': r'C:\x;D:\y z'},
       );
-      expect(r.stdout, '[c:/a b/c][C:/x;D:/y z]');
+      expect(
+        r.stdout,
+        Platform.isWindows
+            ? '[c:/a b/c][C:/x;D:/y z]'
+            : r'[c:\a b\c][C:\x;D:\y z]',
+      );
     });
 
     test('the exit code and both streams come back', () {

@@ -145,15 +145,18 @@ void main() {
     });
   });
 
-  group('forBash', () {
+  group('forBash (the Windows rule)', () {
     test('turns a Windows drive path into forward slashes', () {
-      expect(forBash(r'C:\Users\a b\x.dll'), 'C:/Users/a b/x.dll');
-      expect(forBash(r'D:/a/k/x'), 'D:/a/k/x');
+      expect(
+        forBash(r'C:\Users\a b\x.dll', windows: true),
+        'C:/Users/a b/x.dll',
+      );
+      expect(forBash(r'D:/a/k/x', windows: true), 'D:/a/k/x');
     });
 
     test('leaves everything else alone', () {
       for (final s in ['', 'tool/x.sh', r'back\slash', '-x', r'\\server\s']) {
-        expect(forBash(s), s);
+        expect(forBash(s, windows: true), s);
       }
     });
   });

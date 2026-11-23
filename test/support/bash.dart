@@ -80,9 +80,12 @@ String resolveBash({
 
 /// [s] with forward slashes when it is a Windows drive path (`C:\a\b`), for
 /// the bash tools, which read `C:/a/b` the same way on every Git for Windows.
-/// Anything else is returned as it is.
-String forBash(String s) =>
-    RegExp(r'^[A-Za-z]:[\\/]').hasMatch(s) ? s.replaceAll(r'\', '/') : s;
+/// Anything else, and anything at all off Windows, is returned as it is.
+/// [windows] defaults to this machine; tests pass it to check the rule.
+String forBash(String s, {bool? windows}) =>
+    (windows ?? Platform.isWindows) && RegExp(r'^[A-Za-z]:[\\/]').hasMatch(s)
+    ? s.replaceAll(r'\', '/')
+    : s;
 
 String? _found;
 
@@ -119,21 +122,111 @@ bool _runsACommand(String bash) {
   }
 }
 
+/// What [runBash] starts bash with: its arguments and its environment.
+typedef BashInvocation = ({
+  List<String> arguments,
+  Map<String, String> environment,
+});
+
+/// Environment names that [runBash] uses itself; a caller may not set them.
+const reservedBashPrefix = 'KUSUNGA_BASH_';
+
+/// The whole command line [runBash] gives Git Bash on Windows, after the
+/// executable. Why: a Windows program gets one command-line string, not an
+/// argv. Dart quotes each argument for the Microsoft C runtime, but Git Bash
+/// (the MSYS2 runtime, winsup/cygwin/dcrt0.cc `build_argv` and `globify`)
+/// parses that string with rules of its own: a single quote starts a quoted
+/// run even outside double quotes (so an unquoted `quote'.dll` loses its
+/// quote), a backslash can be taken as an escape, `*`, `?`, `[` and `{a,b}` are
+/// expanded against the disk, a leading `~` is a home folder, `@name` reads
+/// arguments from a file, and an unquoted new line splits a word. So no
+/// argument is put on the command line. They go in the environment, which
+/// reaches bash unparsed, and this fixed text reads them back. It has no
+/// quote, backslash or wildcard, so both parsers leave it as it is (the same
+/// shape as the probe `echo kusunga-bash-ok`), and `IFS=` with `set -f`
+/// makes the unquoted `$KUSUNGA_BASH_RUN` one word, never split or globbed.
+const _windowsCommand = r'set -f; IFS=; eval $KUSUNGA_BASH_RUN';
+
+/// The code in KUSUNGA_BASH_RUN: rebuild "$@" from KUSUNGA_BASH_ARG_0..n-1,
+/// remove every KUSUNGA_BASH_ variable, and run the script in a fresh bash
+/// (so IFS and `set -f` are back to normal and $0 is the script, as with
+/// `bash script args`). Bash 3.2 safe. Joined with \n, not a multi-line
+/// literal, so the code is the same whatever line endings the file has.
+final _windowsRun = [
+  r's=$KUSUNGA_BASH_SCRIPT',
+  r'n=$KUSUNGA_BASH_ARGC',
+  r'unset KUSUNGA_BASH_RUN KUSUNGA_BASH_SCRIPT KUSUNGA_BASH_ARGC',
+  r'set --',
+  r'i=0',
+  r'while [ "$i" -lt "$n" ]; do',
+  r'  v=KUSUNGA_BASH_ARG_$i',
+  r'  set -- "$@" "${!v}"',
+  r'  unset "$v"',
+  r'  i=$((i + 1))',
+  r'done',
+  r'exec "$BASH" "$s" "$@"',
+].join('\n');
+
+/// The arguments and environment [runBash] gives bash for [script] and
+/// [args]. [windows] is passed in so the Windows rules can be tested on any
+/// machine.
+///
+/// Off Windows: `bash script args...` with the environment as given.
+/// On Windows: `bash -c <fixed text>`, with the script, the arguments and the
+/// reading code in KUSUNGA_BASH_ variables, so every argument arrives byte
+/// for byte (see [_windowsCommand]). Drive paths are given with forward
+/// slashes ([forBash]).
+BashInvocation bashInvocation(
+  String script,
+  List<String> args, {
+  Map<String, String>? environment,
+  required bool windows,
+}) {
+  final env = environment ?? const <String, String>{};
+  for (final key in env.keys) {
+    // Windows names are case-insensitive, so compare them that way.
+    if (key.toUpperCase().startsWith(reservedBashPrefix)) {
+      throw ArgumentError.value(key, 'environment', 'is reserved for runBash');
+    }
+  }
+  if (!windows) return (arguments: [script, ...args], environment: {...env});
+  String f(String s) => forBash(s, windows: true);
+  return (
+    arguments: const ['-c', _windowsCommand],
+    environment: {
+      for (final e in env.entries) e.key: f(e.value),
+      'KUSUNGA_BASH_RUN': _windowsRun,
+      'KUSUNGA_BASH_SCRIPT': f(script),
+      'KUSUNGA_BASH_ARGC': '${args.length}',
+      for (var i = 0; i < args.length; i++) 'KUSUNGA_BASH_ARG_$i': f(args[i]),
+    },
+  );
+}
+
 /// Runs [script] with [args] under [findBash] (or [shell], to try one bash in
-/// particular). Windows drive paths in the script, the arguments and the
-/// environment values are given to bash with forward slashes.
+/// particular). Every argument reaches the script byte for byte, on Windows
+/// too ([bashInvocation]). On Windows, drive paths in the script, the
+/// arguments and the environment values are given with forward slashes.
 ProcessResult runBash(
   String script,
   List<String> args, {
   Map<String, String>? environment,
   String? workingDirectory,
   String? shell,
-}) => Process.runSync(
-  shell ?? findBash(),
-  [forBash(script), for (final a in args) forBash(a)],
-  environment: environment?.map((k, v) => MapEntry(k, forBash(v))),
-  workingDirectory: workingDirectory,
-);
+}) {
+  final run = bashInvocation(
+    script,
+    args,
+    environment: environment,
+    windows: Platform.isWindows,
+  );
+  return Process.runSync(
+    shell ?? findBash(),
+    run.arguments,
+    environment: run.environment,
+    workingDirectory: workingDirectory,
+  );
+}
 
 /// A `skip:` value for a test that cannot hold on Windows, for a reason that
 /// is printed in the test run. Null on every other system, so the test runs
