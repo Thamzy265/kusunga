@@ -7,6 +7,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
+import '../support/bash.dart';
+
 final _script = File('tool/check_sqlite3mc.sh').absolute.path;
 
 List<int> fake(List<String> strings) => [
@@ -16,6 +18,10 @@ List<int> fake(List<String> strings) => [
 ];
 
 const clean = ['sqlite_master', 'sqlite3mc_config', 'main'];
+
+const _symlinks =
+    'a symlink needs Developer Mode on Windows, and Git Bash reads a native '
+    'Windows link differently from a POSIX one; the DLL check is not given links';
 
 void main() {
   late Directory dir;
@@ -32,12 +38,7 @@ void main() {
     List<String> args, {
     Map<String, String>? env,
     String? cwd,
-  }) => Process.runSync(
-    'bash',
-    [_script, ...args],
-    environment: env,
-    workingDirectory: cwd,
-  );
+  }) => runBash(_script, args, environment: env, workingDirectory: cwd);
 
   String out(ProcessResult r) => '${r.stdout}${r.stderr}';
 
@@ -54,15 +55,23 @@ void main() {
       'ünïcode.dll',
       '-leading-dash.dll',
     ]) {
-      test('"$name": a clean file passes and a bad one fails', () {
-        final good = binary(name, clean);
-        final r = run([good.path]);
-        expect(r.exitCode, 0, reason: out(r));
-        good.writeAsBytesSync(fake([...clean, 'padl']));
-        final bad = run([good.path]);
-        expect(bad.exitCode, isNot(0));
-        expect(out(bad), contains('padl'));
-      });
+      test(
+        '"$name": a clean file passes and a bad one fails',
+        skip: name.contains(RegExp(r'[*\\\n]'))
+            ? skipOnWindows(
+                'a Windows file name cannot hold *, a backslash or a new line',
+              )
+            : null,
+        () {
+          final good = binary(name, clean);
+          final r = run([good.path]);
+          expect(r.exitCode, 0, reason: out(r));
+          good.writeAsBytesSync(fake([...clean, 'padl']));
+          final bad = run([good.path]);
+          expect(bad.exitCode, isNot(0));
+          expect(out(bad), contains('padl'));
+        },
+      );
     }
 
     test('a relative path with a leading dash works from its folder', () {
@@ -76,10 +85,14 @@ void main() {
       expect(run([f.path]).exitCode, isNot(0));
     });
 
-    test('a new line in the file name does not hide a bad file', () {
-      final f = binary('line\nbreak.dll', [...clean, 'padr']);
-      expect(run([f.path]).exitCode, isNot(0));
-    });
+    test(
+      'a new line in the file name does not hide a bad file',
+      () {
+        final f = binary('line\nbreak.dll', [...clean, 'padr']);
+        expect(run([f.path]).exitCode, isNot(0));
+      },
+      skip: skipOnWindows('a Windows file name cannot hold a new line'),
+    );
   });
 
   group('paths that are not a file', () {
@@ -110,13 +123,13 @@ void main() {
       final link = Link(p.join(dir.path, 'dangling.dll'))
         ..createSync(p.join(dir.path, 'nowhere.dll'));
       expect(run([link.path]).exitCode, isNot(0));
-    });
+    }, skip: skipOnWindows(_symlinks));
 
     test('a symlink to a clean binary passes', () {
       final real = binary('real.dll', clean);
       final link = Link(p.join(dir.path, 'link.dll'))..createSync(real.path);
       expect(run([link.path]).exitCode, 0);
-    });
+    }, skip: skipOnWindows(_symlinks));
 
     test('a symlink to a bad binary fails', () {
       final real = binary('real.dll', [...clean, 'charindex']);
@@ -124,22 +137,28 @@ void main() {
       final r = run([link.path]);
       expect(r.exitCode, isNot(0));
       expect(out(r), contains('charindex'));
-    });
+    }, skip: skipOnWindows(_symlinks));
 
     test('a symlink to a folder is a failure', () {
       final link = Link(p.join(dir.path, 'dirlink.dll'))..createSync(dir.path);
       expect(run([link.path]).exitCode, isNot(0));
-    });
+    }, skip: skipOnWindows(_symlinks));
 
-    test('a file that cannot be read is a failure', () {
-      if (Platform.isWindows || Platform.environment['USER'] == 'root') return;
-      final f = binary('locked.dll', clean);
-      Process.runSync('chmod', ['000', f.path]);
-      addTearDown(() => Process.runSync('chmod', ['644', f.path]));
-      final r = run([f.path]);
-      expect(r.exitCode, isNot(0), reason: out(r));
-      expect(out(r), contains('FAIL'));
-    });
+    test(
+      'a file that cannot be read is a failure',
+      () {
+        if (Platform.environment['USER'] == 'root') return;
+        final f = binary('locked.dll', clean);
+        Process.runSync('chmod', ['000', f.path]);
+        addTearDown(() => Process.runSync('chmod', ['644', f.path]));
+        final r = run([f.path]);
+        expect(r.exitCode, isNot(0), reason: out(r));
+        expect(out(r), contains('FAIL'));
+      },
+      skip: skipOnWindows(
+        'chmod 000 does not make a file unreadable on Windows',
+      ),
+    );
   });
 
   group('contents', () {
@@ -353,9 +372,10 @@ void main() {
       ];
       final r = run(files);
       expect(r.exitCode, isNot(0));
-      expect(out(r), contains('FAIL ${files[3]}'));
-      expect(out(r), contains('ok   ${files[0]}'));
-      expect(out(r), contains('ok   ${files[4]}'));
+      // The script prints each path the way it was given to bash.
+      expect(out(r), contains('FAIL ${forBash(files[3])}'));
+      expect(out(r), contains('ok   ${forBash(files[0])}'));
+      expect(out(r), contains('ok   ${forBash(files[4])}'));
     });
   });
 

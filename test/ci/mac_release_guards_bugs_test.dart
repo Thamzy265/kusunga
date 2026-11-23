@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/bash.dart';
+
 /// M1.9b regression tests for BUG-M1, M2, M3 and M5 in
 /// tool/mac_release_guards.sh. Each was a defect found by the tester and is
 /// fixed. Every one was a false pass (the guard said "ok" when it must not)
@@ -13,12 +15,7 @@ ProcessResult guard(
   List<String> args, {
   Map<String, String>? env,
   String? cwd,
-}) => Process.runSync(
-  'bash',
-  [script, ...args],
-  environment: env,
-  workingDirectory: cwd,
-);
+}) => runBash(script, args, environment: env, workingDirectory: cwd);
 
 void main() {
   late Directory tmp;
