@@ -1,5 +1,39 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — developer fixed B3 and added the CC0 sentence
+- Changed: developer report (opus, high), word for word:
+  > Branch: feat/about-licences (2 new commits on c2f256a, not pushed). Worktree scratchpad/m19a-wt, tip e2bc6cf
+  > - c731202 fix(test): runBash refuses a NUL in an environment name, as it does in a value (B3)
+  > - e2bc6cf docs(licences): the sqlite3mc notice says Kusunga uses Argon2 under CC0 1.0 (PM decision 2026-11-23)
+  > Built:
+  > - B3: in test/support/bash.dart, `bashInvocation` now throws ArgumentError (parameter name 'environment') on every platform when an environment variable NAME contains a NUL, the same way it already did for values. The doc comment and code comment now say so.
+  > - In assets/licences/sqlite3mc.txt, in the Argon2 part, there is one new line straight after "Licence: CC0-1.0 OR Apache-2.0, at the user's option": "  Kusunga uses Argon2 under the CC0 1.0 option." It sits before the "Text of" header, so it is outside the quoted text. No quoted block was changed and no Apache-2.0 or CC0 text was added. The existing line "The texts of CC0 1.0 and Apache 2.0 themselves are not in these files" is still true, so I left it. I left fastpbkdf2 as it is.
+  > - In docs/licences.md, the Argon2 row said "Yes. Choose CC0-1.0, or Apache-2.0 (compatible with GPL-3.0)." It now says "Yes. Kusunga uses it under CC0-1.0, and the notice says so (PM decision 2026-11-23)."
+  > - I did not change docs/ui/about-and-licences.md. Line 54 only says the files name CC0 and Apache by address and do not contain the texts. That is still true, and it does not describe an open choice.
+  > Tests: ./tool/check.sh: "+4393 ~10: All tests passed!", format 0 changed, "No issues found!", exit 0. The log is at scratchpad/check_m19a_b3_cc0_2.txt.
+  > - New tests in test/about/licence_texts_test.dart, group "Argon2: Kusunga takes the CC0 1.0 option": (a) the choice sentence is its own line in the Argon2 part, comes before the "Text of" header and appears once in the notice; (b) the quoted Argon2 header, from its "Text of" line to "software. If not, they may be obtained at the above URLs.", matches line for line; (c) neither full licence text is in the notice. It looks for Apache-2.0 and CC0 legal-code phrases.
+  > - First failing runs: B3 (tester's repro): "a NUL in an environment name throws (B1 gap: it was left unchecked)" failed with "Expected: throws <Instance of 'ArgumentError'> Actual: ... returned (... environment: {A B: v, ...})" and reason windows=true. It passes after c731202. CC0: "the Argon2 part states the CC0 1.0 choice, outside the quote" failed with "Expected: not <-1> Actual: <-1> the choice is its own line". Tests (b) and (c) passed before the change, as intended, because they guard against the change breaking something.
+  > E2E: n/a, there is no desktop e2e suite yet (Team setup: TBD).
+  > Test hooks: n/a, no UI.
+  > Deviations from plan:
+  > 1. The first check run (scratchpad/check_m19a_b3_cc0.txt) had 1 failure. The test was test/about/about_edge_test.dart "licence page both SQLite notices are reachable from the Kusunga row", with "Bad state: Too many elements" from scrollUntilVisible. Cause: the new line shifted the licence page layout. The blessing "May you do good and not evil" is quoted twice (csv.c and rekeyvacuum.c), and both copies are now built where the scroll stops. scrollUntilVisible needs exactly one match there. I reproduced it on its own. I first tried `.first` on the finder, but in this Flutter version that throws "No element" while nothing matches yet. Fix: the test now scrolls itself (the same 1500 px steps, at most 200 of them), then checks `findsWidgets` and calls ensureVisible on the first match. What it checks is unchanged. I folded this into the CC0 commit (amended; my own commit, not pushed) so that every commit passes. As a result, check.sh ran twice, each time alone.
+  > 2. I edited docs/licences.md, which the brief covers as "any other place" that says the choice is still open.
+  > Checklists: none. n/a items: data-and-apis (no data store or API), ui-build (no UI change; the licence text is an asset).
+  > Risks / unverified:
+  > - B3 is checked on the Mac only. The Windows CI run is the real check for the bash harness, as the tester noted.
+  > - After my second check finished, `pgrep -fl flutter_tester` showed several flutter_tester processes from another project (/Users/williamnasoni/Developer/CGA/updated_apps/3D_App, Flutter 3.47.9). They are not from Kusunga and I did not start them. Both of my runs had an empty pgrep before they started, and the second run was green. I did not touch those processes.
+  > Personal data touched: none
+  > Later lines added: none
+  > Spec gaps raised: none
+  > Findings: B3 fixed (c731202, test "the names runBash reserves a NUL in an environment name throws (B1 gap: it was left unchecked)" in test/support/bash_windows_edge_test.dart).
+  > Blockers: none
+  > How to verify: 1. git log --oneline -3 shows e2bc6cf, c731202, c2f256a. 2. sed -n 352,356p assets/licences/sqlite3mc.txt shows the Argon2 heading, the Licence line, "  Kusunga uses Argon2 under the CC0 1.0 option.", then a blank line. 3. git diff c2f256a -- assets/licences/sqlite3mc.txt adds exactly one line. 4. grep -n "Argon2 (src/argon2" docs/licences.md ends with "Kusunga uses it under CC0-1.0, and the notice says so (PM decision 2026-11-23)." 5. flutter test test/about/licence_texts_test.dart test/about/about_edge_test.dart test/about/sqlite3mc_notice_shape_test.dart test/support/bash_windows_edge_test.dart gives "All tests passed!". 6. With pgrep -fl flutter_tester empty, ./tool/check.sh gives "+4393 ~10: All tests passed!". 7. Optional, QA quick look: open the sqlite3mc entry on the licence page and scroll to Argon2; the sentence is under the Licence line, above the quoted header.
+- Lead note: branch pushed to PR 10 at e2bc6cf so the Windows job runs while the tester and reviewer work. The flutter_tester processes the developer saw belong to another project of the PM's; nobody touches them, and each check still waits for an empty pgrep.
+- Gates: developer pass · tester pending (CC0 change and B3) · reviewer pending · QA pending (quick look at the Argon2 part) · CI pending · PM merge approved when green
+- Open findings: none
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-23 — M1.9a About and licences — tester round 3: working-directory test fixed, B3 found
 - Changed: tester report (sonnet, medium), word for word:
   > Branch: feat/about-licences (2 new test commits this round: 11bc3ea, c2f256a; on top of bf60753; not pushed)
