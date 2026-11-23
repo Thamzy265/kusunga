@@ -102,6 +102,7 @@ Everything stays on the device. No account, no server.
   - AC: the Mac history key moves from the login keychain to the data-protection keychain, with a key move (read old item, write new, delete old) so no user's history is moved aside; must be done before the first external beta (PM decision 2026-11-03).
   - AC: release notes and a rollback plan exist; the PM approves the release.
   - AC: a short DPIA is written in `docs/design/dpia.md` and the PM signs it off before the beta; it covers typed-shortcut keystroke watching (M1.5 D6, PM 2026-11-08).
+  - M1.9a (About section and licences page) merged to main 2026-11-23 (PR 10, merge commit c2bc618); all gates passed, PM approved the merge ("Yes, merge when green").
   - M1.9b (Mac release build: Apple silicon only, Hardened Runtime, release guards) merged to main 2026-11-22; its launch check is in M1.9e.
   - M1.9f: DPIA drafted 2026-11-19 (lead); waiting for the PM's decisions in its section 7 and sign-off.
   - AC: the app's licence page includes the SQLite3 Multiple Ciphers MIT notice (reviewer note, 2026-11-03).

@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — closed: PR 10 merged
+- Changed: CI run 45277982724 on c52d77b (QA docs on top of 5a6f5cd): macos success, windows success. PR 10 merged on GitHub with a merge commit, c2bc618, pinned to head c52d77b. Local main merged origin/main (f91c760); it differs from c2bc618 only in docs/. Plan: M1.9a merged line added under M1.9 (M1.9 itself stays open: M1.9c, d, e, f remain).
+- Gates: developer pass · tester pass · reviewer approve with notes (CI condition met) · QA pass · CI green on c52d77b · PM merge approved ("Yes, merge when green")
+- Open findings: none
+- Decisions: PM said: "Yes, wait and merge" (2026-11-23), allowing the lead to wait on this one CI run (gh run watch) as a one-time exception to "never poll CI".
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead local main not pushed (needs the PM's approval) · PM — Apple Developer account (M1.9c, M1.9e); Microsoft Store account (M1.9d); DPIA section 7 (M1.9f)
+
 ## 2026-11-23 — M1.9a About and licences — QA re-run: CC0 sentence screenshots pass
 - Changed: QA report (sonnet, medium), word for word:
   > Milestone: M1.9a About and licences (CC0 sentence check re-run) — 1/1 re-run criterion pass — Date: 2026-11-23 — Environment: macOS 27.2, Flutter 3.44.6, debug build at code tip 5a6f5cd, KUSUNGA_VERSION=v0.9.0 KUSUNGA_BUILD=1, qa profile (pid 58386); docs commit c52d77b on feat/about-licences (not pushed)
