@@ -358,8 +358,9 @@ void main() {
       );
 
       test('the reader leaves no stray names in the script environment', () {
-        // The reader uses the names s, n, i and v. A caller who exports the
-        // same names must see them again, unchanged, in the script.
+        // An earlier reader used the names s, n, i and v; it now uses only
+        // KUSUNGA_BASH_ names. A caller who exports these short names must see
+        // them again, unchanged, in the script.
         final s = script(r'printf "%s\0" "$s" "$n" "$i" "$v"');
         final r = run(
           shell,
