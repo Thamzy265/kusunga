@@ -270,6 +270,35 @@ void main() {
         expect('${r.stdout}', 'S1\x00N1\x00I1\x00V1\x00');
       });
 
+      test('caller BASH, IFS, GLOBIGNORE, PATH-like and lower names: the '
+          'Windows path gives the script what the plain path gives', () {
+        // The reader runs `eval` with IFS= and set -f, then `exec "$BASH"`.
+        // A caller who exports these names must not change that: compare with
+        // the plain invocation, which has no reader at all.
+        final s = script(
+          r'printf "%s\0" "$#" "$1" "$BASH" "$IFS" "$GLOBIGNORE" "$ARGC" '
+          r'"$RUN" "$SCRIPT" "$x"; case $- in *f*) echo f;; *) echo nof;; esac',
+        );
+        final env = {
+          'BASH': '/nonexistent/bash',
+          'IFS': ':',
+          'GLOBIGNORE': '*',
+          'ARGC': '9',
+          'RUN': 'r',
+          'SCRIPT': 'sc',
+          'x': 'ex',
+        };
+        final win = run(shell, s.path, ['*', 'a b'], env: env);
+        final plain = Process.runSync(
+          shell,
+          [s.path, '*', 'a b'],
+          environment: env,
+          stdoutEncoding: utf8,
+        );
+        expect(win.exitCode, 0, reason: '${win.stderr}');
+        expect('${win.stdout}', '${plain.stdout}');
+      });
+
       test('IFS, set -f and positional state do not leak into the script', () {
         final s = script(
           r'case $- in *f*) echo noglob;; *) echo glob;; esac; '
@@ -359,6 +388,27 @@ void main() {
         }
       }
     });
+
+    test(
+      'a NUL in an environment name throws (B1 gap: it was left unchecked)',
+      () {
+        // Process.runSync cuts the name at the NUL, so `A\x00B` would silently
+        // set `A`. Same rule as for values: refuse, never run with a changed
+        // environment.
+        for (final windows in [true, false]) {
+          expect(
+            () => bashInvocation(
+              'x.sh',
+              const [],
+              environment: {'A\x00B': 'v'},
+              windows: windows,
+            ),
+            throwsArgumentError,
+            reason: 'windows=$windows',
+          );
+        }
+      },
+    );
 
     test('names that only look like the prefix are allowed', () {
       for (final key in [
