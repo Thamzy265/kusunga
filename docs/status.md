@@ -1,5 +1,41 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — tester: CC0 sentence runs onto the Licence line (B4)
+- Changed: tester report (sonnet, medium), word for word:
+  > Branch: feat/about-licences (1 test commit this round, e18b4b9, on top of e2bc6cf; not pushed)
+  > Added: 5 tests in test/about/argon2_page_test.dart (3 on the Argon2 part, 2 on SQLite-notice reachability)
+  > E2E tests added: 0 (Flutter widget tests only) — n/a — no new user flow
+  > Fail-then-pass:
+  > - "B4: the CC0 sentence is not run onto the Licence line" — fails on the current tip e2bc6cf, which is the bug. Failure: got "Licence: CC0-1.0 OR Apache-2.0, at the user's option Kusunga uses Argon2 under the CC0 1.0 option." It cannot pass on the old code c2f256a because the sentence doesn't exist there.
+  > - "the real licence page shows the sentence as text" (real LicensePage, Kusunga row opened) — fails on e2bc6cf, same joined Text.
+  > - "the sentence is on the page once, before the quoted header, and the Licence line is intact" — passes. It is a regression lock for the one-line addition and the paragraph order.
+  > - "each SQLite notice is reachable from the Kusunga row" (2 tests, SQLite3 Multiple Ciphers and SQLite, each with a needle found in one notice only):
+  >   - Mutation 1: drop 'SQLite' from the registry row. The "SQLite" test fails: "Found 0 widgets with text containing SQLite is in the public domain". The existing about_edge test PASSES under this mutation (see below).
+  >   - Mutation 2: drop 'Kusunga' from the Multiple Ciphers row. The Multiple Ciphers test fails.
+  >   - Both pass on the unmutated code. Each mutation was reverted with git checkout.
+  > Regression locks: "the sentence is on the page once, before the quoted header, and the Licence line is intact" — locks that exactly one CC0 sentence exists, sits before the "Text of" quote, and the heading paragraph stays alone. It could break if someone moves or duplicates the line. The two "each SQLite notice is reachable" tests also pass on the current tip; they exist to close the gap in the rewritten about_edge test, described under Bugs found as B5.
+  > Bugs found:
+  > - B4 (cosmetic, needs a developer fix) — the CC0 sentence runs onto the Licence line on the page.
+  >   - Cause: both lines are indented 2 spaces, so NoticeEntry flows them together, the same fault as B1.
+  >   - What the paragraphs look like: "* Argon2 (src/argon2, including blake2)" is its own paragraph. Then comes one paragraph, "Licence: CC0-1.0 OR Apache-2.0, at the user's option Kusunga uses Argon2 under the CC0 1.0 option." — one line, no full stop after "option". Then "Text of src/argon2/src/argon2.c, ..." is separate.
+  >   - Repro: the two failing tests above. Possible developer options: a blank line before the sentence, or a full stop after "option".
+  > - B5 (test weakness, not a production bug) — the rewritten about_edge_test "both SQLite notices are reachable from the Kusunga row" does not prove the SQLite notice is reachable. It still passes if the ['Kusunga','SQLite'] registry row is dropped, because "May you do good and not evil" is also quoted in the Multiple Ciphers notice (csv.c, rekeyvacuum.c).
+  >   - It does fail when the Multiple Ciphers heading text is changed, when the Multiple Ciphers row is dropped, and when the blessing is removed from every copy.
+  >   - It is not vacuous in the 200-scroll-then-weaker-match sense: the loop ends in expect(found, findsWidgets) plus ensureVisible.
+  >   - My two new reachability tests cover the gap. I did not edit the developer's test.
+  > Abuse cases covered: n/a — no design-note abuse cases for this round
+  > UI states covered: n/a — no states-matrix rows this round (the licence page was exercised at 320 px width)
+  > Gaps not covered:
+  > - The claim "nothing else in the notice changed" is checked by `git diff` only: c2f256a..e2bc6cf on assets shows exactly one added line, "  Kusunga uses Argon2 under the CC0 1.0 option.". It is not a committed test.
+  > - The existing licence_texts_test checks the quoted header unchanged and that no full licence text was added.
+  > Production code changed: none (the mutations to lib/about/licences.dart and the assets were reverted; git status is clean apart from my commit)
+  > Suite: ./tool/check.sh run once, alone, after the PM's CGA flutter_tester processes were gone (the first pgrep showed CGA processes; I waited about 25 min, never killed them). 4396 passing / 2 failing (the two B4 repros) / 10 skipped. It was 4391 passing / 0 failing before. The check stops at the test step, with format and analyze clean for my file. Nothing else fails.
+  > Blockers: none
+- Gates: developer open (B4) · tester pass with B4 open · reviewer pending · QA pending · CI on e2bc6cf (see next entry) · PM merge approved when green
+- Open findings: B4 (cosmetic, licence page); B5 (test weakness, covered by the tester's new tests; for the reviewer)
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-23 — M1.9a About and licences — developer fixed B3 and added the CC0 sentence
 - Changed: developer report (opus, high), word for word:
   > Branch: feat/about-licences (2 new commits on c2f256a, not pushed). Worktree scratchpad/m19a-wt, tip e2bc6cf
