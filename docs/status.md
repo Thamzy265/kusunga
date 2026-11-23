@@ -1,5 +1,69 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — reviewer: block (R1, Windows CI)
+- Changed: reviewer report (opus, high), word for word:
+  > Mode: branch
+  > Branch: feat/about-licences (406537d..66d711f, 14 commits after QA; worktree scratchpad/m19a-wt) — Verdict: block
+  > Checks: ./tool/check.sh — pass on the Mac — I'm relying on the developer's single run on 66d711f (scratchpad/check_b4.txt): "Formatted 334 files (0 changed)", "No issues found!", "04:43 +4398 ~10: All tests passed!". I did not run the full check. The code-review fork ran the changed test files on the Mac: 308 passed. Afterwards `pgrep -fl flutter_tester` was empty and the worktree was clean. The Windows job on 66d711f is pending, and R1 below means it will fail.
+  > Code review: 5 findings (0 fixed, 5 open: R1, L1, L2, C1, C2)
+  > Design review: 0 findings. Changes are test-only, apart from the licence asset text and docs/licences.md. No product code, no new packages, no workflow or pubspec changes.
+  > Security review: 0 findings. A01–A10 n/a: test harness and licence text only. No endpoint, network, crypto, auth or logging code. A03: no dependency, lockfile or Actions change in the range. A05: the `eval` in bash.dart only runs the fixed reader text. Argument values are read by indirect expansion and never run as code, and only the test process sets that environment. No secrets. AI section n/a, no AI features. The security-review skill was not run this round. It can only diff the whole branch against origin/HEAD, which has been reviewed up to r9. This range is a test-harness and text change, which I checked by hand against the checklist.
+  > Privacy review: no issues. n/a for: logs/URLs/analytics (none touched), retention/erasure/processors/SDKs/regions (no data paths changed), TLS/at-rest (no data). Test data is synthetic.
+  > Later lines: none added — added by reviewer: none
+  > Findings (most severe first):
+  > - R1 — Medium (correctness; no product impact; it turns the windows-latest job red, and the PM's "Yes, merge when green" needs that job green) — test/support/bash_windows_edge_test.dart:15-22 and :68.
+  >   - Cause: `_shells` lists only /bin/bash, /opt/homebrew/bin/bash and /usr/local/bin/bash. On Windows, `File('/bin/bash')` resolves against the current drive's root (D:\bin\bash on the runner), so none of them exist. `_shells` is empty, and `test('there is a bash to try', () => expect(_shells, isNotEmpty))` fails. None of the ~19 per-shell reader tests run on Windows at all. The file header says "Nothing here needs Windows", but nothing in it is gated by platform.
+  >   - The file arrived in 73913d6, after the last Windows run (45185425374 on 17413f3), so it has never run on Windows. I worked this out from the code; the code-review fork reached the same result independently.
+  >   - Expected fix, preferred: on Windows use `[findBash()]` as `_shells`, so the reader's edge cases run under the real Git Bash. That is the tester's own stated gap. Fix or skip with a reason any test that is POSIX-only there; likely candidates are "the parent environment is still inherited" (Git Bash sets HOME itself) and the signal exit-code test.
+  >   - Expected fix, minimum: `skip: skipOnWindows(...)` on "there is a bash to try", with a reason naming bash_windows_args_test (which already drives the reader through findBash() on Windows).
+  >   - Evidence wanted: a Windows run with the fix. If the pending run on 66d711f does not show this failure, tell me and I will re-check.
+  > - L1 — Low (test harness only; no current script affected) — test/support/bash.dart:152 and the `_windowsRun` exec. The Windows path can leak noglob into the script.
+  >   - Cause: when SHELLOPTS is exported in the environment (from the caller's map, or inherited, as with the Cygwin/Git Bash `set -o igncr; export SHELLOPTS` habit), the outer `set -f` is written into SHELLOPTS and `exec "$BASH"` inherits it. The comment "IFS and `set -f` are back to normal" is then false.
+  >   - I reproduced it with /bin/bash: with no SHELLOPTS, the script prints "opts=hB" and `echo *.sh` gives "s.sh". With SHELLOPTS=braceexpand:hashall:interactive-comments it prints "opts=fhB" and a literal "*.sh". The plain (non-Windows) path gives "opts=hB" and "s.sh".
+  >   - tool/check_sqlite3mc.sh and tool/mac_release_guards.sh rely on no pathname expansion (their patterns are quoted or are `case` patterns), so nothing fails today. A future tool script that globs would see the literal pattern, on Windows only.
+  >   - Fix: `set +f` before the `exec`, a test with SHELLOPTS in the environment, and a corrected comment.
+  > - L2 — Low (a printed skip reason that is not accurate) — the `_symlinks` reason at test/ci/mac_release_guards_edge_test.dart:13 and test/ci/sqlite3mc_extfunc_abuse_test.dart:22.
+  >   - It says "a symlink needs Developer Mode on Windows". The windows-latest log of the original failing run (scratchpad/ci10/win.log, lines 757-790 and 1185-1208) shows `Link.createSync` working there. Those tests failed on the guard's own asserts under the WSL bash, and "a dangling symlink is a failure" and "a symlink to a folder is a failure" passed. The "Git Bash reads a native link differently" half is unproven.
+  >   - Fix: reword the reason to the true one. For example: the bundle guard is for Mac bundles with POSIX links, the DLL check is never given links, Windows link behaviour under Git Bash is not what these tests pin, and the Mac job runs them all. Optionally, run them once on Windows and drop the skips that pass.
+  > - C1 — cleanup (comments only; can wait, no behaviour) — stale comments:
+  >   - test/about/argon2_page_test.dart:30 says "B4 (repro, fails today)"; it passes since 6c0902b.
+  >   - argon2_page_test.dart:99 says about_edge_test looks for "May you do good and not evil"; since 66d711f it looks for "SQLite is in the public domain".
+  >   - test/support/bash_windows_edge_test.dart:261 says "The reader uses the names s, n, i and v"; since bf60753 it uses only KUSUNGA_BASH_ names.
+  >   - Fix: reword them to describe current behaviour.
+  > - C2 — cleanup (can wait: both copies pass and check the same thing) — the "each SQLite notice is reachable" group in argon2_page_test.dart repeats the B5-fixed check in about_edge_test.dart:579ff, with the same needles and the same drag loop. Keep one when convenient.
+  > Judgements asked for:
+  > - Windows-only skips: 15 in total.
+  >   - sqlite3mc_extfunc_abuse_test: star*, back\slash, line\nbreak in the loop, plus the newline test, 4 symlink tests and 1 chmod.
+  >   - mac_release_guards_edge_test: 5 symlink tests and 1 chmod.
+  >   - mac_release_guards_xcconfig_test: 1 chmod.
+  >   - File-name skips: the reason is true. NTFS forbids `*`, `\` (a separator) and control characters. Loss acceptable.
+  >   - chmod 000 skips: the reason is true. Git for Windows mounts with noacl, so chmod does not remove read access. Before this change these three were silent `return`s, now they are visible skips, which is an improvement. Loss acceptable.
+  >   - Symlink skips: coverage loss acceptable. mac_release_guards.sh only ever scans Mac bundles, and the Mac job runs all of them. The Windows sqlite3mc check is given the built DLL, never a link. The stated reason is partly wrong (L2).
+  >   - The other ~86 of the 101 Windows skips come from main's own pre-existing Windows skips (data, history, log, close_service tests), not from this range.
+  > - CC0 sentence: correct.
+  >   - The quoted Argon2 header reads "You may use this work under the terms of a Creative Commons CC0 1.0 License/Waiver or the Apache Public License 2.0, at your option."
+  >   - "Kusunga uses Argon2 under the CC0 1.0 option." is a true statement of that choice. It sits outside the quote, after the Licence line and before "Text of".
+  >   - The diff to the asset is exactly 2 added lines (the sentence and a blank line). Nothing quoted changed, and licence_texts_test pins the quoted header line for line.
+  >   - CC0 1.0 is a waiver with no notice or attribution condition, so no full text needs to travel. The existing line "The texts of CC0 1.0 and Apache 2.0 themselves are not in these files" is still true.
+  >   - The docs/licences.md row matches. docs/ui/about-and-licences.md:54 needs no change.
+  > - B4 and B5: correct.
+  >   - The blank line makes the sentence its own paragraph.
+  >   - The B5 needle "SQLite is in the public domain" appears once in assets/licences/sqlite.txt and 0 times in sqlite3mc.txt and LICENSE. The test now uses findsOneWidget.
+  >   - Fail-then-pass runs were provided: tester e18b4b9 +1 -2, then developer +52 after 6c0902b. The B5 mutation of dropping the ['Kusunga','SQLite'] row fails, then passes once restored.
+  > - extensionfunctions.c, lines 457-458: no fix needed. Both are complete sentences ending in a full stop. They join to "Licence: No licence text. Upstream `filelist.md` only assumes it is public domain. It is only compiled with SQLITE_ENABLE_EXTFUNC. It must not be compiled in; …", which reads correctly. It is the same style as other parts that carry notes on the Licence line.
+  > - Harness: findBash, the env transfer, B1/B2/B3 (NUL in names and values, reserved prefix, reader names) and the crlf() fix all look correct. Run 45185425374 shows the env transfer working under real Git Bash (bash_windows_args_test and the six script files pass). The rewritten "the working directory is used" test holds on Git Bash, because the last path segment is the same in /tmp/... and C:\...\Temp\... form, and the relative `[ -f only_here.txt ]` check proves the real cwd.
+  > Fix outcomes: none yet for R1, L1, L2, C1, C2. Earlier rounds: R16 fixed (r9). B1–B5 (tester) were verified this round from the code and the given fail and pass runs: B1 fixed (f816df6), B2 fixed (bf60753), B3 fixed (c731202), B4 fixed (6c0902b), B5 fixed (66d711f).
+  > Risk accepted by PM: none. A PM decision was used, not a risk: docs/status.md on main, entry "2026-11-23 — M1.9a About and licences — PM decision: Argon2 / fastpbkdf2 licence wording": "PM said: "Add the CC0 sentence" (2026-11-23). This closes the open Apache-2.0 / CC0 item for AC1 and AC7; no full Apache-2.0 or CC0 text is added."
+  > Open items:
+  > - R1: Windows CI will fail on "there is a bash to try". It needs a developer fix and a Windows run.
+  > - L1 and L2 (Low) and C1 and C2 (cleanup) may be fixed in the same round, or listed as notes once R1 is closed.
+  > Blockers: none
+- Lead note: developer re-dispatched (opus, high) for R1, L1, L2, C1 and C2 in one round. CI runs 45198148242 (e2bc6cf) and 45202523656 (66d711f) still in progress at the lead's single check.
+- Gates: developer open (R1, L1, L2, C1, C2) · tester pass · reviewer block · QA pending · CI pending · PM merge approved when green
+- Open findings: R1 Medium; L1, L2 Low; C1, C2 cleanup
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-23 — M1.9a About and licences — developer fixed B4 and tightened the B5 test
 - Changed: developer report (opus, high), word for word:
   > Branch: feat/about-licences (2 new commits this round, on top of the tester's e18b4b9: 6c0902b, 66d711f; not pushed). Worktree scratchpad/m19a-wt
