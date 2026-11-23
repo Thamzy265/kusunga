@@ -180,8 +180,8 @@ final _windowsRun = [
 /// slashes ([forBash]).
 ///
 /// Throws [ArgumentError] for an environment name with the
-/// [reservedBashPrefix], and for a NUL character in the script, an argument
-/// or an environment value, on every system.
+/// [reservedBashPrefix], and for a NUL character in the script, an argument,
+/// an environment name or an environment value, on every system.
 BashInvocation bashInvocation(
   String script,
   List<String> args, {
@@ -195,9 +195,10 @@ BashInvocation bashInvocation(
       throw ArgumentError.value(key, 'environment', 'is reserved for runBash');
     }
   }
-  // A NUL ends a C string, so it cannot reach bash in an argument or an
-  // environment value: the process would get the text cut at the NUL. Refuse
-  // it on every system rather than run the script with a changed value.
+  // A NUL ends a C string, so it cannot reach bash in an argument or in an
+  // environment name or value: the process would get the text cut at the NUL
+  // (`A\x00B` would set `A`). Refuse it on every system rather than run the
+  // script with a changed value.
   void noNul(String value, String name) {
     if (value.contains('\x00')) {
       throw ArgumentError.value(value, name, 'contains a NUL character');
@@ -209,6 +210,7 @@ BashInvocation bashInvocation(
     noNul(a, 'args');
   }
   for (final e in env.entries) {
+    noNul(e.key, 'environment');
     noNul(e.value, 'environment[${e.key}]');
   }
   if (!windows) return (arguments: [script, ...args], environment: {...env});
