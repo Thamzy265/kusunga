@@ -412,9 +412,23 @@ void main() {
     });
 
     test('the working directory is used', () {
-      final r = runBash(script('pwd').path, [], workingDirectory: dir.path);
+      // Git Bash prints its own form of the folder (Temp is /tmp there), so
+      // the printed path cannot be compared whole. Two checks instead: the
+      // last segment is the folder's name, and a file Dart made only in that
+      // folder is visible to the script by a relative name.
+      File('${dir.path}/only_here.txt').writeAsStringSync('x');
+      final r = runBash(
+        script(
+          r'printf "%s\n" "$(pwd)"; [ -f only_here.txt ] && echo found',
+        ).path,
+        [],
+        workingDirectory: dir.path,
+      );
       expect(r.exitCode, 0);
-      expect('${r.stdout}'.trim(), endsWith(dir.path.split('/').last));
+      final lines = '${r.stdout}'.trim().split(RegExp(r'\r?\n'));
+      final name = dir.path.split(RegExp(r'[\\/]')).last;
+      expect(lines.first.split('/').last, name);
+      expect(lines.last, 'found');
     });
 
     test('a script that does not exist fails, it is not a pass', () {
