@@ -1,5 +1,56 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — tester pass on the Windows fix; Windows CI fails again (1 test)
+- Changed: tester report (sonnet, medium), word for word:
+  > Branch: feat/about-licences (1 test commit, 182d204 on edd258f, not pushed)
+  > Added: 33 tests in test/support/bash_edge_test.dart (new file, formatted and analyzer-clean)
+  > E2E tests added: 0 (n/a — no user flow; this is test infrastructure)
+  > Fail-then-pass: the Windows rules run on any machine, so the old code is simulated. At 406537d test/support/bash.dart does not exist, so the file cannot compile there. I used four temporary mutations of bash.dart instead, each restored with `git checkout`:
+  > - M1, bash by name on Windows (the original bug): fails 7 tests, e.g. "only the WSL launcher on the machine: fails, probes nothing", `"bash" and the WSL launcher are never probed, whatever exists`, "empty and missing variables are ignored", "only an existing file is probed".
+  > - M2, probe result ignored: fails 6 tests, e.g. "a launcher copied to a Git-like path is rejected by the probe", "a bash that fails the probe falls through to the next git", "the error names every candidate that was found but failed".
+  > - M3, forBash converts every string: fails 4 tests ("look-alikes are not paths", "UNC...", "relative paths keep their slashes", "arguments that merely look like paths arrive unchanged").
+  > - M4, System32 bash added as a last candidate: fails 3 tests ("a git.exe in System32 never leads to the WSL launcher" and two of the never-use-bash-by-name tests).
+  > All 33 pass on edd258f.
+  > Regression locks: all 33 pass on the new code. Locks on current behaviour:
+  > - Candidate order: ProgramFiles, then ProgramW6432, then ProgramFiles(x86), then LOCALAPPDATA, then `where git`. Duplicate paths are probed once. An empty env var is ignored.
+  > - Case-insensitive env keys work when the map is case-insensitive, as Platform.environment is on Windows.
+  > - `where git` with spaces in the path and several lines.
+  > - forBash leaves "C:", "a:b", "C:foo\bar", UNC, `\\?\` and relative paths alone. It changes only values that start with a drive path (so `C:\a;D:\b` becomes `C:/a;D:/b`).
+  > - runBash passes the exit code and both streams through.
+  > - Off Windows, only `bash` is probed.
+  > They could break if someone reorders the candidates, adds `bash` by name or a System32 fallback, or widens forBash.
+  > Bugs found: none blocking. Observations for the developer, with no failing test:
+  > 1. forBash is not gated on Platform.isWindows. On Mac and Linux a test argument or env value beginning with `X:\` is rewritten to `X:/`. Nothing does this today.
+  > 2. forBash only converts a value that starts with a drive path. `--out=C:\x` and `x;C:\a` are left with their backslashes. It is correct for the current callers.
+  > 3. The `where git` fallback assumes git.exe sits one or two folders below the Git root. A Scoop shim, `C:\Users\u\scoop\shims\git.exe`, would not find bash, and the run would fail with the install message. That fails loudly, not silently.
+  > 4. `_whereGit` parsing (CRLF, blank lines, trimming) is private, so I could not test it directly. I tested only the resolver's handling of several entries.
+  > Abuse cases covered: n/a — no design note
+  > UI states covered: n/a — no UI
+  > Gaps not covered:
+  > - Nothing ran on real Windows, so the Windows rules are tested with injected answers only. That includes the real `where git` output, the real WSL launcher probe, and UNC paths under real Git Bash.
+  > - UNC handling is locked as "left unchanged", not as "works under Git Bash".
+  > Review of the six script test files for silent passes on Windows (git grep of isWindows, skipOnWindows, return, skip:):
+  > - No `return` sits under `Platform.isWindows`.
+  > - Every Windows skip uses skipOnWindows(reason), so the run prints "not on Windows: <reason>".
+  > - The Windows skips:
+  >   - mac_release_guards_edge_test.dart: four symlink tests (lines 98, 113, 125, 136) and a fifth at line 228, reason `_symlinks`. This holds as a reason, but it is a real coverage gap. Symlinks in Mac bundles are what the guard is for, and the Mac CI job runs them.
+  >   - mac_release_guards_edge_test.dart line 190, chmod 000. Holds.
+  >   - mac_release_guards_xcconfig_test.dart line 140, chmod 000. Holds.
+  >   - sqlite3mc_extfunc_abuse_test.dart line 60, file names containing `*`, `\` or a newline. Holds. It covers `star*.dll` and `back\slash.dll`.
+  >   - sqlite3mc_extfunc_abuse_test.dart line 94, newline in the file name. Holds.
+  >   - sqlite3mc_extfunc_abuse_test.dart lines 126, 132, 140 and 145, symlinks. Same note as above.
+  >   - sqlite3mc_extfunc_abuse_test.dart line 158, chmod 000. Holds.
+  > - Weaker but not vacuous: mac_release_guards_edge_test.dart line 169 drops the double quote from the bundle name on Windows because a double quote cannot be in a Windows file name. The test still runs with the single quote.
+  > - Returns that are not Windows-specific: the chmod tests return early when running as root (edge line 188, xcconfig line 129, abuse line 150). All three chmod tests are skipped on Windows anyway. sqlite3mc_extfunc_check_test.dart line 111 calls markTestSkipped("no sqlite3mc binary built on this machine") and returns, which is likely to happen on the Windows CI runner. It prints a reason, so it is not silent, but it is a pre-existing pass-when-nothing-built test.
+  > Production code changed: none
+  > Suite: 4347 passing / 0 failing, 10 skipped (the 10 were skipped before my commit as well; the pre-change count was not re-measured, so my 33 are additive and I did not record the old total). ./tool/check.sh was run once, alone, after pgrep -fl flutter_tester came back empty. The first run found one analyzer lint in my file (a private type returned by a public helper). I fixed it by privatising the helper, amended the commit, and the final run was clean on format, analyze and test.
+  > Blockers: none
+- CI run 45161191729 on edd258f: macos pass; windows fail, 1 failing test: sqlite3mc_extfunc_abuse_test "file names \"quote'.dll\": a clean file passes and a bad one fails" — "Expected: <0> Actual: <1>", output "FAIL C:/Users/RUNNER~1/AppData/Local/Temp/sqlite3mc_abuse2744870a/quote.dll: no such file" (the single quote is lost on the way into Git Bash). The other 82 earlier failures pass; the Windows-only skips print their reasons.
+- Gates: developer open (round 2, escalated to opus, high) · tester pass · reviewer pending · QA pass (on 406537d; test-only change since) · CI windows fail · PM merge approved when green
+- Open findings: CI windows failure (1 test)
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-23 — M1.9a About and licences — Windows CI fix built (tests only)
 - Changed: developer report (sonnet, high), word for word:
   > Branch: feat/about-licences (2 new commits on top of 406537d: 0a9a86f, edd258f). Not pushed.
