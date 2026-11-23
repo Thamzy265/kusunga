@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-23 — M1.9c / M1.9e — Apple Developer account status
+- Changed: lead asked "Is your Apple Developer account active yet?"
+- Gates: n/a — no work started
+- Open findings: none
+- Decisions: PM said: "Not yet" (2026-11-23). M1.9c (keychain move) and M1.9e (release script, signed launch check) stay not started until it is active.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-23 — M1.9a About and licences — PM decision: Argon2 / fastpbkdf2 licence wording
 - Changed: lead asked "Which licence wording should Kusunga use for Argon2 and fastpbkdf2?" with options: add the sentence "Kusunga uses Argon2 under CC0 1.0" (reviewer's advice; CC0 needs no licence text to travel) · also download the full Apache-2.0 and CC0 texts.
 - Gates: developer to add the sentence to assets/licences/sqlite3mc.txt on feat/about-licences, then tester, reviewer and a QA look at the entry, as usual
