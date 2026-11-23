@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — PM approved the merge
+- Changed: lead asked "Should I merge PR 10 once both CI jobs are green?"
+- Gates: developer pass · tester pass · reviewer approve · QA pass · CI pending · PM merge approved, on condition that both CI jobs are green
+- Open findings: none
+- Decisions: PM said: "Yes, merge when green" (2026-11-23). Scope: PR 10 (feat/about-licences), merge on the remote only when the macos and windows jobs pass.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-23 — M1.9a About and licences — branch pushed, PR opened
 - Changed: feat/about-licences pushed (tip 406537d) and https://github.com/Thamzy265/kusunga/pull/10 opened against main; it carries 65 commits including local main's unpushed docs commits. CI (macos-15 and windows-latest, GitHub-hosted) not yet reported.
 - Gates: developer pass · tester pass · reviewer approve · QA pass · CI pending · PM merge waiting for CI
