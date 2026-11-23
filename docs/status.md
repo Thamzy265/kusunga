@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — PM decision: Argon2 / fastpbkdf2 licence wording
+- Changed: lead asked "Which licence wording should Kusunga use for Argon2 and fastpbkdf2?" with options: add the sentence "Kusunga uses Argon2 under CC0 1.0" (reviewer's advice; CC0 needs no licence text to travel) · also download the full Apache-2.0 and CC0 texts.
+- Gates: developer to add the sentence to assets/licences/sqlite3mc.txt on feat/about-licences, then tester, reviewer and a QA look at the entry, as usual
+- Open findings: none new
+- Decisions: PM said: "Add the CC0 sentence" (2026-11-23). This closes the open Apache-2.0 / CC0 item for AC1 and AC7; no full Apache-2.0 or CC0 text is added.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-23 — M1.9a About and licences — developer fixed B1 and B2 (test harness)
 - Changed: developer report (opus, high), word for word:
   > Branch: feat/about-licences (2 new commits on top of the tester's 73913d6: f816df6 B1, bf60753 B2; not pushed. 17413f3 is still the pushed tip.)
