@@ -113,6 +113,11 @@ Everything stays on the device. No account, no server.
   - AC: the release script passes `--dart-define=KUSUNGA_VERSION` and `KUSUNGA_BUILD` taken from the release tag, and fails if they are missing or differ from the tag, so no release shows "version unknown" or links the wrong source (reviewer note R5, M1.9a review, 2026-11-21).
   - Before start: decide whether to build sqlite3mc from source instead of the SHA-256-pinned prebuilt download (reviewer note, 2026-11-03). Decided 2026-11-19: keep the pinned prebuilt (D2 A).
 
+- [ ] **M1.10 Dependency updates** — size set at start (large if the sqlite3 update changes the bundled SQLite3 Multiple Ciphers). Starts after M1.9a merges (PM 2026-11-23: "Close, plan one item"). Replaces Dependabot PRs 6, 7 and 8, closed 2026-11-23.
+  - AC: sqlite3 3.5.2 → 3.9.1 (or the latest at start), window_manager 0.5.2 → 0.7.0, tray_manager 0.5.3 → 0.9.0 are updated on one branch, with each breaking change handled.
+  - AC: the encrypted database still opens with the existing key, and the sqlite3mc SHA-256 pin and the licence notice (version, texts) match the new bundled SQLite3 Multiple Ciphers.
+  - AC: tray menu, window show/hide and the picker work on Mac and Windows; both CI jobs pass; developer, tester, reviewer and QA gates as usual.
+
 ## M2 — Secure vault (bank details, IDs)
 
 Needs its own design note, privacy section and deck before it starts.

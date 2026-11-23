@@ -1,5 +1,19 @@
 # Status log
 
+## 2026-11-23 — Dependabot PRs 6, 7, 8 — PM decision: close and plan one item
+- Changed: lead asked how to clean up PRs 6 (sqlite3 3.5.2→3.9.1), 7 (window_manager 0.5.2→0.7.0) and 8 (tray_manager 0.5.3→0.9.0): all 6 days old, CI failing on both jobs, never through the gates. PRs closed with a comment; plan item M1.10 Dependency updates added.
+- Gates: n/a — no code changed
+- Open findings: none
+- Decisions: PM chose "Close, plan one item (Recommended)" (2026-11-23).
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
+## 2026-11-23 — M1.9a About and licences — Windows CI failed on PR 10; developer re-dispatched
+- Changed: run 45137019982: macos pass, windows fail with 83 failing tests: sqlite3mc_extfunc_abuse_test 34, sqlite3mc_extfunc_check_test 19, mac_release_guards_edge_test 14, mac_release_build_guards_test 7, mac_release_guards_xcconfig_test 5, mac_release_guards_bugs_test 3, flutter_licences_binding_test 1 ("the real source with CRLF line endings has no problems": the 3 _parseLicenses problems). Lead reading: the shell-script tests start `bash`, which on windows-latest is the WSL launcher with no distribution (UTF-16 "Windows Subsystem for Linux has no installed distributions"); the M1.9b guard tests had never run on Windows. PM asked: "the windows check failed, can you fix that and lets clean up the other PRs remaining there and continue". Developer re-dispatched one effort level higher (sonnet, high), per the escalation rule.
+- Gates: developer open · tester pending · reviewer pending · QA pass (on 406537d) · CI windows fail · PM merge approved when green
+- Open findings: CI windows failure
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-23 — M1.9a About and licences — PM approved the merge
 - Changed: lead asked "Should I merge PR 10 once both CI jobs are green?"
 - Gates: developer pass · tester pass · reviewer approve · QA pass · CI pending · PM merge approved, on condition that both CI jobs are green
