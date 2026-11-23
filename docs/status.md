@@ -1,5 +1,37 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — developer fixed B1 and B2 (test harness)
+- Changed: developer report (opus, high), word for word:
+  > Branch: feat/about-licences (2 new commits on top of the tester's 73913d6: f816df6 B1, bf60753 B2; not pushed. 17413f3 is still the pushed tip.)
+  > Built:
+  > - B1: `bashInvocation` throws ArgumentError when the script, any argument or any environment value contains a NUL. It does this on every system, Windows or not. The check runs after the reserved-name check. The doc comment says so.
+  > - B2: the Windows reader (KUSUNGA_BASH_RUN code) now sets only names with the reserved prefix. It loops with KUSUNGA_BASH_I and KUSUNGA_BASH_V over KUSUNGA_BASH_ARGC, and starts "$@" with the script path. It unsets every KUSUNGA_BASH_ name, then runs `exec "$BASH" "$@"`. A caller's exported s, n, i and v reach the script unchanged. The fixed `-c` command line is unchanged, so it still has no quote, backslash or glob character.
+  > - Only file changed: scratchpad/m19a-wt/test/support/bash.dart
+  > Tests: ./tool/check.sh exit 0, run once and alone (pgrep -fl flutter_tester was empty before it ran). Results: "+4388 ~10: All tests passed!", "Formatted 333 files (0 changed)", "No issues found!". The tester's run had 4386 passing and 2 failing; the 2 repros now pass. No new tests: the tester's repros in test/support/bash_windows_edge_test.dart cover both bugs. Full log: scratchpad/check_b1b2.log
+  > First failing runs, at 73913d6 before any fix:
+  > - B1, "NUL cannot travel in an environment a NUL in an argument, the script or an environment value throws": `Expected: throws <Instance of 'ArgumentError'> Actual: <Closure ...> returned (... KUSUNGA_BASH_ARG_0: a b ...)`, reason "argument, windows=true".
+  > - B2, "with /bin/bash the reader leaves no stray names in the script environment": `Expected: 'S1\x00N1\x00I1\x00V1\x00' Actual: '/var/folders/.../a.sh\x002\x002\x00KUSUNGA_BASH_ARG_1\x00'`.
+  > After each fix that test passed on its own ("+1: All tests passed!"). Then bash_windows_edge_test, bash_windows_args_test and bash_test together gave "+55: All tests passed!". That includes "no KUSUNGA_BASH_ variable is left for the script or its children" and the script-path tests ($0 is the path).
+  > E2E: n/a — no suite (test-harness change only)
+  > Test hooks: n/a — no UI
+  > Deviations from plan: none. I did not touch bash_edge_test.dart:417 ("the working directory is used"), as briefed; it is the tester's.
+  > Checklists: none — n/a items: data-and-apis and ui-build both n/a, test harness only
+  > Risks / unverified:
+  > - The new reader has run only under /bin/bash 3.2 on the Mac, not yet on real Git Bash. The next Windows CI run checks it.
+  > - A NUL in an environment variable *name* is not checked, as the brief named only values. It would be cut the same way; say if you want it added.
+  > Personal data touched: none
+  > Later lines added: none
+  > Spec gaps raised: none
+  > Findings:
+  > - B1 — fixed (f816df6, "NUL cannot travel in an environment a NUL in an argument, the script or an environment value throws")
+  > - B2 — fixed (bf60753, "with /bin/bash the reader leaves no stray names in the script environment")
+  > Blockers: none
+  > How to verify: 1. git log --oneline -3 in scratchpad/m19a-wt shows bf60753, f816df6, then 73913d6. 2. flutter test test/support/bash_windows_edge_test.dart test/support/bash_windows_args_test.dart test/support/bash_test.dart gives "+55: All tests passed!". 3. git checkout 73913d6 -- test/support/bash.dart, then flutter test test/support/bash_windows_edge_test.dart shows the 2 repros fail; restore with git checkout bf60753 -- test/support/bash.dart. 4. After pushing, the Windows CI job should pass every test in bash_windows_edge_test.dart. bash_edge_test.dart:417 may still fail until the tester's fix lands.
+- Gates: developer pass · tester open (re-check B1, B2; fix its working-directory test) · reviewer pending · QA pass (on 406537d; test-only change since) · CI pending · PM merge approved when green
+- Open findings: CI test expectation (bash_edge_test.dart:417)
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-23 — M1.9a About and licences — tester round 2: 2 bugs; Windows CI run 3: 1 failing test
 - Changed: tester report (sonnet, medium, re-run after the session restart), word for word:
   > Branch: feat/about-licences (1 test commit: 73913d6, on top of 17413f3, not pushed)
