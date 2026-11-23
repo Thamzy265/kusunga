@@ -308,6 +308,25 @@ void main() {
         expect('${r.stdout}', 'glob\n[ \t\n]\n2\n');
       });
 
+      test('an exported SHELLOPTS does not carry the reader\'s set -f into '
+          'the script (L1)', () {
+        // When SHELLOPTS is in the environment, bash keeps it up to date and
+        // exported, so the reader's `set -f` reached the exec'd bash in it and
+        // the script lost pathname expansion, on the Windows path only.
+        final s = script(
+          r'case $- in *f*) echo noglob;; *) echo glob;; esac; echo *.sh',
+        );
+        final r = run(
+          shell,
+          s.path,
+          const [],
+          cwd: dir.path,
+          env: {'SHELLOPTS': 'braceexpand:hashall:interactive-comments'},
+        );
+        expect(r.exitCode, 0, reason: '${r.stderr}');
+        expect('${r.stdout}', 'glob\na.sh\n');
+      });
+
       test('stdout, stderr and the exit code are the script\'s own', () {
         for (final code in [0, 1, 2, 127, 255]) {
           final s = script('echo out; echo err >&2; exit $code');

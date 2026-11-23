@@ -148,9 +148,13 @@ const reservedBashPrefix = 'KUSUNGA_BASH_';
 const _windowsCommand = r'set -f; IFS=; eval $KUSUNGA_BASH_RUN';
 
 /// The code in KUSUNGA_BASH_RUN: rebuild "$@" as the script followed by
-/// KUSUNGA_BASH_ARG_0..n-1, remove every KUSUNGA_BASH_ variable, and run the
-/// script in a fresh bash (so IFS and `set -f` are back to normal and $0 is
-/// the script, as with `bash script args`). Every name it sets has the
+/// KUSUNGA_BASH_ARG_0..n-1, remove every KUSUNGA_BASH_ variable, turn
+/// `set -f` off, and run the script in a fresh bash, as with `bash script
+/// args`: $0 is the script, and IFS is back to normal because bash never takes
+/// IFS from the environment. `set -f` has to be turned off by hand: when
+/// SHELLOPTS is exported (the caller's map, or inherited, as with the Cygwin
+/// habit `set -o igncr; export SHELLOPTS`), bash writes `noglob` into it and
+/// the fresh bash would start with it. Every name it sets has the
 /// reserved prefix, which a caller cannot use, so the caller's own variables
 /// reach the script unchanged. Bash 3.2 safe. Joined with \n, not a
 /// multi-line literal, so the code is the same whatever line endings the
@@ -166,6 +170,7 @@ final _windowsRun = [
   r'done',
   r'unset KUSUNGA_BASH_RUN KUSUNGA_BASH_SCRIPT KUSUNGA_BASH_ARGC '
       r'KUSUNGA_BASH_I KUSUNGA_BASH_V',
+  r'set +f',
   r'exec "$BASH" "$@"',
 ].join('\n');
 
