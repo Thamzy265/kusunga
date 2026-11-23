@@ -1,5 +1,19 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — CI on 5a6f5cd: green, reviewer's Windows-log conditions met
+- Changed: CI run 45210273381 on 5a6f5cd: macos success, windows success. Lead read both full job logs once (saved in the scratchpad, not committed) against the reviewer's open items (r11 and r12):
+  1. Both jobs conclude success — yes.
+  2. Windows: "Some tests failed" does not appear; summary "🎉 4309 tests passed, 102 skipped." (0 failed).
+  3. "test/support/bash_windows_edge_test.dart: there is a bash to try" — passed.
+  4. Group "with C:\Program Files\Git\bin\bash.exe" — 19 tests passed, including "a 100000 character argument arrives whole", "the parent environment is still inherited", "an exported SHELLOPTS does not carry the reader's set -f into the script (L1)", "caller BASH, IFS, GLOBIGNORE, PATH-like and lower names: ...", "script paths with spaces, quotes, $ and unicode work, $0 is the path".
+  5. Exactly one skip from that file: "a signal that kills the script is reported as the signal", reason "not on Windows: a Windows process does not die of a signal: ..."; Windows skip total 102.
+  6. "the parent environment is still inherited" passed in both jobs ("with /bin/bash" on macos-15); "this process has no variable to check with" appears 0 times in either log. macOS summary: "🎉 4397 tests passed, 10 skipped."
+  R1 and the cross-platform part of N1 are confirmed. The reviewer's verdict stands at approve with notes.
+- Gates: developer pass · tester pass · reviewer approve with notes (CI condition met) · QA re-run in progress · CI green on 5a6f5cd · PM merge approved when green
+- Open findings: none
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-23 — M1.9a About and licences — PM decision: screen-recording dialog
 - Changed: the PM answered QA's "Needs PM" item about the macOS dialog "Claude is requesting to bypass the system private window picker and directly access your screen and audio". QA is dispatched again for the two CC0 sentence screenshots (800 px and 360 px), file prefix m19a-r3-.
 - Gates: developer pass · tester pass · reviewer approve with notes (CI condition) · QA re-run pending · CI pending · PM merge approved when green
