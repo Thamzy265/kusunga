@@ -583,13 +583,19 @@ void main() {
         'SQLite3 Multiple Ciphers 2.5.0 and the parts it bundles',
         'May you do good and not evil',
       ]) {
-        await tester.scrollUntilVisible(
-          find.textContaining(text),
-          1500,
-          scrollable: find.byType(Scrollable).last,
-          maxScrolls: 200,
-        );
-        expect(find.textContaining(text), findsWidgets, reason: text);
+        // Not scrollUntilVisible: it needs exactly one match where it stops,
+        // and the blessing is quoted twice (csv.c, rekeyvacuum.c), so both
+        // can be built at once. Scroll the same way, then show the first.
+        final found = find.textContaining(text);
+        for (var i = 0; i < 200 && found.evaluate().isEmpty; i++) {
+          await tester.drag(
+            find.byType(Scrollable).last,
+            const Offset(0, -1500),
+          );
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        expect(found, findsWidgets, reason: text);
+        await tester.ensureVisible(found.first);
       }
     });
 

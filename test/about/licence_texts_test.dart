@@ -281,4 +281,68 @@ void main() {
     ).allMatches(notice).map((m) => m.group(1)!).toSet();
     expect(quoted, named);
   });
+
+  group('Argon2: Kusunga takes the CC0 1.0 option', () {
+    // PM decision 2026-11-23 (docs/status.md): "Add the CC0 sentence". Argon2
+    // is CC0-1.0 OR Apache-2.0; the notice says which one Kusunga uses, and
+    // carries neither full licence text.
+    const choice = 'Kusunga uses Argon2 under the CC0 1.0 option.';
+
+    /// The quoted header, word for word and line for line, from its
+    /// "Text of" line to its last line.
+    const header = [
+      '  Text of src/argon2/src/argon2.c, lines 1 to 16 (every file under '
+          'src/argon2/src, src/argon2/src/blake2/blake2b.c included, opens '
+          'with the same text):',
+      '',
+      '    Argon2 reference source code package - reference C implementations',
+      '',
+      '    Copyright 2015',
+      '    Daniel Dinu, Dmitry Khovratovich, Jean-Philippe Aumasson, and '
+          'Samuel Neves',
+      '',
+      '    You may use this work under the terms of a Creative Commons CC0 1.0',
+      '    License/Waiver or the Apache Public License 2.0, at your option. '
+          'The terms of',
+      '    these licenses can be found at:',
+      '',
+      '    - CC0 1.0 Universal : https://creativecommons.org/publicdomain/zero/1.0',
+      '    - Apache 2.0        : https://www.apache.org/licenses/LICENSE-2.0',
+      '',
+      '    You should have received a copy of both of these licenses along '
+          'with this',
+      '    software. If not, they may be obtained at the above URLs.',
+    ];
+
+    String argon2() => blocks.firstWhere((b) => b.startsWith('* Argon2 ('));
+
+    test('the Argon2 part states the CC0 1.0 choice, outside the quote', () {
+      final lines = argon2().split('\n');
+      final said = lines.indexOf('  $choice');
+      expect(said, isNot(-1), reason: 'the choice is its own line');
+      expect(
+        said,
+        lessThan(lines.indexWhere((l) => l.startsWith('  Text of '))),
+        reason: 'the choice is not inside the quoted header',
+      );
+      expect(RegExp(RegExp.escape(choice)).allMatches(notice), hasLength(1));
+    });
+
+    test('the quoted Argon2 header is unchanged', () {
+      expect(argon2(), contains(header.join('\n')));
+    });
+
+    test('neither full licence text was added', () {
+      final text = squash(notice);
+      // Apache-2.0 section headings and the CC0 1.0 legal code's own words.
+      for (final phrase in [
+        'TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION',
+        'Grant of Copyright License',
+        'Statement of Purpose',
+        'Public License Fallback',
+      ]) {
+        expect(text, isNot(contains(phrase)), reason: phrase);
+      }
+    });
+  });
 }

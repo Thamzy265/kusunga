@@ -41,7 +41,7 @@ Read from the upstream project at tag v2.5.0 (`src/filelist.md` and the licence 
 | SHA-1 (sha1.c), MD5 (md5.c) | Public domain | file headers and `filelist.md` | Yes |
 | SHA-2 (sha2.c) | BSD-3-Clause (Olivier Gay) | file header | Yes |
 | PBKDF2 (fastpbkdf2.c) | CC0-1.0 | file header | Yes |
-| Argon2 (src/argon2, including blake2) | CC0-1.0 OR Apache-2.0, at the user's option | file headers | Yes. Choose CC0-1.0, or Apache-2.0 (compatible with GPL-3.0). |
+| Argon2 (src/argon2, including blake2) | CC0-1.0 OR Apache-2.0, at the user's option | file headers | Yes. Kusunga uses it under CC0-1.0, and the notice says so (PM decision 2026-11-23). |
 | SQLite3 Multiple Ciphers RC4 cipher (cipher_sds_rc4.c), SQLCipher-compatible cipher (cipher_sqlcipher.c) | MIT (own code, no SQLCipher source copied; the SQLCipher format is only imitated) | file headers | Yes |
 | miniz (miniz.c, used by the compress and zipfile extensions) | MIT | file header | Yes |
 | SQLite core and SQLite extensions (shathree, csv, fileio, series, uuid, regexp, sqlar, zipfile, compress, rekeyvacuum) | Public domain (blessing) | file headers and `filelist.md` | Yes |

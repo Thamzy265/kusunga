@@ -351,6 +351,7 @@ SOFTWARE.
 
 * Argon2 (src/argon2, including blake2)
   Licence: CC0-1.0 OR Apache-2.0, at the user's option
+  Kusunga uses Argon2 under the CC0 1.0 option.
 
   Text of src/argon2/src/argon2.c, lines 1 to 16 (every file under src/argon2/src, src/argon2/src/blake2/blake2b.c included, opens with the same text):
 
