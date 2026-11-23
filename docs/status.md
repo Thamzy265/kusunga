@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — PM decision: screen-recording dialog
+- Changed: the PM answered QA's "Needs PM" item about the macOS dialog "Claude is requesting to bypass the system private window picker and directly access your screen and audio". QA is dispatched again for the two CC0 sentence screenshots (800 px and 360 px), file prefix m19a-r3-.
+- Gates: developer pass · tester pass · reviewer approve with notes (CI condition) · QA re-run pending · CI pending · PM merge approved when green
+- Open findings: none
+- Decisions: PM said: "I'll allow, re-run QA" (2026-11-23). The PM allows the dialog themself; the team still clicks nothing in it. This is not a risk acceptance.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-23 — M1.9a About and licences — QA CC0 check stopped by a macOS screen-recording dialog
 - Changed: QA report (sonnet, medium), word for word:
   > Milestone: M1.9a CC0 sentence check — 1/3 checks pass, 1 partial (AX tree only), 1 not run — Date: 2026-11-23 — Environment: macOS 27.2, Flutter 3.44.6, debug build at 5a6f5cd (KUSUNGA_VERSION=v0.9.0, KUSUNGA_BUILD=1), qa profile only
