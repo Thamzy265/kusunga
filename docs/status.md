@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — branch pushed, PR opened
+- Changed: feat/about-licences pushed (tip 406537d) and https://github.com/Thamzy265/kusunga/pull/10 opened against main; it carries 65 commits including local main's unpushed docs commits. CI (macos-15 and windows-latest, GitHub-hosted) not yet reported.
+- Gates: developer pass · tester pass · reviewer approve · QA pass · CI pending · PM merge waiting for CI
+- Open findings: none
+- Decisions: open for PM: Apache-2.0 / CC0-1.0 texts and the Argon2 CC0 sentence
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-23 — M1.9a About and licences — PM chose the merge route
 - Changed: lead asked "How should I merge M1.9a?" (options: push the branch and open a PR so the Windows CI job runs, which also carries local main's unpushed commits on the branch; or merge locally).
 - Gates: developer pass · tester pass · reviewer approve · QA pass · PM merge route approved: PR; merge on the remote after CI
