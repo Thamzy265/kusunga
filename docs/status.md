@@ -1,5 +1,58 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — Windows CI fix built (tests only)
+- Changed: developer report (sonnet, high), word for word:
+  > Branch: feat/about-licences (2 new commits on top of 406537d: 0a9a86f, edd258f). Not pushed.
+  > Built:
+  > - Both of your readings were right. The 83 failures come from `bash` by name resolving to the WSL launcher (the CI log shows "Windows Subsystem for Linux has no installed distributions", UTF-16). The CRLF licence test fails because the test's `crlf()` helper doubles the CR on a file that is already CRLF.
+  > - No product code is at fault. Only test files changed, plus the new helper under test/support.
+  > - New `test/support/bash.dart`:
+  >   - `findBash()` on Windows looks only for Git Bash: Program Files / ProgramW6432 / ProgramFiles(x86) `\Git\bin\bash.exe`, then `%LOCALAPPDATA%\Programs\Git`, then next to a `git.exe` found with `where git`. It never takes System32.
+  >   - Every candidate is probed with `bash -c 'echo kusunga-bash-ok'`.
+  >   - If none works it throws a StateError naming Git for Windows and the WSL trap. It never skips.
+  >   - `runBash(script, args, {environment, workingDirectory, shell})` gives bash `C:/...` forward-slash paths for drive-letter paths (script, args and env values).
+  >   - `skipOnWindows(reason)` gives a visible skip with the reason printed.
+  > - The six script test files (sqlite3mc check, sqlite3mc abuse, and the four mac_release_guards files) now call `runBash`. The silent `hasBashSkip()` in sqlite3mc_extfunc_check_test is removed.
+  > - Licence test: `crlf()` now goes through LF first, and a test pins "exactly one CR before each LF".
+  > Tests: `./tool/check.sh` run once, alone, after `pgrep -fl flutter_tester` was empty. Format 0 changed, analyze no issues, `All tests passed!` with +4314 passed, ~10 skipped (those 10 were already skipped before). New tests: test/support/bash_test.dart (14 tests: the Windows resolution rules run on Mac with injected machine answers, loud failure, `runBash` env/args, `forBash`) and the `crlf` test in flutter_licences_binding_test.
+  > First failing runs:
+  > 1. bash_test.dart before bash.dart existed: compile error, "Method not found: 'forBash'".
+  > 2. Windows bash simulated on Mac with a fake WSL `bash` at the front of PATH (scratchpad/fakewsl/bash, which only fakes the tests' calls). Old code gave +10 -26 in sqlite3mc_check and mac_release_build_guards, with the CI signature "Expected: <0> Actual: <1>" and "Actual: 'Windows Subsystem for Linux has no installed distributions.'". New code gave +5 -31 with a clear failure: "Bad state: bash was not found on the PATH, or it cannot run a command. The script tests need it." On Mac, `bash` is still taken from PATH.
+  > 3. Licence test, Windows simulated by making `real()` return CRLF: the old helper fails with exactly the CI's three problems (`indexOf('\n\n')`, `substring(0, split).split('\n')`, `substring(split + 2)`). The new `crlf` idempotence test fails on the old helper ("Expected 'a\r\n', Actual 'a\r\r\n'"). With the fix, passes both on plain Mac and with the simulated CRLF source (+10 All passed).
+  > Root cause: `parse` is cut with `indexOf('\n  }\n')`. With `\r\r\n`, normalising leaves `\r\n`, the cut fails, `parse` is empty, and all three needles go missing. The product-side `problemsIn` normalisation is correct for real CRLF files; the earlier fix only fixed the test helper.
+  > E2E: n/a — no suite (the desktop UI automation tool is TBD in Team setup).
+  > Test hooks: n/a — no UI.
+  > Deviations from plan: none. The lead's note that the workflow "shows Git Bash" does not match the file: `.github/workflows` uses `shell: pwsh` for the check step. The WSL cause is confirmed from the log, so this changes nothing.
+  > Checklists: none (test harness only) — n/a items: data-and-apis, ui-build.
+  > Risks / unverified (I have no Windows machine, so none of this ran on Windows):
+  > - Windows behaviour is unverified. The first Windows CI round on the pushed branch is the real test.
+  > - Git Bash invoked as `bin\bash.exe` is assumed to find tr/grep/find/sed/sort without extra PATH work. I did not prepend `usr\bin`, to avoid a case-insensitive env-key clash. If tools are missing, the first Windows run will show it.
+  > - Drive paths are passed as `C:/...`. Output that echoes paths therefore uses forward slashes; the one test that matches a path in output (the "five files" test) now compares with `forBash(path)`.
+  > - "the sqlite3mc binaries this machine has built are clean" will, on Windows CI, scan the downloaded sqlite3mc.dll under `.dart_tool`. If that DLL contained an extension-function name it would be a real licence finding, not a harness issue.
+  > - The 10 pre-existing skips are unrelated to this change.
+  > Tests marked as skipped on Windows only (for the reviewer to judge; each prints "not on Windows: <reason>"; the Mac job runs all of them):
+  > - sqlite3mc_extfunc_abuse_test.dart:
+  >   - file-name cases `star*.dll`, `back\slash.dll` and `line\nbreak.dll` (Windows file names cannot hold `*`, a backslash or a newline; the Windows log showed the PathNotFoundException for `star*.dll`).
+  >   - 4 symlink tests: dangling, to clean, to bad, to a folder.
+  >   - 1 chmod-000 unreadable-file test, which previously passed vacuously with `return` on Windows.
+  > - mac_release_guards_edge_test.dart:
+  >   - 5 symlink tests: in-bundle target, dangling, only symlinks, top-level, outside-bundle documented limit.
+  >   - 1 chmod-000 test, previously a silent `return`.
+  > - mac_release_guards_xcconfig_test.dart: 1 chmod-000 test, previously a silent `return`.
+  > - Symlink reason: Dart's `Link.create` needs Developer Mode or privilege on Windows, and Git Bash reads native Windows links differently from POSIX ones. The guard is for Mac bundles, which use POSIX links. This is the weakest of the skips: it is a judgement, not something I proved. If you prefer, try them on Windows first and drop the skips that pass.
+  > - Not skipped: edge test "a bundle path with spaces and quotes" drops only the double quote on Windows (illegal in file names); the single-quote and space cases still run there.
+  > Personal data touched: none.
+  > Later lines added: none.
+  > Spec gaps raised: none.
+  > Findings: none (CI failures fixed: licence CRLF test in 0a9a86f with its idempotence test; script tests in edd258f with test/support/bash_test.dart).
+  > Blockers: none.
+  > How to verify: 1. In the worktree scratchpad/m19a-wt run `pgrep -fl flutter_tester` (expect no output), then `./tool/check.sh`. Expect "All tests passed!" (about 4314 passed, ~10 skipped). 2. Quick runs: `flutter test test/support/bash_test.dart test/about/flutter_licences_binding_test.dart` (expect all passed). 3. Push and read the Windows job on PR 10. Expect the 83 failures gone; skipped tests show "not on Windows: ..." lines. If a script test still fails on Windows, the error will be a real bash or path message (or "No working Git Bash was found"), not "Expected 0, Actual 1" with the WSL text.
+- Lead note: the branch (0a9a86f, edd258f) is pushed to PR 10 before the tester and reviewer, so that the Windows job gives them real evidence (the developer had no Windows machine). Merge still waits for tester, reviewer and green CI.
+- Gates: developer pass · tester pending · reviewer pending (must judge the Windows-only skips) · QA pass (on 406537d; test-only change since) · CI pending · PM merge approved when green
+- Open findings: none
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-23 — Dependabot PRs 6, 7, 8 — PM decision: close and plan one item
 - Changed: lead asked how to clean up PRs 6 (sqlite3 3.5.2→3.9.1), 7 (window_manager 0.5.2→0.7.0) and 8 (tray_manager 0.5.3→0.9.0): all 6 days old, CI failing on both jobs, never through the gates. PRs closed with a comment; plan item M1.10 Dependency updates added.
 - Gates: n/a — no code changed
