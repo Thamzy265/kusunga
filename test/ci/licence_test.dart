@@ -107,6 +107,32 @@ void main() {
     expect(flag1, contains('flag 6'));
   });
 
+  test(
+    'extensionfunctions.c: doc row and notice state the rule, not a claim',
+    () {
+      // Review cleanup (M1.9a R4): one cell said both "not compiled into
+      // Kusunga's binaries" and "Windows binary not checked". The doc row and
+      // the bundled notice give the rule and how it is enforced instead.
+      final row = File('docs/licences.md').readAsLinesSync().firstWhere(
+        (l) => l.startsWith('| extensionfunctions.c |'),
+      );
+      final notice = File('assets/licences/sqlite3mc.txt').readAsStringSync();
+      final block = notice.substring(notice.indexOf('* extensionfunctions.c'));
+      for (final (name, text) in [('doc row', row), ('notice', block)]) {
+        for (final part in [
+          'must not be compiled in',
+          'tool/check_sqlite3mc.sh',
+          'macOS checked 2026-11-21',
+          'Windows checked before release',
+        ]) {
+          expect(text, contains(part), reason: '$name: $part');
+        }
+        expect(text, isNot(contains('not compiled into')), reason: name);
+        expect(text, isNot(contains('not checked')), reason: name);
+      }
+    },
+  );
+
   _testerGuards();
 }
 

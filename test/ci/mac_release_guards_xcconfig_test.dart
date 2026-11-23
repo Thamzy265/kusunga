@@ -2,14 +2,15 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/bash.dart';
+
 /// M1.9b review round 3: regression tests for tool/mac_release_guards.sh.
 /// R1: the xcconfig guard allow-lists the signing keys and rejects any other
 ///     key and any -D token (Xcode honours spellings a deny-list missed).
 /// R2: an unreadable or very large file must not pass by accident.
 final script = File('tool/mac_release_guards.sh').absolute.path;
 
-ProcessResult guard(List<String> args) =>
-    Process.runSync('bash', [script, ...args]);
+ProcessResult guard(List<String> args) => runBash(script, args);
 
 void main() {
   late Directory tmp;
@@ -122,17 +123,24 @@ void main() {
   });
 
   group('R2 xcconfig guard: errors and large files are not a pass', () {
-    test('an unreadable file exits 2, never "ok"', () {
-      if (Platform.isWindows) return;
-      if (Process.runSync('id', ['-u']).stdout.toString().trim() == '0') return;
-      final f = File('${tmp.path}/Local.xcconfig.example')
-        ..writeAsStringSync('DEVELOPMENT_TEAM = X\n');
-      Process.runSync('chmod', ['000', f.path]);
-      addTearDown(() => Process.runSync('chmod', ['644', f.path]));
-      final r = guard(['xcconfig', f.path]);
-      expect(r.exitCode, 2);
-      expect(r.stdout, isNot(contains('ok')));
-    });
+    test(
+      'an unreadable file exits 2, never "ok"',
+      () {
+        if (Process.runSync('id', ['-u']).stdout.toString().trim() == '0') {
+          return;
+        }
+        final f = File('${tmp.path}/Local.xcconfig.example')
+          ..writeAsStringSync('DEVELOPMENT_TEAM = X\n');
+        Process.runSync('chmod', ['000', f.path]);
+        addTearDown(() => Process.runSync('chmod', ['644', f.path]));
+        final r = guard(['xcconfig', f.path]);
+        expect(r.exitCode, 2);
+        expect(r.stdout, isNot(contains('ok')));
+      },
+      skip: skipOnWindows(
+        'chmod 000 does not make a file unreadable on Windows',
+      ),
+    );
 
     test('a large file with the setting first still exits 1', () {
       final filler = List.filled(

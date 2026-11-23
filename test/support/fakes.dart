@@ -138,8 +138,12 @@ class FakeClipboardSource implements ClipboardSource {
   final ownWrites = <String>[];
   bool writeOwnAnswer = true;
 
+  /// writeOwn throws (the platform channel broke).
+  bool throwOnWrite = false;
+
   @override
   Future<bool> writeOwn(String text) async {
+    if (throwOnWrite) throw StateError('clipboard broke');
     ownWrites.add(text);
     return writeOwnAnswer;
   }

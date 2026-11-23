@@ -2,23 +2,31 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/bash.dart';
+
 /// M1.9b tester: edge cases for tool/mac_release_guards.sh and the Xcode build
 /// settings. Probed by hand first (macOS 27, stock bash 3.2), then locked in.
 /// Tests named "documented limit" pin behaviour that is a known blind spot, so
 /// a change to it is noticed on purpose. Nothing here builds or signs.
 final script = File('tool/mac_release_guards.sh').absolute.path;
 const needle = 'KusungaAcceptSyntheticKeys';
+const _symlinks =
+    'the guard only ever scans Mac bundles, which hold POSIX links, and the '
+    'Mac job runs these tests; how Git Bash treats a Windows link is not what '
+    'they pin';
+const _chmod = 'chmod 000 does not make a file unreadable on Windows';
 
 String read(String path) => File(path).readAsStringSync();
 
 ProcessResult guard(
   List<String> args, {
-  String shell = 'bash',
+  String? shell,
   Map<String, String>? env,
   String? cwd,
-}) => Process.runSync(
-  shell,
-  [script, ...args],
+}) => runBash(
+  script,
+  args,
+  shell: shell,
   environment: env,
   workingDirectory: cwd,
 );
@@ -77,14 +85,18 @@ void main() {
       }
     });
 
-    test('in an in-bundle symlink target, reported once via the real file', () {
-      final dir = app({'Contents/Resources/real.bin': bin(needle)});
-      Link('${dir.path}/Contents/Resources/alias.bin').createSync('real.bin');
-      Link('${dir.path}/Contents/Frameworks').createSync('Resources');
-      final r = guard(['binary', dir.path]);
-      expect(r.exitCode, 1);
-      expect(r.stderr, contains('real.bin'));
-    });
+    test(
+      'in an in-bundle symlink target, reported once via the real file',
+      () {
+        final dir = app({'Contents/Resources/real.bin': bin(needle)});
+        Link('${dir.path}/Contents/Resources/alias.bin').createSync('real.bin');
+        Link('${dir.path}/Contents/Frameworks').createSync('Resources');
+        final r = guard(['binary', dir.path]);
+        expect(r.exitCode, 1);
+        expect(r.stderr, contains('real.bin'));
+      },
+      skip: skipOnWindows(_symlinks),
+    );
 
     test(
       'a dangling symlink does not hide a marker or fail a clean bundle',
@@ -98,20 +110,31 @@ void main() {
         Link('${dirty.path}/Contents/dangling').createSync('/nonexistent/x');
         expect(guard(['binary', dirty.path]).exitCode, 1);
       },
+      skip: skipOnWindows(_symlinks),
     );
 
-    test('a bundle of only symlinks has nothing to scan (2)', () {
-      final target = File('${tmp.path}/outside.txt')..writeAsStringSync(needle);
-      final dir = Directory('${tmp.path}/S.app')..createSync();
-      Link('${dir.path}/l').createSync(target.path);
-      expect(guard(['binary', dir.path]).exitCode, 2);
-    });
+    test(
+      'a bundle of only symlinks has nothing to scan (2)',
+      () {
+        final target = File('${tmp.path}/outside.txt')
+          ..writeAsStringSync(needle);
+        final dir = Directory('${tmp.path}/S.app')..createSync();
+        Link('${dir.path}/l').createSync(target.path);
+        expect(guard(['binary', dir.path]).exitCode, 2);
+      },
+      skip: skipOnWindows(_symlinks),
+    );
 
-    test('a top-level symlink to a file has nothing to scan (2)', () {
-      final target = File('${tmp.path}/outside.txt')..writeAsStringSync(needle);
-      final link = Link('${tmp.path}/top')..createSync(target.path);
-      expect(guard(['binary', link.path]).exitCode, 2);
-    });
+    test(
+      'a top-level symlink to a file has nothing to scan (2)',
+      () {
+        final target = File('${tmp.path}/outside.txt')
+          ..writeAsStringSync(needle);
+        final link = Link('${tmp.path}/top')..createSync(target.path);
+        expect(guard(['binary', link.path]).exitCode, 2);
+      },
+      skip: skipOnWindows(_symlinks),
+    );
 
     test('a directory that is not an .app is still scanned', () {
       final dir = app({'f': bin(needle)}, name: 'plain');
@@ -142,9 +165,13 @@ void main() {
     });
 
     test('a bundle path with spaces and quotes', () {
-      final dirty = app({'f': bin(needle)}, name: 'My "Kusunga" \'x\'.app');
+      // A double quote cannot be in a Windows file name; the single quote can.
+      final dq = Platform.isWindows ? '' : '"';
+      final dirty = app({
+        'f': bin(needle),
+      }, name: 'My ${dq}Kusunga$dq \'x\'.app');
       expect(guard(['binary', dirty.path]).exitCode, 1);
-      final clean = app({'f': bin('x')}, name: 'Your "K" \'y\'.app');
+      final clean = app({'f': bin('x')}, name: 'Your ${dq}K$dq \'y\'.app');
       expect(guard(['binary', clean.path]).exitCode, 0);
     });
 
@@ -154,14 +181,13 @@ void main() {
     });
 
     test('an unreadable file fails with 2, never a pass', () {
-      if (Platform.isWindows) return;
       final dir = app({'Contents/MacOS/Kusunga': bin('ok')});
       final f = File('${dir.path}/Contents/secret')..writeAsBytesSync(bin('x'));
       Process.runSync('chmod', ['000', f.path]);
       addTearDown(() => Process.runSync('chmod', ['644', f.path]));
       if (Process.runSync('id', ['-u']).stdout.toString().trim() == '0') return;
       expect(guard(['binary', dir.path]).exitCode, 2);
-    });
+    }, skip: skipOnWindows(_chmod));
 
     test('marker next to non-text bytes in the C locale', () {
       final f = File('${tmp.path}/m')
@@ -189,14 +215,18 @@ void main() {
       expect(guard(['binary', lower.path]).exitCode, 0);
     });
 
-    test('documented limit: a symlink to a file outside the bundle', () {
-      // find -type f skips symlinks. codesign rejects such a bundle anyway, so
-      // it cannot be notarised, but the guard itself does not follow it.
-      final out = File('${tmp.path}/outside.txt')..writeAsStringSync(needle);
-      final dir = app({'Contents/MacOS/Kusunga': bin('ok')});
-      Link('${dir.path}/Contents/Resources').createSync(out.path);
-      expect(guard(['binary', dir.path]).exitCode, 0);
-    });
+    test(
+      'documented limit: a symlink to a file outside the bundle',
+      () {
+        // find -type f skips symlinks. codesign rejects such a bundle anyway, so
+        // it cannot be notarised, but the guard itself does not follow it.
+        final out = File('${tmp.path}/outside.txt')..writeAsStringSync(needle);
+        final dir = app({'Contents/MacOS/Kusunga': bin('ok')});
+        Link('${dir.path}/Contents/Resources').createSync(out.path);
+        expect(guard(['binary', dir.path]).exitCode, 0);
+      },
+      skip: skipOnWindows(_symlinks),
+    );
   });
 
   group('guard exit codes and usage', () {

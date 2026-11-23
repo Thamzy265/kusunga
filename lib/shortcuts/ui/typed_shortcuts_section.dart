@@ -211,7 +211,7 @@ class _TypedShortcutsSectionState extends State<TypedShortcutsSection> {
                   decoration: BoxDecoration(
                     border: Border.all(
                       color: _showRing ? t.focus : Colors.transparent,
-                      width: 2,
+                      width: focusRingWidth,
                       strokeAlign: BorderSide.strokeAlignOutside,
                     ),
                     borderRadius: BorderRadius.circular(24),

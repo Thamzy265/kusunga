@@ -1,6 +1,8 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
+import '../theme/tokens.dart' show focusRingWidth;
+
 /// Tab and Shift+Tab: focuses [node] and scrolls it fully into view, up or
 /// down. Flutter's own callback only scrolls down on Tab and up on
 /// Shift+Tab, so Tab to a control built above the view left the focus
@@ -14,8 +16,19 @@ void revealOnTraversal(
 }) {
   node.requestFocus();
   final object = node.context?.findRenderObject();
-  if (object != null && object.attached) object.showOnScreen();
+  if (object == null || !object.attached) return;
+  // The ring is drawn outside the control (`KusungaTokens.themeData`, 2 px):
+  // reveal that too, or a control scrolled up to the edge of its view has the
+  // ring cut off there (WCAG 2.4.7, M1.9a B2).
+  object.showOnScreen(
+    rect: object is RenderBox
+        ? (Offset.zero & object.size).inflate(focusRingReach)
+        : null,
+  );
 }
+
+/// How far a focus ring reaches outside the control it marks, in px.
+const focusRingReach = focusRingWidth;
 
 /// Reading order, with [revealOnTraversal].
 FocusTraversalPolicy revealingReadingOrder() =>

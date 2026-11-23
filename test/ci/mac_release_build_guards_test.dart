@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/bash.dart';
+
 /// M1.9b: the Mac release build settings and the release-binary guards
 /// (tool/mac_release_guards.sh, called by the release script in M1.9e).
 /// The guard logic is tested on fixtures; nothing is built or signed here.
@@ -9,8 +11,7 @@ const script = 'tool/mac_release_guards.sh';
 
 String read(String path) => File(path).readAsStringSync();
 
-ProcessResult run(List<String> args) =>
-    Process.runSync('bash', [script, ...args]);
+ProcessResult run(List<String> args) => runBash(script, args);
 
 void main() {
   late Directory tmp;

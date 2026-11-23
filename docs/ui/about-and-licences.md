@@ -1,6 +1,6 @@
 # About and licences — UI spec
 
-Date: 2026-11-19 — Design note: `docs/design/signed-installers-and-beta.md` (M1.9a) — Status: draft, waiting for PM
+Date: 2026-11-19 (revised 2026-11-22: licence list order and the hidden duplicate row, PM decisions in `docs/status.md`) — Design note: `docs/design/signed-installers-and-beta.md` (M1.9a) — Status: draft, waiting for PM
 
 ## User and task
 
@@ -51,7 +51,7 @@ Source code: https://github.com/Thamzy265/kusunga/tree/v0.9.0
   - `applicationName` "Kusunga", `applicationVersion` as above, `applicationLegalese` = the copyright and GPL sentence.
 - **Notices added with `LicenseRegistry.addLicense`:**
   - "Kusunga": the full GPL-3.0 text from `LICENSE`;
-  - "SQLite3 Multiple Ciphers": its MIT licence, plus the notice for each bundled part listed in `docs/licences.md` (AEGIS, Ascon, ChaCha20/Poly1305, SHA-1/2, MD5, fastpbkdf2, Argon2, AES, miniz, and the inferred-MIT files);
+  - "SQLite3 Multiple Ciphers": its MIT licence, plus the notice for each bundled part listed in `docs/licences.md` (AEGIS, Ascon, ChaCha20/Poly1305, SHA-1/2, MD5, fastpbkdf2, Argon2, AES, miniz, and the inferred-MIT files). Each text is copied word for word from the project at tag v2.5.0, with the file and lines named (only the comment marks at the start of lines, and decorative lines made only of comment characters, are left out). The files name CC0 1.0 and Apache 2.0 by address and do not contain those two texts.
   - "SQLite": the public-domain blessing.
   - The texts are bundled as assets, never fetched.
 
@@ -63,7 +63,7 @@ Source code: https://github.com/Thamzy265/kusunga/tree/v0.9.0
 | Copy version button | "Copy version" | `surfaceHover` | Focus ring | n/a | n/a | n/a | Clipboard write fails: toast "Couldn't copy. Try again." | Toast "Version copied" | n/a | Same | n/a |
 | Copy link button | "Copy link" | `surfaceHover` | Focus ring | n/a | n/a | n/a | Toast "Couldn't copy. Try again." | Toast "Link copied" | n/a | Same | n/a |
 | View licences button | "View licences" | `surfaceHover` | Focus ring | n/a | n/a | n/a | n/a | Opens the licences page | n/a | Same | n/a |
-| Licences page (Flutter `LicensePage`) | Package list with Kusunga, SQLite3 Multiple Ciphers and SQLite at the top, then Flutter's collected notices | List rows highlight | Focus moves to the first row; Back is reachable by Tab and Esc | n/a | Flutter shows its own spinner while notices load (under 1 s) | n/a — never empty | n/a | n/a | Long licence texts scroll; text reflows | Same — all local | n/a |
+| Licences page (Flutter `LicensePage`) | Package list: "Kusunga" first (pinned), then Flutter's collected notices with "SQLite" and "SQLite3 Multiple Ciphers" sorted in by name; both are also inside Kusunga's entry. Flutter's own copy of the app licence (the lower-case "kusunga" row) is hidden | List rows highlight | Focus moves to the first row; Back is reachable by Tab and Esc | n/a | Flutter shows its own spinner while notices load (under 1 s) | n/a — never empty | n/a | n/a | Long licence texts scroll; text reflows | Same — all local | n/a |
 
 Copying the version or link puts it on the clipboard. Whether that copy goes into Kusunga's own history follows the existing rule for Kusunga's own copies. The developer confirms the rule and says so in the hand-off; no new rule.
 
