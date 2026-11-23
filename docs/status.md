@@ -1,5 +1,43 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — developer fixed B4 and tightened the B5 test
+- Changed: developer report (opus, high), word for word:
+  > Branch: feat/about-licences (2 new commits this round, on top of the tester's e18b4b9: 6c0902b, 66d711f; not pushed). Worktree scratchpad/m19a-wt
+  > Built:
+  > - B4 fix (6c0902b): in assets/licences/sqlite3mc.txt I added one blank line between "  Licence: CC0-1.0 OR Apache-2.0, at the user's option" and "  Kusunga uses Argon2 under the CC0 1.0 option.". The sentence is now its own paragraph on the licence page. The wording is the PM's 2026-11-23 decision, unchanged. It still comes before the quoted "Text of src/argon2/..." block and stays outside it. The Licence line has not changed. That one blank line is the whole diff.
+  > - B5 tightening (66d711f): in test/about/about_edge_test.dart, the test "both SQLite notices are reachable from the Kusunga row" now looks for "SQLite is in the public domain" instead of the blessing. That phrase appears only in sqlite.txt: grep finds it 0 times in sqlite3mc.txt and in LICENSE. Each needle must now match exactly one widget (findsOneWidget, not findsWidgets). The comment says why the blessing isn't used.
+  > Tests: ./tool/check.sh exit 0. Format: "Formatted 334 files (0 changed)". Analyze: "No issues found!". Tests: "04:43 +4398 ~10: All tests passed!" (4398 passing, 10 skipped). Before this round it was 4396 passing and 2 failing (the B4 repros). No new tests from me; the tester's repros cover B4.
+  > First failing run, on e18b4b9 before the fix (flutter test test/about/argon2_page_test.dart):
+  > - "B4: the CC0 sentence is not run onto the Licence line": Expected: not contains 'Licence:'; Actual: 'Licence: CC0-1.0 OR Apache-2.0, at the user\'s option Kusunga uses Argon2 under the CC0 1.0 option.'
+  > - "the real licence page shows the sentence as text": Expected: 'Kusunga uses Argon2 under the CC0 1.0 option.' Actual: 'Licence: CC0-1.0 OR Apache-2.0, at the user\'s option Kusunga uses Argon2 under the CC0 ...'
+  > - Result: +1 -2 on the Argon2 group.
+  > After the fix: argon2_page_test.dart and licence_texts_test.dart pass together, "+52: All tests passed!". My licence_texts_test "the Argon2 part states the CC0 1.0 choice, outside the quote" still passes: the sentence is still its own line in the file, before "Text of".
+  > B5 mutation: I removed the ['Kusunga','SQLite'] row from lib/about/licences.dart and ran the tightened edge test. It fails: "Expected: exactly one matching candidate / Actual: Found 0 widgets with text containing SQLite is in the public domain". I restored the file with git checkout lib/about/licences.dart, and the test passes again (+1).
+  > E2E: n/a — no suite (end-to-end tools TBD per Team setup)
+  > Test hooks: n/a — no new interactive elements
+  > Deviations from plan: none
+  > Checklists: ui-build — n/a items: all except text content. The only change is a blank line in a bundled notice asset; no new controls, states or layout.
+  > Risks / unverified: Not viewed in the running app. Launching Kusunga is not allowed, so the page was checked only through the widget test on the real LicensePage and NoticeEntry.
+  > Personal data touched: none
+  > Later lines added: none
+  > Spec gaps raised: none
+  > Findings:
+  > - B4 — fixed (6c0902b; tests "B4: the CC0 sentence is not run onto the Licence line" and "the real licence page shows the sentence as text" in test/about/argon2_page_test.dart, from e18b4b9)
+  > - B5 — fixed (66d711f; about_edge_test needle tightened and mutation-checked as above)
+  > - Same-pattern check: I scanned both notice assets for pairs of non-blank lines next to each other, indented 1 to 3 spaces (lines NoticeEntry flows together).
+  >   - sqlite.txt has none.
+  >   - sqlite3mc.txt has only one other pair, the extensionfunctions.c part, lines 457-458: "  Licence: No licence text. Upstream `filelist.md` only assumes it is public domain." followed by "  It is only compiled with SQLITE_ENABLE_EXTFUNC. It must not be compiled in; enforced by tool/check_sqlite3mc.sh (...)".
+  >   - On the page these lines join into one paragraph, but each ends with a full stop, so it reads as correct prose. It matches the style used elsewhere, where notes sit on the Licence line (for example the Ascon part, line 54).
+  >   - It dates from 777e36e (R7), which has already been reviewed. I don't think it is clearly the same mistake, so I did not change it. Your call (or the PM's) if it should be its own paragraph: one blank line fixes it.
+  >   - Lines at indent 0 that run together are the intro and the wrapped MIT text, which are meant to flow.
+  > Blockers: none (pgrep -fl flutter_tester found no processes before the check)
+  > How to verify: 1. In scratchpad/m19a-wt, git show 6c0902b --stat — one file, one inserted line. 2. flutter test test/about/argon2_page_test.dart test/about/licence_texts_test.dart — "All tests passed!". 3. flutter test test/about/about_edge_test.dart --plain-name "both SQLite notices" — "+1: All tests passed!". 4. Optional: git checkout e18b4b9 -- assets/licences/sqlite3mc.txt, run step 2: two failures; restore with git checkout HEAD -- assets/licences/sqlite3mc.txt. 5. ./tool/check.sh — exit 0 and "+4398 ~10: All tests passed!", only when pgrep -fl flutter_tester shows nothing from another project.
+- Lead note: pushed to PR 10 at 66d711f. The tester's B4 repros now pass. Reviewer dispatched for everything since its last approval (3e74ba5..66d711f).
+- Gates: developer pass · tester pass (B4 repros pass) · reviewer pending · QA pending (quick look at the Argon2 part) · CI pending · PM merge approved when green
+- Open findings: none
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-23 — M1.9a About and licences — tester: CC0 sentence runs onto the Licence line (B4)
 - Changed: tester report (sonnet, medium), word for word:
   > Branch: feat/about-licences (1 test commit this round, e18b4b9, on top of e2bc6cf; not pushed)
