@@ -35,60 +35,28 @@ String _bashVariable(String shell) =>
 
 /// A variable of this process that no bash, nor Git Bash's runtime or its
 /// launcher, makes or changes on its own, so seeing it in the script proves
-/// it was inherited. HOME is not one: Git Bash makes it when Windows has
-/// none. Names are compared without case on Windows, where they have none.
+/// it was inherited. It is taken only from these names, which never hold a
+/// secret, so no credential that happens to be in the environment can be
+/// chosen. Its value is still never put in a matcher or a reason. USER and
+/// LOGNAME are there on a Mac and on Linux; the other three on Windows, where
+/// Platform.environment matches names without case. Dart cannot add a
+/// variable to its own environment, so a made-up witness would only travel
+/// in the explicit map, which the caller environment test already covers.
 MapEntry<String, String>? _inheritedWitness() {
-  const madeOrChanged = {
-    'HOME',
-    'PATH',
-    'PWD',
-    'OLDPWD',
-    'SHLVL',
-    '_',
-    'SHELLOPTS',
-    'BASHOPTS',
-    'IFS',
-    'TMP',
-    'TEMP',
-    'TMPDIR',
-    'LD_LIBRARY_PATH',
-    'SHELL',
-    'TERM',
-    'LANG',
-    'HOSTNAME',
-    'OSTYPE',
-    'MACHTYPE',
-    'HOSTTYPE',
-    'EXEPATH',
-    'PLINK_PROTOCOL',
-    'SYSTEMROOT',
-    'SYSTEMDRIVE',
-    'WINDIR',
-    'COMSPEC',
-    'USERPROFILE',
-    'HOMEDRIVE',
-    'HOMEPATH',
-    'LOGONSERVER',
-    'USERDOMAIN',
-    'USERNAME',
-    'ORIGINAL_PATH',
-    'ORIGINAL_TEMP',
-    'ORIGINAL_TMP',
-  };
-  final identifier = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$');
-  final names = [
-    for (final e in Platform.environment.entries)
-      if (identifier.hasMatch(e.key) &&
-          !madeOrChanged.contains(e.key.toUpperCase()) &&
-          !RegExp(
-            r'^(BASH|MSYS|MINGW|LC_|KUSUNGA_BASH_)',
-          ).hasMatch(e.key.toUpperCase()) &&
-          e.value.isNotEmpty &&
-          !e.value.contains('\n'))
-        e.key,
-  ]..sort();
-  if (names.isEmpty) return null;
-  return MapEntry(names.first, Platform.environment[names.first]!);
+  const harmless = [
+    'USER',
+    'LOGNAME',
+    'NUMBER_OF_PROCESSORS',
+    'PROCESSOR_ARCHITECTURE',
+    'OS',
+  ];
+  for (final name in harmless) {
+    final value = Platform.environment[name];
+    if (value != null && value.isNotEmpty && !value.contains('\n')) {
+      return MapEntry(name, value);
+    }
+  }
+  return null;
 }
 
 void main() {
@@ -340,7 +308,15 @@ void main() {
                 key(line.substring(0, line.indexOf('='))) == key(witness!.key))
               line.substring(line.indexOf('=') + 1),
         ];
-        expect(seen, [witness!.value], reason: witness.key);
+        // Never print the value: compare it here and say only how many lines
+        // had the name.
+        expect(
+          seen.length == 1 && seen.single == witness!.value,
+          isTrue,
+          reason:
+              '${witness!.key} did not reach the script unchanged: '
+              '${seen.length} line(s) with that name (value not shown)',
+        );
       });
 
       test(
