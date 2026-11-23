@@ -1,5 +1,26 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — reviewer re-check of N1: approve with notes (Windows-log condition on 5a6f5cd)
+- Changed: reviewer report (opus, high), lightly condensed by the lead (full text kept in the session scratchpad as rev_m19a_r12.txt; verdict, findings, fix outcomes and open items are word for word in substance):
+  > Mode: branch (re-check of N1 only)
+  > Branch: feat/about-licences, tip 5a6f5cd — Verdict: approve with notes. The same Windows-log condition as before still applies, now on 5a6f5cd instead of af3f502 (see Open items). If that CI run is not green, the verdict goes back to block.
+  > Checks: ./tool/check.sh — pass (Mac), developer's run on 5a6f5cd (scratchpad/check_n1.txt): "05:02 +4397 ~10: All tests passed!". Reviewer ran `flutter test test/support/bash_windows_edge_test.dart --plain-name 'the parent environment is still inherited'` after an empty pgrep: "+1: All tests passed!" (with /bin/bash). Worktree clean afterwards.
+  > Code review: 1 finding re-checked (N1: 1 fixed, 0 open). Range af3f502..5a6f5cd is one commit, test-only, one file: test/support/bash_windows_edge_test.dart (+30 −54).
+  > Design review: 0 findings. Security review: N1, Low — now fixed. Privacy review: no issues. Later lines: none added.
+  > Findings (most severe first): none open.
+  > Fix outcomes:
+  > - N1 — fixed (5a6f5cd). 1. The value is never printed on a failure: `_inheritedWitness` picks only from USER, LOGNAME, NUMBER_OF_PROCESSORS, PROCESSOR_ARCHITECTURE, OS; the assertion prints only true/false and a reason with the allow-listed name and a count; the other failure messages print nothing sensitive. Evidence: n1_before_old_code.txt prints the fake secret; n1_after_mutated.txt shows "USER did not reach the script unchanged: 0 line(s) with that name (value not shown)" with no canary text and no USER value. 2. The test still catches a reader that drops the inherited environment (fails with `exec env -i`; passes on the real reader); bash and the Git Bash runtime don't create or change any of the five names. 3. Witness on CI: windows-latest always sets NUMBER_OF_PROCESSORS; macos-15 runs as `runner` with USER and LOGNAME normally set, not confirmed in saved logs; if neither is set the test fails with "this process has no variable to check with", it cannot pass without checking. The regression check is the two mutation runs, not an automated test; accepted.
+  > - R1 — fixed in the code; still needs the Windows evidence from CI, now on 5a6f5cd.
+  > Risk accepted by PM: none. ("Yes, merge when green" is a merge condition, not an accepted risk.)
+  > Open items:
+  > - The Windows-log conditions from rev_m19a_r11.txt "Open items" now apply to the CI run on 5a6f5cd, not af3f502. A green run on af3f502 no longer counts.
+  > - Also check in that run: "the parent environment is still inherited" passed in both jobs (Git Bash group on windows-latest, /bin/bash group on macos-15). If either job shows "this process has no variable to check with", the verdict is block.
+  > Blockers: none for my review. The merge gate is the CI log for 5a6f5cd.
+- Gates: developer pass · tester pass · reviewer approve with notes (conditional on the CI log for 5a6f5cd or a later docs-only tip) · QA running · CI pending · PM merge approved when green
+- Open findings: none
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-23 — M1.9a About and licences — developer fixed N1
 - Changed: developer report (opus, high), word for word:
   > Branch: feat/about-licences (1 new commit, 5a6f5cd, on top of af3f502; not pushed)
