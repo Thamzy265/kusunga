@@ -81,7 +81,19 @@ void main() {
 
   // R16: the Windows CI Flutter SDK (release zip) has CRLF line endings.
   group('the check works on a CRLF copy of the source (Windows)', () {
-    String crlf(String s) => s.replaceAll('\n', '\r\n');
+    // The SDK file is already CRLF on Windows, so go through LF first:
+    // replacing every \n of a CRLF text would give \r\r\n there.
+    String crlf(String s) =>
+        s.replaceAll('\r\n', '\n').replaceAll('\n', '\r\n');
+
+    test(
+      'crlf gives exactly one CR before each LF, whatever it started as',
+      () {
+        expect(crlf('a\nb\n'), 'a\r\nb\r\n');
+        expect(crlf('a\r\nb\r\n'), 'a\r\nb\r\n');
+        expect(crlf(crlf('a\nb')), 'a\r\nb');
+      },
+    );
 
     test('the real source with CRLF line endings has no problems', () {
       expect(problemsIn(crlf(real())), isEmpty, reason: _recheck);
