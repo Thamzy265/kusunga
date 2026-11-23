@@ -579,13 +579,13 @@ void main() {
       await open(tester, const Size(320, 800));
       await tester.tap(find.widgetWithText(ListTile, 'Kusunga'));
       await tester.pumpAndSettle();
+      // Each text is in one notice only. The SQLite blessing is not used: the
+      // Multiple Ciphers notice quotes it too (csv.c, rekeyvacuum.c), so it
+      // would be found even without the SQLite row (B5).
       for (final text in [
         'SQLite3 Multiple Ciphers 2.5.0 and the parts it bundles',
-        'May you do good and not evil',
+        'SQLite is in the public domain',
       ]) {
-        // Not scrollUntilVisible: it needs exactly one match where it stops,
-        // and the blessing is quoted twice (csv.c, rekeyvacuum.c), so both
-        // can be built at once. Scroll the same way, then show the first.
         final found = find.textContaining(text);
         for (var i = 0; i < 200 && found.evaluate().isEmpty; i++) {
           await tester.drag(
@@ -594,8 +594,8 @@ void main() {
           );
           await tester.pump(const Duration(milliseconds: 50));
         }
-        expect(found, findsWidgets, reason: text);
-        await tester.ensureVisible(found.first);
+        expect(found, findsOneWidget, reason: text);
+        await tester.ensureVisible(found);
       }
     });
 
