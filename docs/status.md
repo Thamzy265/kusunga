@@ -1,5 +1,37 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — developer fixed N1
+- Changed: developer report (opus, high), word for word:
+  > Branch: feat/about-licences (1 new commit, 5a6f5cd, on top of af3f502; not pushed)
+  > Built:
+  > - test/support/bash_windows_edge_test.dart `_inheritedWitness` now picks its witness only from a fixed list of names that never hold a secret: USER, LOGNAME (Mac/Linux), NUMBER_OF_PROCESSORS, PROCESSOR_ARCHITECTURE, OS (Windows). It no longer picks the first inherited variable by sorted name, so a secret such as ANTHROPIC_API_KEY can never be chosen.
+  > - The test "the parent environment is still inherited" no longer puts the value in a matcher or a reason. It now runs `expect(seen.length == 1 && seen.single == witness!.value, isTrue, reason: '<NAME> did not reach the script unchanged: <n> line(s) with that name (value not shown)')`.
+  > - Why not a made-up witness: Dart cannot add a variable to its own environment. Platform.environment cannot be changed, and Process uses it when it includes the parent environment. So a made-up variable could only travel in the explicit map, which "the working directory and caller environment pass through" already covers. The code comment says this.
+  > Tests: 4397 passing, 10 skipped (./tool/check.sh on 5a6f5cd's content, run once on its own: "Formatted 334 files (0 changed)", "No issues found!", "05:02 +4397 ~10: All tests passed!"; log at scratchpad/check_n1.txt). The count is the same as before because no test was added or removed.
+  > - Before the fix (old code, reader changed to `exec env -i "$BASH" "$@"`, fake secret AAA_KUSUNGA_CANARY=canary-value-7f3e set in the environment): the test failed and printed the secret: "Expected: ['canary-value-7f3e']  Actual: []  ... AAA_KUSUNGA_CANARY". Log: scratchpad/n1_before_old_code.txt
+  > - After the fix (same change to the reader, same fake secret): the test still fails: "Expected: true  Actual: <false>  USER did not reach the script unchanged: 0 line(s) with that name (value not shown)". The output has 0 matches for "canary" and 0 for the USER value outside the scratchpad path. Log: scratchpad/n1_after_mutated.txt
+  > - The reader was restored with `git checkout test/support/bash.dart` after both runs. The worktree is clean.
+  > - There is no automated regression test for "never prints a value". Proving it would mean running a failing test inside a test. The two runs above are the evidence.
+  > E2E: n/a — no suite (test-only change)
+  > Test hooks: n/a — no UI
+  > Deviations from plan: I used your fallback (an allow-list, with the value compared but never printed), not the preferred synthetic witness. Reason: Dart cannot set its own environment (see Built).
+  > Checklists: none — n/a items: data-and-apis and ui-build do not apply (test harness only)
+  > Risks / unverified:
+  > - On Windows, the witness will be NUMBER_OF_PROCESSORS, or USER if the runner sets it. I have not run this on Windows; it needs the windows-latest CI job. Git Bash's runtime only changes PATH, HOME, TMP/TEMP/TMPDIR and LD_LIBRARY_PATH on the way in, so I expect these names to arrive unchanged.
+  > - The PM's flutter_tester processes (from /Users/williamnasoni/Developer/CGA/updated_apps/3D_App/...) were not running at my first pgrep. They had started by the time of my first single-test run (the "before" run), which ran alongside them. I touched none of them. Before every later run I waited until pgrep showed 0; they cleared at 15:46.
+  > Personal data touched: none stored. USER/LOGNAME are read at test time and are now never printed.
+  > Later lines added: none
+  > Spec gaps raised: none
+  > Findings: N1 — fixed (5a6f5cd, "the parent environment is still inherited" in test/support/bash_windows_edge_test.dart). I also checked every other test in test/support for printed inherited environment values. bash_test, bash_windows_args_test and bash_edge_test use only made-up maps (KUSUNGA_X, fixed ProgramFiles/LOCALAPPDATA values). Nothing else prints an inherited value. One thing is out of scope and I did not change it: findBash's StateError on Windows lists install paths built from ProgramFiles/LOCALAPPDATA. Those are paths that may contain the Windows user name, not secrets.
+  > Blockers: none
+  > How to verify: 1. git log --oneline -1 shows 5a6f5cd. 2. With pgrep -fl flutter_tester empty, ./tool/check.sh gives "All tests passed!" with +4397 ~10. 3. Optional mutation: in test/support/bash.dart change `r'exec "$BASH" "$@"',` to `r'exec env -i "$BASH" "$@"',`, run AAA_KUSUNGA_CANARY=canary-value-7f3e flutter test test/support/bash_windows_edge_test.dart --plain-name 'the parent environment is still inherited'; it fails with "USER did not reach the script unchanged: 0 line(s) with that name (value not shown)" and no "canary" in the output; restore with git checkout test/support/bash.dart. 4. The Windows CI job on the pushed tip should list "the parent environment is still inherited" as passed in the Git Bash group.
+- Process note: the developer's first single-test run overlapped the PM's own flutter_tester processes from another project (they started after its empty pgrep). Nothing was touched and the full check later ran alone. Logged as a note, no effect on results.
+- Lead note: pushed to PR 10 at 5a6f5cd. Reviewer re-check of N1 and QA's look at the Argon2 entry dispatched.
+- Gates: developer pass · tester pass · reviewer re-check of N1 pending · QA pending · CI pending · PM merge approved when green
+- Open findings: none open in code; R1 waits for the Windows log
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-23 — M1.9a About and licences — reviewer: approve with notes, on condition of a green Windows run
 - Changed: reviewer report (opus, high), word for word:
   > Mode: branch (re-check of 66d711f..af3f502, 5 commits: 4643db0, 5e5b19f, adf86a7, 4e30eac, af3f502)
