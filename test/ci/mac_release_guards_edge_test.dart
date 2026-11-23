@@ -11,9 +11,9 @@ import '../support/bash.dart';
 final script = File('tool/mac_release_guards.sh').absolute.path;
 const needle = 'KusungaAcceptSyntheticKeys';
 const _symlinks =
-    'a symlink needs Developer Mode on Windows, and Git Bash reads a native '
-    'Windows link differently from a POSIX one; the guard is for Mac bundles, '
-    'which use POSIX links';
+    'the guard only ever scans Mac bundles, which hold POSIX links, and the '
+    'Mac job runs these tests; how Git Bash treats a Windows link is not what '
+    'they pin';
 const _chmod = 'chmod 000 does not make a file unreadable on Windows';
 
 String read(String path) => File(path).readAsStringSync();

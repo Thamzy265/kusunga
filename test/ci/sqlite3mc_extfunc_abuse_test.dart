@@ -20,8 +20,9 @@ List<int> fake(List<String> strings) => [
 const clean = ['sqlite_master', 'sqlite3mc_config', 'main'];
 
 const _symlinks =
-    'a symlink needs Developer Mode on Windows, and Git Bash reads a native '
-    'Windows link differently from a POSIX one; the DLL check is not given links';
+    'the Windows DLL check is only ever given the built DLL, never a link, and '
+    'the Mac job runs these tests; how Git Bash treats a Windows link is not '
+    'what they pin';
 
 void main() {
   late Directory dir;
