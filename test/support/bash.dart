@@ -147,24 +147,26 @@ const reservedBashPrefix = 'KUSUNGA_BASH_';
 /// makes the unquoted `$KUSUNGA_BASH_RUN` one word, never split or globbed.
 const _windowsCommand = r'set -f; IFS=; eval $KUSUNGA_BASH_RUN';
 
-/// The code in KUSUNGA_BASH_RUN: rebuild "$@" from KUSUNGA_BASH_ARG_0..n-1,
-/// remove every KUSUNGA_BASH_ variable, and run the script in a fresh bash
-/// (so IFS and `set -f` are back to normal and $0 is the script, as with
-/// `bash script args`). Bash 3.2 safe. Joined with \n, not a multi-line
-/// literal, so the code is the same whatever line endings the file has.
+/// The code in KUSUNGA_BASH_RUN: rebuild "$@" as the script followed by
+/// KUSUNGA_BASH_ARG_0..n-1, remove every KUSUNGA_BASH_ variable, and run the
+/// script in a fresh bash (so IFS and `set -f` are back to normal and $0 is
+/// the script, as with `bash script args`). Every name it sets has the
+/// reserved prefix, which a caller cannot use, so the caller's own variables
+/// reach the script unchanged. Bash 3.2 safe. Joined with \n, not a
+/// multi-line literal, so the code is the same whatever line endings the
+/// file has.
 final _windowsRun = [
-  r's=$KUSUNGA_BASH_SCRIPT',
-  r'n=$KUSUNGA_BASH_ARGC',
-  r'unset KUSUNGA_BASH_RUN KUSUNGA_BASH_SCRIPT KUSUNGA_BASH_ARGC',
-  r'set --',
-  r'i=0',
-  r'while [ "$i" -lt "$n" ]; do',
-  r'  v=KUSUNGA_BASH_ARG_$i',
-  r'  set -- "$@" "${!v}"',
-  r'  unset "$v"',
-  r'  i=$((i + 1))',
+  r'set -- "$KUSUNGA_BASH_SCRIPT"',
+  r'KUSUNGA_BASH_I=0',
+  r'while [ "$KUSUNGA_BASH_I" -lt "$KUSUNGA_BASH_ARGC" ]; do',
+  r'  KUSUNGA_BASH_V=KUSUNGA_BASH_ARG_$KUSUNGA_BASH_I',
+  r'  set -- "$@" "${!KUSUNGA_BASH_V}"',
+  r'  unset "$KUSUNGA_BASH_V"',
+  r'  KUSUNGA_BASH_I=$((KUSUNGA_BASH_I + 1))',
   r'done',
-  r'exec "$BASH" "$s" "$@"',
+  r'unset KUSUNGA_BASH_RUN KUSUNGA_BASH_SCRIPT KUSUNGA_BASH_ARGC '
+      r'KUSUNGA_BASH_I KUSUNGA_BASH_V',
+  r'exec "$BASH" "$@"',
 ].join('\n');
 
 /// The arguments and environment [runBash] gives bash for [script] and
