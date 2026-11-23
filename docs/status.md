@@ -1,5 +1,16 @@
 # Status log
 
+## 2026-11-23 — M1.10 Dependency updates — started: sized large, blocked on a Flutter SDK decision
+- Changed: PM said: "Yes" (2026-11-23) to starting M1.10. Size: large — the sqlite3 update changes the bundled SQLite3 Multiple Ciphers (2.5.0 on SQLite 3.53.4 → 2.7.0 on SQLite 3.54.1), which encrypts the history database (plan rule). Lead research (a lookup agent, sonnet; report at scratchpad/m110_research.txt, nothing in the repo changed):
+  - The latest versions cannot be installed on Flutter 3.44.6 / Dart 3.12.2 (ADR 0001). window_manager >=0.6.0 and tray_manager >=0.7.0 need Dart >=3.13; 0.7.x and 0.9.x need Dart ^3.14 / Flutter >=3.50. sqlite3 >=3.6.0 needs meta ^1.19.0 through hooks/record_use, which only Flutter 3.50 allows. Latest: sqlite3 3.9.2, window_manager 0.7.1, tray_manager 0.9.1. Flutter 3.50.0 (2026-11-09) and 3.50.1 are stable tags.
+  - sqlite3mc 2.7.0 keeps the ChaCha20 on-disk format (existing databases should open; still to be proven by test). sqlite3 3.7.0–3.8.x carry sqlite3mc 2.6.x with a ChaCha20 counter bug and must not be used.
+  - window_manager and tray_manager are rebuilt on nativeapi (FFI); the old API moves to legacy.dart and is deprecated; two tray tests mock a MethodChannel that no longer exists. New MIT/BSD-3 packages need rows in docs/licences.md. Licence strings and tests pinned to 2.5.0 / 3.53.4 need updating.
+  - Side effect: the lookup agent ran `git fetch --tags` in the Flutter SDK folder to read the 3.50.0 tag (tags only; Flutter is still 3.44.6). The SDK's pubspec.lock change seen there dates from 2026-07-10 and is not the team's.
+- Gates: developer pending · tester pending · reviewer pending · QA pending · PM merge n/a yet
+- Open findings: none
+- Decisions: open for PM: move to Flutter 3.50.1 (new ADR, SDK install), or defer M1.10 with a Later trigger.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead Flutter SDK decision (PM) · PM — Flutter SDK decision; Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-23 — M1.9a About and licences — closed: PR 10 merged
 - Changed: CI run 45277982724 on c52d77b (QA docs on top of 5a6f5cd): macos success, windows success. PR 10 merged on GitHub with a merge commit, c2bc618, pinned to head c52d77b. Local main merged origin/main (f91c760); it differs from c2bc618 only in docs/. Plan: M1.9a merged line added under M1.9 (M1.9 itself stays open: M1.9c, d, e, f remain).
 - Gates: developer pass · tester pass · reviewer approve with notes (CI condition met) · QA pass · CI green on c52d77b · PM merge approved ("Yes, merge when green")
