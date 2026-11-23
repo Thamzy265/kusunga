@@ -1,5 +1,46 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — QA re-check passed; PM merge approval next
+- Changed: QA report (sonnet, medium), word for word:
+  > Milestone: M1.9a About and licences, re-check — 9/9 checks pass (B1–B4, hidden row, sqlite3mc entry, dev-build text, regression, video), 1 not observed (200% text), 1 OPEN (known) — Date: 2026-11-23 — Environment: macOS 27.2, Flutter 3.44.6, branch feat/about-licences at 5b3e377 (not pushed), debug build with KUSUNGA_VERSION=v0.9.0 and KUSUNGA_BUILD=1, qa test profile only. "Test profile: qa" confirmed before every step; the Mac stayed unlocked.
+  > Automated: 0/9 — manual: all, because no desktop end-to-end tool is approved. I drove the real app with guarded click, key and scroll helpers and the AX tree.
+  > Fail: none.
+  > Spec gaps: none new.
+  > OPEN (known, PM decision, not a bug): the Apache-2.0 and CC0-1.0 full texts are still not in the sqlite3mc notice. The notice quotes the Argon2 and fastpbkdf2 headers word for word and says the texts themselves are not in those files.
+  > Re-verified:
+  > - B1 now PASS. The SQLite blessing is three bullet lines in the Kusunga entry, and three lines in the sqlite3mc entry at 800 px and 360 px. I did not open the separate "SQLite" row; it holds the same notice.
+  > - B2 now PASS. Tab 10, 11 and 12 at 800x632 land on Copy version, Copy link and View licences. The ring colour #9AC3FA fills the last four device pixel rows, so the whole 2 pt ring is visible. The old screenshots have background colour in those rows, so the ring was clipped.
+  > - B3 now PASS. With Settings scrolled to the end, the "Version copied" and "Link copied" toasts sit below View licences with a gap, at 800 px and at 360 px (100% text).
+  > - B4 now PASS. On a fresh instance I opened the licences page with a mouse click, then pressed Esc twice. The ring is on View licences, and Return reopens the page.
+  > - Licences list: no lower-case "kusunga" row, "Kusunga" is the first row, and the list has 158 rows (159 before). A diff against the 2026-11-22 list shows only that one row removed. All other rows and counts are identical, so Flutter's own notices are all still there (flutter 8, dart 47, icu 559, skia 104, harfbuzz 144, and so on).
+  > - Version line and caption: "— development build" and the "Development build" caption are unchanged. The version shows 0.9.0 for v0.9.0, and the clipboard text after Copy version is correct.
+  > - Regression: the GPL entry opens, Copy link copies exactly the repository URL, Tab order is unchanged (12 stops), and the 360 px layout has no sideways scroll.
+  > - sqlite3mc entry at 800 px and 360 px: readable, no sideways scroll, and every "Text of …" block keeps its line breaks. The MIT text is in the entry.
+  > Needs PM: none. (The Apache-2.0/CC0 decision above is a PM decision, not a check step.)
+  > Not observed:
+  > - Toast at 200% text and 360 px: the app has no text-scale setting, dart-define or hook, and the system text size is a System Settings change QA must not make. The developer's about_toast_room_test.dart covers it.
+  > - Live VoiceOver (needs a System Settings change): I read the AX tree instead.
+  > - Release-build behaviour of the hidden row: I built no Release or Profile, per the rules. The row-hiding check ran on this debug build, which has NOTICES.Z.
+  > - The separate lower-case "SQLite" row was not opened (list scrolling was too erratic to land on it).
+  > Accessibility: pass for what was observable. Keyboard order and complete visible ring are verified, the 360 px layout has no overflow, and the AX names are intact. 200% text and live VoiceOver are not observed.
+  > Privacy: pass. Nothing is sent anywhere by this screen, and only made-up qa data is in the screenshots. Nothing of the PM's data was touched.
+  > Observations (Minor or cosmetic, not numbered bugs):
+  > - At 360 px, long lines inside the indented "Text of …" blocks wrap back to the left margin with no hanging indent. Breaks are kept and nothing is cut off.
+  > - The MIT permission paragraph reflows as a normal paragraph, because its source lines are not indented. The text is intact.
+  > - Not from this change: a stale tooltip ("qa-m18-copy-3", made-up data) stayed on screen over every tab and over Settings after the pointer left the History row. I saw it only in the first instance and did not investigate.
+  > - At 360 px the sqlite3mc entry title runs under the DEBUG ribbon (debug builds only).
+  > Evidence: docs/qa/m1.md section "M1.9a About and licences — re-check (2026-11-23)" in the worktree scratchpad/m19a-wt; screens: docs/qa/m1/screens/ (26 files, prefix m19a-r2-); videos: m1.9a-r2-about-licences-flow.mp4 (about 6.8 min: fresh launch, mouse path to View licences, whole list, sqlite3mc entry, Kusunga entry, Esc twice, focus on View licences) plus rows_r2.txt (the 158-row list), in qa-artifacts/m1.9a/ in the worktree and in the main checkout qa-artifacts/m1.9a/ (git-ignored, not committed).
+  > Commit: 406537d on feat/about-licences, docs/qa only, with the Co-Authored-By line. Nothing pushed.
+  > PM check steps: verified yes — nothing needed, docs/qa/m1.md#pm-check-m19a-re-check
+  > Dialogs and incidents: no keychain, permission or trust dialog appeared. I accidentally pointed one screencapture call at /tmp/x, which is an existing directory; nothing was written or removed. The clipboard was overwritten by test text.
+  > Clean-up: both Kusunga instances (pids 95263 and 98070) quit by pid and ffmpeg stopped. pgrep shows no Kusunga, ffmpeg or flutter_tester. The qa profile still has its 3 history items. The default profile was never started, and I did not run check.sh or flutter test.
+  > Blockers: none
+- Lead note: the temp-folder cleanup had removed the .git link and 626 tracked files from the lead's main worktree (scratchpad/main-wt2); no local change was lost (only deletions); the link was rewritten and the files restored from git at 28410b4.
+- Gates: developer pass · tester pass · reviewer approve · QA pass (200% text not observed, covered by about_toast_room_test.dart) · PM merge waiting
+- Open findings: none
+- Decisions: open for PM: Apache-2.0 / CC0-1.0 texts and the Argon2 CC0 sentence
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-22 — M1.9a About and licences — main merged into the branch; QA next
 - Changed: developer report (sonnet, medium), word for word (sub-lists joined):
   > Branch: feat/about-licences is merged with main and the full check passes. Nothing was pushed, and main was not touched.
