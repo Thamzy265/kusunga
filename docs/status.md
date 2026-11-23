@@ -1,5 +1,49 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — tester round 2: 2 bugs; Windows CI run 3: 1 failing test
+- Changed: tester report (sonnet, medium, re-run after the session restart), word for word:
+  > Branch: feat/about-licences (1 test commit: 73913d6, on top of 17413f3, not pushed)
+  > Added: 30 tests in scratchpad/m19a-wt/test/support/bash_windows_edge_test.dart. I kept the stopped run's file, replaced its NUL test with a deterministic one, and left the rest as it was. The probes are in the table below. 18 per-bash tests run under /bin/bash 3.2. Homebrew bash is not installed here (no /opt/homebrew/bin/bash or /usr/local/bin/bash), so the file picks it up automatically on a machine that has it. That is a gap.
+  > E2E tests added: 0 (n/a — no user flow)
+  > Fail-then-pass:
+  > - Old code (182d204): `bashInvocation` and the `windows:` argument don't exist there, so every test fails by compile error. Run only in the mutation form below, not as a separate old-code run.
+  > - Reader and model mutations (restored with git checkout each time; `git status` shows only my new file):
+  >   - Drop `IFS=`: 21 tests fail, including "every argument and the env arrive byte for byte".
+  >   - Unquote `"$@"` at the `exec`: "every argument ... byte for byte" and my "empty strings in every position are kept" fail.
+  >   - Unquote `${!v}`: the same two fail.
+  >   - Break accumulation of `set -- ...`: 10 tests fail, including 200 arguments in my file.
+  >   - Put a quote and `*` in the fixed command line: 22 tests fail.
+  >   - Model ignores single quotes: only my "lone single quote is dropped, a spaced one is kept" fails. The developer's property test passes unchanged, because it only feeds the model the fixed command line, which has no quote. So that model test is not tautological, but it needs my pinning tests to be checked.
+  >   - Model leaves an empty argument unquoted: my two Dart-quoting/empty-argument pins fail.
+  >   - Drop `set -f`: NO test fails. The run text is one word under `IFS=`, and a glob can only match a file named like the whole script text. It is defence only, not testable by behaviour. I did not add a contrived test.
+  > Regression locks: the other 28 tests have no old-code run. They pass on the new reader and are locks on it:
+  > - zero, 200 and 100000-character arguments; empty strings in the middle; trailing and leading newlines kept.
+  > - Option, name and assignment look-alikes: `-`, `--`, `-e`, `a=b`, `IFS=`, `KUSUNGA_BASH_ARGC`, `${!v}`, `$s`, `99`.
+  > - Glob and shell syntax stay text, including with real files in the working directory.
+  > - Script paths with spaces, quotes, `$`, backticks and unicode; `$0` is the script path; a relative script path.
+  > - Working directory and caller environment pass through, including near-miss names (`KUSUNGA_BASHX`, `KUSUNGA_BAS`, bare `KUSUNGA_BASH`); IFS and `set -f` do not leak.
+  > - Exit codes 0, 1, 2, 127, 255, a missing script (127), and a signal death.
+  > - stdout and stderr unchanged; no KUSUNGA_BASH_* in the script, its child bash or `compgen -v`.
+  > - Reserved prefix in any case, on and off Windows (the lower-case `kusunga_bash_` case is covered by the case-insensitive check).
+  > - The fixed command line is identical for every input and has no quote, backslash or glob character.
+  > Bugs found:
+  > - B1 `bashInvocation` accepts a NUL in an argument, the script path or an environment value, and does not fail. Process.runSync on the Mac silently cut the argument at the NUL (the script printed `1 a`). A caller gets a changed argument, not an error. Fix: throw ArgumentError. Repro: "NUL cannot travel in an environment a NUL in an argument, the script or an environment value throws" (fails today).
+  > - B2 The reader overwrites the caller's exported variables `s`, `n`, `i` and `v`. A caller with `s=S1`, `n=N1`, `i=I1`, `v=V1` in its environment gets the script path, the argument count and `KUSUNGA_BASH_ARG_1` into the script instead. Reader names that are not exported would be harmless. Fix: use reserved names (for example KUSUNGA_BASH_s) and unset them before the `exec`, or save and restore them. Repro: "with /bin/bash the reader leaves no stray names in the script environment" (fails today).
+  > Abuse cases covered: n/a — no design note; the argument-injection probes are listed above.
+  > UI states covered: n/a — no UI
+  > Gaps not covered:
+  > - Real Windows (Git Bash, MSYS2): the Windows parsers are modelled only. Homebrew bash 5 was not available to run against.
+  > - `set -f` is not distinguishable by behaviour.
+  > - B1 on real Windows: I did not check whether Process.start there throws on a NUL.
+  > Production code changed: none
+  > Suite (./tool/check.sh, run once, alone, with no flutter_tester running beforehand): 4386 passing / 2 failing / 10 skipped. The 2 failures are the B1 and B2 repro tests only. The count before is not recorded; the new file adds 30 tests, of which 28 pass. I did not run `dart format` and `flutter analyze` separately beyond the check, which reported no other failures.
+  > Blockers: none
+- CI run 45185425374 on 17413f3: macos pass; windows "4269 tests passed, 1 failed, 101 skipped". Every script test passes, including "quote'.dll". The one failure is the tester's round 1 test test/support/bash_edge_test.dart:417 "runBash on this machine the working directory is used": "Expected: a string ending with 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\kusunga_bash_e_bb02e973' Actual: '/tmp/kusunga_bash_e_bb02e973'" (Git Bash prints the MSYS form of the folder). Lead reading: a wrong expectation in the test, not a harness or product fault.
+- Gates: developer open (B1, B2) · tester open (fix its working-directory test after the developer) · reviewer pending · QA pass (on 406537d; test-only change since) · CI windows fail (1 test) · PM merge approved when green
+- Open findings: B1 (NUL silently cut), B2 (reader overwrites exported s, n, i, v), CI test expectation
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-23 — Project — PM status update (deck)
 - Changed: PM asked "where are we with the project /my-tech-team:lead brief me with a slide deck". Deck docs/slides/status-2026-11-23.html (10 slides: health, done, in flight, what we checked, next up, risks, decisions, blockers). Health: M1 at risk, not blocked (PR 10 Windows CI failed twice; run 3 on 17413f3 pending). The tester's round 2 on 17413f3 was stopped when the session restarted, leaving an uncommitted test/support/bash_windows_edge_test.dart in the worktree; it will be re-run.
 - Gates: M1.9a developer pass (round 2) · tester round 2 to re-run · reviewer pending · QA pass · CI pending · PM merge approved when green
