@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-23 — Project — PM status update (deck)
+- Changed: PM asked "where are we with the project /my-tech-team:lead brief me with a slide deck". Deck docs/slides/status-2026-11-23.html (10 slides: health, done, in flight, what we checked, next up, risks, decisions, blockers). Health: M1 at risk, not blocked (PR 10 Windows CI failed twice; run 3 on 17413f3 pending). The tester's round 2 on 17413f3 was stopped when the session restarted, leaving an uncommitted test/support/bash_windows_edge_test.dart in the worktree; it will be re-run.
+- Gates: M1.9a developer pass (round 2) · tester round 2 to re-run · reviewer pending · QA pass · CI pending · PM merge approved when green
+- Open findings: none
+- Decisions: open for PM: Apache-2.0 / CC0 wording; DPIA section 7; Apple Developer account status; Microsoft Store account
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-23 — M1.9a About and licences — Windows CI fix round 2 built (tests only)
 - Changed: developer report (opus, high), word for word:
   > Branch: feat/about-licences (1 new commit, 17413f3, on top of the tester's 182d204). Not pushed. edd258f is pushed; 182d204 and 17413f3 are local only.

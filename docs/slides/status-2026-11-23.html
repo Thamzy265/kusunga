@@ -1,0 +1,297 @@
+<!doctype html>
+<!-- Copy to docs/slides/<item>.html. Replace every [bracketed] text. Delete slides that do not apply and say why on the Scope slide. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kusunga status, 23 November</title>
+<!--
+  Deck template: one self-contained file. No external scripts, fonts or trackers.
+  Each <section class="slide"> is one slide. Keys: → ↓ Space PageDown = next; ← ↑ PageUp = back;
+  Home/End = first/last. URL hash (#3) links to a slide. Print (Cmd/Ctrl+P) gives one slide per page.
+-->
+<style>
+  :root {
+    --bg: #f7f6f2; --surface: #ffffff; --text: #1d1d1b; --muted: #5f5e58;
+    --line: #dedcd3; --accent: #c2512f; --accent-soft: #f6e3dc;
+    --ok: #2f7a4f; --ok-soft: #dcefe3; --warn: #9a6a00; --warn-soft: #f7ecd2;
+    --no: #a33a3a; --no-soft: #f6dcdc;
+    --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161614; --surface: #201f1c; --text: #ecebe6; --muted: #a8a69e;
+      --line: #36352f; --accent: #e8805f; --accent-soft: #3a2620;
+      --ok: #6cc290; --ok-soft: #1d3326; --warn: #e0b04d; --warn-soft: #3a3020;
+      --no: #e57f7f; --no-soft: #3d2222;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161614; --surface: #201f1c; --text: #ecebe6; --muted: #a8a69e;
+    --line: #36352f; --accent: #e8805f; --accent-soft: #3a2620;
+    --ok: #6cc290; --ok-soft: #1d3326; --warn: #e0b04d; --warn-soft: #3a3020;
+    --no: #e57f7f; --no-soft: #3d2222;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.45; }
+
+  .slide { display: none; min-height: 100vh; padding: clamp(24px, 6vh, 64px) clamp(16px, 7vw, 96px) 88px; flex-direction: column; justify-content: center; }
+  .slide.active { display: flex; }
+  .slide > .inner { width: 100%; max-width: 1080px; margin: 0 auto; }
+
+  .kicker { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin: 0 0 10px; }
+  h1 { font-size: clamp(34px, 6vw, 64px); line-height: 1.05; margin: 0 0 18px; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(26px, 4vw, 40px); line-height: 1.12; margin: 0 0 22px; letter-spacing: -0.01em; }
+  h3 { font-size: 17px; margin: 0 0 8px; }
+  p, li { font-size: clamp(16px, 1.6vw, 20px); }
+  p.lead { font-size: clamp(18px, 2.1vw, 24px); color: var(--muted); max-width: 46ch; }
+  ul { margin: 0; padding-left: 1.2em; } li { margin: 6px 0; }
+  .small { font-size: 14px; color: var(--muted); }
+  code { font-family: var(--mono); font-size: .9em; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @media (max-width: 760px) { .g2, .g3 { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  .card p, .card li { font-size: 16px; margin: 4px 0; }
+  .card.ok { background: var(--ok-soft); border-color: transparent; }
+  .card.warn { background: var(--warn-soft); border-color: transparent; }
+  .card.no { background: var(--no-soft); border-color: transparent; }
+  .card.accent { background: var(--accent-soft); border-color: transparent; }
+  .tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); margin-right: 6px; }
+
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 14px; }
+  .flow .step { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font-size: 16px; }
+  .flow .step b { color: var(--accent); }
+  .flow .arrow { color: var(--muted); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 16px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+  .table-wrap { overflow-x: auto; }
+
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--bg); border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+  .bar button { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; min-width: 44px; min-height: 36px; }
+  .bar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .bar .title { margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .progress { position: fixed; left: 0; top: 0; height: 3px; background: var(--accent); transition: width .2s ease; }
+
+  @media print {
+    .bar, .progress { display: none; }
+    .slide { display: flex !important; min-height: 0; height: 100vh; page-break-after: always; break-after: page; padding: 40px 56px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .progress { transition: none; } }
+</style>
+</head>
+<body>
+<div class="progress" id="progress" aria-hidden="true"></div>
+<main id="deck">
+
+<section class="slide" aria-label="Title">
+  <div class="inner">
+    <p class="kicker">Kusunga · project status · 2026-11-23</p>
+    <h1>Where we are</h1>
+    <p class="lead">The desktop app is built and checked. We are now on the last milestone before the first beta: signed installers.</p>
+    <p class="small">Use the arrow keys to move between slides · Print to save as PDF</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="Health">
+  <div class="inner">
+    <p class="kicker">Health</p>
+    <h2>M1 Desktop MVP: at risk, not blocked</h2>
+    <div class="grid g3">
+      <div class="card ok"><h3>Done</h3><p>10 of 12 M1 items are merged and ticked on main.</p></div>
+      <div class="card warn"><h3>In progress</h3><p>M1.9 signed installers: part a waits on Windows CI, b is merged, c to f not started.</p></div>
+      <div class="card warn"><h3>Waiting on you</h3><p>Apple Developer account, DPIA sign-off, licence wording. These hold up the beta, not today's work.</p></div>
+    </div>
+    <p class="small">At risk because the About and licences PR has failed Windows CI twice. A third fix is pushed and CI is running. Source: docs/PLAN.md and docs/status.md on local main (f62f1a9).</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="Done">
+  <div class="inner">
+    <p class="kicker">Done (merged, every gate passed)</p>
+    <h2>What users can already do</h2>
+    <div class="grid g2">
+      <div class="card ok"><ul>
+        <li>Keep a history of what they copy (encrypted on the device)</li>
+        <li>Open a picker and paste from history</li>
+        <li>Save snippets and paste them with a typed shortcut</li>
+        <li>Never keep copies from password managers or marked secret</li>
+      </ul></div>
+      <div class="card ok"><ul>
+        <li>Set the history limit and auto-delete</li>
+        <li>Export their data and delete everything</li>
+        <li>Mac and Windows CI green; GPL-3.0 licence</li>
+        <li>Mac release build (Apple silicon, Hardened Runtime) merged locally</li>
+      </ul></div>
+    </div>
+    <p class="small">M1.1–M1.8, Licence and Windows CI green are ticked. M1.9b is merged to local main (2026-11-22). Its signed-build launch check moved to M1.9e.</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="In flight">
+  <div class="inner">
+    <p class="kicker">In flight</p>
+    <h2>M1.9a About and licences: PR 10</h2>
+    <div class="flow">
+      <span class="step"><b>✓</b> Developer</span><span class="arrow">→</span>
+      <span class="step"><b>✓</b> Tester</span><span class="arrow">→</span>
+      <span class="step"><b>✓</b> Reviewer</span><span class="arrow">→</span>
+      <span class="step"><b>✓</b> QA</span><span class="arrow">→</span>
+      <span class="step"><b>✓</b> You approved</span><span class="arrow">→</span>
+      <span class="step"><b>…</b> CI green</span>
+    </div>
+    <div class="grid g2">
+      <div class="card warn"><h3>Windows CI</h3><ul>
+        <li>Run 1: 83 script tests failed (Windows ran the wrong bash)</li>
+        <li>Run 2: 1 left (an apostrophe lost on the way into Git Bash)</li>
+        <li>Run 3: fix pushed, CI running now</li>
+      </ul></div>
+      <div class="card"><h3>Still to do on the fix</h3><ul>
+        <li>Tester round 2: stopped when the session restarted; will be re-run</li>
+        <li>Reviewer: checks all three rounds and the 15 Windows-only skips</li>
+        <li>Then merge, as you approved</li>
+      </ul></div>
+    </div>
+    <p class="small">Only test files changed in the CI fixes; no app code. Mac CI passed every time. Developer escalated to opus per the escalation rule.</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="What we checked">
+  <div class="inner">
+    <p class="kicker">What we checked on M1.9a</p>
+    <h2>QA on a real build: pass</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Check</th><th>How</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Bugs B1–B4 (blessing lines, focus ring, toast, focus after click)</td><td>manual, no desktop tool approved</td><td>PASS</td></tr>
+        <tr><td>No duplicate "kusunga" row; all Flutter notices still listed (158 rows)</td><td>manual + row diff</td><td>PASS</td></tr>
+        <tr><td>SQLite3 Multiple Ciphers entry at 360 px and 800 px</td><td>manual</td><td>PASS</td></tr>
+        <tr><td>Toast at 200% text</td><td>automated test only (needs a System Settings change)</td><td>not observed by hand</td></tr>
+        <tr><td>Apache-2.0 / CC0 full texts in the notice</td><td>—</td><td>OPEN: your decision</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small">docs/qa/m1.md "M1.9a … re-check (2026-11-23)", screenshots m19a-r2-*, video m1.9a-r2-about-licences-flow.mp4 (sent earlier, not committed).</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="Next up">
+  <div class="inner">
+    <p class="kicker">Next up</p>
+    <h2>The road to the first beta</h2>
+    <div class="flow">
+      <span class="step"><b>a</b> About and licences</span><span class="arrow">→</span>
+      <span class="step"><b>c</b> Keychain move</span><span class="arrow">→</span>
+      <span class="step"><b>d</b> Windows Store package</span><span class="arrow">→</span>
+      <span class="step"><b>e</b> Release script and signed launch check</span><span class="arrow">→</span>
+      <span class="step"><b>f</b> DPIA signed</span><span class="arrow">→</span>
+      <span class="step"><b>Beta</b> 0.9.0</span>
+    </div>
+    <div class="grid g2">
+      <div class="card"><h3>Can start now</h3><ul><li>M1.10 Dependency updates (sqlite3, window_manager, tray_manager), after PR 10 merges</li></ul></div>
+      <div class="card warn"><h3>Needs your accounts first</h3><ul><li>c and e: Apple Developer account</li><li>d: Microsoft Store (Partner Center) account</li></ul></div>
+    </div>
+    <p class="small">Order from the approved deck docs/slides/signed-installers-and-beta.html. Dependabot PRs 6, 7, 8 were closed today and replaced by M1.10.</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="Risks">
+  <div class="inner">
+    <p class="kicker">Risks</p>
+    <h2>What could slow the beta</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td>Windows CI fails a third time</td><td>PR 10 can't merge</td><td>Fix is tested on Mac with a model of Git Bash; next step is a blocker to you</td></tr>
+        <tr><td>Signing accounts not ready</td><td>M1.9c, d, e can't start</td><td>a and M1.10 go first</td></tr>
+        <tr><td>sqlite3 update changes the encryption library</td><td>Licence notice and checksum need redoing</td><td>Planned in M1.10, with a database-open test</td></tr>
+        <tr><td>Temp-folder cleanup removing work files</td><td>Lost scratch work</td><td>Nothing lost so far; everything is committed in git</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<section class="slide" aria-label="Decisions needed">
+  <div class="inner">
+    <p class="kicker">Decisions needed</p>
+    <h2>4 things for you</h2>
+    <div class="grid g2">
+      <div class="card warn"><h3>1. Argon2 / fastpbkdf2 licence wording</h3><p>Options: add "Kusunga uses Argon2 under CC0 1.0" · also download the full Apache-2.0 and CC0 texts · keep as is</p><p><b>Recommendation:</b> the CC0 sentence, because CC0 needs no text to travel and it is the reviewer's advice</p></div>
+      <div class="card warn"><h3>2. DPIA section 7</h3><p>Lawful basis and retention for tester details and feedback, feedback email, accept residual risks R1, R5, R9, sign-off</p><p><b>Recommendation:</b> legitimate interests; delete tester details when the beta ends; feedback 90 days after M1 ships</p></div>
+      <div class="card warn"><h3>3. Apple Developer account</h3><p>Is it active yet? Needed for M1.9c and e.</p></div>
+      <div class="card warn"><h3>4. Microsoft Store account</h3><p>Needed for M1.9d (your D1 A choice).</p></div>
+    </div>
+    <p class="small">Already approved, no action: merge PR 10 when both CI jobs are green ("Yes, merge when green", 2026-11-23).</p>
+  </div>
+</section>
+
+<section class="slide" aria-label="Blockers by role">
+  <div class="inner">
+    <p class="kicker">Blockers by role</p>
+    <h2>Nobody on the team is blocked today</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Role</th><th>Blocker</th></tr></thead>
+      <tbody>
+        <tr><td>Developer</td><td>none</td></tr>
+        <tr><td>Tester</td><td>none (round 2 to be re-run)</td></tr>
+        <tr><td>Reviewer</td><td>none</td></tr>
+        <tr><td>QA</td><td>none</td></tr>
+        <tr><td>Marketer</td><td>none</td></tr>
+        <tr><td>Lead</td><td>none</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small">Nothing on main is pushed except through PR 10; 32 local main commits go to GitHub when it merges.</p>
+  </div>
+</section>
+
+</main>
+
+<nav class="bar" aria-label="Slide controls">
+  <span class="title" id="title">Kusunga status</span>
+  <span id="count" aria-live="polite"></span>
+  <button type="button" id="prev" aria-label="Previous slide">←</button>
+  <button type="button" id="next" aria-label="Next slide">→</button>
+  <button type="button" id="theme" aria-label="Switch light or dark theme">◐</button>
+</nav>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var i = 0;
+  function fromHash() {
+    var n = parseInt(location.hash.slice(1), 10);
+    return isNaN(n) ? 0 : Math.min(Math.max(n - 1, 0), slides.length - 1);
+  }
+  function show(n) {
+    i = Math.min(Math.max(n, 0), slides.length - 1);
+    slides.forEach(function (s, k) { s.classList.toggle('active', k === i); });
+    document.getElementById('count').textContent = (i + 1) + ' / ' + slides.length;
+    document.getElementById('progress').style.width = ((i + 1) / slides.length * 100) + '%';
+    document.getElementById('title').textContent = slides[i].getAttribute('aria-label') || document.title;
+    if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', '#' + (i + 1));
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.target.closest && e.target.closest('input, textarea')) return;
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].indexOf(e.key) >= 0) { e.preventDefault(); show(i + 1); }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp'].indexOf(e.key) >= 0) { e.preventDefault(); show(i - 1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(slides.length - 1);
+  });
+  document.getElementById('prev').addEventListener('click', function () { show(i - 1); });
+  document.getElementById('next').addEventListener('click', function () { show(i + 1); });
+  document.getElementById('theme').addEventListener('click', function () {
+    var root = document.documentElement;
+    var dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = dark ? 'light' : 'dark';
+  });
+  window.addEventListener('hashchange', function () { show(fromHash()); });
+  show(fromHash());
+})();
+</script>
+</body>
+</html>
