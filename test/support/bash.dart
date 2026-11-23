@@ -176,6 +176,10 @@ final _windowsRun = [
 /// reading code in KUSUNGA_BASH_ variables, so every argument arrives byte
 /// for byte (see [_windowsCommand]). Drive paths are given with forward
 /// slashes ([forBash]).
+///
+/// Throws [ArgumentError] for an environment name with the
+/// [reservedBashPrefix], and for a NUL character in the script, an argument
+/// or an environment value, on every system.
 BashInvocation bashInvocation(
   String script,
   List<String> args, {
@@ -188,6 +192,22 @@ BashInvocation bashInvocation(
     if (key.toUpperCase().startsWith(reservedBashPrefix)) {
       throw ArgumentError.value(key, 'environment', 'is reserved for runBash');
     }
+  }
+  // A NUL ends a C string, so it cannot reach bash in an argument or an
+  // environment value: the process would get the text cut at the NUL. Refuse
+  // it on every system rather than run the script with a changed value.
+  void noNul(String value, String name) {
+    if (value.contains('\x00')) {
+      throw ArgumentError.value(value, name, 'contains a NUL character');
+    }
+  }
+
+  noNul(script, 'script');
+  for (final a in args) {
+    noNul(a, 'args');
+  }
+  for (final e in env.entries) {
+    noNul(e.value, 'environment[${e.key}]');
   }
   if (!windows) return (arguments: [script, ...args], environment: {...env});
   String f(String s) => forBash(s, windows: true);
