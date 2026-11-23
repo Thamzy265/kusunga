@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — PM chose the merge route
+- Changed: lead asked "How should I merge M1.9a?" (options: push the branch and open a PR so the Windows CI job runs, which also carries local main's unpushed commits on the branch; or merge locally).
+- Gates: developer pass · tester pass · reviewer approve · QA pass · PM merge route approved: PR; merge on the remote after CI
+- Open findings: none
+- Decisions: PM said: "Push and open PR" (2026-11-23). Main itself is not pushed by this; the branch is.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none
+
 ## 2026-11-23 — M1.9a About and licences — QA re-check passed; PM merge approval next
 - Changed: QA report (sonnet, medium), word for word:
   > Milestone: M1.9a About and licences, re-check — 9/9 checks pass (B1–B4, hidden row, sqlite3mc entry, dev-build text, regression, video), 1 not observed (200% text), 1 OPEN (known) — Date: 2026-11-23 — Environment: macOS 27.2, Flutter 3.44.6, branch feat/about-licences at 5b3e377 (not pushed), debug build with KUSUNGA_VERSION=v0.9.0 and KUSUNGA_BUILD=1, qa test profile only. "Test profile: qa" confirmed before every step; the Mac stayed unlocked.
