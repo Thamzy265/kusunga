@@ -1,5 +1,54 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — reviewer: approve with notes, on condition of a green Windows run
+- Changed: reviewer report (opus, high), word for word:
+  > Mode: branch (re-check of 66d711f..af3f502, 5 commits: 4643db0, 5e5b19f, adf86a7, 4e30eac, af3f502)
+  > Branch: feat/about-licences, worktree scratchpad/m19a-wt, tip af3f502 — Verdict: approve with notes, with one condition. R1 is fixed in the code, but it only closes when the windows-latest job on af3f502 shows the evidence listed under "Open items". If that job is not green, the verdict goes back to block.
+  > Checks: ./tool/check.sh — pass (Mac) — I used the developer's single run on af3f502 (scratchpad/check_r10_fix.txt). It shows "Formatted 334 files (0 changed)", "No issues found!" and "05:13 +4397 ~10: All tests passed!". The count adds up: 4398 + 1 new L1 test − 2 removed duplicate C2 tests = 4397. I ran no flutter tests myself. `pgrep -fl flutter_tester` showed six flutter_tester processes from the PM's own project (/Users/williamnasoni/Developer/CGA/updated_apps/3D_App/...). I did not touch them. The worktree is clean at af3f502.
+  > Code review: 6 findings (5 fixed, 1 open: N1, new, Low). R1 counts as fixed in the code; its Windows evidence is still pending. I reviewed this range by hand, line by line, and did not run the code-review skill. The range is 5 test-only commits, and I did not want a review fork starting test runs while the PM's flutter_tester processes were busy.
+  > Design review: 0 findings. Only test harness and test text changed. No product code, packages, pubspec or workflow changes.
+  > Security review: 1 finding.
+  > - N1 — Low (no CVSS score). Band and basis: it can only happen when a test fails. It then prints one inherited environment value to the test output.
+  >   - On CI the risk is low. check.yml has `permissions: contents: read` and passes no secrets, so run-step variables hold none. But the repo is PUBLIC, so the CI logs are public.
+  >   - On a developer's machine, the chosen variable could be a credential.
+  > - The security-review skill was not run this round, for the same reason as r10: the range is test-only and I checked it by hand against the checklist.
+  > - A01–A10 and the AI section are n/a. There are no endpoints, auth, crypto, network, dependencies, Actions changes or AI features in the range.
+  > Privacy review: no issues apart from N1, which is filed under security because the value printed may be a secret. n/a: logs, URLs and analytics in the product (none touched); retention, erasure, processors and regions (no data paths changed); test data is synthetic.
+  > Later lines: none added — added by reviewer: none
+  > Findings (most severe first):
+  > - N1 — Low — test/support/bash_windows_edge_test.dart:40-92 (`_inheritedWitness`) and :343 (`expect(seen, [witness!.value], reason: witness.key)`).
+  >   - What it does: the witness is the first inherited variable by sorted name that is not on the exclusion list. On a failure, the matcher prints the expected list, so the variable's full value goes to the terminal and to any saved check log.
+  >   - Failure scenario: the developer's own mutation run (`exec env -i "$BASH"`) made this test fail. On this Mac the name chosen is AI_AGENT, which is harmless. But on any machine where a name like ANTHROPIC_API_KEY, AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY sorts first, a failure would write that secret in plain text into the output. That output gets saved into scratchpad check logs and passed between agents.
+  >   - Expected fix: never put the value in a matcher. For example, `expect(seen.length == 1 && seen.single == witness.value, isTrue, reason: '${witness.key} was not inherited unchanged (${seen.length} matches)')`. Better still, pick the witness only from names that are known to be safe.
+  >   - Low, so it can wait. It is cheap to fold into the next commit.
+  > Fix outcomes:
+  > - R1 — fixed in the code; closing needs the Windows log (see Open items).
+  >   - Old-code failure: run 45198148242 on e2bc6cf, windows job: "test/support/bash_windows_edge_test.dart: there is a bash to try (failed)".
+  >   - New code: `_shells = Platform.isWindows ? [findBash()] : [...]`. On Windows, findBash() throws a StateError when there is no Git Bash, inside main(). The file then fails to load loudly. It cannot pass silently.
+  >   - I went through every test in the group against how Git Bash behaves: arguments travel in KUSUNGA_BASH_ARG_n variables and are read back by the reader (already proven on Git Bash by run 45185425374); the exec from the reader to the script bash is Cygwin to Cygwin, so argv is passed directly, with no globify and no 32K command-line limit; "q\"q.sh" is left out on Windows, which is correct because NTFS forbids a double quote; $0 is compared with forBash(path), which matches because the reader is given the path with forward slashes; the working directory compares only the last path segment, the same rule as bash_edge_test, and the relative-script test proves the real working directory; _bashVariable and the script's $BASH both come from the same Git wrapper → usr/bin/bash chain, so they agree; the parent-environment test compares names without case, which covers Cygwin's upper-casing of names; the signal test is skipped with a reason that is true.
+  >   - The one test I cannot predict with confidence is "a 100000 character argument arrives whole". The developer flags the same one. I expect it to pass: Windows has no limit on the environment block for CreateProcess, and the value reaches the script bash as Cygwin argv, not as a Windows command line. It is still unverified.
+  > - L1 — fixed (4643db0). The developer gave a failing run before the fix: Actual 'noglob\n*.sh\n'. I reproduced it myself with the exact reader text under /bin/bash 3.2, with SHELLOPTS=braceexpand:hashall:interactive-comments exported. Without `set +f`: "noglob *.sh". With it: "glob a.sh". The regression test is "an exported SHELLOPTS does not carry the reader's set -f into the script (L1)", and it runs once per shell. The comment in bash.dart:150-161 is now accurate.
+  > - L2 — fixed (adf86a7). Both `_symlinks` reasons now give the true reason: the guard only scans Mac bundles, the DLL check is only given the built DLL, and the Mac job runs these tests. The Developer Mode claim is gone from test/ (checked with grep).
+  > - C1 — fixed (4e30eac, af3f502). "fails today", "Nothing here needs Windows" and "uses the names s, n, i and v" no longer appear in test/.
+  > - C2 — fixed (af3f502). The duplicate group, `_FileBundle` and the unused services import are removed. about_edge_test.dart:573-587 still checks both needles: "SQLite3 Multiple Ciphers 2.5.0 and the parts it bundles" and "SQLite is in the public domain".
+  > - Earlier rounds, unchanged: R16 fixed (r9); B1–B5 fixed (r10).
+  > Risk accepted by PM: none. The PM's merge condition comes from the lead's brief, not from docs/status.md: "Yes, merge when green". It is a merge condition, not an accepted risk.
+  > Open items:
+  > - R1 is closed only once the CI run on af3f502 shows all of the following. I need the lead to check them in the log:
+  >   1. Both jobs, macos and windows-latest, conclude success.
+  >   2. Windows job: "Some tests failed" does not appear, and the summary shows 0 failed.
+  >   3. "test/support/bash_windows_edge_test.dart: there is a bash to try" is listed as passed.
+  >   4. A group "with C:\Program Files\Git\bin\bash.exe" (or wherever findBash finds Git Bash) is listed with 19 passing tests. By name, at least these five: "a 100000 character argument arrives whole"; "the parent environment is still inherited"; "an exported SHELLOPTS does not carry the reader's set -f into the script (L1)"; "caller BASH, IFS, GLOBIGNORE, PATH-like and lower names: ..."; "script paths with spaces, quotes, $ and unicode work, $0 is the path".
+  >   5. Exactly one skip from this file: "a signal that kills the script is reported as the signal", with the reason starting "not on Windows: a Windows process does not die of a signal". The Windows skip total should be 102 (101 + 1), unless something else in the range changed the skip count. If the number is different, send it to me.
+  > - If the 100000-character test or any other test from this file fails on Windows, do not merge. Send me the failure text, and the developer needs a diagnosis or a skip whose reason is proven true. I will re-check.
+  > - N1 (Low) is listed as a note. It can be fixed in the same push if there is another round.
+  > Blockers: none for my review. The merge gate is the af3f502 Windows log described above. The lead can unblock it by reading that log. If it is missing, the impact is that R1 stays unconfirmed and the PM's "merge when green" condition is not met.
+- Lead note: the repo is public, so CI logs are public. N1 is cheap, so the lead sends it to the developer now, before QA and before the final CI run, rather than leaving it as a note.
+- Gates: developer open (N1) · tester pass · reviewer approve with notes (conditional on the Windows log) · QA pending · CI pending · PM merge approved when green
+- Open findings: N1 Low
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-23 — M1.9a About and licences — developer fixed R1, L1, L2, C1, C2
 - Changed: developer report (opus, high), word for word:
   > Branch: feat/about-licences (5 new commits on 66d711f, tip af3f502, not pushed). Worktree: scratchpad/m19a-wt
