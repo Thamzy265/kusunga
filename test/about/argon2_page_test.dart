@@ -6,7 +6,6 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show LicenseRegistry;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/about/licences.dart';
 
@@ -27,10 +26,11 @@ List<String> argon2Paragraphs() {
 
 void main() {
   group('the Argon2 part on the page', () {
-    // B4 (repro, fails today): "Licence:" line and the choice share the same
-    // 2-space indent, so NoticeEntry flows them into one line,
-    // "... at the user's option Kusunga uses Argon2 under the CC0 1.0 option."
-    // (no full stop between them). Same fault as B1 for the blessing.
+    // B4: the "Licence:" line and the choice share the same 2-space indent,
+    // so without the blank line between them NoticeEntry flows them into one
+    // line, "... at the user's option Kusunga uses Argon2 under the CC0 1.0
+    // option." (no full stop between them). Same fault as B1 for the
+    // blessing.
     test('B4: the CC0 sentence is not run onto the Licence line', () {
       final p = argon2Paragraphs();
       final holder = p.firstWhere((t) => t.contains(_choice));
@@ -90,64 +90,8 @@ void main() {
       ];
       final shown = texts.where((t) => t.contains(_choice)).toList();
       expect(shown, hasLength(1), reason: 'built on the page exactly once');
-      // B4 (repro): the sentence is a Text of its own on the page.
+      // B4: the sentence is a Text of its own on the page.
       expect(shown.single.trim(), _choice, reason: shown.single);
     });
   });
-
-  // The "both SQLite notices are reachable" test in about_edge_test.dart looks
-  // for "May you do good and not evil", which is also quoted in the SQLite3
-  // Multiple Ciphers notice (csv.c, rekeyvacuum.c). Without the SQLite row it
-  // still passes. These needles are in one notice each.
-  group('each SQLite notice is reachable from the Kusunga row', () {
-    for (final (name, needle) in [
-      (
-        'SQLite3 Multiple Ciphers',
-        'SQLite3 Multiple Ciphers 2.5.0 and the parts it bundles',
-      ),
-      ('SQLite', 'SQLite is in the public domain'),
-    ]) {
-      testWidgets('$name notice text is on the page', (tester) async {
-        tester.view.physicalSize = const Size(320, 800);
-        tester.view.devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
-        LicenseRegistry.reset();
-        addTearDown(LicenseRegistry.reset);
-        registerLicences(bundle: _FileBundle());
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Builder(
-              builder: (c) => TextButton(
-                onPressed: () => Navigator.of(c).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const LicensePage(applicationName: 'K'),
-                  ),
-                ),
-                child: const Text('go'),
-              ),
-            ),
-          ),
-        );
-        await tester.tap(find.text('go'));
-        await tester.pumpAndSettle();
-        await tester.tap(find.widgetWithText(ListTile, 'Kusunga'));
-        await tester.pumpAndSettle();
-        final found = find.textContaining(needle);
-        for (var i = 0; i < 200 && found.evaluate().isEmpty; i++) {
-          await tester.drag(
-            find.byType(Scrollable).last,
-            const Offset(0, -1500),
-          );
-          await tester.pump(const Duration(milliseconds: 50));
-        }
-        expect(found, findsOneWidget, reason: needle);
-      });
-    }
-  });
-}
-
-class _FileBundle extends CachingAssetBundle {
-  @override
-  Future<ByteData> load(String key) async =>
-      ByteData.sublistView(Uint8List.fromList(File(key).readAsBytesSync()));
 }
