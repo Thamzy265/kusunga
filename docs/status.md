@@ -1,5 +1,28 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — tester round 3: working-directory test fixed, B3 found
+- Changed: tester report (sonnet, medium), word for word:
+  > Branch: feat/about-licences (2 new test commits this round: 11bc3ea, c2f256a; on top of bf60753; not pushed)
+  > Added: 2 new tests, 1 rewritten, in scratchpad/m19a-wt/test/support/bash_edge_test.dart and .../bash_windows_edge_test.dart
+  > E2E tests added: 0 (n/a — test harness, no user flow)
+  > Fail-then-pass:
+  > - NUL in an environment name throws (new repro) — fails today at bf60753: bashInvocation returns instead of throwing for env {'A\x00B': 'v'} (windows=true; same on false) — it will pass once the developer checks names for NUL.
+  > - "the working directory is used" (rewritten) — I could not run it on real Windows, so there is no fail-then-pass for it. Passes on Mac. The old assertion compared the printed path's last segment, which passed on Mac but fails on Git Bash (/tmp/... vs C:\...\Temp). Choice: not `pwd -W`, because it only exists on Git Bash and its short 8.3 names (RUNNER~1) could still differ from Dart's dir.path. Instead: (a) the last segment of `$(pwd)`, split on '/', must equal the folder name, which is the same in both path forms; (b) Dart writes only_here.txt in that folder, and the script runs `[ -f only_here.txt ]` by relative name and must print "found". (b) proves the real folder is the cwd whatever form the path is printed in, so it is not "any path passes". Needs the next Windows CI run to confirm.
+  > Regression locks: "caller BASH, IFS, GLOBIGNORE, ARGC, RUN, SCRIPT, x: the Windows path gives the script what the plain path gives" — a differential check of Windows vs plain invocation under /bin/bash (and Homebrew bash if present). It passes on the old reader (73913d6) and the new one, because the old bug only touched s, n, i, v. It locks that a caller's BASH (set to a bad path), IFS=':', GLOBIGNORE and reader-like names do not change `exec "$BASH"`, word splitting, globbing or $@. It could break if the reader is changed to use `$IFS`, or to set unprefixed names.
+  > Bugs found:
+  > - B3: a NUL in an environment variable NAME is not checked. Process.runSync cuts the name at the NUL, so `A\x00B` silently sets `A`. Same class as B1. Repro: "the names runBash reserves a NUL in an environment name throws (B1 gap: it was left unchecked)" in bash_windows_edge_test.dart (fails today).
+  > - B1 and B2 re-checked: the two repros from 73913d6 now pass. B2 edge cases (caller s/n/i/v, BASH, IFS, GLOBIGNORE) found no further problem. Caller var named `@` or other invalid names: not tested, Process cannot set them meaningfully on POSIX.
+  > Abuse cases covered: n/a — no design note
+  > UI states covered: n/a — no UI
+  > Gaps not covered: Git Bash itself (no Windows here): the cwd fix and the new reader run only under /bin/bash 3.2 and Homebrew bash on the Mac; the next CI run on Windows is the real check.
+  > Production code changed: none (test/support/bash.dart untouched)
+  > Suite: ./tool/check.sh run once and alone (pgrep empty before): +4389 ~10 passing, 1 failing (the B3 repro; format and analyze clean) (was +4388 ~10 passing, 0 failing at bf60753)
+  > Blockers: none
+- Gates: developer open (B3, then the PM's CC0 sentence) · tester pass with B3 open · reviewer pending · QA pending (quick look at the sqlite3mc entry after the CC0 sentence) · CI pending · PM merge approved when green
+- Open findings: B3 (NUL in an environment name silently cut; test harness)
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-23 — M1.9c / M1.9e — Apple Developer account status
 - Changed: lead asked "Is your Apple Developer account active yet?"
 - Gates: n/a — no work started
