@@ -1,5 +1,27 @@
 # Status log
 
+## 2026-11-23 — M1.9a About and licences — QA re-run: CC0 sentence screenshots pass
+- Changed: QA report (sonnet, medium), word for word:
+  > Milestone: M1.9a About and licences (CC0 sentence check re-run) — 1/1 re-run criterion pass — Date: 2026-11-23 — Environment: macOS 27.2, Flutter 3.44.6, debug build at code tip 5a6f5cd, KUSUNGA_VERSION=v0.9.0 KUSUNGA_BUILD=1, qa profile (pid 58386); docs commit c52d77b on feat/about-licences (not pushed)
+  > Automated: 0/1 — manual: C1 screenshots — no desktop end-to-end tool approved; AX reader plus guarded helpers and window capture used
+  > Fail: none
+  > Spec gaps: none
+  > Re-verified: none (C2 from the first run not repeated; C3 and the Kusunga-entry copy of the sentence still NOT RUN)
+  > Needs PM: none
+  > Not observed: Kusunga entry's copy of the sentence; C3 (SQLite blessing on three lines); live screen reader
+  > Accessibility: n/a — text-only change; AX tree showed the sentence as its own text item in the right order
+  > Privacy: n/a — no data handling change; qa profile only; captures are Kusunga window only, opened and checked, nothing else visible
+  > Claims: n/a
+  > Evidence: docs/qa/m1.md (section "M1.9a ... CC0 sentence check", sub-section "Re-run, screenshots"); screens: docs/qa/m1/screens/ (2 new files: m19a-r3-cc0-800.png, m19a-r3-cc0-360.png); videos: none — text-only change
+  > PM check steps: n/a — nothing needs the PM
+  > Blockers: none. No macOS permission dialog appeared. All QA processes stopped (Kusunga quit by pid; no screencapture or flutter_tester left).
+  > Notes: "Test profile: qa" confirmed on Settings before opening licences. Three trial captures (peek, two 360 px attempts) deleted, never committed. Window restored to 800 px before quit. Commit message ends with the Co-Authored-By Opus 5.5 line; only docs/qa changed.
+  Lead opened both screenshots (m19a-r3-cc0-800.png, m19a-r3-cc0-360.png): Kusunga window only, nothing of the PM's other apps or history.
+- Gates: developer pass · tester pass · reviewer approve with notes (CI condition met on 5a6f5cd) · QA pass · CI green on 5a6f5cd, docs-only tip pending · PM merge approved when green
+- Open findings: none
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-23 — M1.9a About and licences — CI on 5a6f5cd: green, reviewer's Windows-log conditions met
 - Changed: CI run 45210273381 on 5a6f5cd: macos success, windows success. Lead read both full job logs once (saved in the scratchpad, not committed) against the reviewer's open items (r11 and r12):
   1. Both jobs conclude success — yes.
