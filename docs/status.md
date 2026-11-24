@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-24 — M1.10b sqlite3 3.9.2 — closed: PR 12 merged
+- Changed: PR 12 merged on GitHub with a merge commit, 6e9fcf2, pinned to the tested head 8e741b3. Local main merged origin/main. Plan: M1.10b ticked with its merged line. Next: M1.10c (window_manager 0.7.1 and tray_manager 0.9.1 on the native API, ADR 0009). The macOS CI run on the next PR is the review point for the PM risk acceptance.
+- Gates: developer pass · tester pass · reviewer approve · QA pass · CI windows green, macos skipped (PM risk acceptance) · PM merge approved ("Merge")
+- Open findings: none
+- Decisions: none new
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — push of local main (docs only); Apple Developer account (M1.9c, M1.9e); Microsoft Store account (M1.9d); DPIA section 7 (M1.9f)
+
 ## 2026-11-24 — M1.10b sqlite3 3.9.2 — PM accepted the risk of merging without macOS CI
 Risk accepted by PM (2026-11-24): accepted: merging PR 12 without a macOS CI run (the job was cancelled twice by GitHub runner capacity before any step ran), so the Mac clean-machine test run, the Xcode test step and the Release Swift build step are not proven on this head in CI; evidence instead: Windows CI green on 8e741b3, full ./tool/check.sh passed on the Mac by developer, tester and reviewer (8851112; QA docs-only commit on top), QA pass on the real app — scope: M1.10b, branch chore/sqlite3-3-9, PR 12, gate: macOS CI job — expiry/review: the next macOS CI run on main (first PR after this merge) must pass — PM said: "Merge"
 - Changed: lead merges PR 12 with a merge commit pinned to the tested head 8e741b3.

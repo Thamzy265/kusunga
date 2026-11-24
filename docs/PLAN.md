@@ -121,11 +121,12 @@ Everything stays on the device. No account, no server.
     - AC: QA runs the main flows on Mac (and Windows through CI) in the qa profile.
     - Merged to main 2026-11-24 (PR 11, merge commit 58548e4); all gates passed, PM approved the merge ("Yes, merge"). Done.
   - M1.10b and M1.10c follow `docs/design/package-updates.md` and ADR 0009, approved by the PM 2026-11-24 ("Approve, all A": G1 A split into two items, each with its own pull request; G2 A native API). Never sqlite3 3.7.0–3.8.x (they carry SQLite3 Multiple Ciphers 2.6.x with a ChaCha20 counter bug).
-  - [ ] M1.10b sqlite3 3.9.2 — large (changes the library that encrypts the history database). Branch `chore/sqlite3-3-9`.
+  - [x] M1.10b sqlite3 3.9.2 — large (changes the library that encrypts the history database). Branch `chore/sqlite3-3-9`.
     - AC: sqlite3 3.5.2 → 3.9.2 (bundled SQLite3 Multiple Ciphers 2.5.0 → 2.7.1, SQLite 3.53.4 → 3.54.1); no other package changes except those it forces; no `lib/` change unless a breaking change needs one.
     - AC: the encrypted database still opens with the existing key: the frozen v3 and v6 fixtures open on the new library, a wrong key still fails, and QA opens the qa profile written by the earlier build; QA also opens a database written by the new build with the previous build (rollback).
     - AC: the 4 sqlite3mc SHA-256 values, the version text and the licence notices (texts, `docs/licences.md`) match the new bundled library; `tool/check_sqlite3mc.sh` passes.
     - AC: `./tool/check.sh` and `.\tool\check.ps1` pass with no new analyzer ignores; both CI jobs pass; developer, tester, reviewer and QA gates as usual.
+    - Merged to main 2026-11-24 (PR 12, merge commit 6e9fcf2); bundled SQLite3 Multiple Ciphers is 2.7.1. Windows CI green; macOS CI not run (GitHub runner capacity), merged on a PM risk acceptance ("Merge", docs/status.md 2026-11-24; review: the next macOS CI run on main must pass). Done.
   - [ ] M1.10c window_manager 0.7.1 and tray_manager 0.9.1 on the native API — large (two native integrations on both platforms; ADR 0009). Branch `chore/window-tray-nativeapi`; starts after M1.10b merges.
     - AC: window_manager 0.5.2 → 0.7.1 and tray_manager 0.5.3 → 0.9.1, used through the native API only (no `legacy.dart`, no analyzer ignores); the two port files stay the only code that touches them.
     - AC: the tray port has an injectable backend; no test calls the real plugin.
