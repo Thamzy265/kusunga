@@ -128,7 +128,6 @@ void main() {
   testWidgets('found on the first retry: the timer stops at once', (
     tester,
   ) async {
-    final logs = _captureLogs();
     final backend = _Backend(missing: 1);
     final port = WindowManagerPort(backend: backend);
     await port.init();
@@ -176,7 +175,6 @@ void main() {
 
   testWidgets('show, hide, show while missing: the last word wins, and the '
       'window is shown once when found', (tester) async {
-    final logs = _captureLogs();
     final backend = _Backend(missing: 3);
     final port = WindowManagerPort(backend: backend);
     await port.init();
@@ -193,7 +191,6 @@ void main() {
   testWidgets('show asked twice while missing is carried out once', (
     tester,
   ) async {
-    final logs = _captureLogs();
     final backend = _Backend(missing: 3);
     final port = WindowManagerPort(backend: backend);
     await port.init();
@@ -208,7 +205,6 @@ void main() {
 
   testWidgets('hide while missing and then found: the window is set up and '
       'not shown', (tester) async {
-    final logs = _captureLogs();
     final backend = _Backend(missing: 2);
     final port = WindowManagerPort(backend: backend);
     await port.init();
@@ -222,7 +218,6 @@ void main() {
 
   testWidgets('a show before init, with the window missing, is done when it '
       'is found, and init later sets it up once', (tester) async {
-    final logs = _captureLogs();
     final backend = _Backend(missing: 1);
     final port = WindowManagerPort(backend: backend);
     await port.show(); // missing: pending, and no retry timer without init
@@ -256,7 +251,6 @@ void main() {
 
   testWidgets('dispose twice, and show, hide and init after dispose, do not '
       'throw and do not touch the window', (tester) async {
-    final logs = _captureLogs();
     final backend = _Backend();
     final port = WindowManagerPort(backend: backend);
     await port.init();
@@ -273,7 +267,6 @@ void main() {
   testWidgets('init after dispose leaves no retry timer behind', (
     tester,
   ) async {
-    final logs = _captureLogs();
     final backend = _Backend(missing: 1 << 30);
     final port = WindowManagerPort(backend: backend, maxRetries: 1000000);
     await port.dispose();
@@ -287,7 +280,6 @@ void main() {
   testWidgets('the close stream of a disposed port ends without an error', (
     tester,
   ) async {
-    final logs = _captureLogs();
     final backend = _Backend();
     final port = WindowManagerPort(backend: backend);
     await port.init();
@@ -305,7 +297,6 @@ void main() {
 
   testWidgets('every close request is reported, none is lost, and the '
       'window is never closed by the port', (tester) async {
-    final logs = _captureLogs();
     final backend = _Backend();
     final port = WindowManagerPort(backend: backend);
     await port.init();
@@ -324,7 +315,6 @@ void main() {
 
   testWidgets('the size values are exactly 360x400 minimum and 800x632 '
       'initial, minimum set before the size', (tester) async {
-    final logs = _captureLogs();
     final backend = _Backend();
     final port = WindowManagerPort(backend: backend);
 
@@ -339,7 +329,6 @@ void main() {
   testWidgets('focus follows show, once per show, and never follows hide', (
     tester,
   ) async {
-    final logs = _captureLogs();
     final backend = _Backend();
     final port = WindowManagerPort(backend: backend);
     await port.init();
@@ -355,7 +344,6 @@ void main() {
 
   testWidgets('a lookup that throws in a retry is not an uncaught error: '
       'the retries go on and the window is found', (tester) async {
-    final logs = _captureLogs();
     final backend = _Backend();
     final port = WindowManagerPort(backend: backend);
     backend.missing = 1;
@@ -375,7 +363,6 @@ void main() {
 
   testWidgets('a lookup that throws in init reaches the caller, and a later '
       'show still gets the window once the lookup works', (tester) async {
-    final logs = _captureLogs();
     final backend = _Backend()..throwing = 1;
     final port = WindowManagerPort(backend: backend);
 
@@ -388,7 +375,6 @@ void main() {
 
   testWidgets('a lookup that throws in show reaches the caller and the '
       'show is not lost', (tester) async {
-    final logs = _captureLogs();
     final backend = _Backend();
     final port = WindowManagerPort(backend: backend);
     backend.throwing = 1;
