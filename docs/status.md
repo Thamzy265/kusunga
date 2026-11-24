@@ -1,5 +1,42 @@
 # Status log
 
+## 2026-11-24 — M1.10a Flutter 3.50.1 — tester report
+- Changed: tester report (sonnet, medium), word for word:
+  > Branch: chore/flutter-3-50 (1 test commit: 6928b50, on top of 019eb3e; not pushed)
+  > Added: 21 tests in test/ci/analyzer_exclude_test.dart (4), test/ci/material_imports_test.dart (4), test/ci/sdk_pins_extra_test.dart (5), test/ci/licences_lock_test.dart (3), test/data/frozen_db_fixture_test.dart (5)
+  > E2E tests added: 0 (n/a) — no user flow, no UI change
+  > Fail-then-pass: All of these guard files/config that this branch changed, so "old code" is shown by mutating the file in the worktree (restored with git checkout; git status clean afterwards). Flutter 3.44.6 cannot resolve this lock, so the main-era code could not be run.
+  >  - analyzer_exclude (4 tests) — adding `- lib/**` fails 4 of 4; a .dart file under macos/ fails "no project Dart file is inside an excluded folder" — pass on 019eb3e
+  >  - sdk_pins_extra "every flutter-action step has one flutter-version, a full x.y.z" — `flutter-version: "3.50"` fails
+  >  - sdk_pins_extra "every uses: is a 40-hex commit" — flutter-action@v2 fails
+  >  - sdk_pins_extra "no operational file names another Flutter" — "Flutter 3.44.6" appended to README fails
+  >  - material_imports "no file imports the deprecated SDK Material" — package:flutter/material.dart added to lib/main.dart fails
+  >  - material_imports "lib/ never names FlutterError" — a FlutterError comment in lib/main.dart fails
+  >  - licences_lock "every direct dependency has a row at the lock version" — material_ui 1.11.0 in the row fails; material_ui row removed fails
+  >  - frozen_db_fixture v3 upgrade test — upgrade default history_expiry_days 0 changed to 30 in lib/history/migrations.dart fails (Expected '0', Actual '30')
+  > Regression locks:
+  >  - frozen_db_fixture_test.dart (5 tests): the data code is unchanged by this branch, so these pass on old and new code. They lock "history and snippets open unchanged": a schema frozen as literal SQL (v1-v6, not built from kMigrations) with synthetic rows (non-ASCII, emoji, CRLF, 100 KB text, shortcuts, user-added and user-removed ignored apps), written with plain sqlite3 + ChaCha20 hexkey, then opened by the store. Checks v6 opens byte-for-byte untouched with no .bak, the store still copies/bumps/adds snippets, a wrong key still fails, a v3 file upgrades with all rows kept and expiry Never. It could break on a sqlite3 / SQLite3MC bump (M1.10b) or a migration edit. Limit: not a file written by the real 3.44.6 app binary (QA's qa-profile check covers that).
+  >  - material_imports + analyzer_exclude + licences_lock + sdk_pins_extra: guard against future drift (see above for what each fails on).
+  > Bugs found: none that fail a test today. Observations (not failures):
+  >  O1 test/ci/sdk_version_pins_test.dart only checks that pins AGREE with CI (CI = source), not that they name 3.50.1. If CI and every doc were all moved to the wrong version it would pass. By design per its comment. It fails loudly (not silently) for: a missing file (readAsStringSync throws), a quoted `flutter-version: "3.50.1"` (regex finds 0 pins, hasLength(2) fails), a third CI job (hasLength(2) fails, but reason text blames "pins" not the job). It does not check ADR 0008, CLAUDE.md "Approved tools" line, Release.xcconfig comment or the pubspec/lock; my sdk_pins_extra adds the stale-Flutter scan over README, CLAUDE.md, docs/licences.md, docs/ci, .github, tool.
+  >  O2 Stale 3.44.6 left in tracked files: only history (docs/PLAN.md:109, ADR 0001/0008, design notes, slides, docs/qa, docs/status.md) and macos/Runner/Configs/Release.xcconfig:6 (comment about the lipo failure in 3.44.6, still true history). No operational pin is stale.
+  >  O3 No FlutterError anywhere in lib/ (grep), so nothing relies on the old disposed-ChangeNotifier error type; lib has only `catch (_)` / `catch (e)` handlers, which catch StateError the same as FlutterError. Locked by a test.
+  >  O4 argon2 page test: the real LicensePage is still pushed and read at 900 x 20000 (only the Zoom transition's snapshot is off). Other large views: about_edge_test 900x3000, your_data tests 800x1200 passed in the full run with default transitions; none other is near 20000. In the shipping app the Zoom snapshot is at real window size, so unaffected.
+  >  O5 Material migration: 0 `package:flutter/material.dart` / cupertino / src/material imports in lib, test, tool; no direct cupertino_ui import (not in pubspec). 118+ files on material_ui. No mixed old/new found.
+  >  O6 analysis_options exclude (build/**, windows/**, macos/**): no tracked .dart file lives under any of them (git ls-files and a tree walk).
+  >  O7 docs/licences.md vs lock: every direct dependency row matches pubspec.lock today. docs/licences.md lists direct deps only, so the new transitive packages (cupertino_ui, intl, listen) have no row; no test or doc pins them. The in-app licences tests (test/about) pass on 3.50.1 in the full run, but flutter_test does not carry NOTICES.Z, so the check that the built app lists material_ui/cupertino_ui/intl/listen is only the developer's manual build check.
+  >  O8 Developer note: the licences.md Flutter SDK row still says "MPL-2.0 data", which 3.50.1 dropped (developer already flagged for the reviewer).
+  > Abuse cases covered: 2/2 — "look-alike package": licences_lock (material_ui row/version vs lock), material_imports (only material_ui, no cupertino_ui direct import, not declared in pubspec). Hash/publisher is not testable offline. "Changed Flutter tag": sdk_pins_extra (full x.y.z, stable channel, every `uses:` a 40-hex commit, lock's minimum Flutter not above CI).
+  > UI states covered: n/a — no UI change, no states matrix
+  > Gaps not covered: (1) the real 3.44.6-written database file and the built app's licence list need QA on the qa profile; (2) windows job only through CI; (3) publisher (flutter.dev) and Flutter tag commit hash cannot be checked offline; (4) a transitive licence list does not exist to pin.
+  > Production code changed: none (lib/ mutations for the fail runs were restored; git status clean)
+  > Suite: 4420 passing / 0 failing, 10 skipped (was 4399 on the branch before; +21). ./tool/check.sh on Flutter 3.50.1: "Formatted 340 files (0 changed)", "No issues found!", "08:29 +4420 ~10: All tests passed!", exit=0. Full output: /private/tmp/claude-501/-Users-williamnasoni-Developer-Personal-kusunga/bdcaa771-52a1-4433-b5f6-1f64c65a45f5/scratchpad/tester_m110a_check.txt
+  > Blockers: none
+- Gates: developer pass · tester pass (6928b50, +21 tests, 4420 passing, 10 skipped; no bugs, observations O1–O8) · reviewer next · QA pending · CI pending · PM merge n/a yet
+- Open findings: none
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-24 — M1.10a Flutter 3.50.1 — developer hand-off
 - Changed: developer report (opus, high), word for word:
   > Branch: chore/flutter-3-50 (2 commits, not pushed: 8ecbc72 build, 019eb3e docs; worktree /private/tmp/claude-501/-Users-williamnasoni-Developer-Personal-kusunga/bdcaa771-52a1-4433-b5f6-1f64c65a45f5/scratchpad/m110a-wt)
