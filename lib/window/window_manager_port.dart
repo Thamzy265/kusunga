@@ -114,8 +114,8 @@ class WindowManagerPort implements WindowPort {
         try {
           _adopt(window);
         } catch (error) {
-          // The window is kept and the retry is over; a later init or show
-          // tries again. Only the error type is logged.
+          // The window is kept and the retry is over; a later init sets it
+          // up again. Only the error type is logged.
           debugPrint('Kusunga: window set-up failed (${error.runtimeType})');
         }
         return;
