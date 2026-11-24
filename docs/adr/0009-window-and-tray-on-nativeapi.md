@@ -1,8 +1,8 @@
 # ADR 0009: Window and tray through nativeapi (window_manager 0.7, tray_manager 0.9)
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-24
-- Decided by: PM (pending; deck `docs/slides/package-updates.html`, decisions G1–G2)
+- Decided by: PM, 2026-11-24 ("Approve, all A"; deck `docs/slides/package-updates.html`, decisions G1 A and G2 A)
 
 ## Context
 

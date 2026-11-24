@@ -1,6 +1,6 @@
 # Package updates: sqlite3, window_manager, tray_manager (M1.10b) — design note
 
-Date: 2026-11-24 — Size: large — the sqlite3 update changes the library that encrypts the history database; the window and tray packages move to a new native core on both platforms — Phase: MVP — Status: draft, waiting for PM (deck `docs/slides/package-updates.html`)
+Date: 2026-11-24 — Size: large — the sqlite3 update changes the library that encrypts the history database; the window and tray packages move to a new native core on both platforms — Phase: MVP — Status: approved by PM 2026-11-24 ("Approve, all A"; deck `docs/slides/package-updates.html`)
 
 ## Context
 
@@ -92,7 +92,7 @@ Failure mode: if a database does not open, the app already shows its "can't open
 
 ## Decision
 
-Waiting for PM (decisions G1 and G2 below). Recommendation: S-A and API-A. ADR 0009 (proposed) records the move of the window and tray to nativeapi. ADR 0002's choice of the encrypted SQLite store is unchanged.
+S-A and API-A. PM approved G1 A and G2 A on 2026-11-24 ("Approve, all A"). ADR 0009 (accepted) records the move of the window and tray to nativeapi. ADR 0002's choice of the encrypted SQLite store is unchanged.
 
 ## Failure plan
 
