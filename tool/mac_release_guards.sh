@@ -13,15 +13,21 @@
 #       So it can never switch DEBUG code on. CR, LF and CRLF all end a line.
 #   tool/mac_release_guards.sh frameworks <Kusunga.app>
 #       For the signed release build (M1.10c, ADR 0009). Fails (exit 1) unless
-#       the native-asset frameworks sqlite3mc.framework and cnativeapi.framework
-#       are in Contents/Frameworks, and every framework there passes
-#       `codesign --verify --strict` and is signed by the same team as the app
-#       (an ad-hoc or unsigned app or framework fails). The Team ID is never
-#       printed, so the output can go into QA evidence.
+#       the app and everything nested in it pass
+#       `codesign --verify --deep --strict` (so a loose .dylib that is not
+#       signed fails too), the native-asset frameworks sqlite3mc.framework and
+#       cnativeapi.framework are in Contents/Frameworks, and every framework
+#       there passes `codesign --verify --strict` and is signed by the same
+#       team as the app (an ad-hoc or unsigned app or framework fails). The
+#       Team ID is never printed, so the output can go into QA evidence.
 #
 # Exit 2 means the guard could not run (missing path, nothing to scan), which
 # is also a failure: a typo must never pass.
 set -euo pipefail
+# Globbing on, whatever the caller exported: with SHELLOPTS=noglob in the
+# environment bash starts with it off, and the framework loop would check
+# nothing and still print ok (reviewer F4).
+set +f
 # Byte-wise text tools whatever the caller's locale: under UTF-8, grep skips
 # lines with invalid UTF-8, so a marker next to a stray byte would be missed.
 export LC_ALL=C
@@ -133,8 +139,33 @@ team_of() {
   sed -n 's/^TeamIdentifier=//p' <<< "$out"
 }
 
+# Returns 1, saying why on stderr, unless the framework at $1 passes
+# `codesign --verify --strict` and is signed by the app's team ($2).
+check_framework() {
+  local fw="$1" app_team="$2" team
+  if ! codesign --verify --strict "$fw" 2>/dev/null; then
+    echo "guard: $(basename "$fw") does not pass codesign --verify --strict" >&2
+    return 1
+  fi
+  team="$(team_of "$fw")"
+  if [ "$team" != "$app_team" ]; then
+    echo "guard: $(basename "$fw") is not signed by the app's team" >&2
+    return 1
+  fi
+}
+
+# True when the folder name $1 (such as cnativeapi.framework) is a required
+# framework.
+is_required() {
+  local name
+  for name in $required_frameworks; do
+    [ "$1" = "$name.framework" ] && return 0
+  done
+  return 1
+}
+
 guard_frameworks() {
-  local app="$1" dir app_team team fw name failed=0
+  local app="$1" dir app_team fw name failed=0 checked=0
   case "$app" in
     -*) echo "guard: $app starts with a dash, write it as ./$app" >&2; exit 2 ;;
   esac
@@ -146,30 +177,40 @@ guard_frameworks() {
     echo "guard FAILED: $app is not signed with a team (ad-hoc or unsigned)" >&2
     exit 1
   fi
+  # The app's own signature and everything nested in it, including a loose
+  # .dylib in Contents/Frameworks, which the framework checks below miss.
+  if ! codesign --verify --deep --strict "$app" 2>/dev/null; then
+    echo "guard: $app does not pass codesign --verify --deep --strict" >&2
+    failed=1
+  fi
+  # The required frameworks by their own path, not through the listing
+  # below, and both of them: should that ever stop being true, the guard
+  # fails rather than passing on fewer.
   for name in $required_frameworks; do
-    if [ ! -d "$dir/$name.framework" ]; then
+    fw="$dir/$name.framework"
+    if [ ! -d "$fw" ]; then
       echo "guard: $name.framework is missing from $dir" >&2
-      failed=1
-    fi
-  done
-  for fw in "$dir"/*.framework; do
-    [ -d "$fw" ] || continue
-    if ! codesign --verify --strict "$fw" 2>/dev/null; then
-      echo "guard: $(basename "$fw") does not pass codesign --verify --strict" >&2
       failed=1
       continue
     fi
-    team="$(team_of "$fw")"
-    if [ "$team" != "$app_team" ]; then
-      echo "guard: $(basename "$fw") is not signed by the app's team" >&2
-      failed=1
-    fi
+    checked=$((checked + 1))
+    check_framework "$fw" "$app_team" || failed=1
+  done
+  if [ "$checked" -lt 2 ]; then
+    echo "guard: only $checked of the 2 required frameworks could be checked" >&2
+    failed=1
+  fi
+  # Every other framework there.
+  for fw in "$dir"/*.framework; do
+    [ -d "$fw" ] || continue
+    is_required "$(basename "$fw")" && continue
+    check_framework "$fw" "$app_team" || failed=1
   done
   if [ "$failed" -ne 0 ]; then
-    echo "guard FAILED: a framework in $app is missing or not signed like the app" >&2
+    echo "guard FAILED: $app does not verify, or a framework in it is missing or not signed like the app" >&2
     exit 1
   fi
-  echo "ok: $required_frameworks and every framework in $app are signed by the app's team"
+  echo "ok: $app verifies, and $required_frameworks and every framework in it are signed by the app's team"
 }
 
 [ "$#" -eq 2 ] || usage
