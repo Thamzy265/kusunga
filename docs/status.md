@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-24 — M1.10b sqlite3 3.9.2 — PM unlocked the Mac; QA briefed
+- Changed: screen unlocked (IOConsoleLocked false); no flutter_tester running. Lead briefed QA (qa profile only).
+- Gates: developer pass · tester pass · reviewer approve (CI and QA conditions) · QA in progress · PM merge n/a yet
+- Open findings: none
+- Decisions: PM said: "Unlocked, run QA" (2026-11-24), answering whether to unlock the Mac so QA can run on the test profile.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — push of local main (docs only); Apple Developer account (M1.9c, M1.9e); Microsoft Store account (M1.9d); DPIA section 7 (M1.9f)
+
 ## 2026-11-24 — M1.10b sqlite3 3.9.2 — reviewer: approve; QA waits for an unlocked screen
 - Changed: reviewer re-checked f26d292..8851112 and ran `./tool/check.sh` on 8851112 itself. QA needs the running app; the Mac screen is locked (IOConsoleLocked true), so QA waits for the PM to unlock it.
 - Reviewer report (condensed by lead; key lines quoted as written):
