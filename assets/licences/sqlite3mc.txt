@@ -1,12 +1,12 @@
-SQLite3 Multiple Ciphers 2.5.0 and the parts it bundles
+SQLite3 Multiple Ciphers 2.7.1 and the parts it bundles
 
 Kusunga stores its history in a SQLite3 Multiple Ciphers database. The library
-(version 2.5.0, built on SQLite 3.53.4) is licensed under the MIT licence and
+(version 2.7.1, built on SQLite 3.54.1) is licensed under the MIT licence and
 bundles the parts below, each under the licence shown.
 
-The texts under each part are copied word for word from SQLite3 Multiple Ciphers at tag v2.5.0 (https://github.com/utelle/SQLite3MultipleCiphers), from the file and lines named there. Only the comment marks at the start of lines (/*, */, **, * and //) are left out, and so are the decorative lines made only of comment characters.
+The texts under each part are copied word for word from SQLite3 Multiple Ciphers at tag v2.7.1 (https://github.com/utelle/SQLite3MultipleCiphers), from the file and lines named there. Only the comment marks at the start of lines (/*, */, **, * and //) are left out, and so are the decorative lines made only of comment characters.
 
-* SQLite3 Multiple Ciphers own code (cipher_*.c, codec_algos.c, codecext.c, sqlite3mc*.c, AEGIS wrapper cipher_aegis.c)
+* SQLite3 Multiple Ciphers own code (cipher_*.c, codec_algos.c, codecext.c, hwcheck.c, sqlite3mc*.c, AEGIS wrapper cipher_aegis.c)
   Licence: MIT
 
   Text of LICENSE, lines 1 to 21:
@@ -122,8 +122,8 @@ SOFTWARE.
 * mystdint.h (stdint typedefs for MSVC before 2010; included by sha1.c, fastpbkdf2.h, chacha20poly1305.c, sqlite3mc_vfs.c)
   Licence: No licence text in the file (27 lines, typedefs and macros only). It falls under the project `LICENSE` (MIT).
 
-* ChaCha20 and Poly1305 (chacha20poly1305.c)
-  Licence: Public domain
+* ChaCha20 and Poly1305 (chacha20poly1305.c), entropy and random numbers (csprng_entropy.c)
+  Licence: Public domain. csprng_entropy.c has no licence text; it says it was taken out of the ChaCha20-Poly1305 code above.
 
   Text of src/chacha20poly1305.c, lines 1 to 8:
 
@@ -134,8 +134,44 @@ SOFTWARE.
     The code was taken from the public domain implementation
     of the sqleet project (https://github.com/resilar/sqleet)
 
+  Text of src/csprng_entropy.c, lines 1 to 7:
+
+    This file contains the implementation for
+      - retrieving entropy
+      - random number generation
+
+    The code was separated from the ChaCha20-Poly1305 implementation.
+
+* ChaCha20 and Poly1305 from libsodium (src/chacha20): stream_chacha20.c, onetimeauth_poly1305.c and the ref, dolbeau, donna, sse2 and private files they include; libchacha20.c (wrapper)
+  Licence: ISC (Frank Denis), per src/chacha20/src/LICENSE; ref/chacha20_ref.c is public domain (D. J. Bernstein). libchacha20.c has no licence text and falls under the project `LICENSE` (MIT).
+
+  Text of src/chacha20/src/LICENSE, lines 1 to 18:
+
+    ISC License
+
+    Copyright (c) 2013-2026
+    Frank Denis <j at pureftpd dot org>
+
+    Permission to use, copy, modify, and/or distribute this software for any
+    purpose with or without fee is hereby granted, provided that the above
+    copyright notice and this permission notice appear in all copies.
+
+    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+  Text of src/chacha20/src/ref/chacha20_ref.c, lines 2 to 6:
+
+    chacha-merged.c version 20080118
+    D. J. Bernstein
+    Public domain.
+
 * AES / Rijndael (rijndael.c)
-  Licence: MIT per the file header (original code public domain, S. Stefanek); `filelist.md` says `LGPL-3.0-or-later WITH WxWindows-exception-3.1`
+  Licence: MIT per the file header and `filelist.md` (original code public domain, S. Stefanek)
 
   Text of src/rijndael.c, lines 1 to 12:
 
@@ -421,7 +457,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
-* SQLite core and SQLite extensions (shathree, csv, fileio, series, uuid, regexp, sqlar, zipfile, compress, rekeyvacuum)
+* SQLite core and SQLite extensions (shathree, csv, fileio, series, uuid, regexp, sqlar, zipfile, compress, rekeyvacuum, btreecopyfile.c)
   Licence: Public domain (blessing)
 
   Text of src/csv.c, lines 1 to 9:
@@ -446,6 +482,17 @@ THE SOFTWARE.
        May you find forgiveness for yourself and forgive others.
        May you share freely, never taking more than you give.
 
+  Text of src/btreecopyfile.c, lines 1 to 9:
+
+    2020-11-14
+
+    The author disclaims copyright to this source code.  In place of
+    a legal notice, here is a blessing:
+
+       May you do good and not evil.
+       May you find forgiveness for yourself and forgive others.
+       May you share freely, never taking more than you give.
+
 * vsv.c (extension)
   Licence: Public domain (Keith Medcalf; builds on SQLite's csv.c)
 
@@ -456,4 +503,4 @@ THE SOFTWARE.
 
 * extensionfunctions.c
   Licence: No licence text. Upstream `filelist.md` only assumes it is public domain.
-  It is only compiled with SQLITE_ENABLE_EXTFUNC. It must not be compiled in; enforced by tool/check_sqlite3mc.sh (macOS checked 2026-11-21; Windows checked before release).
+  It is only compiled with SQLITE_ENABLE_EXTFUNC. It must not be compiled in; enforced by tool/check_sqlite3mc.sh (macOS checked 2026-11-24; Windows checked before release).

@@ -1,10 +1,11 @@
 // M1.9a (AC1, AC7, review note R6): the SQLite3 Multiple Ciphers notice carries
 // the licence text of every bundled part, word for word from the project at
-// tag v2.5.0. A later edit of assets/licences/sqlite3mc.txt cannot drop a
+// tag v2.7.1 (first checked at v2.5.0; M1.10b re-checked every quoted file at
+// v2.7.1). A later edit of assets/licences/sqlite3mc.txt cannot drop a
 // copyright holder or a licence text without one of these failing.
 //
 // The expected lines below were read from the files named in each group at
-// https://github.com/utelle/SQLite3MultipleCiphers (tag v2.5.0). Spaces and
+// https://github.com/utelle/SQLite3MultipleCiphers (tag v2.7.1). Spaces and
 // line breaks do not count: both sides are compared with every run of white
 // space turned into one space.
 import 'dart:io';
@@ -14,7 +15,7 @@ import 'package:kusunga/about/licences.dart';
 
 String squash(String s) => s.replaceAll(RegExp(r'\s+'), ' ').trim();
 
-const _tag = 'v2.5.0';
+const _tag = 'v2.7.1';
 
 /// The MIT permission text and warranty disclaimer, as in `LICENSE` and in
 /// the header of `src/miniz.c`.
@@ -58,7 +59,13 @@ const _parts = <_Part>[
   _Part(
     '* SQLite3 Multiple Ciphers own code',
     ['LICENSE'],
-    ['MIT License', 'Copyright (c) 2019-2026 Ulrich Telle', ..._mit],
+    [
+      'MIT License',
+      'Copyright (c) 2019-2026 Ulrich Telle',
+      ..._mit,
+      // M1.10b: new own code in 2.7.x (header "License: MIT").
+      'hwcheck.c',
+    ],
   ),
   _Part(
     '* AEGIS (src/aegis)',
@@ -90,11 +97,35 @@ const _parts = <_Part>[
   _Part('* argon2/libargon2.c', [], ['No licence text in the file']),
   _Part('* mystdint.h', [], ['No licence text in the file']),
   _Part(
-    '* ChaCha20 and Poly1305',
-    ['src/chacha20poly1305.c'],
+    '* ChaCha20 and Poly1305 (chacha20poly1305.c)',
+    ['src/chacha20poly1305.c', 'src/csprng_entropy.c'],
     [
       'The code was taken from the public domain implementation of the sqleet '
           'project (https://github.com/resilar/sqleet)',
+      'The code was separated from the ChaCha20-Poly1305 implementation.',
+    ],
+  ),
+  // M1.10b: new in 2.7.x, a copy of libsodium's ChaCha20 and Poly1305 code.
+  _Part(
+    '* ChaCha20 and Poly1305 from libsodium (src/chacha20)',
+    ['src/chacha20/src/LICENSE', 'src/chacha20/src/ref/chacha20_ref.c'],
+    [
+      'ISC License',
+      'Copyright (c) 2013-2026 Frank Denis <j at pureftpd dot org>',
+      'Permission to use, copy, modify, and/or distribute this software for '
+          'any purpose with or without fee is hereby granted, provided that '
+          'the above copyright notice and this permission notice appear in '
+          'all copies.',
+      'THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL '
+          'WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED '
+          'WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE '
+          'AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR '
+          'CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS '
+          'OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, '
+          'NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN '
+          'CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.',
+      'chacha-merged.c version 20080118 D. J. Bernstein Public domain.',
+      'libchacha20.c',
     ],
   ),
   _Part(
@@ -193,8 +224,8 @@ const _parts = <_Part>[
   ),
   _Part(
     '* SQLite core and SQLite extensions',
-    ['src/csv.c', 'src/rekeyvacuum.c'],
-    [..._blessing, '2016-05-28', '2020-11-14'],
+    ['src/csv.c', 'src/rekeyvacuum.c', 'src/btreecopyfile.c'],
+    [..._blessing, '2016-05-28', '2020-11-14', 'btreecopyfile.c'],
   ),
   _Part(
     '* vsv.c (extension)',

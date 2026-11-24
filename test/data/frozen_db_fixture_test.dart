@@ -7,7 +7,7 @@
 // through `hexkey`, the way the store opens it) and filled with SYNTHETIC
 // rows, closed, and then opened by the current store.
 //
-// M1.10b (sqlite3 3.5.2 -> 3.9.2, SQLite3 Multiple Ciphers 2.5.0 -> 2.7.0):
+// M1.10b (sqlite3 3.5.2 -> 3.9.2, SQLite3 Multiple Ciphers 2.5.0 -> 2.7.1):
 // the files made above are written by whatever library the test runs on, so
 // they cannot show that a file written by the OLD library opens on the new
 // one. The group "files written by SQLite3 Multiple Ciphers 2.5.0" does: it
