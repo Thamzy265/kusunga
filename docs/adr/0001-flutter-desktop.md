@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-11-03
 - Decided by: PM (decision D1 in `docs/PLAN.md`)
+- Superseded in part by: ADR 0008 (2026-11-24) for the Flutter / Dart version, now Flutter 3.50.1 / Dart 3.14.0. The choice of Flutter desktop stands; the versions named below are as of this ADR.
 
 ## Context
 
