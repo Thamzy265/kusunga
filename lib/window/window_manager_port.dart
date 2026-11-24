@@ -98,13 +98,26 @@ class WindowManagerPort implements WindowPort {
   void _retryLater() {
     if (_retry != null) return;
     var tries = 0;
+    var failed = 0;
     _retry = Timer.periodic(retryEvery, (timer) {
       tries++;
-      if (_find() != null) return;
+      // While this timer runs there is no window yet and the port is not
+      // disposed: finding the window or dispose cancels it.
+      WindowHandle? window;
+      try {
+        window = _backend.findWindow();
+      } catch (_) {
+        // A lookup that throws is a miss, not an uncaught error on every tick.
+        failed++;
+      }
+      if (window != null) return _adopt(window);
       if (tries >= maxRetries) {
         timer.cancel();
         _retry = null;
-        debugPrint('Kusunga: window not found; retried $tries times');
+        debugPrint(
+          'Kusunga: window not found; retried $tries times'
+          '${failed > 0 ? '; $failed failed' : ''}',
+        );
       }
     });
   }
