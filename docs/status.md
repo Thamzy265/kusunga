@@ -1,5 +1,30 @@
 # Status log
 
+## 2026-11-24 — M1.10a Flutter 3.50.1 — QA session 1: blocked by a macOS security dialog
+- Changed: QA report (sonnet, medium), word for word:
+  > Milestone: M1.10a Flutter 3.50.1 — 0/3 criteria pass (build part of criterion 1 passes; the run is NOT RUN) — Date: 2026-11-24 — Environment: macOS 27.2 Apple silicon, branch chore/flutter-3-50 5fc417c (docs commit cacfcfc, not pushed), Flutter 3.50.1 (branch) and 3.44.6 (main baseline), qa profile
+  > Automated: 1/3 criteria (the 3.50.1 macOS debug build) — manual: runs and flows — no desktop E2E tool approved; and blocked
+  > Fail: none
+  > Spec gaps: none
+  > Re-verified: none
+  > Needs PM: 1. Look at the macOS security dialog still on screen (window owned by SecurityAgent) and answer it yourself; I did not read or click it. 2. Tell me (the lead) when done, and QA will re-run from the 3.44.6 baseline: the main-wt2 build and the branch build are both already built. Expect the same dialog once more for the branch build (different binary path); Always Allow on each is your call.
+  > Not observed: everything from criteria 2 and 3 (baseline history count, snippets, comparison, copy capture, search, picker paste, snippet edit, Settings, About licences, menu-bar quit); AX labels on 3.50.1; Windows (CI, pending push); live screen reader
+  > Accessibility: not run (blocked); on the old 3.44.6 build the loading screen exposed History, Snippets, Privacy, Settings, "Test profile: qa", "Opening your history…"
+  > Privacy: n/a — no data handling change; qa profile only; no PM data touched
+  > Claims: n/a
+  > Evidence: docs/qa/m1.md (section "M1.10a Flutter 3.50.1 (2026-11-24) — session 1, BLOCKED by a keychain dialog"); screens: none taken (0 files); videos: none — blocked before any flow
+  > PM check steps: n/a — only the dialog needs the PM (above)
+  > Blockers: keychain/security dialog — PM — answer the SecurityAgent dialog (probably the database-key access prompt for the new 3.44.6 baseline build path) — impact: criteria 2 and 3 and the AX check cannot run.
+  > Notes:
+  > - Baseline build of main on 3.44.6 first failed with a stale hook ("Could not find a command named .../.dart_tool/hooks_runner/objective_c/.../hook.dill"). I deleted that git-ignored cache folder in main-wt2 and the rebuild passed. No SDK was changed.
+  > - Baseline app (pid 6375) showed "Test profile: qa" then stuck on "Opening your history…" with the SecurityAgent window on screen. Quit by pid. The dialog was still showing after I quit, so it may be from something else; I did not check what it says.
+  > - Branch build: "✓ Built build/macos/Build/Products/Debug/Kusunga.app" on Flutter 3.50.1, but not started.
+  > - Cleanup: no Kusunga, flutter_tester or screencapture process left from QA. Both worktrees clean; only my docs commit (docs/qa/m1.md) on the branch. Log files: scratchpad/qa110a_build_main.log, qa110a_build_branch.log.
+- Gates: developer pass · tester pass · reviewer approve (CI conditions pending) · QA blocked (security dialog, PM) · CI pending · PM merge n/a yet
+- Open findings: none
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA security dialog (PM) · Marketer none · Lead none · PM — answer the SecurityAgent dialog; push approval for CI; Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-24 — M1.10a Flutter 3.50.1 — reviewer round 2: approve
 - Changed: reviewer report (opus, high), word for word:
   > Mode: branch
