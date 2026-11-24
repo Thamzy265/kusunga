@@ -73,7 +73,7 @@ class TrayManagerPort implements TrayPort {
     } catch (_) {
       // The new menu was never the icon's, so nothing native can be inside
       // it: free it now. The old menu stays set.
-      menu.dispose();
+      _free(menu);
       rethrow;
     }
     _freeLater(_menu);
@@ -95,7 +95,17 @@ class TrayManagerPort implements TrayPort {
   // icon (Quit) while the native side is still inside that item's callback,
   // so the old menu lives until the current event is done.
   void _freeLater(TrayBackendMenu? menu) {
-    if (menu != null) Timer.run(menu.dispose);
+    if (menu != null) Timer.run(() => _free(menu));
+  }
+
+  // A free that throws is logged (error type only): it must not escape the
+  // free timer, nor hide the error of a setMenu that failed.
+  void _free(TrayBackendMenu menu) {
+    try {
+      menu.dispose();
+    } catch (error) {
+      debugPrint('Kusunga: tray menu free failed (${error.runtimeType})');
+    }
   }
 
   void _onItemClick(String key) {
