@@ -11,6 +11,13 @@
 #       DEVELOPMENT_TEAM, CODE_SIGN_STYLE, CODE_SIGN_IDENTITY or
 #       PROVISIONING_PROFILE_SPECIFIER (with or without [sdk=..]/[config=..]).
 #       So it can never switch DEBUG code on. CR, LF and CRLF all end a line.
+#   tool/mac_release_guards.sh frameworks <Kusunga.app>
+#       For the signed release build (M1.10c, ADR 0009). Fails (exit 1) unless
+#       the native-asset frameworks sqlite3mc.framework and cnativeapi.framework
+#       are in Contents/Frameworks, and every framework there passes
+#       `codesign --verify --strict` and is signed by the same team as the app
+#       (an ad-hoc or unsigned app or framework fails). The Team ID is never
+#       printed, so the output can go into QA evidence.
 #
 # Exit 2 means the guard could not run (missing path, nothing to scan), which
 # is also a failure: a typo must never pass.
@@ -24,8 +31,11 @@ needle="KusungaAcceptSyntheticKeys"
 # first three; the profile specifier is for manual signing).
 allowed_xcconfig_line='^[[:space:]]*(DEVELOPMENT_TEAM|CODE_SIGN_STYLE|CODE_SIGN_IDENTITY|PROVISIONING_PROFILE_SPECIFIER)(\[[^]]*\])*[[:space:]]*='
 
+# Native assets that must ship, each signed like the app (M1.10c).
+required_frameworks="sqlite3mc cnativeapi"
+
 usage() {
-  echo "usage: $0 binary <app-or-file> | xcconfig <file>" >&2
+  echo "usage: $0 binary <app-or-file> | xcconfig <file> | frameworks <app>" >&2
   exit 2
 }
 
@@ -114,9 +124,58 @@ guard_xcconfig() {
   echo "ok: $file sets only signing keys and no -D flags"
 }
 
+# The Team ID of the signed code at $1 on stdout ("" when codesign cannot read
+# a signature, "not set" for ad-hoc). codesign prints the details on stderr.
+team_of() {
+  local out rc=0
+  out="$(codesign -dv --verbose=2 "$1" 2>&1)" || rc=$?
+  [ "$rc" -eq 0 ] || return 0
+  sed -n 's/^TeamIdentifier=//p' <<< "$out"
+}
+
+guard_frameworks() {
+  local app="$1" dir app_team team fw name failed=0
+  case "$app" in
+    -*) echo "guard: $app starts with a dash, write it as ./$app" >&2; exit 2 ;;
+  esac
+  [ -d "$app" ] || { echo "guard: $app does not exist" >&2; exit 2; }
+  dir="$app/Contents/Frameworks"
+  [ -d "$dir" ] || { echo "guard: $app has no Contents/Frameworks" >&2; exit 2; }
+  app_team="$(team_of "$app")"
+  if [ -z "$app_team" ] || [ "$app_team" = "not set" ]; then
+    echo "guard FAILED: $app is not signed with a team (ad-hoc or unsigned)" >&2
+    exit 1
+  fi
+  for name in $required_frameworks; do
+    if [ ! -d "$dir/$name.framework" ]; then
+      echo "guard: $name.framework is missing from $dir" >&2
+      failed=1
+    fi
+  done
+  for fw in "$dir"/*.framework; do
+    [ -d "$fw" ] || continue
+    if ! codesign --verify --strict "$fw" 2>/dev/null; then
+      echo "guard: $(basename "$fw") does not pass codesign --verify --strict" >&2
+      failed=1
+      continue
+    fi
+    team="$(team_of "$fw")"
+    if [ "$team" != "$app_team" ]; then
+      echo "guard: $(basename "$fw") is not signed by the app's team" >&2
+      failed=1
+    fi
+  done
+  if [ "$failed" -ne 0 ]; then
+    echo "guard FAILED: a framework in $app is missing or not signed like the app" >&2
+    exit 1
+  fi
+  echo "ok: $required_frameworks and every framework in $app are signed by the app's team"
+}
+
 [ "$#" -eq 2 ] || usage
 case "$1" in
   binary) guard_binary "$2" ;;
   xcconfig) guard_xcconfig "$2" ;;
+  frameworks) guard_frameworks "$2" ;;
   *) usage ;;
 esac
