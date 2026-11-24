@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-24 — M1.10b sqlite3 3.9.2 — PM accepted the risk of merging without macOS CI
+Risk accepted by PM (2026-11-24): accepted: merging PR 12 without a macOS CI run (the job was cancelled twice by GitHub runner capacity before any step ran), so the Mac clean-machine test run, the Xcode test step and the Release Swift build step are not proven on this head in CI; evidence instead: Windows CI green on 8e741b3, full ./tool/check.sh passed on the Mac by developer, tester and reviewer (8851112; QA docs-only commit on top), QA pass on the real app — scope: M1.10b, branch chore/sqlite3-3-9, PR 12, gate: macOS CI job — expiry/review: the next macOS CI run on main (first PR after this merge) must pass — PM said: "Merge"
+- Changed: lead merges PR 12 with a merge commit pinned to the tested head 8e741b3.
+- Gates: developer pass · tester pass · reviewer approve · QA pass · CI windows green, macos skipped (PM risk acceptance above) · PM merge approved ("Merge")
+- Open findings: none
+- Decisions: PM said: "Merge" (2026-11-24), answering whether to re-run the macOS CI job later or merge without it (lead had said merging without it is a risk the PM accepts and would be recorded).
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e); Microsoft Store account (M1.9d); DPIA section 7 (M1.9f)
+
 ## 2026-11-24 — M1.10b sqlite3 3.9.2 — CI on PR 12: Windows green; macOS not run (GitHub runner capacity)
 - Changed: lead opened PR 12 (https://github.com/Thamzy265/kusunga/pull/12), head 8e741b3; CI run 45449045020.
   - windows: success. Lead read the full job log once (gh api job logs, ANSI stripped; scratchpad/ci_m110b/): key flutter-windows-stable-3.50.1-x64-ae9b586f…; `flutter pub get --enforce-lockfile` "Got dependencies!"; "Formatted 343 files (0 changed)"; "No issues found!"; "4390 tests passed, 102 skipped." (102 skips as on every Windows run); "Built build\windows\x64\runner\Debug\kusunga.exe". Reviewer condition: by name, all passed and none skipped: old_library_file_edge_test 31, frozen_db_fixture_test 10 (with the 2.5.0 files group), bundled_sqlite_test 3 ("the loaded library is SQLite 3.54.1 with SQLite3 Multiple Ciphers 2.7.1" on Windows), sqlite3mc_version_consistency_test 6 (including the binary-attribute check). The log does not print the DLL download or its SHA-256; the sqlite3 build hook only uses a binary whose SHA-256 matches its own list, which the table test proves equals c8013fb5… for x64 Windows, and the Windows test loaded 2.7.1.
