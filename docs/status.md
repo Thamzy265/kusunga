@@ -1,5 +1,14 @@
 # Status log
 
+## 2026-11-24 — M1.10b sqlite3 3.9.2 — CI on PR 12: Windows green; macOS not run (GitHub runner capacity)
+- Changed: lead opened PR 12 (https://github.com/Thamzy265/kusunga/pull/12), head 8e741b3; CI run 45449045020.
+  - windows: success. Lead read the full job log once (gh api job logs, ANSI stripped; scratchpad/ci_m110b/): key flutter-windows-stable-3.50.1-x64-ae9b586f…; `flutter pub get --enforce-lockfile` "Got dependencies!"; "Formatted 343 files (0 changed)"; "No issues found!"; "4390 tests passed, 102 skipped." (102 skips as on every Windows run); "Built build\windows\x64\runner\Debug\kusunga.exe". Reviewer condition: by name, all passed and none skipped: old_library_file_edge_test 31, frozen_db_fixture_test 10 (with the 2.5.0 files group), bundled_sqlite_test 3 ("the loaded library is SQLite 3.54.1 with SQLite3 Multiple Ciphers 2.7.1" on Windows), sqlite3mc_version_consistency_test 6 (including the binary-attribute check). The log does not print the DLL download or its SHA-256; the sqlite3 build hook only uses a binary whose SHA-256 matches its own list, which the table test proves equals c8013fb5… for x64 Windows, and the Windows test loaded 2.7.1.
+  - macos: cancelled twice before any step ran (attempts 1 and 2, PM said "Yes, re-run Mac"). GitHub annotation: "The job was not acquired by Runner of type hosted even after multiple attempts" and "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times."
+- Gates: developer pass · tester pass · reviewer approve (Windows CI condition met; macOS CI pending) · QA pass · CI windows green, macos not run · PM merge waiting
+- Open findings: none
+- Decisions: PM said: "Check CI" (twice) and "Yes, re-run Mac" (2026-11-24).
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead macOS CI (GitHub capacity) · PM — how to get the macOS CI run; then merge approval; Apple Developer account (M1.9c, M1.9e); Microsoft Store account (M1.9d); DPIA section 7 (M1.9f)
+
 ## 2026-11-24 — M1.10b sqlite3 3.9.2 — PM decisions: push for CI; auto-paste check not needed
 - Changed: lead pushes local main (docs only) and chore/sqlite3-3-9, and opens a pull request so CI runs on Mac and Windows.
 - Gates: developer pass · tester pass · reviewer approve (CI condition pending) · QA pass (real auto-paste not proven, PM: not needed) · CI pending · PM merge waiting
