@@ -329,7 +329,8 @@ void main() {
       return path;
     }
 
-    test('the kept files are the ones made on 2.5.0, and are encrypted', () {
+    test('the kept files are unchanged since they were made (pinned '
+        'SHA-256), and are encrypted', () {
       for (final (file, hash) in [
         (
           v3,
