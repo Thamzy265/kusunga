@@ -32,7 +32,8 @@ class WindowService {
     try {
       await port.init();
     } catch (error) {
-      debugPrint('Kusunga: window setup failed: $error');
+      // The error type only: native error text stays out of the log.
+      debugPrint('Kusunga: window setup failed (${error.runtimeType})');
     }
     if (_disposed) return;
     _closes = port.closeRequests.listen(

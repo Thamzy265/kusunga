@@ -267,5 +267,17 @@ void main() {
         reason: 'the close button was cancelled but nothing hid the window',
       );
     });
+
+    test('the failure is logged once with the error type only, no native '
+        'error text', () async {
+      final logs = _captureLogs();
+      final backend = _Backend()..throwing = 1;
+      final service = WindowService(port: WindowManagerPort(backend: backend));
+      addTearDown(service.dispose);
+
+      await service.start();
+
+      expect(logs, ['Kusunga: window setup failed (StateError)']);
+    });
   });
 }
