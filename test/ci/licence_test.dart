@@ -180,6 +180,37 @@ void main() {
     expect(flag5, isNot(contains('CHANGELOG')));
   });
 
+  test(
+    'flag 4 covers the transitive packages that moved with sqlite3 3.9.2',
+    () {
+      // Review note L3 (M1.10b): hooks and record_use moved with sqlite3.
+      final flag4 = File(
+        'docs/licences.md',
+      ).readAsLinesSync().firstWhere((l) => l.startsWith('4. '));
+      for (final part in [
+        'hooks 2.0.2 to 2.2.0',
+        'record_use 0.6.0 to 1.1.1',
+        'BSD-3-Clause (Dart project authors)',
+        'checked by the developer on 2026-11-24',
+      ]) {
+        expect(flag4, contains(part), reason: part);
+      }
+      final lock = File('pubspec.lock').readAsStringSync();
+      for (final (name, version) in [
+        ('hooks', '2.2.0'),
+        ('record_use', '1.1.1'),
+      ]) {
+        expect(
+          RegExp(
+            '  $name:\\n(?:    .*\\n|      .*\\n)*?    version: "$version"',
+          ).hasMatch(lock),
+          isTrue,
+          reason: '$name $version is no longer the locked version',
+        );
+      }
+    },
+  );
+
   _testerGuards();
 }
 
