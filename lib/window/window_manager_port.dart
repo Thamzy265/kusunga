@@ -110,7 +110,16 @@ class WindowManagerPort implements WindowPort {
         // A lookup that throws is a miss, not an uncaught error on every tick.
         failed++;
       }
-      if (window != null) return _adopt(window);
+      if (window != null) {
+        try {
+          _adopt(window);
+        } catch (error) {
+          // The window is kept and the retry is over; a later init or show
+          // tries again. Only the error type is logged.
+          debugPrint('Kusunga: window set-up failed (${error.runtimeType})');
+        }
+        return;
+      }
       if (tries >= maxRetries) {
         timer.cancel();
         _retry = null;

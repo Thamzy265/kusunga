@@ -92,4 +92,29 @@ void main() {
     expect(logs, ['Kusunga: window not found; retried 3 times; 3 failed']);
     await port.dispose();
   });
+
+  testWidgets('a window found on a retry whose set-up throws is not an '
+      'uncaught error: it is logged once, no timer is left, and a later init '
+      'sets it up', (tester) async {
+    final logs = _captureLogs();
+    final backend = _Backend()..missing = 1;
+    final port = WindowManagerPort(backend: backend);
+    await port.init();
+    backend.window.setUpFails = true;
+
+    await tester.pump(_every * 5);
+
+    expect(
+      tester.takeException(),
+      isNull,
+      reason: 'a throwing set-up escaped the retry timer',
+    );
+    expect(backend.lookups, 2, reason: 'the retry stopped once found');
+    expect(logs, ['Kusunga: window set-up failed (StateError)']);
+
+    backend.window.setUpFails = false;
+    await port.init();
+    expect(backend.window.calls, ['minimumSize', 'size', 'preventClose']);
+    await port.dispose();
+  });
 }
