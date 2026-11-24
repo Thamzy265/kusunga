@@ -111,10 +111,20 @@ void main() {
     );
     expect(backend.lookups, 2, reason: 'the retry stopped once found');
     expect(logs, ['Kusunga: window set-up failed (StateError)']);
+    expect(backend.window.calls, [
+      'size',
+      'preventClose',
+    ], reason: 'the steps after the failed one were not tried (W4)');
 
     backend.window.setUpFails = false;
     await port.init();
-    expect(backend.window.calls, ['minimumSize', 'size', 'preventClose']);
+    expect(backend.window.calls, [
+      'size',
+      'preventClose',
+      'minimumSize',
+      'size',
+      'preventClose',
+    ]);
     await port.dispose();
   });
 

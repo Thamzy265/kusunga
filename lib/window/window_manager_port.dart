@@ -67,16 +67,22 @@ class WindowManagerPort implements WindowPort {
     }
   }
 
-  /// Never throws: a set-up that fails must not stop what comes after it (a
-  /// pending show, the caller's own show or hide, or the app's close
-  /// listener). Only the error type is logged. The window is kept, and only
-  /// a later [init] sets it up again.
+  /// Never throws: a set-up step that fails must not stop what comes after
+  /// it (the other steps, a pending show, the caller's own show or hide, or
+  /// the app's close listener). Each step is tried on its own, above all
+  /// close-to-hide: without it the close button would really close the
+  /// window for the whole session. Each failure is logged once, with the
+  /// error type only. The window is kept, and only a later [init] sets it up
+  /// again.
   void _setUp(WindowHandle window) {
+    _trySetUpStep(() => window.setMinimumSize(const Size(360, 400)));
+    _trySetUpStep(() => window.setSize(const Size(800, 632)));
+    _trySetUpStep(() => window.preventClose(_onCloseRequested));
+  }
+
+  static void _trySetUpStep(void Function() step) {
     try {
-      window
-        ..setMinimumSize(const Size(360, 400))
-        ..setSize(const Size(800, 632))
-        ..preventClose(_onCloseRequested);
+      step();
     } catch (error) {
       debugPrint('Kusunga: window set-up failed (${error.runtimeType})');
     }

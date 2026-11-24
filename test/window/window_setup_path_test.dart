@@ -9,6 +9,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/window/window_manager_port.dart';
+import 'package:kusunga/window/window_service.dart';
 
 /// Records every call, then throws if that step is in [failing].
 class _Window implements WindowHandle {
@@ -166,6 +167,83 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(logs, ['Kusunga: window show failed (StateError)']);
       await port.dispose();
+    });
+  });
+
+  group('W4: each set-up step is tried on its own', () {
+    testWidgets('init that finds the window at once and whose resize throws '
+        'still redirects the close button', (tester) async {
+      final logs = _captureLogs();
+      final backend = _Backend();
+      backend.window.failing.add('size');
+      final port = WindowManagerPort(backend: backend);
+
+      await port.init();
+
+      expect(backend.window.calls, ['minimumSize', 'size', 'preventClose']);
+      expect(logs, [_setUpFailed]);
+      await port.dispose();
+    });
+
+    testWidgets('a minimum size that throws on a retry: the size and '
+        'close-to-hide are still tried', (tester) async {
+      final logs = _captureLogs();
+      final backend = _Backend()..missing = 1;
+      backend.window.failing.add('minimumSize');
+      final port = WindowManagerPort(backend: backend);
+      await port.init();
+
+      await tester.pump(_every);
+
+      expect(backend.window.calls, ['minimumSize', 'size', 'preventClose']);
+      expect(logs, [_setUpFailed]);
+      await port.dispose();
+    });
+
+    testWidgets('every set-up step throws: one line per step with the error '
+        'type only, nothing thrown, and the pending show is carried out', (
+      tester,
+    ) async {
+      final logs = _captureLogs();
+      final backend = _Backend()..missing = 1;
+      backend.window.failing.addAll(['minimumSize', 'size', 'preventClose']);
+      final port = WindowManagerPort(backend: backend);
+      await port.show(); // missing: the show waits
+
+      await port.init(); // found at once
+
+      expect(backend.window.calls, [
+        'minimumSize',
+        'size',
+        'preventClose',
+        'show',
+        'focus',
+      ]);
+      expect(logs, [_setUpFailed, _setUpFailed, _setUpFailed]);
+      await port.dispose();
+    });
+
+    // A plain test: WindowService.dispose awaits a subscription cancel,
+    // which never resumes inside testWidgets' fake clock. No timer is
+    // involved here (the window is found at once).
+    test('WindowService: a window whose resize throws at start still hides '
+        'when the close button is pressed', () async {
+      _captureLogs();
+      final backend = _Backend();
+      backend.window.failing.add('size');
+      final service = WindowService(port: WindowManagerPort(backend: backend));
+      addTearDown(service.dispose);
+      await service.start();
+
+      expect(
+        backend.window.onClose,
+        isNotNull,
+        reason: 'close-to-hide was never set up',
+      );
+      backend.window.onClose!();
+      await pumpEventQueue();
+
+      expect(backend.window.calls.last, 'hide');
     });
   });
 }
