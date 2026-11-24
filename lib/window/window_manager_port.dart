@@ -1,7 +1,22 @@
 import 'dart:async';
+// dart:ffi's Size is C's size_t; the window sizes here are dart:ui's.
+import 'dart:ffi' hide Size;
+import 'dart:io' show Platform;
 import 'dart:ui';
 
+import 'package:ffi/ffi.dart' show using;
 import 'package:flutter/foundation.dart';
+import 'package:win32/win32.dart'
+    show
+        ArenaExtension,
+        EnumWindows,
+        GetClassName,
+        GetCurrentProcessId,
+        GetWindowThreadProcessId,
+        HWND,
+        LPARAM,
+        PWSTR,
+        WNDENUMPROC;
 import 'package:window_manager/window_manager.dart';
 
 import 'window_service.dart';
@@ -201,14 +216,94 @@ class WindowManagerPort implements WindowPort {
   }
 }
 
-/// The real [WindowBackend]: nativeapi's current window (macOS: the main
-/// window, else the first one; Windows: the active window, else this
-/// process's titled top-level window, hidden or not).
+/// The window class of the Windows runner's window
+/// (windows/runner/win32_window.cpp, `kWindowClassName`).
+const runnerWindowClass = 'FLUTTER_RUNNER_WIN32_WINDOW';
+
+/// A top-level window of this process: its handle (HWND) and the name of its
+/// window class.
+typedef TopLevelWindow = ({int handle, String className});
+
+/// The app's window on Windows, from this process's top-level [windows] in
+/// z-order, hidden ones included: the first of the runner's class
+/// ([runnerWindowClass]), or null while there is none, so the port looks
+/// again. No other window is ever picked, however high in the z-order. The
+/// runner's window is hidden until its first frame (after a login start,
+/// until "Open Kusunga"), and meanwhile nativeapi's own pick, getCurrent(),
+/// can be another hidden window of the process, such as Windows' "Default
+/// IME" (reviewer F3).
+int? pickRunnerWindow(Iterable<TopLevelWindow> windows) {
+  for (final window in windows) {
+    if (window.className == runnerWindowClass) return window.handle;
+  }
+  return null;
+}
+
+/// The real [WindowBackend]. Windows: the runner's window, hidden or not
+/// ([pickRunnerWindow]). macOS: nativeapi's current window (the main window,
+/// else the first one).
 class NativeWindowBackend implements WindowBackend {
   @override
   WindowHandle? findWindow() {
-    final window = WindowManager.instance.getCurrent();
+    final window = Platform.isWindows
+        ? _runnerWindow()
+        : WindowManager.instance.getCurrent();
     return window == null ? null : _NativeWindow(window);
+  }
+
+  static Window? _runnerWindow() {
+    final handle = pickRunnerWindow(_topLevelWindows());
+    // nativeapi's own lists (getAll) leave hidden windows out, so the window
+    // is wrapped from its handle, as window_manager's legacy layer does for
+    // a hidden window.
+    return handle == null
+        ? null
+        : Window.createWithNativeWindow(Pointer<Void>.fromAddress(handle));
+  }
+
+  /// This process's top-level windows, hidden ones included, in z-order
+  /// (EnumWindows), each with its window class. Windows only.
+  static List<TopLevelWindow> _topLevelWindows() {
+    final handles = <int>[];
+    final collect = NativeCallable<WNDENUMPROC>.isolateLocal((
+      Pointer hwnd,
+      int _,
+    ) {
+      handles.add(hwnd.address);
+      return 1; // TRUE: go on.
+    }, exceptionalReturn: 0);
+    try {
+      EnumWindows(collect.nativeFunction, const LPARAM(0));
+    } finally {
+      collect.close();
+    }
+    final self = GetCurrentProcessId();
+    return using((arena) {
+      final processId = arena<Uint32>();
+      final name = arena.pwstrBuffer(256);
+      return [
+        for (final handle in handles)
+          if (_classOfOwnWindow(handle, self, processId, name)
+              case final className?)
+            (handle: handle, className: className),
+      ];
+    });
+  }
+
+  /// The window class of [handle], or null when the window is not this
+  /// process's ([self]) or is gone.
+  static String? _classOfOwnWindow(
+    int handle,
+    int self,
+    Pointer<Uint32> processId,
+    PWSTR name,
+  ) {
+    final hwnd = HWND(Pointer.fromAddress(handle));
+    processId.value = 0;
+    if (GetWindowThreadProcessId(hwnd, processId) == 0) return null;
+    if (processId.value != self) return null;
+    final length = GetClassName(hwnd, name, 256).value;
+    return length > 0 ? name.toDartString(length: length) : null;
   }
 }
 
