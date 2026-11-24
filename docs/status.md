@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-24 — M1.10a Flutter 3.50.1 — closed: PR 11 merged
+- Changed: PR 11 merged on GitHub with a merge commit, 58548e4, pinned to the tested head f71be88. Local main merged origin/main (d347cce). Plan: M1.10a ticked with its merged line; M1.10 stays open for M1.10b. The project now needs Flutter 3.50.1 (/Users/williamnasoni/Developer/flutter-3.50.1); 3.44.6 stays for the PM's other projects.
+- Gates: developer pass · tester pass · reviewer approve · QA pass · CI green on f71be88 · PM merge approved ("Yes, merge")
+- Open findings: none
+- Decisions: PM said: "Yes, merge" (2026-11-24), answering whether to merge PR 11 with a merge commit pinned to f71be88.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — push of local main (docs only); Apple Developer account (M1.9c, M1.9e); Microsoft Store account (M1.9d); DPIA section 7 (M1.9f)
+
 ## 2026-11-24 — M1.10a Flutter 3.50.1 — CI green on PR 11; reviewer's CI conditions met
 - Changed: lead pushed main (9b57f2c..80d0b73, docs only) and chore/flutter-3-50, opened PR 11 (https://github.com/Thamzy265/kusunga/pull/11). CI run 45394763039 on f71be88: macos success, windows success; PR mergeable. Lead read both full job logs once (gh api job logs, ANSI stripped; scratchpad/ci_m110a/):
   - macos: `key: flutter-macos-stable-3.50.1-arm64-ae9b586f34a8443573f82ef57c3bf914a908cbf7`; "Run flutter pub get --enforce-lockfile" shows "Got dependencies!", no "Changed N dependencies", no "Upgrading analysis_options.yaml", no lockfile error; check.sh "Formatted 340 files (0 changed)", "No issues found!", "4424 tests passed, 10 skipped"; "✓ Built build/macos/Build/Products/Debug/Kusunga.app"; "** TEST SUCCEEDED **"; the C++ and Release Swift steps green (job success, no ##[error]).
