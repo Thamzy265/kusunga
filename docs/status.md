@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-24 — M1.10b package updates — design note, ADR 0009 (proposed) and deck ready for the PM
+- Changed: lead lookup (sonnet; report at scratchpad/m110b_research.txt; nothing in the repo changed; downloaded package sources read as data only): sqlite3 3.9.2, window_manager 0.7.1 and tray_manager 0.9.1 are the latest and resolve together and separately on Flutter 3.50.1. sqlite3 3.9.2 bundles SQLite3 Multiple Ciphers 2.7.0 on SQLite 3.54.1; the ChaCha20 read path and hexkey handling are unchanged from 2.5.0 (source diff, to be proven by tests and QA); no lib/ change. window_manager and tray_manager are rebuilt on nativeapi (C++ compiled from source by the cnativeapi build hook, FFI); the 0.5.x API is only in legacy.dart and all of it is deprecated, which fails our analyzer; 2 lib files (about 17 calls) and the 2 tray tests that mock MethodChannel('tray_manager') must change. New packages nativeapi, nativeapi_flutter, cnativeapi 0.6.2 (MIT, leanflutter.dev) and process 5.0.6 (BSD-3, tools.dart.dev). Wrote docs/design/package-updates.md, docs/adr/0009-window-and-tray-on-nativeapi.md (proposed) and docs/slides/package-updates.html.
+- Gates: developer pending (waits for deck approval) · tester pending · reviewer pending · QA pending · PM merge n/a yet
+- Open findings: none
+- Decisions: open for PM: deck approval, G1 (split into sqlite3 first and window/tray second, or one branch) and G2 (native API now, or legacy.dart with the deprecation silenced).
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.10b deck, G1, G2; Apple Developer account (M1.9c, M1.9e); Microsoft Store account (M1.9d); DPIA section 7 (M1.9f)
+
 ## 2026-11-24 — M1.10b package updates — started: large; lookup for the design note
 - Changed: local main pushed (docs only). M1.10b started: sqlite3 3.5.2 → 3.9.2 (bundled SQLite3 Multiple Ciphers 2.5.0 → 2.7.0, which encrypts the history database), window_manager 0.5.2 → 0.7.1 and tray_manager 0.5.3 → 0.9.1 (rebuilt on nativeapi). Size: large — encryption library change and two native integrations on both platforms (plan rule). Lead started a read-only lookup of the breaking changes against the repo's code for the design note and deck.
 - Gates: developer pending (waits for deck approval) · tester pending · reviewer pending · QA pending · PM merge n/a yet
