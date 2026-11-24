@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-24 — M1.10c window_manager 0.7.1 and tray_manager 0.9.1 — started: large; developer briefed
+- Changed: local main pushed (docs only). M1.10c started on branch `chore/window-tray-nativeapi` from main, per the approved design note `docs/design/package-updates.md` and ADR 0009 (accepted; deck approved "Approve, all A", G2 A native API). Size: large — two native integrations on both platforms and a new native library (cnativeapi) in the app. Lead briefed the developer (opus: the item spans the window and tray modules, both platforms and the release signing path).
+- Gates: developer in progress · tester pending · reviewer pending · QA pending · PM merge n/a yet
+- Open findings: none
+- Decisions: PM said: "Yes" (2026-11-24), answering whether to push local main and start M1.10c.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e); Microsoft Store account (M1.9d); DPIA section 7 (M1.9f)
+
 ## 2026-11-24 — M1.10b sqlite3 3.9.2 — closed: PR 12 merged
 - Changed: PR 12 merged on GitHub with a merge commit, 6e9fcf2, pinned to the tested head 8e741b3. Local main merged origin/main. Plan: M1.10b ticked with its merged line. Next: M1.10c (window_manager 0.7.1 and tray_manager 0.9.1 on the native API, ADR 0009). The macOS CI run on the next PR is the review point for the PM risk acceptance.
 - Gates: developer pass · tester pass · reviewer approve · QA pass · CI windows green, macos skipped (PM risk acceptance) · PM merge approved ("Merge")
