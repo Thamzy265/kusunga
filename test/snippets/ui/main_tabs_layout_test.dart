@@ -1,6 +1,6 @@
 // QA-M14-1: at 600 px and wider the tabs and New snippet share one row, and
 // each tab is only as wide as its label (UI spec, Layout and Breakpoints).
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/memory_history_store.dart';

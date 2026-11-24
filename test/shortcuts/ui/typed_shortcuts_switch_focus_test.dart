@@ -2,7 +2,7 @@
 // 2 px `color.focus` ring as the buttons, chips and tabs when it has the
 // keyboard focus, drawn outside it on the background at 3:1 or more, in
 // light and dark. Material's own focus halo is about 1.25:1.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';

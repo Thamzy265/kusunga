@@ -518,11 +518,9 @@ void main() {
       }
       expect(defaultState(), before);
       expect(Directory(p.join(base.path, 'profiles')).existsSync(), isFalse);
-      expect(
-        root.listSync().map((e) => p.basename(e.path)),
-        ['support'],
-        reason: 'nothing created beside the support folder',
-      );
+      expect(root.listSync().map((e) => p.basename(e.path)), [
+        'support',
+      ], reason: 'nothing created beside the support folder');
     });
 
     test('QA vs qa: the upper-case name never reaches the data of "qa" '
@@ -691,40 +689,32 @@ void main() {
       expect(Directory(target).existsSync(), isFalse);
     }, skip: Platform.isWindows ? 'creating a symlink needs rights' : null);
 
-    test(
-      'profiles/qa/kusunga.db is a symlink to the real database',
-      () async {
-        final keys = FakeKeyStore(stored: hex);
-        final before = await seedDefault(keys);
-        profileDir('qa').createSync(recursive: true);
-        Link(
-          p.join(profileDir('qa').path, 'kusunga.db'),
-        ).createSync(p.join(base.path, 'kusunga.db'));
-        final src = FakeClipboardSource();
-        final s = await open(const ActiveDataProfile('qa'), keys, source: src);
-        expect(s.items, isEmpty, reason: 'the real history was read');
-        await hammer(s, src);
-        expect(defaultState(), before);
-      },
-      skip: Platform.isWindows ? 'creating a symlink needs rights' : null,
-    );
+    test('profiles/qa/kusunga.db is a symlink to the real database', () async {
+      final keys = FakeKeyStore(stored: hex);
+      final before = await seedDefault(keys);
+      profileDir('qa').createSync(recursive: true);
+      Link(
+        p.join(profileDir('qa').path, 'kusunga.db'),
+      ).createSync(p.join(base.path, 'kusunga.db'));
+      final src = FakeClipboardSource();
+      final s = await open(const ActiveDataProfile('qa'), keys, source: src);
+      expect(s.items, isEmpty, reason: 'the real history was read');
+      await hammer(s, src);
+      expect(defaultState(), before);
+    }, skip: Platform.isWindows ? 'creating a symlink needs rights' : null);
 
-    test(
-      'profiles/qa/kusunga.log is a symlink to the real log',
-      () async {
-        final keys = FakeKeyStore(stored: hex);
-        File(p.join(base.path, 'kusunga.log')).writeAsStringSync('real log\n');
-        final before = defaultState();
-        profileDir('qa').createSync(recursive: true);
-        Link(
-          p.join(profileDir('qa').path, 'kusunga.log'),
-        ).createSync(p.join(base.path, 'kusunga.log'));
-        final s = await open(const ActiveDataProfile('qa'), keys);
-        await s.close();
-        expect(defaultState(), before, reason: 'the real log was appended to');
-      },
-      skip: Platform.isWindows ? 'creating a symlink needs rights' : null,
-    );
+    test('profiles/qa/kusunga.log is a symlink to the real log', () async {
+      final keys = FakeKeyStore(stored: hex);
+      File(p.join(base.path, 'kusunga.log')).writeAsStringSync('real log\n');
+      final before = defaultState();
+      profileDir('qa').createSync(recursive: true);
+      Link(
+        p.join(profileDir('qa').path, 'kusunga.log'),
+      ).createSync(p.join(base.path, 'kusunga.log'));
+      final s = await open(const ActiveDataProfile('qa'), keys);
+      await s.close();
+      expect(defaultState(), before, reason: 'the real log was appended to');
+    }, skip: Platform.isWindows ? 'creating a symlink needs rights' : null);
 
     test('an older profile DB whose .bak is a symlink to the real .bak must '
         'not overwrite the real backup', () async {
@@ -960,11 +950,9 @@ void main() {
               p.join(base.path, 'profiles'),
             ).listSync().any((e) => p.basename(e.path) == 'qa');
         if (caseInsensitive) {
-          expect(
-            names,
-            {'marker'},
-            reason: 'case-insensitive FS: "QA" data must not be used by "qa"',
-          );
+          expect(names, {
+            'marker',
+          }, reason: 'case-insensitive FS: "QA" data must not be used by "qa"');
         }
       },
     );

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The width of the `focus` ring drawn outside a focused button, in px.
 const focusRingWidth = 2.0;

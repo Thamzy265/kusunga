@@ -1,7 +1,7 @@
 // M1.7 reviewer F12: the one live-count dialog behind Clear history and
 // Auto-delete. It follows the count, and at 0 closes as Cancel would (PM
 // decision 2026-11-08); a count it could not read never closes it.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/ui/close_at_zero.dart';
 

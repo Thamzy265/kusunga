@@ -3,7 +3,7 @@
 // tests drive it on its own: both edges, both directions, both axes, a view
 // smaller than the control, bouncing physics, and a focus node that is not a
 // box.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/ui/focus_order.dart';

@@ -2,7 +2,7 @@
 // Undo and hides its toast, not only the History tab's own Clear history.
 // Settings › Your data › Delete all history (and Delete everything's memory
 // clear) call HistoryService.clear() from outside the History screen.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/history_service.dart';

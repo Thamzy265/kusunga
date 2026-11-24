@@ -86,14 +86,10 @@ void main() {
       expect(run([f.path]).exitCode, isNot(0));
     });
 
-    test(
-      'a new line in the file name does not hide a bad file',
-      () {
-        final f = binary('line\nbreak.dll', [...clean, 'padr']);
-        expect(run([f.path]).exitCode, isNot(0));
-      },
-      skip: skipOnWindows('a Windows file name cannot hold a new line'),
-    );
+    test('a new line in the file name does not hide a bad file', () {
+      final f = binary('line\nbreak.dll', [...clean, 'padr']);
+      expect(run([f.path]).exitCode, isNot(0));
+    }, skip: skipOnWindows('a Windows file name cannot hold a new line'));
   });
 
   group('paths that are not a file', () {
@@ -297,53 +293,41 @@ void main() {
   });
 
   group('big files', () {
-    test(
-      'a 16 MB binary of NUL bytes and one marker at the end fails',
-      () {
-        final f = File(p.join(dir.path, 'big.dll'));
-        final raf = f.openSync(mode: FileMode.write);
-        raf.writeFromSync(fake(clean));
-        raf.setPositionSync(16 * 1024 * 1024);
-        raf.writeFromSync([0, ...'upper_quartile'.codeUnits, 0]);
-        raf.closeSync();
-        final sw = Stopwatch()..start();
-        final r = run([f.path]);
-        expect(r.exitCode, isNot(0), reason: out(r));
-        expect(out(r), contains('upper_quartile'));
-        expect(sw.elapsed, lessThan(const Duration(seconds: 90)));
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+    test('a 16 MB binary of NUL bytes and one marker at the end fails', () {
+      final f = File(p.join(dir.path, 'big.dll'));
+      final raf = f.openSync(mode: FileMode.write);
+      raf.writeFromSync(fake(clean));
+      raf.setPositionSync(16 * 1024 * 1024);
+      raf.writeFromSync([0, ...'upper_quartile'.codeUnits, 0]);
+      raf.closeSync();
+      final sw = Stopwatch()..start();
+      final r = run([f.path]);
+      expect(r.exitCode, isNot(0), reason: out(r));
+      expect(out(r), contains('upper_quartile'));
+      expect(sw.elapsed, lessThan(const Duration(seconds: 90)));
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
-    test(
-      'a 12 MB single line with no NUL and no new line passes if clean',
-      () {
-        final f = File(p.join(dir.path, 'line.dll'));
-        final raf = f.openSync(mode: FileMode.write);
-        raf.writeFromSync(fake(clean));
-        final chunk = List<int>.filled(1024 * 1024, 0x41);
-        for (var i = 0; i < 12; i++) {
-          raf.writeFromSync(chunk);
-        }
-        raf.closeSync();
-        final r = run([f.path]);
-        expect(r.exitCode, 0, reason: out(r));
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+    test('a 12 MB single line with no NUL and no new line passes if clean', () {
+      final f = File(p.join(dir.path, 'line.dll'));
+      final raf = f.openSync(mode: FileMode.write);
+      raf.writeFromSync(fake(clean));
+      final chunk = List<int>.filled(1024 * 1024, 0x41);
+      for (var i = 0; i < 12; i++) {
+        raf.writeFromSync(chunk);
+      }
+      raf.closeSync();
+      final r = run([f.path]);
+      expect(r.exitCode, 0, reason: out(r));
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
-    test(
-      'a binary with many thousands of strings and one marker fails',
-      () {
-        final f = binary('many.dll', [
-          ...clean,
-          for (var i = 0; i < 200000; i++) 'symbol_$i',
-          'rightstr',
-        ]);
-        expect(run([f.path]).exitCode, isNot(0));
-      },
-      timeout: const Timeout(Duration(minutes: 2)),
-    );
+    test('a binary with many thousands of strings and one marker fails', () {
+      final f = binary('many.dll', [
+        ...clean,
+        for (var i = 0; i < 200000; i++) 'symbol_$i',
+        'rightstr',
+      ]);
+      expect(run([f.path]).exitCode, isNot(0));
+    }, timeout: const Timeout(Duration(minutes: 2)));
   });
 
   group('several files and arguments', () {

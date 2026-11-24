@@ -2,7 +2,7 @@
 // Copy link and View licences is in view when Tab scrolls them in. The ring is
 // drawn outside the button, so a button scrolled flush to the edge of its view
 // had it cut off there.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 

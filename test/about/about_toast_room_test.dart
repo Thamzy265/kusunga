@@ -1,6 +1,6 @@
 // M1.9a round 5, B3 (QA): the "Version copied" / "Link copied" toast never
 // covers View licences, however far Settings is scrolled and at any text size.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'about_settings_harness.dart';

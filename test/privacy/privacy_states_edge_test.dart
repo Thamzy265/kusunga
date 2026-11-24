@@ -2,7 +2,7 @@
 // (docs/ui/sensitive-content.md): announcements exactly once, a timed pause
 // ending while open, focus order and focus after pause or resume, errors and
 // notes together, and narrow layouts at large text.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/history_opener.dart';

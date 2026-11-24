@@ -46,11 +46,9 @@ void main() {
           '\u0001\u007F\u0085',
           ' \u200B \u2060 ',
         ]) {
-          expect(
-            checkSnippet(blank, 'x'),
-            {SnippetProblem.emptyName},
-            reason: blank.runes.map((r) => r.toRadixString(16)).join(' '),
-          );
+          expect(checkSnippet(blank, 'x'), {
+            SnippetProblem.emptyName,
+          }, reason: blank.runes.map((r) => r.toRadixString(16)).join(' '));
         }
         // A visible letter among them is a name.
         expect(checkSnippet('\u200Ba\u200B', 'x'), isEmpty);

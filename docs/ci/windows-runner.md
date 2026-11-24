@@ -34,7 +34,7 @@ winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--quie
 
 The last one installs the C++ compiler, the Windows SDK and CMake ("Desktop development with C++"). It takes a while. Restart when it finishes.
 
-You don't need to install Flutter: the workflow downloads Flutter 3.44.6 itself.
+You don't need to install Flutter: the workflow downloads Flutter 3.50.1 itself.
 
 ## 5. Register the runner
 

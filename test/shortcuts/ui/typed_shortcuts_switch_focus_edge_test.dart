@@ -2,7 +2,7 @@
 // hidden on mouse focus, back on the next key, against the real page
 // background, at 360 px and 200% text, after the section is gone, and for a
 // switch that is disabled.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/shortcuts/ignored_apps.dart';

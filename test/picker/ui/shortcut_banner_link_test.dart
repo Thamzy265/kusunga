@@ -1,7 +1,7 @@
 // M1.7 reviewer F9 (PM decision 2026-11-11, "Add a link"): the History
 // banner for a taken picker shortcut has a text button "Change in Settings"
 // that opens the Settings tab with the focus on Change.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/history_service.dart';

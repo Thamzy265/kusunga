@@ -1,7 +1,7 @@
 // M1.6 UI spec: the ignored-apps list is edited only in the Privacy tab
 // (IgnoredAppsEditor, always shown). The Typed shortcuts section keeps a
 // read-only chip list and an "Edit ignored apps" link.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/shortcuts/ignored_apps.dart';
 import 'package:kusunga/shortcuts/shortcut_service.dart';

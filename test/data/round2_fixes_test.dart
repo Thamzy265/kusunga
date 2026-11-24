@@ -71,18 +71,14 @@ void main() {
       expect(f.readAsStringSync(), 'mine');
     }, skip: Platform.isWindows);
 
-    test(
-      'a writable file in such a folder is written in place, whole',
-      () {
-        final d = lockedFolder();
-        final f = File(p.join(d.path, 'old.json'))
-          ..writeAsStringSync('a much longer old export, ' * 100);
-        Process.runSync('chmod', ['500', d.path]);
-        writeExportFile(f.path, utf8.encode('short'));
-        expect(f.readAsStringSync(), 'short');
-      },
-      skip: Platform.isWindows,
-    );
+    test('a writable file in such a folder is written in place, whole', () {
+      final d = lockedFolder();
+      final f = File(p.join(d.path, 'old.json'))
+        ..writeAsStringSync('a much longer old export, ' * 100);
+      Process.runSync('chmod', ['500', d.path]);
+      writeExportFile(f.path, utf8.encode('short'));
+      expect(f.readAsStringSync(), 'short');
+    }, skip: Platform.isWindows);
 
     test('a name that does not exist in such a folder: the export fails and '
         'nothing is made', () {
