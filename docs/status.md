@@ -1,5 +1,106 @@
 # Status log
 
+## 2026-11-24 — M1.10a Flutter 3.50.1 — reviewer round 1: block
+- Changed: reviewer report (opus, high), word for word:
+  > Mode: branch
+  > Branch: chore/flutter-3-50 (main..6928b50, 3 commits: 8ecbc72, 019eb3e, 6928b50) — Verdict: block
+  > Checks: ./tool/check.sh on Flutter 3.50.1 (ae9b586f34, Dart 3.14.0) — pass on Mac — the tester's full run at 6928b50 (scratchpad/tester_m110a_check.txt): "Formatted 340 files (0 changed)", "No issues found!", "08:29 +4420 ~10: All tests passed!", exit=0. My own re-run of format and analyze gave the same, and 10 targeted files (the 5 new tester files, sdk_version_pins, licence_test, both close_service tests, argon2_page) gave "+51: All tests passed!". The Windows check.ps1 is expected to FAIL as the branch stands (R1).
+  > Code review: 4 findings (0 fixed, 4 open): R1, R4, R6, R7
+  > Design review: 2 findings (0 fixed, 2 open): R2, R5
+  > Security review: 1 finding — R3, Low (no CVSS score: band + basis — needs a compromised pub.dev or broken TLS to reach; the impact is build integrity, and no user data is involved). CI's `flutter pub get` does not enforce the lockfile, so the lock-hash part of the design note's "look-alike package" mitigation is not enforced in CI. The rest of the checklist: A03 supply chain — the lock is committed and matches. All 10 new or changed hosted packages match the archive_sha256 on pub.dev. Publishers: material_ui, cupertino_ui, listen and vector_math are flutter.dev; intl, matcher and meta are dart.dev; clock, stack_trace and test_api are tools.dart.dev. No typosquats. Actions are still pinned to 40-hex SHAs, with `permissions: contents: read`, on GitHub-hosted macos-15 and windows-latest only. The Flutter tag 3.50.1 is commit ae9b586f34a8443573f82ef57c3bf914a908cbf7 (the local SDK HEAD and the status log agree). A01, A04, A05, A07, A09: n/a — no endpoint, crypto, input sink, auth or logging code changes; lib/ changes are 22 import lines only (verified: no other line in lib/ changed). A02: n/a — no runtime configuration change (the Release.xcconfig change is a comment; ARCHS = arm64 is unchanged). A06: both abuse cases are handled. "Look-alike package": publisher and hash checked by me; licences_lock_test and material_imports_test cover it. "Changed Flutter tag": the commit is recorded in docs/status.md, and CI's cache key shows the revision (see CI conditions). A08: n/a — no updates, uploads or deserialisation changed. A10: n/a — no error-handling change in lib/. AI: n/a — no AI features. The security-review skill was not run: it diffs the current checkout's branch (fix/windows-ci) against origin/HEAD, not this worktree's branch, so it would have reviewed the wrong change. I worked through the checklist by hand instead.
+  > Privacy review: no issues. n/a — no personal data, store, schema, log or network change. The new frozen_db_fixture_test uses synthetic data only (made-up key, example.invalid, Ofcom drama number +44 7700 900000). Retention, delete, export, consent, processors and transfers are unchanged.
+  > Later lines: ok — one existing line changed (docs/PLAN.md:152, the Intel build). It has the format, a measurable trigger ("≥ 1 tester or user asks for an Intel build") and is not on the never-deferred list. Its "why" is now stale (R5, cleanup). — added by reviewer: none
+  > Findings (most severe first):
+  > - R1 — Block (correctness; the Windows CI job fails, so the AC "both CI jobs pass on Flutter 3.50.1" fails) — test/ci/analyzer_exclude_test.dart:57, 59, 87, 96-97.
+  >   - Failure scenario: on windows-latest, check.ps1 runs flutter test. Directory('.').listSync returns ".\lib\app.dart" style paths. The `^\./` strip (line 57), the split on '/' (lines 59 and 87) and startsWith('lib/') / startsWith('test/') (lines 96-97) never match there.
+  >     - "the check sees our code" fails with an empty match, so the windows job goes red.
+  >     - "no project Dart file is inside an excluded folder" passes whatever is in windows/ or macos/, so the guard does nothing on Windows.
+  >     - The repo already knows this: test/ci/expiry_read_filter_guard_test.dart:16 ("Windows lists lib\history\…") and zone_assumption_test.dart:139 normalise for exactly this.
+  >   - Expected fix: normalise every listed path to '/' form relative to the project root, e.g. `p.posix.joinAll(p.split(p.relative(e.path)))` (package:path), before the filters and checks.
+  >   - Regression evidence I'll ask for: put the normalisation in a small function and test it with a Windows-style input (r'.\lib\main.dart' → 'lib/main.dart'; r'.\windows\x.dart' is caught as hidden). That test fails on the current code. Plus the windows CI job green.
+  > - R2 — Low, fix in this round (the licence record is the project's dependency-check evidence, and dependency checks are never deferred) — docs/licences.md:22 and :59.
+  >   - Failure scenario: the record claims something that is no longer true, and someone relies on it at release.
+  >     - Row 22, Flutter SDK 3.50.1, still lists "MPL-2.0 data". I re-scanned sky_engine/LICENSE in both SDKs. 3.50.1 drops `fallback_root_certificates` (MPL-2.0; "Mozilla Public" 3 hits → 0, "GNU General Public"/"Lesser"/"Affero" 1 → 0) and adds `ai` (BSD-3-Clause, Dart authors). No other component changed (73 names each).
+  >     - The SDK-root LICENSE, the Dart SDK LICENSE and the material_fonts licences (Material Icons CC-BY-4.0) are byte-identical to 3.44.6. CC0 stays (Ahem font).
+  >     - Flag 4 (line 59) still says "All 85 entries of pubspec.lock … were checked … on 2026-11-19". The lock now has 92 entries, and the new or changed ones are not recorded.
+  >   - Expected fix:
+  >     - Row 22: replace "MPL-2.0 data" with nothing, optionally add "(`ai` BSD-3-Clause added in 3.50.1)", and cite "reviewer scan 2026-11-24".
+  >     - Flag 4: add a sentence with my results, below.
+  >   - Licence results for the new and changed entries, all checked by the reviewer on 2026-11-24 from the pub cache LICENSE:
+  >     - BSD-3-Clause, Flutter Authors, 3 clauses, no advertising clause: material_ui 1.11.1, cupertino_ui 1.1.7, listen 1.0.1, vector_math 2.4.4. vector_math 2.4.4 no longer carries the zlib part that 2.2.0 had.
+  >     - BSD-3-Clause, Dart authors: intl 0.20.3, matcher 0.12.20, meta 1.19.0, stack_trace 1.12.2, test_api 0.7.14.
+  >     - Apache-2.0, unchanged from 1.1.2: clock 1.1.3.
+  >     - flutter_localizations (sdk): part of the Flutter SDK row.
+  >     - All compatible with GPL-3.0-only.
+  > - R3 — Low (security, no CVSS score: band + basis — see above) — .github/workflows/check.yml:21, 40.
+  >   - Failure scenario: an altered material_ui 1.11.1 archive, or a lock that no longer satisfies pubspec.yaml. Plain `flutter pub get` may re-resolve or rewrite pubspec.lock in CI and carry on. `--enforce-lockfile` fails instead when the lock doesn't satisfy pubspec.yaml or a content hash doesn't match. CI has no `git diff --exit-code` after pub get, so a rewritten lock would go unnoticed.
+  >   - The gap was there before this branch, but the design note's abuse-case mitigation ("the lockfile pins its hash") relies on it.
+  >   - Expected fix: `flutter pub get --enforce-lockfile` in both jobs (flutter 3.50.1 passes the flag to pub; packages.dart:330).
+  > - R4 — Low, cleanup (a comment that is wrong about the app) — test/support/close_service_test.dart:37-38, test/support/close_service_real_db_test.dart:78-79, test/ci/material_imports_test.dart:62-65.
+  >   - The adaptation itself is correct and not weaker (it now also checks the message). The comments say use after dispose "throws a StateError, no longer a FlutterError". That is only true when no binding exists. In 3.50.1, BindingBase._initListenable (packages/flutter/lib/src/foundation/binding.dart:298) sets Listenable.onError and turns the StateError into a FlutterError. So the real app, and any testWidgets test, still gets a FlutterError.
+  >   - Failure scenario: someone adds a testWidgets case or ensureInitialized() to either close_service file. The StateError expectation then fails for a reason the comment hides. Or a reader trusts the comment about the app.
+  >   - Expected fix: say "without a binding (plain test()), a StateError; with a binding, Flutter turns it into a FlutterError". Reword the flutterErrorLock rationale the same way; the lock itself may stay.
+  > - R5 — Low, cleanup — docs/PLAN.md:152. The why still says Apple silicon only is "to avoid the Flutter 3.44.6 lipo failure on macOS 27". After this branch it is only a product choice (D3 A, kept by F3 A on 2026-11-24). I confirmed the lipo fix in the 3.50.1 tool source: darwin.dart:104-118 runs -verify_arch once per arch. Release.xcconfig already says so.
+  >   - Failure scenario: a reader thinks Intel is still blocked by the bug.
+  >   - Expected fix: reword the why to "PM product choice (D3 A, kept by F3 A, 2026-11-24); no Intel Mac to test on; the lipo bug is fixed since Flutter 3.47.0". Keep the trigger.
+  > - R6 — cleanup (nits) — test/ci/sdk_pins_extra_test.dart:84: the test is named "the Dart and Flutter the lockfile needs…" but compares only the Flutter bound. Add the lock's dart lower bound vs the CLAUDE.md Dart, or rename. test/ci/material_imports_test.dart:5: the comment says "and any other folder", but the scan walks lib, test, tool and integration_test only. Reword.
+  > - R7 — optional, cleanup (point 6) — test/ci/sdk_version_pins_test.dart. Optionally add: when `FlutterVersion.version` (package:flutter/services.dart; flutter test passes FLUTTER_VERSION as a define, flutter_command.dart:1188) is non-null, it equals ciFlutter(). That ties a local run to the pin. Not required: see the answer to point 6.
+  > Fix outcomes: none yet
+  > Risk accepted by PM: none
+  > Open items: R1 — open (blocks: the windows job will fail); R2 — open (doc fix, this round); R3, R4, R5, R6, R7 — open (Low or cleanup; may be fixed in the same round)
+  > Blockers: none
+  >
+  > ANSWERS TO THE 8 POINTS
+  > 1. analysis_options.yaml exclude — keeping it is correct, and it does not weaken the gate.
+  >    - Verified in the SDK source (flutter_tools/lib/src/migrations/analysis_options_migration.dart, called from project.dart:612 on every pub get). It adds `build/**` plus `<platform>/**` for each platform folder that exists, and adds them back if they are removed.
+  >    - The repo has only macos/ and windows/. `find macos windows -name '*.dart'` is empty, and build/ has 0 .dart files. Globs are root-relative, so lib/ and test/ are untouched. No rule, ignore or include changed.
+  >    - The tester's guard holds on Mac only (R1).
+  >    - Note: when ios/ or android/ are added (M4), pub get will add `ios/**` and `android/**`. analyzer_exclude_test test 1 will then fail by design and must be updated.
+  > 2. The 13 reformatted files are format-only. For each file I took main's text, swapped the Material import, and ran Dart 3.14's `dart format --language-version=3.12`. The output is byte-identical to the branch for all 13. All other changed test files differ from main only in the import line, except the three adaptations, the new files, and two comments.
+  > 3. The three adaptations are correct and not weakened.
+  >    - close_service, both tests: plain test() with no binding, so listen 1.0.1's debugAssertNotDisposed throws StateError("A … was used after being disposed."; listen.dart:189). The new expectation adds a message check, so it is stricter than throwsFlutterError. Only the comment is wrong (R4).
+  >    - argon2: only the page transition's snapshot is off (material_ui ZoomPageTransitionsBuilder.allowSnapshotting). The test still pushes the real LicensePage in a 900 x 20000 view and asserts the sentence is one Text, exactly once.
+  >    - lib/ has no FlutterError or AssertionError catch, so no app path depends on the error type.
+  > 4. pubspec.lock — every change is forced.
+  >    - Forced by the 3.50.1 SDK pubspecs: flutter has meta ^1.19.0, vector_math ^2.4.3 and listen ^1.0.1. flutter_test has test_api 0.7.14, matcher 0.12.20, clock ^1.1.3 and stack_trace ^1.12.2. flutter_localizations has intl ^0.20.3. The old locked versions don't satisfy these.
+  >    - vector_math → 2.4.4 is pub's newest within ^2.4.3, which is acceptable.
+  >    - cupertino_ui, flutter_localizations and intl come in through material_ui.
+  >    - No other entry changed.
+  >    - Hashes: all 10 match pub.dev. Publishers and licences: see R2 and the security line.
+  >    - sdks: flutter ">=3.47.0" and dart ">=3.13.0" come from material_ui and are ≤ CI's 3.50.1 / 3.14.0. Consequence (expected under ADR 0008): main stops resolving on 3.44.6 after merge.
+  > 5. docs/licences.md.
+  >    - The material_ui row is correct: 1.11.1, BSD-3-Clause, Flutter Authors, flutter.dev.
+  >    - The Flutter SDK row needs its fix (R2).
+  >    - No rows for transitive packages is acceptable under the file's own policy: the table is "every direct dependency", and transitive coverage is Flag 4. But Flag 4 must be updated (R2).
+  > 6. The pin tests are sufficient for the AC.
+  >    - CI is the real source of truth: flutter-action installs exactly that version, and CI's cache key carries the framework revision.
+  >    - Every doc pin is checked against CI. The Dart rows are also tied to the running SDK by test/ci/licence_test.dart (Platform.version).
+  >    - A literal "3.50.1" in a test would only duplicate ADR 0008.
+  >    - O1: no_change_needed. Optional hardening: R7.
+  > 7. The ADR 0001 note is correct and leaves the history intact. The Later line is valid; its why is stale (R5).
+  > 8. CI workflow: only the two flutter-version values changed. Both actions are still SHA-pinned, with contents: read and hosted runners only. Recommended: R3.
+  >
+  > CI CONDITIONS FOR THE LEAD (first CI run after the push; check each text in the job log)
+  > macos job:
+  >   - Step "Run subosito/flutter-action@…": the text `key: flutter-macos-stable-3.50.1-arm64-ae9b586f34a8443573f82ef57c3bf914a908cbf7`. The revision must be ae9b586f34…; any other revision means the release archive is not the tagged commit, so stop.
+  >   - Step "Run flutter pub get": `Got dependencies!`, and NOT `Changed ` (as in "Changed N dependencies!"), and NOT `Upgrading analysis_options.yaml`.
+  >   - Step "Run ./tool/check.sh": `(0 changed)`, `No issues found!` and `All tests passed!`.
+  >   - Step "Run flutter build macos --debug": `✓ Built build/macos/Build/Products/Debug/Kusunga.app`.
+  >   - Step "Swift tests (clipboard watcher, quit flow, paste flow)": `** TEST SUCCEEDED **`.
+  >   - Steps "C++ tests …" and "Swift typed-shortcut core tests, compiled as Release (no DEBUG)": green (exit 0).
+  > windows job:
+  >   - Step "Run subosito/flutter-action@…": `key: flutter-windows-stable-3.50.1-x64-ae9b586f34a8443573f82ef57c3bf914a908cbf7`.
+  >   - Step "Run flutter pub get": `Got dependencies!`, and NOT `Changed `, and NOT `Upgrading analysis_options.yaml`.
+  >   - Step "Run ./tool/check.ps1": `(0 changed)`, `No issues found!` and `All tests passed!`. With R1 unfixed this step fails in test/ci/analyzer_exclude_test.dart ("the check sees our code …").
+  >   - Step "Run flutter build windows --debug": `√ Built build\windows\x64\runner\Debug\kusunga.exe`.
+  > Both jobs show a green check on the pull request.
+  >
+  > Evidence files: scratchpad/rev_m110a_fmt/ (format-only proof inputs), scratchpad/rev_m110a_lic/ (sky_engine component lists a.names = 3.44.6, b.names = 3.50.1). The worktree was left clean at 6928b50, and no flutter_tester is running.
+- Gates: developer pass · tester pass · reviewer block (R1) · QA pending · CI pending · PM merge n/a yet
+- Open findings: R1 Block; R2, R3 Low; R4, R5, R6 cleanup; R7 optional. Lead dispatches the developer for all of them in one round, one effort level higher (opus, xhigh), per the escalation rule.
+- Decisions: none
+- Blockers: Developer R1–R7 · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-24 — M1.10a Flutter 3.50.1 — tester report
 - Changed: tester report (sonnet, medium), word for word:
   > Branch: chore/flutter-3-50 (1 test commit: 6928b50, on top of 019eb3e; not pushed)
