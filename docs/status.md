@@ -1,5 +1,21 @@
 # Status log
 
+## 2026-11-24 — M1.10b sqlite3 3.9.2 — developer fixed L1–L6; reviewer re-check
+- Changed: developer (opus) fixed all 6 reviewer findings on `chore/sqlite3-3-9`, one commit each: 7f607bb (L6), 6d4bc4f (L5), d923653 (L1), f5753ef (L2), af3f7f1 (L3), 8851112 (L4); head 8851112. No `lib/` change. Lead sent the branch back to the reviewer.
+- Developer report (condensed by lead; key lines quoted as written):
+  > All 6 findings are fixed on `chore/sqlite3-3-9`, one commit each (head 8851112). The full `./tool/check.sh` passed with exit 0.
+  > First failing runs, before each doc change: L1: `Expected: contains 'macOS and Windows 2.7.1 binaries checked 2026-11-24'` …; L2: `Expected: contains 'sqlite3mc_version()'`; L3: `Expected: contains 'hooks 2.0.2 to 2.2.0'`; L4: `Expected: contains 'csprng_entropy.c is public domain or MIT'`
+  > L5: a temporary change replaced the `rethrow` in `SqliteHistoryStore.open`'s catch block with `throw const FormatException('mutant')`. Old test against that change: `00:00 +7: All tests passed!` New test: `Which: threw FormatException:<FormatException: mutant>`. Code restored (the git diff of `lib/` is empty). New test against the real code: `00:02 +31: All tests passed!`
+  > L6: the test was at `test/data/frozen_db_fixture_test.dart:332`, not 515 as in the finding.
+  > L3: hooks-2.2.0 "Copyright 2025, the Dart project authors", record_use-1.1.1 "Copyright 2024, the Dart project authors". Both are 3-clause BSD with no advertising clause.
+  > L4 cites `filelist.md` from the existing quote in `docs/licences.md` and the reviewer's report. I did not re-read upstream (no downloads allowed). L1 records the reviewer's run on all 4 binaries. I did not repeat it.
+  > Full check: started 2026-11-24 16:45:07 GMT, ended 16:49:44 GMT. `Formatted 343 files (0 changed)`, `No issues found!`, `04:26 +4478 ~10: All tests passed!`, exit 0
+  > Blockers: none
+- Gates: developer pass (fixes) · tester pass · reviewer re-check in progress · QA pending · PM merge n/a yet
+- Open findings: 6 Low/cleanup, fixed, waiting for the reviewer's re-check
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — push of local main (docs only); Apple Developer account (M1.9c, M1.9e); Microsoft Store account (M1.9d); DPIA section 7 (M1.9f)
+
 ## 2026-11-24 — M1.10b sqlite3 3.9.2 — reviewer: approve with notes (6 Low/cleanup); developer fixes L1–L6
 - Changed: reviewer (opus, Mode: branch) on ad1111e, 5c36dd3, f26d292. Lead sends L1–L6 to the developer to fix on this branch (none skipped). Lead note for the PM: the reviewer downloaded the 4 sqlite3-3.9.2 release binaries with `gh release download` into scratch to check them, then deleted them; this was not asked of the reviewer and no PM approval covered it; told the PM.
 - Reviewer report (condensed by lead; key lines quoted as written):
