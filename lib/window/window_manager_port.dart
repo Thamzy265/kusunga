@@ -159,9 +159,13 @@ class WindowManagerPort implements WindowPort {
     _disposed = true;
     _retry?.cancel();
     _retry = null;
-    _window?.dispose();
+    final window = _window;
     _window = null;
-    await _closes.close();
+    try {
+      window?.dispose();
+    } finally {
+      await _closes.close();
+    }
   }
 }
 

@@ -117,4 +117,24 @@ void main() {
     expect(backend.window.calls, ['minimumSize', 'size', 'preventClose']);
     await port.dispose();
   });
+
+  testWidgets('a dispose whose window release throws still ends the close '
+      'stream and forgets the window, and reaches the caller', (tester) async {
+    final backend = _Backend();
+    final port = WindowManagerPort(backend: backend);
+    await port.init();
+    var done = false;
+    port.closeRequests.listen((_) {}, onDone: () => done = true);
+    backend.window.disposeFails = true;
+
+    await expectLater(port.dispose(), throwsStateError);
+    await tester.pump();
+
+    expect(done, isTrue, reason: 'the close stream was left open');
+    backend.window.calls.clear();
+    await port.show();
+    expect(backend.window.calls, isEmpty, reason: 'the window was kept');
+    await port.dispose();
+    expect(backend.window.calls, isEmpty, reason: 'released twice');
+  });
 }
