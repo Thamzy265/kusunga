@@ -55,17 +55,27 @@ class TrayManagerPort implements TrayPort {
   @override
   Stream<String> get menuItemClicks => _clicks.stream;
 
-  @override
-  Future<void> setIcon(String path) async => _backend.setIcon(
-    path,
-    isTemplate: defaultTargetPlatform == TargetPlatform.macOS,
-  );
+  // After dispose, icon, tooltip and menu updates are dropped: a late one (a
+  // tray update still in flight when TrayService disposed) would make the
+  // native icon again after destroy, or build a menu that nothing frees.
 
   @override
-  Future<void> setToolTip(String text) async => _backend.setTooltip(text);
+  Future<void> setIcon(String path) async {
+    if (_disposed) return;
+    _backend.setIcon(
+      path,
+      isTemplate: defaultTargetPlatform == TargetPlatform.macOS,
+    );
+  }
+
+  @override
+  Future<void> setToolTip(String text) async {
+    if (!_disposed) _backend.setTooltip(text);
+  }
 
   @override
   Future<void> setMenu(List<TrayMenuEntry> entries) async {
+    if (_disposed) return;
     final menu = _backend.createMenu();
     try {
       _fill(menu, entries);

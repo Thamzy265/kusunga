@@ -90,4 +90,19 @@ void main() {
     expect(logs, ['Kusunga: tray menu free failed (UnsupportedError)']);
     expect(backend.contextMenu, same(menu(0)));
   });
+
+  test('icon, tooltip and menu updates after destroy and dispose do no native '
+      'work: no icon is made again and no menu is built that nothing would '
+      'free', () async {
+    await port.destroy();
+    await port.dispose();
+    backend.calls.clear();
+
+    await port.setIcon('assets/tray/tray_icon.png');
+    await port.setToolTip('late');
+    await port.setMenu(_two);
+
+    expect(backend.calls, isEmpty);
+    expect(backend.menus, isEmpty);
+  });
 }
