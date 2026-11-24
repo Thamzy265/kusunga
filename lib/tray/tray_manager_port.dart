@@ -123,9 +123,15 @@ class TrayManagerPort implements TrayPort {
   }
 
   // The native menu opens on its own only for one button, but Kusunga opens
-  // it on a left and a right click, as before.
+  // it on a left and a right click, as before. An error here would go back
+  // into the native event delivery as an uncaught error, so it is logged.
   void _onIconClick(TrayIconClick _) {
-    if (!_disposed) _backend.openContextMenu();
+    if (_disposed) return;
+    try {
+      _backend.openContextMenu();
+    } catch (error) {
+      debugPrint('Kusunga: tray menu open failed (${error.runtimeType})');
+    }
   }
 
   @override

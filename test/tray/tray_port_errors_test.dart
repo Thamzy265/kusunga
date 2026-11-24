@@ -11,6 +11,13 @@ import 'fake_tray_backend.dart';
 
 class _Backend extends FakeTrayBackend {
   bool setContextMenuFails = false;
+  bool openFails = false;
+
+  @override
+  void openContextMenu() {
+    super.openContextMenu();
+    if (openFails) throw StateError('native open failed');
+  }
 
   /// The menus made from now on fail to free.
   bool newMenusFailToFree = false;
@@ -104,5 +111,18 @@ void main() {
 
     expect(backend.calls, isEmpty);
     expect(backend.menus, isEmpty);
+  });
+
+  test('an icon click whose menu cannot open does not throw into the native '
+      'event: it is logged, and the next click tries again', () async {
+    final logs = _captureLogs();
+    backend.openFails = true;
+
+    backend.click(TrayIconClick.left);
+    backend.openFails = false;
+    backend.click(TrayIconClick.right);
+
+    expect(logs, ['Kusunga: tray menu open failed (StateError)']);
+    expect(backend.calls.where((c) => c == 'openContextMenu'), hasLength(2));
   });
 }
