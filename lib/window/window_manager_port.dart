@@ -62,8 +62,16 @@ class WindowManagerPort implements WindowPort {
     final window = _window;
     if (window != null) {
       _setUp(window);
-    } else if (_find() == null) {
+      return;
+    }
+    try {
+      if (_find() == null) _retryLater();
+    } catch (_) {
+      // A lookup that throws still reaches the caller, but the window is
+      // looked for again, as after a miss: otherwise it would not be set up
+      // (close-to-hide) until a show or hide.
       _retryLater();
+      rethrow;
     }
   }
 
@@ -110,7 +118,9 @@ class WindowManagerPort implements WindowPort {
   }
 
   void _retryLater() {
-    if (_retry != null || _disposed) return;
+    // A window already found (a pending show that threw inside init) needs
+    // no retry.
+    if (_retry != null || _disposed || _window != null) return;
     var tries = 0;
     var failed = 0;
     _retry = Timer.periodic(retryEvery, (timer) {

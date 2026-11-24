@@ -247,6 +247,85 @@ void main() {
     });
   });
 
+  group('a lookup that throws at init still starts the retry', () {
+    testWidgets('init still throws, and a retry then finds and sets up the '
+        'window without any show', (tester) async {
+      final backend = _Backend()..throwing = 1;
+      final port = WindowManagerPort(backend: backend);
+
+      await expectLater(port.init(), throwsStateError);
+      await tester.pump(_every);
+
+      expect(backend.window.calls, ['minimumSize', 'size', 'preventClose']);
+      await tester.pump(_every * 5);
+      expect(backend.lookups, 2, reason: 'the retry kept running');
+      await port.dispose();
+    });
+
+    testWidgets('lookups that keep throwing: the retries stop at their bound '
+        'with one log line, and no timer is left', (tester) async {
+      final logs = _captureLogs();
+      final backend = _Backend()..throwing = 1 << 30;
+      final port = WindowManagerPort(backend: backend, maxRetries: 3);
+
+      await expectLater(port.init(), throwsStateError);
+      await tester.pump(_every * 10);
+
+      expect(backend.lookups, 4);
+      expect(logs, ['Kusunga: window not found; retried 3 times; 3 failed']);
+      await port.dispose();
+    });
+
+    testWidgets('init that found the window but whose pending show throws '
+        'starts no retry: the window is kept and set up once', (tester) async {
+      final backend = _Backend()..missing = 1;
+      final port = WindowManagerPort(backend: backend);
+      await port.show(); // missing: the show waits
+      backend.window.failing.add('show');
+
+      await expectLater(port.init(), throwsStateError);
+      await tester.pump(_every * 5);
+
+      expect(backend.lookups, 2);
+      expect(backend.window.calls, [
+        'minimumSize',
+        'size',
+        'preventClose',
+        'show',
+      ]);
+      await port.dispose();
+    });
+
+    // A plain test, for the same reason as above; a 1 ms retry on the real
+    // clock.
+    test('WindowService: the close button hides the window once a retry has '
+        'found it, with no show first', () async {
+      _captureLogs();
+      final backend = _Backend()..throwing = 1;
+      final service = WindowService(
+        port: WindowManagerPort(
+          backend: backend,
+          retryEvery: const Duration(milliseconds: 1),
+        ),
+      );
+      addTearDown(service.dispose);
+      await service.start();
+      for (var i = 0; i < 200 && backend.window.onClose == null; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+
+      expect(
+        backend.window.onClose,
+        isNotNull,
+        reason: 'close-to-hide was never set up',
+      );
+      backend.window.onClose!();
+      await pumpEventQueue();
+
+      expect(backend.window.calls.last, 'hide');
+    });
+  });
+
   // Plain tests, for the same reason as above.
   group('WindowService after a start whose window lookup throws', () {
     test('a window that a later show finds and sets up still hides when the '
