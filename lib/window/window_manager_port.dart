@@ -96,7 +96,7 @@ class WindowManagerPort implements WindowPort {
   }
 
   void _retryLater() {
-    if (_retry != null) return;
+    if (_retry != null || _disposed) return;
     var tries = 0;
     var failed = 0;
     _retry = Timer.periodic(retryEvery, (timer) {
