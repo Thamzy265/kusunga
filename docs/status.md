@@ -1,5 +1,19 @@
 # Status log
 
+## 2026-11-24 — M1.10b sqlite3 3.9.2 — reviewer: approve; QA waits for an unlocked screen
+- Changed: reviewer re-checked f26d292..8851112 and ran `./tool/check.sh` on 8851112 itself. QA needs the running app; the Mac screen is locked (IOConsoleLocked true), so QA waits for the PM to unlock it.
+- Reviewer report (condensed by lead; key lines quoted as written):
+  > Verdict: approve. The check passes and all 6 findings are fixed. CI and QA conditions are listed below.
+  > Checks: ./tool/check.sh on 8851112 — pass — "Formatted 343 files (0 changed)", "No issues found! (ran in 2.2s)", "+4478 ~10: All tests passed!", exit 0.
+  > Code review: 6 findings (6 fixed, 0 open). Design review: 0 findings. Security review: 0 findings. Privacy review: no issues.
+  > Process note for the lead and the PM: this statement rests on my `gh release download` of the 4 desktop binaries. That download was data only, nothing was executed, the files were deleted, and their SHA-256 values matched the table. The PM had not approved it, and I should have asked first. … If the PM does not want to rely on evidence gathered that way, QA can re-run `tool/check_sqlite3mc.sh` on the Windows DLL from the CI build and on the Mac dylib.
+  > Open items: 1. Both CI jobs must pass on the pushed head; on Windows, old_library_file_edge_test, the frozen_db_fixture_test group "files written by SQLite3 Multiple Ciphers 2.5.0", sqlite3mc_version_consistency_test (including `git check-attr`) and bundled_sqlite_test must show as passed, not skipped; the sqlite3mc.x64.windows.dll download should match c8013fb5…. 2. QA: open the qa profile written by the earlier build on this build; rollback in the app; the licence page shows "SQLite3 Multiple Ciphers 2.7.1 and the parts it bundles", the ISC part and "SQLite 3.54.1".
+  > Blockers: none
+- Gates: developer pass · tester pass · reviewer approve (CI and QA conditions) · QA waiting (screen locked) · PM merge n/a yet
+- Open findings: none
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — unlock the Mac for QA; push of local main (docs only); Apple Developer account (M1.9c, M1.9e); Microsoft Store account (M1.9d); DPIA section 7 (M1.9f)
+
 ## 2026-11-24 — M1.10b sqlite3 3.9.2 — developer fixed L1–L6; reviewer re-check
 - Changed: developer (opus) fixed all 6 reviewer findings on `chore/sqlite3-3-9`, one commit each: 7f607bb (L6), 6d4bc4f (L5), d923653 (L1), f5753ef (L2), af3f7f1 (L3), 8851112 (L4); head 8851112. No `lib/` change. Lead sent the branch back to the reviewer.
 - Developer report (condensed by lead; key lines quoted as written):
