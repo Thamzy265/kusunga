@@ -60,9 +60,11 @@ void main() {
 }
 
 // Flutter 3.50's ChangeNotifier (package:listen) throws a StateError on use
-// after dispose, where 3.44.6 threw a FlutterError (two close_service tests
-// changed for it). The app must not depend on either type: no `FlutterError`
-// is caught or named in lib/.
+// after dispose when no binding exists (the two close_service tests use a
+// plain test() and changed for it). With a binding, as in the app and in
+// testWidgets tests, Flutter turns it into a FlutterError, as 3.44.6 threw.
+// The app must not depend on either type: no `FlutterError` is caught or
+// named in lib/.
 void flutterErrorLock() {
   test('lib/ never names FlutterError (no catch depends on the dispose '
       'error type)', () {

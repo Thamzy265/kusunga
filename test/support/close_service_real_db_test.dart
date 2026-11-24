@@ -75,8 +75,10 @@ void main() {
     // The check is made here, so the test needs no other test to run first.
     tearDown(() {
       expect(_heldOpen(db), isFalse, reason: 'open at folder deletion');
-      // Since Flutter 3.50 (ChangeNotifier in package:listen) the debug
-      // check throws a StateError, no longer a FlutterError.
+      // Since Flutter 3.50 ChangeNotifier lives in package:listen. Without a
+      // binding (a plain test(), as here) its debug check throws a
+      // StateError. With a binding (the app, or a testWidgets test) Flutter
+      // turns it into a FlutterError, as before.
       expect(
         () => h.addListener(() {}),
         throwsA(
