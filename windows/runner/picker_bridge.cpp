@@ -277,12 +277,19 @@ std::optional<LRESULT> PickerBridge::HandleMessage(UINT message, WPARAM wparam,
                                                    LPARAM lparam) {
   switch (message) {
     case WM_GETMINMAXINFO:
-      // The history window has a minimum size (360 x 400); the picker and the
-      // toast are smaller, so while they show there is no minimum.
-      if (mode_ != Mode::kNormal && lparam != 0) {
+      // The history window has a minimum size (360 x 400 points); the picker
+      // and the toast are smaller, so while they show there is no minimum.
+      // On Windows the minimum is set only here, not through nativeapi
+      // (reviewer F2): nativeapi answers this message itself, before this
+      // window procedure sees it, so its minimum would also hold for the
+      // picker and the toast.
+      if (lparam != 0) {
+        const kusunga::TrackSize smallest = kusunga::MinTrackSize(
+            mode_ != Mode::kNormal,
+            kusunga::ScaleFromDpi(::GetDpiForWindow(window_)));
         auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
-        info->ptMinTrackSize.x = 0;
-        info->ptMinTrackSize.y = 0;
+        info->ptMinTrackSize.x = smallest.width;
+        info->ptMinTrackSize.y = smallest.height;
         return 0;
       }
       break;

@@ -82,8 +82,15 @@ class WindowManagerPort implements WindowPort {
   /// window for the whole session. Each failure is logged once, with the
   /// error type only. The window is kept, and only a later [init] sets it up
   /// again.
+  ///
+  /// On Windows the runner sets the 360 x 400 minimum itself and lifts it
+  /// while the picker or the toast shows (windows/runner/picker_bridge.cpp,
+  /// WM_GETMINMAXINFO). A minimum set here would be nativeapi's, which
+  /// answers that message before the runner sees it (reviewer F2).
   void _setUp(WindowHandle window) {
-    _trySetUpStep(() => window.setMinimumSize(const Size(360, 400)));
+    if (defaultTargetPlatform != TargetPlatform.windows) {
+      _trySetUpStep(() => window.setMinimumSize(const Size(360, 400)));
+    }
     _trySetUpStep(() => window.setSize(const Size(800, 632)));
     _trySetUpStep(() => window.preventClose(_onCloseRequested));
   }

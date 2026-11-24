@@ -281,6 +281,23 @@ int main() {
   CHECK(ScaleFromDpi(192) == 2.0);
   CHECK(ScaleFromDpi(0) == 1.0);  // unknown: no scaling
 
+  // ---- The window's minimum size (WM_GETMINMAXINFO, reviewer F2) ----
+  {
+    // The history window: 360 x 400 points, in pixels at the window's scale.
+    TrackSize normal = MinTrackSize(false, 1.0);
+    CHECK(normal.width == 360 && normal.height == 400);
+    TrackSize at150 = MinTrackSize(false, ScaleFromDpi(144));
+    CHECK(at150.width == 540 && at150.height == 600);
+    TrackSize at125 = MinTrackSize(false, ScaleFromDpi(120));
+    CHECK(at125.width == 450 && at125.height == 500);
+    // The picker and the toast are smaller: no minimum while they show.
+    TrackSize small = MinTrackSize(true, 2.0);
+    CHECK(small.width == 0 && small.height == 0);
+    // Both small shapes fit only because there is no minimum.
+    Rect toast = ToastFrame(0, 0, Rect{0, 0, 1920, 1080}, 1.0);
+    CHECK(toast.Height() < MinTrackSize(false, 1.0).height);
+  }
+
   // ---- paste flow ----
   {
     FakePlatform p;
