@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-24 — M1.10b sqlite3 3.9.2 — PM decisions: push for CI; auto-paste check not needed
+- Changed: lead pushes local main (docs only) and chore/sqlite3-3-9, and opens a pull request so CI runs on Mac and Windows.
+- Gates: developer pass · tester pass · reviewer approve (CI condition pending) · QA pass (real auto-paste not proven, PM: not needed) · CI pending · PM merge waiting
+- Open findings: none
+- Decisions: PM said: "Yes, push and open PR (Recommended)" (2026-11-24), answering whether to push local main (docs only) and the branch and open a pull request for CI. PM said: "Not needed (Recommended)" (2026-11-24), answering whether real auto-paste must be proven on this build before merge (option text: same as M1.10a: the paste code is unchanged and Mac CI runs the paste tests).
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead CI run · PM — merge approval after CI; Apple Developer account (M1.9c, M1.9e); Microsoft Store account (M1.9d); DPIA section 7 (M1.9f)
+
 ## 2026-11-24 — M1.10b sqlite3 3.9.2 — QA pass on Mac (real auto-paste not run: needs PM permission)
 - Changed: QA (sonnet) ran the branch build (8851112) and the main build (sqlite3 3.5.2) in the qa profile only; evidence committed in 8e741b3 on `chore/sqlite3-3-9` (docs/qa/m1.md "M1.10b sqlite3 3.9.2 (2026-11-24)", 11 screenshots m1.10b-*.png). Lead checked the screenshots: qa-profile data and licence text only, no PM history. Video qa-artifacts/m110b-rollback-flow.mov (92 s, git-ignored) sent to the PM.
 - QA report (condensed by lead; key lines quoted as written):
