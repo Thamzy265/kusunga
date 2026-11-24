@@ -67,8 +67,15 @@ class TrayManagerPort implements TrayPort {
   @override
   Future<void> setMenu(List<TrayMenuEntry> entries) async {
     final menu = _backend.createMenu();
-    _fill(menu, entries);
-    _backend.setContextMenu(menu);
+    try {
+      _fill(menu, entries);
+      _backend.setContextMenu(menu);
+    } catch (_) {
+      // The new menu was never the icon's, so nothing native can be inside
+      // it: free it now. The old menu stays set.
+      menu.dispose();
+      rethrow;
+    }
     _freeLater(_menu);
     _menu = menu;
   }
