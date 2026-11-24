@@ -1,6 +1,9 @@
 // M1.10c: the window port on an injected backend (ADR 0009), so no test calls
 // the real window_manager / nativeapi plugin. Covers the hidden Windows start,
 // where the platform may not name the app's window yet (design note API-A).
+// A test that waits for the retry runs in testWidgets, so the retry timer runs
+// on the fake clock and ticks exactly as often as the time pumped says,
+// whatever the machine's load or timer step (reviewer F1).
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -64,8 +67,8 @@ class _FakeBackend implements WindowBackend {
 
 const _tick = Duration(milliseconds: 1);
 
-Future<void> _waitTicks(int n) =>
-    Future<void>.delayed(Duration(milliseconds: n * 5));
+/// [n] retry periods on the fake clock.
+Future<void> _waitTicks(WidgetTester tester, int n) => tester.pump(_tick * n);
 
 void main() {
   test('init sets the minimum size, the size and close-to-hide', () async {
@@ -109,7 +112,9 @@ void main() {
     expect(backend.window.calls, ['show', 'focus', 'hide']);
   });
 
-  test('API-A: a window not found at init is found by a retry', () async {
+  testWidgets('API-A: a window not found at init is found by a retry', (
+    tester,
+  ) async {
     final backend = _FakeBackend(hiddenFor: 3);
     final port = WindowManagerPort(backend: backend, retryEvery: _tick);
     addTearDown(port.dispose);
@@ -117,7 +122,7 @@ void main() {
     await port.init();
     expect(backend.window.calls, isEmpty);
 
-    await _waitTicks(20);
+    await _waitTicks(tester, 20);
 
     expect(backend.window.calls, ['minimumSize', 'size', 'preventClose']);
     expect(backend.lookups, 4);
@@ -149,15 +154,15 @@ void main() {
     ]);
   });
 
-  test('API-A: a pending show is carried out by the retry that finds the '
-      'window', () async {
+  testWidgets('API-A: a pending show is carried out by the retry that finds '
+      'the window', (tester) async {
     final backend = _FakeBackend(hiddenFor: 2);
     final port = WindowManagerPort(backend: backend, retryEvery: _tick);
     addTearDown(port.dispose);
     await port.init();
     await port.show();
 
-    await _waitTicks(20);
+    await _waitTicks(tester, 20);
 
     expect(backend.window.calls, [
       'minimumSize',
@@ -168,7 +173,7 @@ void main() {
     ]);
   });
 
-  test('API-A: a hide after a pending show cancels it', () async {
+  testWidgets('API-A: a hide after a pending show cancels it', (tester) async {
     final backend = _FakeBackend(hiddenFor: 3);
     final port = WindowManagerPort(backend: backend, retryEvery: _tick);
     addTearDown(port.dispose);
@@ -176,12 +181,14 @@ void main() {
     await port.show();
     await port.hide();
 
-    await _waitTicks(20);
+    await _waitTicks(tester, 20);
 
     expect(backend.window.calls, ['minimumSize', 'size', 'preventClose']);
   });
 
-  test('API-A: the retries stop after a bounded number of tries', () async {
+  testWidgets('API-A: the retries stop after a bounded number of tries', (
+    tester,
+  ) async {
     final backend = _FakeBackend(hiddenFor: 1 << 30);
     final port = WindowManagerPort(
       backend: backend,
@@ -191,7 +198,7 @@ void main() {
     addTearDown(port.dispose);
     await port.init();
 
-    await _waitTicks(40);
+    await _waitTicks(tester, 40);
 
     expect(backend.lookups, 6);
   });
@@ -209,14 +216,16 @@ void main() {
     expect(backend.lookups, 1);
   });
 
-  test('dispose stops the retries and releases the window', () async {
+  testWidgets('dispose stops the retries and releases the window', (
+    tester,
+  ) async {
     final backend = _FakeBackend(hiddenFor: 1 << 30);
     final port = WindowManagerPort(backend: backend, retryEvery: _tick);
     await port.init();
     await port.dispose();
     final after = backend.lookups;
 
-    await _waitTicks(20);
+    await _waitTicks(tester, 20);
 
     expect(backend.lookups, after);
   });

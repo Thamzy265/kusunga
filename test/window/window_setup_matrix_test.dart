@@ -2,8 +2,15 @@
 // failing alone and together, reached by init, a retry, a show and a hide.
 // Whatever fails, the other steps run, the show or hide that follows is
 // done, nothing throws out of a retry, and every log line carries the error
-// type or a count, never native text. Plain tests with a 1 ms retry (a
-// testWidgets dispose can hang under the fake clock).
+// type or a count, never native text.
+//
+// A test that waits for the 1 ms retry runs in testWidgets: the retry timer
+// then runs on the fake clock and ticks exactly as often as the time pumped
+// says, whatever the machine's load or timer step (reviewer F1: a real 1 ms
+// timer ticks far less often under load and on Windows). A WindowService
+// disposed inside such a test is disposed in tester.runAsync: its dispose
+// awaits a subscription cancel that resumes outside the fake clock. Tests
+// that need no timer stay plain tests.
 import 'dart:io';
 import 'dart:ui';
 
@@ -85,17 +92,33 @@ Iterable<Set<String>> _subsets() sync* {
   }
 }
 
-Future<void> _wait() => Future<void>.delayed(const Duration(milliseconds: 40));
+/// 40 ms on the fake clock: 40 ticks of the 1 ms retry, exactly.
+Future<void> _wait(WidgetTester tester) =>
+    tester.pump(const Duration(milliseconds: 40));
 
 void main() {
   late List<String> logs;
+  late DebugPrintCallback realDebugPrint;
 
   setUp(() {
     logs = [];
-    final old = debugPrint;
+    realDebugPrint = debugPrint;
     debugPrint = (message, {wrapWidth}) => logs.add(message ?? '');
-    addTearDown(() => debugPrint = old);
+    addTearDown(() => debugPrint = realDebugPrint);
   });
+
+  /// testWidgets (the fake clock), with the log capture undone before
+  /// testWidgets checks that the test left debugPrint as it found it: the
+  /// setUp's tear-down runs only after that check.
+  void testOnFakeClock(
+    String description,
+    Future<void> Function(WidgetTester tester) body,
+  ) {
+    testWidgets(description, (tester) async {
+      addTearDown(() => debugPrint = realDebugPrint);
+      await body(tester);
+    });
+  }
 
   WindowManagerPort portFor(_Backend b) {
     final port = WindowManagerPort(
@@ -132,14 +155,14 @@ void main() {
       },
     );
 
-    test('retry finds it: $name: all steps tried, then the pending show '
-        'is done', () async {
+    testOnFakeClock('retry finds it: $name: all steps tried, then the pending '
+        'show is done', (tester) async {
       final b = _Backend(failing)..missing = 2;
       final port = portFor(b);
       await port.init();
       await port.show();
 
-      await _wait();
+      await _wait(tester);
 
       expect(b.window.calls, [..._steps, 'show', 'focus']);
       expectClean(failing);
@@ -176,34 +199,37 @@ void main() {
     });
   }
 
-  test('a failed set-up is not retried by the retry timer: the window is '
-      'adopted once', () async {
-    final b = _Backend({'size'})..missing = 1;
-    final port = portFor(b);
-    await port.init();
-    await _wait();
-    final lookups = b.lookups;
+  testOnFakeClock(
+    'a failed set-up is not retried by the retry timer: the window '
+    'is adopted once',
+    (tester) async {
+      final b = _Backend({'size'})..missing = 1;
+      final port = portFor(b);
+      await port.init();
+      await _wait(tester);
+      final lookups = b.lookups;
 
-    await _wait();
+      await _wait(tester);
 
-    expect(b.lookups, lookups);
-    expect(b.window.calls.where((c) => c == 'preventClose'), hasLength(1));
-  });
+      expect(b.lookups, lookups);
+      expect(b.window.calls.where((c) => c == 'preventClose'), hasLength(1));
+    },
+  );
 
-  test('init whose lookup throws reaches the caller, starts the retry, and '
-      'the window is set up when a retry finds it', () async {
+  testOnFakeClock('init whose lookup throws reaches the caller, starts the '
+      'retry, and the window is set up when a retry finds it', (tester) async {
     final b = _Backend(const {})..throwing = 1;
     final port = portFor(b);
 
     await expectLater(port.init(), throwsStateError);
-    await _wait();
+    await _wait(tester);
 
     expect(b.window.calls, _steps);
     expect(logs.join(), isNot(contains('SECRET')));
   });
 
-  test('init whose lookup throws, then retry lookups throw too: bounded, '
-      'one final log with counts only', () async {
+  testOnFakeClock('init whose lookup throws, then retry lookups throw too: '
+      'bounded, one final log with counts only', (tester) async {
     final b = _Backend(const {})..throwing = 1 << 30;
     final port = WindowManagerPort(
       backend: b,
@@ -213,7 +239,7 @@ void main() {
     addTearDown(port.dispose);
 
     await expectLater(port.init(), throwsStateError);
-    await _wait();
+    await _wait(tester);
 
     expect(b.lookups, 6);
     expect(logs, hasLength(1));
@@ -221,25 +247,28 @@ void main() {
     expect(logs.single, isNot(contains('SECRET')));
   });
 
-  test('init twice with a throwing lookup does not start two timers', () async {
-    final b = _Backend(const {})..throwing = 1 << 30;
-    final port = WindowManagerPort(
-      backend: b,
-      retryEvery: const Duration(milliseconds: 1),
-      maxRetries: 5,
-    );
-    addTearDown(port.dispose);
-    await expectLater(port.init(), throwsStateError);
-    await expectLater(port.init(), throwsStateError);
-    await _wait();
+  testOnFakeClock(
+    'init twice with a throwing lookup does not start two timers',
+    (tester) async {
+      final b = _Backend(const {})..throwing = 1 << 30;
+      final port = WindowManagerPort(
+        backend: b,
+        retryEvery: const Duration(milliseconds: 1),
+        maxRetries: 5,
+      );
+      addTearDown(port.dispose);
+      await expectLater(port.init(), throwsStateError);
+      await expectLater(port.init(), throwsStateError);
+      await _wait(tester);
 
-    expect(b.lookups, 2 + 5);
-  });
+      expect(b.lookups, 2 + 5);
+    },
+  );
 
-  test(
+  testOnFakeClock(
     'a pending show that throws when the window is found at init: the '
     'error reaches the caller, no retry runs, and the next show works',
-    () async {
+    (tester) async {
       final b = _Backend({'show'});
       final port = portFor(b);
       b.missing = 1;
@@ -248,7 +277,7 @@ void main() {
 
       await expectLater(port.init(), throwsStateError);
       final lookups = b.lookups;
-      await _wait();
+      await _wait(tester);
       expect(b.lookups, lookups, reason: 'a retry ran for a known window');
 
       b.window.failing.clear();
@@ -258,37 +287,41 @@ void main() {
   );
 
   group('WindowService after a failed init (real port, fake backend)', () {
-    test('close requests hide the window once a retry has set it up, and '
-        'the start log has the error type only', () async {
-      final b = _Backend(const {})..throwing = 1;
-      final port = portFor(b);
-      final service = WindowService(port: port);
-      addTearDown(service.dispose);
+    testOnFakeClock(
+      'close requests hide the window once a retry has set it up, '
+      'and the start log has the error type only',
+      (tester) async {
+        final b = _Backend(const {})..throwing = 1;
+        final port = portFor(b);
+        final service = WindowService(port: port);
+        addTearDown(service.dispose);
 
-      await service.start();
-      await _wait();
-      b.window.calls.clear();
+        await service.start();
+        await _wait(tester);
+        b.window.calls.clear();
 
-      b.window.onClose!();
-      await pumpEventQueue();
+        b.window.onClose!();
+        await tester.pump();
 
-      expect(b.window.calls, ['hide']);
-      expect(logs.where((l) => l.contains('setup failed')), hasLength(1));
-      expect(logs.join(), isNot(contains('SECRET')));
-    });
+        expect(b.window.calls, ['hide']);
+        expect(logs.where((l) => l.contains('setup failed')), hasLength(1));
+        expect(logs.join(), isNot(contains('SECRET')));
+      },
+    );
 
-    test('dispose right after a failed start leaves no listener and no '
-        'timer behind', () async {
+    testOnFakeClock('dispose right after a failed start leaves no listener and '
+        'no timer behind', (tester) async {
       final b = _Backend(const {})..throwing = 1 << 30;
       final port = portFor(b);
       final service = WindowService(port: port);
 
       await service.start();
-      await service.dispose();
+      await tester.runAsync(service.dispose);
       final lookups = b.lookups;
-      await _wait();
+      await _wait(tester);
 
       expect(b.lookups, lookups);
+      // And testWidgets fails a test that ends with a timer still pending.
     });
   });
 
