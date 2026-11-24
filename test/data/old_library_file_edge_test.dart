@@ -222,9 +222,21 @@ void main() {
         final bad = e.value(good);
         expect(_digest(bad), isNot(_digest(good)));
         File(path).writeAsBytesSync(bad);
+        // Only these two errors mean "unreadable" (openHistory then keeps
+        // the file aside): the library's own error, or the store's
+        // quick_check failing. Any other error is a bug, not damage.
         expect(
           () => SqliteHistoryStore.open(path: path, keyHex: _key),
-          throwsA(isA<Object>()),
+          throwsA(
+            anyOf(
+              isA<SqliteException>(),
+              isA<StateError>().having(
+                (e) => e.message,
+                'message',
+                'store damaged',
+              ),
+            ),
+          ),
         );
         expectUntouched(bad, reason: e.key);
       });
