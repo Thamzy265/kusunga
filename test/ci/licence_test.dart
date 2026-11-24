@@ -211,6 +211,46 @@ void main() {
     },
   );
 
+  test('M1.10c: the nativeapi packages that ship have rows at the locked '
+      'version, process and the moved packages are in flag 4', () {
+    final rows = _licenceRows();
+    final lock = File('pubspec.lock').readAsStringSync();
+    String? locked(String name) => RegExp(
+      '  $name:\\n(?:    .*\\n|      .*\\n)*?    version: "([^"]+)"',
+    ).firstMatch(lock)?.group(1);
+    for (final name in ['nativeapi', 'nativeapi_flutter', 'cnativeapi']) {
+      expect(locked(name), isNotNull, reason: '$name is not in pubspec.lock');
+      expect(rows[name], locked(name), reason: '$name row version');
+    }
+    final flag4 = File(
+      'docs/licences.md',
+    ).readAsLinesSync().firstWhere((l) => l.startsWith('4. '));
+    for (final (name, from) in [
+      ('process', null),
+      ('code_assets', '1.2.1'),
+      ('native_toolchain_c', '0.19.2'),
+      ('objective_c', '9.5.0'),
+    ]) {
+      final to = locked(name);
+      expect(to, isNotNull, reason: '$name is not in pubspec.lock');
+      expect(
+        flag4,
+        contains(from == null ? '$name $to' : '$name $from to $to'),
+        reason: name,
+      );
+    }
+    // The packages window_manager and tray_manager 0.5.x pulled in are gone.
+    for (final gone in [
+      'menu_base',
+      'screen_retriever',
+      'json_annotation',
+      'shortid',
+    ]) {
+      expect(locked(gone), isNull, reason: '$gone is still locked');
+      expect(flag4, contains(gone), reason: gone);
+    }
+  });
+
   test('csprng_entropy.c and libchacha20.c are stated as an inference, the '
       'same way in the row, the notice and flag 6', () {
     // Review note L4 (M1.10b): neither file has licence text. csprng_entropy.c
@@ -361,6 +401,13 @@ Map<String, String> _licenceRows() {
   return rows;
 }
 
+/// Package rows of the first table whose first cell says "(transitive".
+Set<String> _transitiveRows() => {
+  for (final line in File('docs/licences.md').readAsLinesSync())
+    if (line.startsWith('| ') && line.split('|')[1].contains('(transitive'))
+      line.split('|')[1].trim().split(' ').first,
+};
+
 void _testerGuards() {
   test('LICENSE bytes are exactly the pinned GNU GPL v3 text', () {
     final bytes = File('LICENSE').readAsBytesSync();
@@ -427,10 +474,22 @@ void _testerGuards() {
 
   test('licences.md has no row for a package that left pubspec.yaml', () {
     final known = {..._pubspecDirectDeps(), 'flutter'};
+    final locked = {
+      for (final m in RegExp(
+        r'^  ([a-z0-9_]+):$',
+        multiLine: true,
+      ).allMatches(File('pubspec.lock').readAsStringSync()))
+        m.group(1)!,
+    };
     for (final name in _licenceRows().keys) {
       // Package rows are lower-case identifiers; the others are named
       // components (SQLite3 Multiple Ciphers, SQLite, Flutter, Dart).
-      if (RegExp(r'^[a-z0-9_]+$').hasMatch(name)) {
+      if (!RegExp(r'^[a-z0-9_]+$').hasMatch(name)) continue;
+      // M1.10c: a transitive package that ships (nativeapi and friends) says
+      // so in its row, and must still be in pubspec.lock.
+      if (_transitiveRows().contains(name)) {
+        expect(locked, contains(name), reason: '$name is no longer locked');
+      } else {
         expect(
           known,
           contains(name),

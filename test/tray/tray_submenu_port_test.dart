@@ -1,30 +1,19 @@
-// M1.6: tray_manager 0.5.3 supports submenus on Mac and Windows (type
-// "submenu" with a nested "submenu" map). The port sends "Pause history ▸"
-// that way, and a click on a submenu item reports that item's key.
-import 'package:flutter/services.dart';
+// M1.6 / M1.10c: the port builds "Pause history ▸" as a native submenu, and a
+// click on any item, inside a submenu or not, reports that item's key. Runs
+// on a fake backend (ADR 0009): no test calls the real plugin.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/tray/tray_manager_port.dart';
 import 'package:kusunga/tray/tray_service.dart';
 
-const _channel = MethodChannel('tray_manager');
+import 'fake_tray_backend.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-  final messenger =
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-  late List<MethodCall> invoked;
+  late FakeTrayBackend backend;
 
-  setUp(() {
-    invoked = [];
-    messenger.setMockMethodCallHandler(_channel, (call) async {
-      invoked.add(call);
-      return true;
-    });
-  });
-  tearDown(() => messenger.setMockMethodCallHandler(_channel, null));
+  setUp(() => backend = FakeTrayBackend());
 
   test('an entry with children is sent as a submenu', () async {
-    final port = TrayManagerPort();
+    final port = TrayManagerPort(backend: backend);
     addTearDown(port.dispose);
     await port.setMenu(const [
       TrayMenuEntry(key: 'open', label: 'Open Kusunga'),
@@ -37,21 +26,16 @@ void main() {
         ],
       ),
     ]);
-    final call = invoked.singleWhere((c) => c.method == 'setContextMenu');
-    final items = ((call.arguments as Map)['menu'] as Map)['items'] as List;
-    expect((items[0] as Map)['type'], 'normal');
-    final pause = items[1] as Map;
-    expect(pause['type'], 'submenu');
-    expect(pause['label'], 'Pause history');
-    final sub = (pause['submenu'] as Map)['items'] as List;
-    expect(
-      [for (final i in sub) (i as Map)['label']],
-      ['For 15 minutes', 'Until I resume'],
-    );
+    final items = backend.contextMenu!.items;
+    expect(items[0].label, 'Open Kusunga');
+    expect(items[0].submenu, isNull);
+    expect(items[0].onClick, isNotNull);
+    expect(items[1].label, 'Pause history');
+    expect(items[1].submenu!.labels, ['For 15 minutes', 'Until I resume']);
   });
 
   test('a click on a submenu item reports its key', () async {
-    final port = TrayManagerPort();
+    final port = TrayManagerPort(backend: backend);
     addTearDown(port.dispose);
     await port.setMenu(const [
       TrayMenuEntry(
@@ -60,21 +44,51 @@ void main() {
         children: [TrayMenuEntry(key: 'pause60', label: 'For 1 hour')],
       ),
     ]);
-    final call = invoked.singleWhere((c) => c.method == 'setContextMenu');
-    final items = ((call.arguments as Map)['menu'] as Map)['items'] as List;
-    final id =
-        (((items[0] as Map)['submenu'] as Map)['items'] as List)[0]['id'];
     final keys = <String>[];
     final sub = port.menuItemClicks.listen(keys.add);
-    await messenger.handlePlatformMessage(
-      _channel.name,
-      const StandardMethodCodec().encodeMethodCall(
-        MethodCall('onTrayMenuItemClick', {'id': id}),
-      ),
-      (_) {},
-    );
+
+    backend.contextMenu!.items.single.submenu!.clickItem('For 1 hour');
     await pumpEventQueue();
+
     expect(keys, ['pause60']);
     await sub.cancel();
+  });
+
+  test('a click on a top-level item reports its key', () async {
+    final port = TrayManagerPort(backend: backend);
+    addTearDown(port.dispose);
+    await port.setMenu(const [
+      TrayMenuEntry(key: 'open', label: 'Open Kusunga'),
+      TrayMenuEntry(key: 'quit', label: 'Quit'),
+    ]);
+    final keys = <String>[];
+    final sub = port.menuItemClicks.listen(keys.add);
+
+    backend.contextMenu!.clickItem('Quit');
+    backend.contextMenu!.clickItem('Open Kusunga');
+    await pumpEventQueue();
+
+    expect(keys, ['quit', 'open']);
+    await sub.cancel();
+  });
+
+  test('replacing the menu frees its submenus too', () async {
+    final port = TrayManagerPort(backend: backend);
+    addTearDown(port.dispose);
+    await port.setMenu(const [
+      TrayMenuEntry(
+        key: 'pause',
+        label: 'Pause history',
+        children: [TrayMenuEntry(key: 'pause15', label: 'For 15 minutes')],
+      ),
+    ]);
+    final submenu = backend.contextMenu!.items.single.submenu!;
+
+    await port.setMenu(const [
+      TrayMenuEntry(key: 'resume', label: 'Resume history'),
+    ]);
+    await pumpEventQueue();
+
+    expect(submenu.disposed, isTrue);
   });
 }

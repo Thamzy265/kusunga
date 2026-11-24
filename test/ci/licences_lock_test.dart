@@ -70,11 +70,25 @@ void main() {
     () {
       final direct = directDeps().toSet();
       final lock = locked();
+      // M1.10c: a transitive package that ships (nativeapi and friends,
+      // ADR 0009) has a row that says "(transitive"; it is not stale.
+      final transitive = {
+        for (final l in File('docs/licences.md').readAsLinesSync())
+          if (l.startsWith('| ') && l.split('|')[1].contains('(transitive'))
+            l.split('|')[1].trim().split(' ').first,
+      };
       final stale = [
         for (final k in rows().keys)
-          if (lock.containsKey(k) && !direct.contains(k)) k,
+          if (lock.containsKey(k) &&
+              !direct.contains(k) &&
+              !transitive.contains(k))
+            k,
       ];
       expect(stale, isEmpty);
+      // Each transitive row is at the locked version.
+      for (final t in transitive) {
+        expect(rows()[t], lock[t], reason: '$t row vs pubspec.lock');
+      }
     },
   );
 }

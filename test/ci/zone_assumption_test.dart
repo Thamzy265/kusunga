@@ -124,6 +124,10 @@ void main() {
       // shows for one frame. Widget Timers, started from the widget's own
       // button callbacks.
       'lib/settings/ui/your_data_section.dart',
+      // M1.10c: the window lookup's retry on a hidden start (design note
+      // API-A), started by init(), which main() calls in the root zone
+      // (WindowService.start).
+      'lib/window/window_manager_port.dart',
     };
     final seen = <String>{};
     for (final e in Directory('lib').listSync(recursive: true)) {
