@@ -5,3 +5,6 @@
 # The GPL-3.0 text must stay byte-for-byte as published (pinned SHA-256 in
 # test/ci/licence_test.dart). Never convert its line endings (Windows autocrlf).
 LICENSE -text
+
+# Database test fixtures are binary: never diff or convert them.
+*.db binary
