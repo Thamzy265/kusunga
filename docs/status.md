@@ -1,5 +1,67 @@
 # Status log
 
+## 2026-11-24 — M1.10a Flutter 3.50.1 — developer fix round for R1–R7
+- Changed: developer report (opus, xhigh), word for word:
+  > Branch: chore/flutter-3-50 (10 commits on main; this round added 7 on top of 6928b50: b932ede R1, 40c2750 R2, e5f1f8c R3, 11d2b25 R4, 8994a96 R5, e0e9a52 R6, 5fc417c R7; not pushed; worktree /private/tmp/claude-501/-Users-williamnasoni-Developer-Personal-kusunga/bdcaa771-52a1-4433-b5f6-1f64c65a45f5/scratchpad/m110a-wt, clean at 5fc417c)
+  > Built:
+  > - R1: analyzer_exclude_test now turns every listed path into a '/' path from the project root with projectPath() = p.posix.joinAll(c.split(c.relative(path))). This follows the repo's pattern. The file and hidden checks are now small functions (projectDartFiles(listed:, context:), hiddenIn()). Two tests run the Windows case on every OS through p.windows.
+  > - R2: docs/licences.md. The Flutter SDK row no longer says "MPL-2.0 data", and it records that 3.50.1 dropped fallback_root_certificates and added `ai` (BSD-3-Clause). Flag 4 keeps its 2026-11-19 text and adds the reviewer's 2026-11-24 results.
+  > - R3: both CI jobs run `flutter pub get --enforce-lockfile`. A new test in test/ci/build_config_test.dart checks this.
+  > - R4 and R5: comments and the docs/PLAN.md Later line, reworded. R6: the lock test also compares the Dart bound, and the Material scan comment is fixed. R7: a new test says the running Flutter equals the CI pin.
+  > Tests: 4424 passing, 10 skipped. ./tool/check.sh on Flutter 3.50.1 printed "Formatted 340 files (0 changed)", "No issues found!" and "06:21 +4424 ~10: All tests passed!", exit=0. Full output: /private/tmp/claude-501/-Users-williamnasoni-Developer-Personal-kusunga/bdcaa771-52a1-4433-b5f6-1f64c65a45f5/scratchpad/check_m110a_r1fix.txt
+  >   - The count was 4420 before this round. +4 = 2 new tests for R1, 1 for R3 and 1 for R7. R6 changes an existing test. No test was removed, and the same 10 are skipped.
+  >   - New tests cover: Windows-style listSync paths (r'.\lib\main.dart' becomes 'lib/main.dart'; r'.\windows\x.dart' is caught as hidden; build, .dart_tool and ephemeral are skipped); --enforce-lockfile on each CI job and on no other pub step; the lock's dart lower bound against the CLAUDE.md Dart; FlutterVersion.version against the CI pin.
+  >   - First failing runs (each before its fix):
+  >     - R1 (current logic extracted unchanged into the functions, scratchpad/r1fix_red.txt): "a Windows path from listSync becomes a / path from the project root [E] Expected: 'lib/main.dart' Actual: '.\\lib\\main.dart'" and "on Windows paths, a Dart file under windows\ is caught as hidden … [E] … at location [0] is '.\\lib\\main.dart' instead of 'lib/main.dart'" (build and .dart_tool were not skipped either). After the fix: "+6: All tests passed!" (r1fix_green.txt). A probe file at macos/zz_probe.dart is still caught: "analyzer would skip: [macos/zz_probe.dart]" (the probe was deleted).
+  >     - R3 (scratchpad/r3_red.txt): "Expected: an object with length of <1> Actual: _AllMatchesIterable:[] … macos job". With the flag back on macos only, it fails with "… windows job" (r3_red_windows_only.txt). After the fix, the 5 test files that read check.yml pass: "+43: All tests passed!".
+  >     - R6: with pubspec.lock's `dart: ">=3.15.0 <4.0.0"`, the OLD test still passed ("+1: All tests passed!", r6_gap_old_test.txt). The NEW test fails: "lock needs Dart [3, 15, 0], CI has 3.14.0" (r6_red_dart.txt). With `flutter: ">=3.51.0"` it fails: "lock needs Flutter [3, 51, 0], CI has 3.50.1" (r6_red_flutter.txt). With the lock restored it passes.
+  >     - R7: with both CI pins at 3.50.2: "Expected: '3.50.2' Actual: '3.50.1' … run the check with the Flutter CI uses (ADR 0008)" (r7_red.txt). With the pins restored it passes.
+  >     - R2, R4 and R5 change docs and comments only, so they have no failing test. R4's claim was checked with a throwaway probe on 3.50.1, not committed (r4_probe.txt): "WITH BINDING: FlutterError" (testWidgets) and "NO BINDING: StateError" (test()).
+  > E2E: n/a — no suite (the desktop end-to-end tool is TBD in Team setup)
+  > Test hooks: n/a — no UI
+  > Deviations from plan:
+  > - R2, lock count: Flag 4 says "90 package entries", not 92. The reviewer's 92 counts every two-space line in pubspec.lock, which includes the 2 `sdks:` lines (dart, flutter). The existing "85 entries" in Flag 4 counts packages; main has 85 `dependency:` entries. Now there are 90: 5 new (cupertino_ui, flutter_localizations, intl, listen, material_ui), 6 changed (clock, matcher, meta, stack_trace, test_api, vector_math) and 79 unchanged. Diff: scratchpad/r2_lock_main.txt vs r2_lock_branch.txt. I wrote 90 so that Flag 4 uses one unit.
+  > - R2: I kept the reviewer's note that vector_math 2.4.4 no longer has the zlib part that 2.2.0 had. I checked the `ai` component myself in the 3.50.1 sky_engine/LICENSE (Dart authors, BSD-style; 0 "Mozilla Public" hits).
+  > - R3: the new test is in test/ci/build_config_test.dart, next to the other check.yml job tests. No existing test parsed the pub get step.
+  > - R5: I added the tag "— why updated 2026-11-24 by developer (M1.10a review R5)" after the existing tags, so the change can be traced.
+  > - R6: I chose "add the Dart compare", not the rename. For the material_imports comment I chose "fix the comment": `git ls-files '*.dart'` shows 76 in lib and 264 in test, nothing elsewhere, so the 4-folder scan covers every tracked Dart file today.
+  > - R7: the test is skipped (with a reason) only when flutter test passes no FLUTTER_VERSION define. It is not skipped locally or on CI.
+  > Checklists: none — no data store, API, migration or UI change
+  > Risks / unverified:
+  > - The Windows CI job has not run, because nothing is pushed. R1 is checked on the Mac through p.windows, not on a Windows runner.
+  > - `flutter test` without --no-pub runs pub get first and rewrites a hand-edited pubspec.lock sdks section. My first R6 mutation runs passed for that reason. All lock-mutation evidence above uses `flutter test --no-pub`. Anyone who mutates the lock to check a guard needs --no-pub.
+  > - No test pins the Flag 4 package count or the transitive licence list, so M1.10b's package bumps can make Flag 4 stale again. That needs a human re-check of the lock, as in this round.
+  > - R3 was checked locally: `flutter pub get --enforce-lockfile` on 3.50.1 printed "Got dependencies!", exit=0. The sha256 of pubspec.lock and analysis_options.yaml was unchanged, and git status was empty (scratchpad/r3_enforce_lockfile.txt). CI is not yet run with the flag.
+  > Personal data touched: none
+  > Later lines added: none (R5 rewrote the "why" of the existing Intel-build line; its trigger is unchanged)
+  > Spec gaps raised: none
+  > Findings:
+  > - R1 — fixed (b932ede; analyzer_exclude_test "a Windows path from listSync becomes a / path from the project root" and "on Windows paths, a Dart file under windows\ is caught as hidden, …"). I also checked the other new test files for the same Windows path bug. None has it:
+  >   - material_imports_test: lists lib/test/tool/integration_test. It only uses `.path.endsWith('.dart')` and prints the path in failure output; it never compares paths.
+  >   - sdk_pins_extra_test: `.path.endsWith('.yml')`, and the paths are only printed in failure output. Directory('docs/ci'|'.github'|'tool') with '/' works on Windows.
+  >   - licences_lock_test and sdk_version_pins_test: they read fixed file names only and list no folders.
+  >   - frozen_db_fixture_test: it builds `'${dir.path}/kusunga.db'` and checks `'$path.bak'` from the same string. Windows accepts '/'. 43 existing test files use the same join, and they are green on Windows CI.
+  >   - Line endings are not an issue: .gitattributes has `* text=auto eol=lf`.
+  > - R2 — fixed (40c2750). No test pins "MPL-2.0 data" or the Flag 4 text (grep of test/). The 9 test files that read docs/licences.md pass: "+177: All tests passed!".
+  > - R3 — fixed (e5f1f8c; build_config_test "both CI jobs get packages with --enforce-lockfile, …"). Only the two pub get lines changed. The actions are still SHA-pinned.
+  > - R4 — fixed (11d2b25; comments only, checked with the binding probe above).
+  > - R5 — fixed (8994a96; the trigger and the noted/updated tags are kept).
+  > - R6 — fixed (e0e9a52; sdk_pins_extra_test "the Dart and Flutter the lockfile needs are not above what CI installs" now checks both; the material_imports_test comment is reworded).
+  > - R7 — fixed (5fc417c; sdk_version_pins_test "the Flutter running the tests is the CI Flutter").
+  > Blockers: none
+  > How to verify:
+  > 1. In Terminal: `cd /private/tmp/claude-501/-Users-williamnasoni-Developer-Personal-kusunga/bdcaa771-52a1-4433-b5f6-1f64c65a45f5/scratchpad/m110a-wt && export PATH=/Users/williamnasoni/Developer/flutter-3.50.1/bin:$PATH && git log --oneline 6928b50..HEAD`. You should see 7 commits, ending (R1) … (R7).
+  > 2. Check that `pgrep -fl flutter_tester` prints nothing, then run `./tool/check.sh`. You should see "Formatted 340 files (0 changed)", "No issues found!" and, at the end, "+4424 ~10: All tests passed!". It takes about 7 minutes.
+  > 3. `grep -n "pub get" .github/workflows/check.yml`: two lines, both `flutter pub get --enforce-lockfile`. Then `flutter pub get --enforce-lockfile`: it ends "Got dependencies!", and `git status --short` prints nothing.
+  > 4. `flutter test test/ci/analyzer_exclude_test.dart`: "+6: All tests passed!", including "a Windows path from listSync becomes a / path from the project root".
+  > 5. `grep -c "MPL-2.0 data" docs/licences.md` prints 0. `grep -n "^4\. " docs/licences.md` shows the 2026-11-19 text followed by "On 2026-11-24 (M1.10a, Flutter 3.50.1) `pubspec.lock` has 90 package entries …".
+  > 6. `grep -n "Universal (Intel" docs/PLAN.md` says "Apple silicon only is now a PM product choice (D3 A, kept by F3 A on 2026-11-24)", "fixed in Flutter 3.47.0 and later", and still "trigger: ≥ 1 tester or user asks for an Intel build".
+  > 7. After the lead pushes: both CI jobs are green. In each job, the step "Run flutter pub get --enforce-lockfile" shows "Got dependencies!". The windows job's check.ps1 step shows "All tests passed!". The windows job is the real check of R1.
+- Gates: developer pass (b932ede..5fc417c) · tester pass · reviewer re-check next · QA pending · CI pending · PM merge n/a yet
+- Open findings: R1–R7 fixed by the developer, waiting for the reviewer's re-check; R1 also needs the windows CI job.
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-24 — M1.10a Flutter 3.50.1 — reviewer round 1: block
 - Changed: reviewer report (opus, high), word for word:
   > Mode: branch
