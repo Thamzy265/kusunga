@@ -246,4 +246,26 @@ void main() {
       expect(backend.window.calls.last, 'hide');
     });
   });
+
+  // Plain tests, for the same reason as above.
+  group('WindowService after a start whose window lookup throws', () {
+    test('a window that a later show finds and sets up still hides when the '
+        'close button is pressed', () async {
+      _captureLogs();
+      final backend = _Backend()..throwing = 1;
+      final service = WindowService(port: WindowManagerPort(backend: backend));
+      addTearDown(service.dispose);
+      await service.start(); // the lookup throws: logged, not thrown
+      await service.show(); // this lookup works: set up, then shown
+
+      backend.window.onClose!();
+      await pumpEventQueue();
+
+      expect(
+        backend.window.calls.last,
+        'hide',
+        reason: 'the close button was cancelled but nothing hid the window',
+      );
+    });
+  });
 }

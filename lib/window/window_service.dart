@@ -24,21 +24,24 @@ class WindowService {
   StreamSubscription<void>? _closes;
   bool _disposed = false;
 
-  /// A window setup failure is logged and never stops the app.
+  /// A window setup failure is logged and never stops the app. Close
+  /// requests are listened to even then: the port can still set the window
+  /// up later (a show or hide that finds it), and a close it cancels must
+  /// still hide the window.
   Future<void> start() async {
     try {
       await port.init();
-      if (_disposed) return;
-      _closes = port.closeRequests.listen(
-        // Nothing awaits this hide, so its error is logged here (error type
-        // only) rather than left uncaught.
-        (_) => port.hide().catchError((Object error) {
-          debugPrint('Kusunga: window hide failed (${error.runtimeType})');
-        }),
-      );
     } catch (error) {
       debugPrint('Kusunga: window setup failed: $error');
     }
+    if (_disposed) return;
+    _closes = port.closeRequests.listen(
+      // Nothing awaits this hide, so its error is logged here (error type
+      // only) rather than left uncaught.
+      (_) => port.hide().catchError((Object error) {
+        debugPrint('Kusunga: window hide failed (${error.runtimeType})');
+      }),
+    );
   }
 
   Future<void> show() => port.show();
