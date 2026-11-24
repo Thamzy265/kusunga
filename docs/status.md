@@ -1,5 +1,37 @@
 # Status log
 
+## 2026-11-24 — M1.10a Flutter 3.50.1 — QA session 3: pass, except real auto-paste (needs a PM permission)
+- Changed: PM said: "Always Allow, re-run" (2026-11-24). QA report (sonnet, medium), word for word:
+  > Milestone: M1.10a Flutter 3.50.1 — 2/3 criteria pass (1 and 2; 3 passes except real auto-paste, which needs the PM) — Date: 2026-11-24 — Environment: macOS 27.2 Apple silicon, branch chore/flutter-3-50, QA docs commit f71be88 on 6ca1266 (not pushed), Flutter 3.50.1 branch debug build vs 3.44.6 baseline debug build (main-wt2), qa profile
+  > Automated: AX-tree check and diff (automated); manual: flows — no desktop E2E tool approved (Team setup: TBD), driven with AX helper, System Events keystrokes, guarded click helper
+  > Fail: none as a code bug. Observation: picker Enter on 3.50.1 is copy-only (toast "Copied — press ⌘V to paste. Allow pasting in Kusunga to do this for you."; History tab shows the "Let Kusunga paste for you" card), the 3.44.6 baseline with the same data shows no card. Likely cause: new binary path/signature has no Accessibility permission. Repro: open 3.50.1 build in qa profile, ⇧⌘V over TextEdit, Enter on a snippet. Manual ⌘V pasted the clipboard text, so the copy path works.
+  > Spec gaps: none
+  > Re-verified: none
+  > Needs PM: 1. Real auto-paste on 3.50.1 (a trust/permission item): in System Settings > Privacy & Security > Accessibility, allow the 3.50.1 Kusunga (path .../scratchpad/m110a-wt/build/macos/Build/Products/Debug/Kusunga.app) then tell the lead; QA re-runs picker-paste into TextEdit (one check). Only needed if the PM wants auto-paste proven on 3.50.1 before merge.
+  > Not observed: real picker paste on 3.50.1 (above); Windows (CI, pending push); live screen reader (AX tree checked); persistence across a 3.50.1 restart (the baseline build, run afterwards, did read the data 3.50.1 wrote: 4 history items, 5 snippets)
+  > Accessibility: pass (AX tree on 3.50.1 matches 3.44.6 for Snippets and Settings; History differs only by the paste card; labels on rows and buttons present). Note, existing in both builds: Settings "Keep" text field has no AX label. Keyboard path, 200% zoom and contrast not re-run (no UI change in this item).
+  > Privacy: n/a — no data handling change; qa profile only; no PM data touched or shown
+  > Claims: n/a
+  > Evidence: docs/qa/m1.md (section "M1.10a session 3"); screens: docs/qa/m1/screens/ (5 files: m110a-history-before.png, m110a-history-after.png, m110a-snippets.png, m110a-picker.png, m110a-licences.png); videos: qa-artifacts/m110a-main-flow.mov (in m110a-wt/qa-artifacts/, git-ignored, 16 MB, window recording of the 3.50.1 flow; ends before the quit)
+  > PM check steps: n/a — only the Accessibility permission item above needs the PM
+  > Blockers: none
+  >
+  > Results in brief:
+  > - Baseline 3.44.6: Test profile: qa; "3 of 200 items": qa-m18-copy-3, -2, -1. Snippets: Work email ;email, Em test ;Em, QA One ;qa1, QA Two (no shortcut).
+  > - 3.50.1: same data unchanged. Copy of "qa-m110a-copy-1" showed at top ("4 of 200 items"). Picker search "copy-2" filtered 4 to 1. Snippet added (QA M110a, ;zz110; ;qa110 was correctly rejected for clashing with ;qa1) and edited. Settings: Test profile: qa. Licences list (162 entries) has material_ui, cupertino_ui, intl, listen, Kusunga (3 licenses), SQLite3 Multiple Ciphers (2.5.0, MIT). Quit from the menu-bar icon worked.
+  > - SecurityAgent: a SecurityAgent process existed after each launch (27722, 29068, left alone, not read or clicked); both apps passed "Opening your history…" on their own within 8 s, so no 3-minute wait or STOP was needed. I did not stop SecurityAgent (system process).
+  >
+  > Incidents to know about:
+  > 1. Two click-helper clicks at global (800,290) and (790,215) while hunting the licences back arrow; one landed on TextEdit and made it frontmost. No text typed. TextEdit's document list is unchanged apart from mine.
+  > 2. The TextEdit document I created ("Untitled 11") was auto-saved by macOS as ~/Library/Mobile Documents/com~apple~TextEdit/Documents/QA M110A.rtf (text "qa-m110a-copy-1"). It is outside the project, so I left it; the PM can delete it. The TextEdit window is still open (I did not close it; PM's other TextEdit windows were there before me).
+  > 3. qa data left behind in the qa profile: history item qa-m110a-copy-1 and snippet "QA M110a" (;zz110). Real data untouched.
+  >
+  > Cleanup: both Kusunga builds quit (27697 by kill, 28907 via the menu-bar Quit, 60194 by kill); screencapture recording stopped; no Kusunga, screencapture or flutter_tester process running. No rebuild, no SDK change, no System Settings change. Worktrees: m110a-wt clean apart from my docs commit f71be88 (and git-ignored build/ and qa-artifacts/); main-wt2 clean.
+- Gates: developer pass · tester pass · reviewer approve (CI conditions pending) · QA pass with one PM item (auto-paste on 3.50.1 needs the Accessibility permission for the new build; copy path works) · CI pending (needs PM approval to push) · PM merge n/a yet
+- Open findings: none
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — push approval for CI; optional Accessibility permission for the 3.50.1 test build; Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-24 — M1.10a Flutter 3.50.1 — QA session 2: blocked again by a macOS security dialog
 - Changed: PM said: "Done, re-run QA" (2026-11-24), after answering the session 1 dialog. QA report (sonnet, medium), word for word:
   > Milestone: M1.10a Flutter 3.50.1 - 0/3 criteria pass (nothing could run; STOPPED) - Date: 2026-11-24 - Environment: macOS 27.2, branch chore/flutter-3-50 (docs commit 6ca1266 on cacfcfc, not pushed), qa profile
