@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-24 — M1.10a Flutter 3.50.1 — SDK installed side by side
+- Changed: lead ran `git clone --depth 1 --branch 3.50.1 https://github.com/flutter/flutter.git /Users/williamnasoni/Developer/flutter-3.50.1`. HEAD is `ae9b586f34a8443573f82ef57c3bf914a908cbf7`, the same commit as the upstream tag `refs/tags/3.50.1` (checked before the install). `flutter --version`: "Flutter 3.50.1 • channel [user-branch]", framework revision ae9b586f34, engine hash 51379e6df48ea8ee7205623b90fe66491cad8df3, Dart 3.14.0, DevTools 2.61.0. "[user-branch]" only means the clone is on a detached tag, not a channel. /Users/williamnasoni/Developer/flutter is unchanged (Flutter 3.44.6, channel stable). Nothing added to PATH. Recorded under "Approved tools" in CLAUDE.md.
+- Gates: developer next · tester pending · reviewer pending · QA pending · PM merge n/a yet
+- Open findings: none
+- Decisions: PM said: "Yes, install" (2026-11-24), approving the install command above. Undo: delete /Users/williamnasoni/Developer/flutter-3.50.1.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-24 — M1.10a Flutter 3.50.1 — PM approved the deck, F1 A, F2 A, F3 A
 - Changed: ADR 0008 set to accepted; design note status set to approved. Lead checked the upstream tag: `git ls-remote https://github.com/flutter/flutter.git 'refs/tags/3.50.1*'` gives `ae9b586f34a8443573f82ef57c3bf914a908cbf7 refs/tags/3.50.1`. The install command goes to the PM next; nothing is installed yet.
 - Gates: developer pending (waits for the SDK install) · tester pending · reviewer pending · QA pending · PM merge n/a yet

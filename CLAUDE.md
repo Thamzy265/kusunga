@@ -12,4 +12,4 @@ A clipboard history and saved-snippets app for Mac, Windows, iOS and Android. It
 - Privacy regions: UK + EU
 - Check command: `./tool/check.sh` (Windows: `.\tool\check.ps1`) — runs `dart format --set-exit-if-changed .`, `flutter analyze`, `flutter test`. Stack: Flutter 3.44.6 / Dart 3.12.2 (ADR 0001)
 - End-to-end tools: TBD (desktop UI automation, chosen when the first UI flow needs it; Maestro for mobile later)
-- Approved tools: none
+- Approved tools: Flutter 3.50.1 SDK side by side — `git clone --depth 1 --branch 3.50.1 https://github.com/flutter/flutter.git /Users/williamnasoni/Developer/flutter-3.50.1` — approved 2026-11-24
