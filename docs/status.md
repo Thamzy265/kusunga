@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-24 — M1.10b package updates — started: large; lookup for the design note
+- Changed: local main pushed (docs only). M1.10b started: sqlite3 3.5.2 → 3.9.2 (bundled SQLite3 Multiple Ciphers 2.5.0 → 2.7.0, which encrypts the history database), window_manager 0.5.2 → 0.7.1 and tray_manager 0.5.3 → 0.9.1 (rebuilt on nativeapi). Size: large — encryption library change and two native integrations on both platforms (plan rule). Lead started a read-only lookup of the breaking changes against the repo's code for the design note and deck.
+- Gates: developer pending (waits for deck approval) · tester pending · reviewer pending · QA pending · PM merge n/a yet
+- Open findings: none
+- Decisions: PM said: "Push and start M1.10b" (2026-11-24), answering whether to push local main and start M1.10b.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.10b deck (coming); Apple Developer account (M1.9c, M1.9e); Microsoft Store account (M1.9d); DPIA section 7 (M1.9f)
+
 ## 2026-11-24 — M1.10a Flutter 3.50.1 — closed: PR 11 merged
 - Changed: PR 11 merged on GitHub with a merge commit, 58548e4, pinned to the tested head f71be88. Local main merged origin/main (d347cce). Plan: M1.10a ticked with its merged line; M1.10 stays open for M1.10b. The project now needs Flutter 3.50.1 (/Users/williamnasoni/Developer/flutter-3.50.1); 3.44.6 stays for the PM's other projects.
 - Gates: developer pass · tester pass · reviewer approve · QA pass · CI green on f71be88 · PM merge approved ("Yes, merge")
