@@ -6,6 +6,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 /// The entries under `analyzer:` -> `exclude:` in analysis_options.yaml.
 List<String> excludes() {
@@ -46,23 +47,41 @@ String? folderOf(String glob) {
   return m?.group(1);
 }
 
-/// Every .dart file in the project folders, skipping generated and cache
-/// folders.
-List<String> projectDartFiles() =>
-    [
-      for (final e in Directory(
-        '.',
-      ).listSync(recursive: true, followLinks: false))
-        if (e is File && e.path.endsWith('.dart'))
-          e.path.replaceFirst(RegExp(r'^\./'), ''),
-    ].where((p) {
-      final parts = p.split('/');
-      return !parts.contains('.dart_tool') &&
-          !parts.contains('.git') &&
-          !parts.contains('build') &&
-          !parts.contains('.symlinks') &&
-          !parts.contains('ephemeral');
-    }).toList();
+/// [listed] as a '/' path relative to the project root, the same on every OS
+/// (Windows lists `.\lib\app.dart`). [context] is the path style; tests pass
+/// `p.windows`.
+String projectPath(String listed, [p.Context? context]) {
+  final c = context ?? p.context;
+  return p.posix.joinAll(c.split(c.relative(listed)));
+}
+
+/// The project .dart files among [listed] (default: every file under the
+/// project root), as [projectPath]s, skipping generated and cache folders.
+List<String> projectDartFiles({Iterable<String>? listed, p.Context? context}) {
+  listed ??= [
+    for (final e in Directory(
+      '.',
+    ).listSync(recursive: true, followLinks: false))
+      if (e is File) e.path,
+  ];
+  return [
+    for (final path in listed)
+      if (path.endsWith('.dart')) projectPath(path, context),
+  ].where((path) {
+    final parts = path.split('/');
+    return !parts.contains('.dart_tool') &&
+        !parts.contains('.git') &&
+        !parts.contains('build') &&
+        !parts.contains('.symlinks') &&
+        !parts.contains('ephemeral');
+  }).toList();
+}
+
+/// The [files] (project paths) that sit inside one of the [folders].
+List<String> hiddenIn(Set<String> folders, Iterable<String> files) => [
+  for (final f in files)
+    if (folders.contains(f.split('/').first)) f,
+];
 
 void main() {
   test('the exclude list is read, and is exactly the three generated or '
@@ -82,10 +101,7 @@ void main() {
 
   test('no project Dart file is inside an excluded folder', () {
     final folders = excludes().map(folderOf).whereType<String>().toSet();
-    final hidden = [
-      for (final f in projectDartFiles())
-        if (folders.contains(f.split('/').first)) f,
-    ];
+    final hidden = hiddenIn(folders, projectDartFiles());
     expect(hidden, isEmpty, reason: 'analyzer would skip: $hidden');
   });
 
@@ -96,5 +112,36 @@ void main() {
     expect(files.where((f) => f.startsWith('lib/')), isNotEmpty);
     expect(files.where((f) => f.startsWith('test/')), isNotEmpty);
     expect(folders.intersection({'lib', 'test'}), isEmpty);
+  });
+
+  // R1 (review M1.10a): Windows lists `.\lib\app.dart`, so the paths must be
+  // made '/' paths from the project root before they are checked. p.windows
+  // runs these on every OS.
+  test('a Windows path from listSync becomes a / path from the project '
+      'root', () {
+    expect(projectPath(r'.\lib\main.dart', p.windows), 'lib/main.dart');
+    expect(
+      projectPath(r'.\windows\runner\x.dart', p.windows),
+      'windows/runner/x.dart',
+    );
+    expect(projectPath('./lib/main.dart', p.posix), 'lib/main.dart');
+  });
+
+  test('on Windows paths, a Dart file under windows\\ is caught as hidden, '
+      'lib and test are found, and build and .dart_tool are skipped', () {
+    final files = projectDartFiles(
+      listed: [
+        r'.\lib\main.dart',
+        r'.\test\a_test.dart',
+        r'.\windows\x.dart',
+        r'.\build\gen.dart',
+        r'.\.dart_tool\flutter_build\x.dart',
+        r'.\windows\flutter\ephemeral\y.dart',
+        r'.\lib\notes.txt',
+      ],
+      context: p.windows,
+    );
+    expect(files, ['lib/main.dart', 'test/a_test.dart', 'windows/x.dart']);
+    expect(hiddenIn({'build', 'windows', 'macos'}, files), ['windows/x.dart']);
   });
 }
