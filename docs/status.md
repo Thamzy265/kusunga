@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-24 — M1.10a Flutter 3.50.1 — PM decisions: push for CI; auto-paste check not needed
+- Changed: lead checked the 5 committed QA screenshots (qa data only, no PM history). QA video qa-artifacts/m110a-main-flow.mov sent to the PM (not committed). Lead pushes local main (docs-only) and chore/flutter-3-50, and opens a pull request so CI runs.
+- Gates: developer pass · tester pass · reviewer approve (CI conditions pending) · QA pass (auto-paste on 3.50.1 not proven, PM: not needed) · CI pending · PM merge waiting
+- Open findings: none
+- Decisions: PM said: "Yes, push and open PR (Recommended)" (2026-11-24), answering whether to push local main and the branch and open a pull request. PM said: "Not needed (Recommended)" (2026-11-24), answering whether auto-paste must be proven on the 3.50.1 build before merge (option text: the paste code is unchanged in this item and the Mac CI runs the paste tests).
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead CI run · PM — merge approval after CI; Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-24 — M1.10a Flutter 3.50.1 — QA session 3: pass, except real auto-paste (needs a PM permission)
 - Changed: PM said: "Always Allow, re-run" (2026-11-24). QA report (sonnet, medium), word for word:
   > Milestone: M1.10a Flutter 3.50.1 — 2/3 criteria pass (1 and 2; 3 passes except real auto-paste, which needs the PM) — Date: 2026-11-24 — Environment: macOS 27.2 Apple silicon, branch chore/flutter-3-50, QA docs commit f71be88 on 6ca1266 (not pushed), Flutter 3.50.1 branch debug build vs 3.44.6 baseline debug build (main-wt2), qa profile
