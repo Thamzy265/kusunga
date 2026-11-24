@@ -29,7 +29,13 @@ class WindowService {
     try {
       await port.init();
       if (_disposed) return;
-      _closes = port.closeRequests.listen((_) => port.hide());
+      _closes = port.closeRequests.listen(
+        // Nothing awaits this hide, so its error is logged here (error type
+        // only) rather than left uncaught.
+        (_) => port.hide().catchError((Object error) {
+          debugPrint('Kusunga: window hide failed (${error.runtimeType})');
+        }),
+      );
     } catch (error) {
       debugPrint('Kusunga: window setup failed: $error');
     }
