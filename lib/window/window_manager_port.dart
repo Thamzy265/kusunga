@@ -67,11 +67,19 @@ class WindowManagerPort implements WindowPort {
     }
   }
 
+  /// Never throws: a set-up that fails must not stop what comes after it (a
+  /// pending show, the caller's own show or hide, or the app's close
+  /// listener). Only the error type is logged. The window is kept, and only
+  /// a later [init] sets it up again.
   void _setUp(WindowHandle window) {
-    window
-      ..setMinimumSize(const Size(360, 400))
-      ..setSize(const Size(800, 632))
-      ..preventClose(_onCloseRequested);
+    try {
+      window
+        ..setMinimumSize(const Size(360, 400))
+        ..setSize(const Size(800, 632))
+        ..preventClose(_onCloseRequested);
+    } catch (error) {
+      debugPrint('Kusunga: window set-up failed (${error.runtimeType})');
+    }
   }
 
   WindowHandle? _find() {
@@ -114,9 +122,10 @@ class WindowManagerPort implements WindowPort {
         try {
           _adopt(window);
         } catch (error) {
-          // The window is kept and the retry is over; a later init sets it
-          // up again. Only the error type is logged.
-          debugPrint('Kusunga: window set-up failed (${error.runtimeType})');
+          // The set-up logs its own failures, so only a pending show can
+          // throw here. The window is kept and the retry is over. Only the
+          // error type is logged.
+          debugPrint('Kusunga: window show failed (${error.runtimeType})');
         }
         return;
       }
