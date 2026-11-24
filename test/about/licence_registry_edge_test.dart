@@ -14,7 +14,7 @@ import 'package:kusunga/about/licences.dart';
 List<(String, String)> bundledRows() {
   final doc = File('docs/licences.md').readAsStringSync();
   final section = doc
-      .split('## SQLite3 Multiple Ciphers 2.5.0: what it bundles')
+      .split('## SQLite3 Multiple Ciphers 2.7.1: what it bundles')
       .last
       .split('\n## Flags')
       .first;
@@ -101,7 +101,7 @@ void main() {
           for (final p in e.paragraphs) p.text,
       ].join('\n');
       expect(all, contains('Version 3, 29 June 2007'));
-      expect(all, contains('SQLite3 Multiple Ciphers 2.5.0'));
+      expect(all, contains('SQLite3 Multiple Ciphers 2.7.1'));
       expect(all, contains('May you do good and not evil.'));
     });
 
@@ -132,7 +132,7 @@ void main() {
         File(sqlite3mcNoticesAsset).readAsStringSync(),
       );
       final spdx = RegExp(
-        r'CC0-1\.0|Apache-2\.0|BSD-3-Clause|LGPL-3\.0-or-later WITH '
+        r'CC0-1\.0|Apache-2\.0|BSD-3-Clause|ISC|LGPL-3\.0-or-later WITH '
         r'WxWindows-exception-3\.1|MIT|[Pp]ublic domain',
       );
       var checked = 0;

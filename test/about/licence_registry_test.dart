@@ -26,7 +26,7 @@ Future<Map<String, String>> registered() async {
 List<String> bundledComponents() {
   final doc = File('docs/licences.md').readAsStringSync();
   final section = doc
-      .split('## SQLite3 Multiple Ciphers 2.5.0: what it bundles')
+      .split('## SQLite3 Multiple Ciphers 2.7.1: what it bundles')
       .last
       .split('\n## Flags')
       .first;
@@ -73,7 +73,7 @@ void main() {
 
   test('every bundled part listed in docs/licences.md is in the notice', () {
     final components = bundledComponents();
-    expect(components, hasLength(18), reason: 'parts table changed');
+    expect(components, hasLength(19), reason: 'parts table changed');
     final text = licences['SQLite3 Multiple Ciphers']!;
     for (final name in components) {
       expect(text, contains(name), reason: 'missing: $name');
@@ -100,7 +100,7 @@ void main() {
   });
 
   // AC7: the MIT notice of the project, with its copyright line, as in
-  // LICENSE of SQLite3 Multiple Ciphers v2.5.0 (every part: licence_texts_test).
+  // LICENSE of SQLite3 Multiple Ciphers v2.7.1 (every part: licence_texts_test).
   test('SQLite3 Multiple Ciphers: the MIT notice, with its copyright line', () {
     final text = licences['SQLite3 Multiple Ciphers']!;
     expect(text, contains('MIT License'));
@@ -110,8 +110,8 @@ void main() {
   });
 
   test('the notice names the dependency version, like docs/licences.md', () {
-    expect(licences['SQLite3 Multiple Ciphers'], contains('2.5.0'));
-    expect(licences['SQLite'], contains('3.53.4'));
+    expect(licences['SQLite3 Multiple Ciphers'], contains('2.7.1'));
+    expect(licences['SQLite'], contains('3.54.1'));
   });
 
   test('the app registers the notices at start-up, before Flutter\'s own', () {
