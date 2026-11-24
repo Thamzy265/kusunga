@@ -1,5 +1,45 @@
 # Status log
 
+## 2026-11-24 — M1.10b sqlite3 3.9.2 — developer hand-off; tester briefed
+- Changed: developer (opus) committed ad1111e and 5c36dd3 on `chore/sqlite3-3-9`; check passes (4437 passed, 10 skipped). The bundled library is SQLite3 Multiple Ciphers 2.7.1, not 2.7.0 as the sqlite3 CHANGELOG, plan and design note said; lead corrected PLAN (M1.10 and the M1.10b AC) and the design note to 2.7.1 (a fact correction; same sqlite3 3.9.2 the PM approved). The deck keeps its approved text. Lead note on deviation 3: the developer read public upstream source through `gh api` as data (nothing downloaded into the repo, nothing run); told the PM. Lead briefed the tester.
+- Developer report (condensed by lead; key lines quoted as written):
+  > ## M1.10b hand-off: sqlite3 3.9.2
+  >
+  > The update is done: 2 commits, and `./tool/check.sh` passes. One thing does not match the plan. The bundled encryption library is **SQLite3 Multiple Ciphers 2.7.1**, not 2.7.0. The sqlite3 3.9.2 CHANGELOG says 2.7.0, but the library it actually downloads reports 2.7.1. Details are under "Deviations from plan" below.
+  >
+  > Branch: `chore/sqlite3-3-9` (2 commits on e972d51).
+  > - `ad1111e` test(data): keep v3 and v6 database files written by SQLite3 Multiple Ciphers 2.5.0
+  > - `5c36dd3` chore(deps): sqlite3 3.9.2 (SQLite3 Multiple Ciphers 2.7.1, SQLite 3.54.1)
+  >
+  > Built:
+  > - **Package change:** sqlite3 3.5.2 → 3.9.2 with `flutter pub upgrade sqlite3`. The lockfile changes only 3 packages: sqlite3, hooks 2.0.2→2.2.0 and record_use 0.6.0→1.1.1 (the last two are needed by 3.9.2). No `lib/` change.
+  > - **Proof that existing databases open:** two encrypted database files, written once by the old library (sqlite3 3.5.2 / SQLite3 Multiple Ciphers 2.5.0 / SQLite 3.53.4, at e972d51), are now kept in the repo: `test/data/fixtures/frozen_v3_sqlite3mc_2_5_0.db` and `frozen_v6_sqlite3mc_2_5_0.db`, with their SHA-256 pinned. On the new library: the v6 file opens with the existing key with every item, snippet and setting unchanged, and the file is not rewritten. It also takes a new write and opens again. The v3 file upgrades to the latest schema with all rows kept. A wrong key fails on both files and leaves them unchanged. Why this was needed: the existing frozen fixtures are made at test time by whichever library the test runs on. `.gitattributes` gets `*.db binary`.
+  > - **Library version test:** new `test/data/bundled_sqlite_test.dart` (SQLite 3.54.1 with Multiple Ciphers 2.7.1; lock has sqlite3 3.9.2, never 3.7.x or 3.8.x; the 4 SHA-256 values in `docs/licences.md` equal the package's own list). `test/ci/licence_test.dart` now checks the version rows against the loaded library instead of the sqlite3 CHANGELOG.
+  > - **Licence notices** (`assets/licences/sqlite3mc.txt`, `sqlite.txt`, `docs/licences.md`, one line in `docs/ui/about-and-licences.md`) now follow v2.7.1: version texts; a 4-SHA-256 table; a new bundled part, libsodium's ChaCha20/Poly1305 code (`src/chacha20`) under ISC (Frank Denis), full text quoted plus the public-domain line from `chacha20_ref.c`; newly quoted `csprng_entropy.c` and `btreecopyfile.c`; `hwcheck.c` listed under the library's own code; Rijndael row agrees with upstream `filelist.md` (no longer LGPL); Argon2 row notes `filelist.md` names only Apache 2.0 while headers still give the choice, CC0 choice kept; flag 6 now counts 16 files with no licence header; extensionfunctions check date 2026-11-24.
+  >
+  > Tests: 4437 passed, 10 skipped, 0 failed. `./tool/check.sh` 15:26–15:37 GMT: "Formatted 341 files (0 changed)", "No issues found!", "+4437 ~10: All tests passed!", exit 0. First failing run on 3.5.2: 10 failures (e.g. `Expected: '3.54.1' Actual: '3.53.4'`, `Expected: '3.9.2' Actual: '3.5.2'`). Second failing run after the update: `Expected: 'SQLite3 Multiple Ciphers 2.7.0' Actual: 'SQLite3 Multiple Ciphers 2.7.1'`. Third failing run: 30+ failures in the new-parts tests before the notice edits. The fixture commit passes on 3.5.2 (10/10) and on 3.9.2.
+  >
+  > E2E: n/a — no suite. Test hooks: n/a — no UI.
+  >
+  > Deviations from plan:
+  > 1. Multiple Ciphers is 2.7.1, not 2.7.0. The downloaded library has the package-checked SHA-256 f9cb9a5c…2372 (verified) and reports 2.7.1; upstream tagged v2.7.1 on 2026-11-15. No sqlite3 release ships exactly 2.7.0. PLAN, the design note and the deck still say 2.7.0. 2.7.0 → 2.7.1: hexkey buffer 1 extra byte (same behaviour); rekey uses the right cipher parameters (we never rekey); a 64-bit WASM RNG fix; a test-only file-control hint. ChaCha20 page read/write path not touched.
+  > 2. The licence notice gained a new ISC part (libsodium) and two other new files (user-visible text on the licence page).
+  > 3. Read upstream v2.5.0…v2.7.1 sources through `gh api` (compare and contents), parsed by `python3 -I` from stdin; nothing saved or run. The PM's earlier download approval covered tag v2.5.0 only. "Tell me if this needs a PM note."
+  >
+  > Checklists: data-and-apis — n/a items listed.
+  >
+  > Risks / unverified: x86_64 macOS and both Windows 2.7.1 binaries not yet run through `tool/check_sqlite3mc.sh` (arm64 macOS pass); Windows proven only by CI; rollback unproven (QA step); header checks partial; reviewer should look at the Argon2 filelist-versus-header disagreement and the inferred-licence count; check-rule slip: one ~1 s single-file test run while CGA flutter_testers were running; `pgrep -fl flutter_tester` also matches shell loops, used `pgrep -f 'bin/cache/artifacts/engine/.*/flutter_tester'`.
+  >
+  > Personal data touched: none (synthetic rows, made-up key). Later lines: none. Spec gaps: none. Findings: none. Blockers: none.
+  >
+  > Grep for old version text: every remaining hit is correct (fixture provenance, history) or in lead/history docs.
+  >
+  > How to verify: pub get --enforce-lockfile; check.sh; hash the downloaded dylib (f9cb9a5c884f6af6171fa04f44d270b3a3bb96fe6ae5ef59983cb58f69872372); check_sqlite3mc.sh on the dylib (and the Windows DLL); open the qa profile with this branch's build; rollback: open the new-build-written qa profile with the main build; licence page shows "SQLite3 Multiple Ciphers 2.7.1 and the parts it bundles", the libsodium ISC part and "SQLite 3.54.1"; both CI jobs pass, Windows DLL SHA-256 c8013fb5eb6d9fd46884801d0c4e89a424b5548bca49a7f33dd7b1a267b3e500.
+- Gates: developer pass · tester in progress · reviewer pending · QA pending · PM merge n/a yet
+- Open findings: none
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — push of local main (docs only); Apple Developer account (M1.9c, M1.9e); Microsoft Store account (M1.9d); DPIA section 7 (M1.9f)
+
 ## 2026-11-24 — M1.10b sqlite3 3.9.2 — PM approved the deck (G1 A, G2 A); developer briefed
 - Changed: ADR 0009 accepted; design note `docs/design/package-updates.md` approved. Plan: M1.10b is now sqlite3 3.9.2 only (branch `chore/sqlite3-3-9`); new item M1.10c moves window_manager 0.7.1 and tray_manager 0.9.1 to the native API (branch `chore/window-tray-nativeapi`, after M1.10b merges). Lead made the worktree for `chore/sqlite3-3-9` from main and briefed the developer (opus: the item changes the library that encrypts personal data).
 - Gates: developer in progress · tester pending · reviewer pending · QA pending · PM merge n/a yet

@@ -7,8 +7,8 @@ Date: 2026-11-24 — Size: large — the sqlite3 update changes the library that
 M1.10a moved the app to Flutter 3.50.1 (ADR 0008, merged 2026-11-24, PR 11). M1.10b updates the three packages that needed it. Lookup 2026-11-24 (report: lead scratchpad `m110b_research.txt`; sources are pub.dev archives, changelogs, upstream GitHub and the repo at 7eef5fe):
 
 - The targets are the latest versions: sqlite3 3.9.2, window_manager 0.7.1, tray_manager 0.9.1 (all 2026-11-22). They resolve together on Flutter 3.50.1, and each part also resolves alone (`flutter pub get --dry-run` on copies of the pubspec).
-- **sqlite3 3.9.2** bundles SQLite3 Multiple Ciphers 2.7.0 on SQLite 3.54.1 (today: 2.5.0 on 3.53.4).
-  - The ChaCha20 read path and `hexkey` handling are the same code as 2.5.0. On write, 2.7.0 re-rolls the nonce, and it uses the scalar code where the counter would wrap. So existing databases should open with the existing key. This is a source reading: the tests and QA must prove it.
+- **sqlite3 3.9.2** bundles SQLite3 Multiple Ciphers 2.7.1 on SQLite 3.54.1 (today: 2.5.0 on 3.53.4). Correction 2026-11-24 (developer, M1.10b): the sqlite3 CHANGELOG says 2.7.0, but the library it downloads reports 2.7.1 (upstream tag 2026-11-15). 2.7.0 → 2.7.1 does not touch the ChaCha20 page path.
+  - The ChaCha20 read path and `hexkey` handling are the same code as 2.5.0. On write, 2.7.x re-rolls the nonce, and it uses the scalar code where the counter would wrap. So existing databases should open with the existing key. This is a source reading: the tests and QA must prove it.
   - The prebuilt library is downloaded from the sqlite3.dart GitHub release at build time and checked against SHA-256 hashes inside the package. The lockfile pins the package hash, and CI uses `--enforce-lockfile`.
   - The Dart API changes are additive only. No `lib/` change is expected.
   - About 12 files hold the old versions: licence assets, `docs/licences.md` and about 7 tests.
@@ -61,7 +61,7 @@ n/a — no load change.
 
 ## Data
 
-There is no schema, store or key change. The encryption library is the risk: SQLite3 Multiple Ciphers moves from 2.5.0 to 2.7.0 with the same ChaCha20 format.
+There is no schema, store or key change. The encryption library is the risk: SQLite3 Multiple Ciphers moves from 2.5.0 to 2.7.1 with the same ChaCha20 format.
 
 Failure mode: if a database does not open, the app already shows its "can't open your history" path and never overwrites the file. The tests prove both directions:
 - an old file opens on the new library;
@@ -130,7 +130,7 @@ No personal data change. The encrypted store, its key and the retention rules ar
   1. Branch `chore/sqlite3-3-9` (M1.10b): developer → tester → reviewer → QA → PR and CI → PM merge.
   2. Then branch `chore/window-tray-nativeapi` (M1.10c), with the same gates.
 - Rollback: revert the merge commit.
-  - Databases opened by 2.7.0 keep the ChaCha20 format, so 2.5.0 can still read them. Re-rolling the nonce on write is part of the format.
+  - Databases opened by 2.7.1 keep the ChaCha20 format, so 2.5.0 can still read them. Re-rolling the nonce on write is part of the format.
   - QA proves this once by opening a qa database written by the new build with the old build.
 - With M1.10c, the Mac release path must sign the new `cnativeapi` native asset like the sqlite3mc one. The release guards (`tool/mac_release_guards.sh`) are run in M1.10c's QA.
 
