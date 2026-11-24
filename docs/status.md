@@ -1,5 +1,15 @@
 # Status log
 
+## 2026-11-24 — M1.10a Flutter 3.50.1 — CI green on PR 11; reviewer's CI conditions met
+- Changed: lead pushed main (9b57f2c..80d0b73, docs only) and chore/flutter-3-50, opened PR 11 (https://github.com/Thamzy265/kusunga/pull/11). CI run 45394763039 on f71be88: macos success, windows success; PR mergeable. Lead read both full job logs once (gh api job logs, ANSI stripped; scratchpad/ci_m110a/):
+  - macos: `key: flutter-macos-stable-3.50.1-arm64-ae9b586f34a8443573f82ef57c3bf914a908cbf7`; "Run flutter pub get --enforce-lockfile" shows "Got dependencies!", no "Changed N dependencies", no "Upgrading analysis_options.yaml", no lockfile error; check.sh "Formatted 340 files (0 changed)", "No issues found!", "4424 tests passed, 10 skipped"; "✓ Built build/macos/Build/Products/Debug/Kusunga.app"; "** TEST SUCCEEDED **"; the C++ and Release Swift steps green (job success, no ##[error]).
+  - windows: `key: flutter-windows-stable-3.50.1-x64-ae9b586f34a8443573f82ef57c3bf914a908cbf7`; pub get as above; check.ps1 "(0 changed)", "No issues found!", "4336 tests passed, 102 skipped", 0 failures; "√ Built build\windows\x64\runner\Debug\kusunga.exe". Passed by name: analyzer_exclude_test "no project Dart file is inside an excluded folder" and "the check sees our code …" (R1 on real Windows), sdk_version_pins_test "the Flutter running the tests is the CI Flutter" (R7).
+  - Lead note: the reviewer's "~10 skipped" applies to the macos job. Windows has always skipped more (102, the same total as the M1.9a Windows run); the R7 test is listed as passed there, not skipped, so the condition behind "~10" holds.
+- Gates: developer pass · tester pass · reviewer approve (CI conditions met) · QA pass · CI green on f71be88 · PM merge waiting
+- Open findings: none
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — merge approval for PR 11; Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-24 — M1.10a Flutter 3.50.1 — PM decisions: push for CI; auto-paste check not needed
 - Changed: lead checked the 5 committed QA screenshots (qa data only, no PM history). QA video qa-artifacts/m110a-main-flow.mov sent to the PM (not committed). Lead pushes local main (docs-only) and chore/flutter-3-50, and opens a pull request so CI runs.
 - Gates: developer pass · tester pass · reviewer approve (CI conditions pending) · QA pass (auto-paste on 3.50.1 not proven, PM: not needed) · CI pending · PM merge waiting
