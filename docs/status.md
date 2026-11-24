@@ -1,5 +1,95 @@
 # Status log
 
+## 2026-11-24 — M1.10a Flutter 3.50.1 — developer hand-off
+- Changed: developer report (opus, high), word for word:
+  > Branch: chore/flutter-3-50 (2 commits, not pushed: 8ecbc72 build, 019eb3e docs; worktree /private/tmp/claude-501/-Users-williamnasoni-Developer-Personal-kusunga/bdcaa771-52a1-4433-b5f6-1f64c65a45f5/scratchpad/m110a-wt)
+  > Built:
+  > - The app now builds and tests on Flutter 3.50.1 / Dart 3.14.0. All 118 Material imports (lib 22, test 96) now use package:material_ui/material_ui.dart, rewritten by dart fix (import lines only). material_ui ^1.11.1 was added to pubspec.yaml by hand. sdk stays ^3.12.2, and no other direct dependency changed.
+  > - Every Flutter/Dart pin now says 3.50.1 / 3.14.0, and a new test, test/ci/sdk_version_pins_test.dart, fails when the pins disagree.
+  > - docs/licences.md has a material_ui row. The Intel-build Later trigger is updated (F3 A). ADR 0001 has a "superseded in part by ADR 0008" note.
+  > - Three tests are adapted to 3.50 behaviour (details under Deviations). The app code is unchanged apart from the import lines.
+  > Tests: 4399 passing, 10 skipped, on 3.50.1 (scratchpad/m110a_after.txt: "Formatted 335 files (0 changed)", "No issues found!", "06:32 +4399 ~10: All tests passed!", exit=0).
+  >   - Baseline on 3.44.6 before any change: 4397 passing, 10 skipped, analyze clean, "Formatted 334 files (0 changed)" (scratchpad/m110a_baseline.txt).
+  >   - Why the counts differ: +2 are the two new tests in sdk_version_pins_test.dart. No test was removed or renamed, and the same 10 are skipped.
+  >   - New tests cover: both CI jobs use one flutter-version; CLAUDE.md Stack, README and the docs/licences.md Flutter row equal it; the README and licences.md Dart equal the CLAUDE.md Dart; docs/ci/windows-runner.md names the CI Flutter.
+  >   - First failing run (CI pins changed to 3.50.1, nothing else; scratchpad/m110a_pin_test_red.txt):
+  >     "CLAUDE.md, README and docs/licences.md name the CI Flutter and one Dart [E] Expected: '3.50.1' Actual: '3.44.6' ... CLAUDE.md Stack vs CI"
+  >     "the Windows runner guide names the CI Flutter [E] Expected: '3.50.1' Actual: '3.44.6'"
+  >   - Also red, then restored (scratchpad/m110a_pin_test_red2.txt): one job left on 3.44.6 gave "CI jobs disagree: [3.50.1, 3.44.6]"; the licences.md Dart row set to 3.12.2 gave "Expected: '3.14.0' Actual: '3.12.2' docs/licences.md Dart vs CLAUDE.md".
+  >   - The first full 3.50.1 run before the test fixes had 4396 passing and 3 failing (scratchpad/m110a_after_run1_red.txt): argon2_page_test "the real licence page shows the sentence as text" (PictureRasterizationException: "unable to create bitmap render target at specified size 900x20000"); close_service_test and close_service_real_db_test ("Expected: throws <Instance of 'FlutterError'> ... threw StateError: A HistoryService was used after being disposed").
+  >   - The existing test/ci/licence_test.dart "Flutter and Dart rows match the SDK the project pins" (Platform.version) also passes only with the new pins.
+  > E2E: n/a — no suite (the desktop end-to-end tool is TBD in Team setup)
+  > Test hooks: n/a — no UI
+  > Deviations from plan:
+  > - The dart fix code is `deprecated_member_use`, not `migrate_design_widgets` (from `dart fix --dry-run`: "118 proposed fixes in 118 files", all deprecated_member_use; the data-driven fix in the SDK's fix_material.yaml). Command: `dart fix --apply --code=deprecated_member_use`.
+  > - analysis_options.yaml changed. On 3.50, `flutter pub get` writes `analyzer: exclude: [build/**, windows/**, macos/**]` (flutter_tools AnalysisOptionsMigration). It writes them back on every pub get if they are removed, so reverting would dirty the tree, and CI, on each run. I kept them with a comment saying why.
+  >   - No rule is relaxed, no ignore is added, include and linter are unchanged.
+  >   - `git ls-files 'macos/*.dart' 'windows/*.dart'` is empty, so no project Dart file leaves analysis.
+  >   - The reviewer should confirm this is not "weakening".
+  > - Dart 3.14's formatter rewraps 13 existing test files, although sdk stays ^3.12.2. The design note expected the 3.12 style to stay. These were forced: without them `dart format --set-exit-if-changed` fails.
+  >   - The files: test/ci/mac_release_guards_edge_test.dart, test/ci/mac_signing_and_diag_guards_test.dart, test/ci/sqlite3mc_extfunc_abuse_test.dart, test/data/export_erase_edge_test.dart, test/data/export_temp_name_edge_test.dart, test/data/recheck_fixes_test.dart, test/data/round2_fixes_test.dart, test/history/data_profile_abuse_test.dart, test/history/ui/history_undo_clear_edge_test.dart, test/log/file_error_log_handle_test.dart, test/shortcuts/typed_shortcuts_findings_test.dart, test/snippets/snippet_test.dart, test/snippets/ui/snippet_editor_test.dart.
+  >   - I checked each one against HEAD with whitespace and trailing commas removed: the text is the same (only the import line differs).
+  > - Three tests follow 3.50 behaviour. The app code has no change and does not catch FlutterError or use debugAssertNotDisposed.
+  >   - test/support/close_service_test.dart:37 and test/support/close_service_real_db_test.dart:80: ChangeNotifier moved to package:listen, and a disposed notifier's debug check now throws StateError, not FlutterError. The tests now expect StateError with "was used after being disposed".
+  >   - test/about/argon2_page_test.dart: on 3.50 the default test page transition snapshots the whole 900 x 20000 view, which the test engine cannot rasterize. The test's MaterialApp now uses ZoomPageTransitionsBuilder(allowSnapshotting: false) on every platform. It keeps the tall view and the real LicensePage and NoticeEntry.
+  >   - These three were not written test-first: their red run is the first 3.50.1 check above.
+  > - README.md:9 was one more pin that was not on the known list. Changed.
+  > - The pin test also covers README and docs/ci/windows-runner.md, beyond the three files the brief named. Same AC, no feature.
+  > - ADR 0001: I added a header line, "Superseded in part by: ADR 0008 (2026-11-24) for the Flutter / Dart version…". Line 26 (tray_manager / Dart 3.12.2) is left as history.
+  > - The design note listed only meta, test_api and matcher as SDK-pinned moves. The real list is longer (next line). All of them are forced.
+  > - pubspec.lock changes beyond material_ui, each with what forced it:
+  >   - clock 1.1.2 → 1.1.3: flutter_test `clock: ^1.1.3`
+  >   - matcher 0.12.19 → 0.12.20: flutter_test pins `0.12.20`
+  >   - meta 1.18.0 → 1.19.0: flutter `meta: ^1.19.0`
+  >   - stack_trace 1.12.1 → 1.12.2: flutter_test `stack_trace: ^1.12.2`
+  >   - test_api 0.7.11 → 0.7.14: flutter_test pins `0.7.14`
+  >   - vector_math 2.2.0 → 2.4.4: flutter `^2.4.3`; pub took the newest match
+  >   - listen 1.0.1, new: flutter `listen: ^1.0.1`, where ChangeNotifier now lives
+  >   - cupertino_ui 1.1.7, intl 0.20.3, flutter_localizations (sdk), all new: dependencies of material_ui 1.11.1
+  >   - sdks: dart ">=3.13.0 <4.0.0", flutter ">=3.47.0", from material_ui
+  >   - The first pub get on 3.50.1 with an unchanged pubspec gave "Changed 7 dependencies!" (the SDK-pinned ones). Adding material_ui gave "Changed 4 dependencies!".
+  >   - The lock now has 92 entries; it had 87.
+  > - material_ui: version 1.11.1 (constraint ^1.11.1), publisher flutter.dev (https://pub.dev/api/packages/material_ui/publisher returned {"publisherId":"flutter.dev"}), licence BSD-3-Clause, Copyright 2013 The Flutter Authors (3 clauses, no advertising clause; pub cache LICENSE).
+  >   - cupertino_ui: publisher flutter.dev, BSD-3-Clause (Flutter Authors). intl: publisher dart.dev, BSD-3-Clause. listen: BSD-3-Clause (Flutter Authors).
+  >   - No cupertino_ui row and no pubspec entry: no Cupertino import exists, and cupertino_ui is only a dependency of material_ui.
+  > Checklists: none — no data store, API, migration or UI change. The dependency check (publisher, licence, lockfile hashes) was done above.
+  > Risks / unverified:
+  > - CI has not run (not pushed). The Windows `check.ps1`, `flutter build windows --debug` and the macOS CI steps (xcodebuild RunnerTests, which I am not allowed to run) are unverified on 3.50.1.
+  > - Only `flutter build macos --debug` was built ("✓ Built build/macos/Build/Products/Debug/Kusunga.app", exit 0, arm64; scratchpad/m110a_build_macos.txt). I did not build profile or release and did not run the release guards. ARCHS = arm64 and the D3 guards are unchanged.
+  > - The bundled NOTICES.Z in that build lists material_ui, cupertino_ui, intl and listen, so the in-app licence page gets them through the normal path. No test pins that package list, so no test changed for it.
+  > - The macOS build downloaded the 3.50.1 SDK's own macOS engine artifacts (darwin-x64 debug/profile/release framework and gen_snapshot) into /Users/williamnasoni/Developer/flutter-3.50.1/bin/cache. This is Flutter's normal first-build cache inside the approved SDK folder; nothing was installed elsewhere. No permission, keychain or trust dialog appeared.
+  > - docs/licences.md Flutter SDK row: the component list comes from the reviewer's 3.44.6 scan (2026-11-19). I compared sky_engine/LICENSE in the two SDKs:
+  >   - 3.50.1 drops fallback_root_certificates (0 "Mozilla Public License" hits, there were 2) and adds `ai` (BSD-3-Clause, Dart authors).
+  >   - No GPL, LGPL or AGPL text was added: "GNU General Public" went from 1 to 0 hits, "Affero" from 1 to 0.
+  >   - The row still says "MPL-2.0 data", which now overstates. I left the reviewer's text; the reviewer should re-confirm.
+  >   - Flag 4 ("All 85 entries of pubspec.lock") is history. Now 92 entries; the new transitive ones are listed above for the reviewer's check.
+  > - After merge, the project no longer resolves on Flutter 3.44.6 (the lock needs flutter >=3.47.0). The main checkout must use the 3.50.1 PATH, as ADR 0008 intends.
+  > - On Windows the app's default transition is Zoom with snapshot, at the real window size. Not affected by the test-only 20000 px limit, but QA on Windows is only through CI.
+  > - I did not open existing history or snippets; that is QA's check. No data code or format changed.
+  > Personal data touched: none
+  > Later lines added: none. I updated the existing "Universal (Intel + Apple silicon) Mac build" trigger as briefed: "trigger: ≥ 1 tester or user asks for an Intel build — noted 2026-11-22 by reviewer (M1.9b review D1) — trigger updated 2026-11-24 by lead (M1.10a, F3 A)".
+  > Spec gaps raised: none
+  > Findings: none
+  > Blockers: none
+  > Files with pins changed: .github/workflows/check.yml:18,37 (flutter-version 3.50.1); CLAUDE.md:13 (Stack: Flutter 3.50.1 / Dart 3.14.0 (ADR 0001, 0008)); README.md:9; docs/ci/windows-runner.md:37; docs/licences.md:22,23 (Flutter SDK, Dart SDK rows; the new material_ui row is line 13); macos/Runner/Configs/Release.xcconfig:5-7 (comment only, ARCHS unchanged); docs/adr/0001-flutter-desktop.md:6 (superseded-in-part note, not an edit of line 26). Left as history: docs/status.md, docs/qa/*, docs/PLAN.md:109 (M1.9 AC text), docs/design/signed-installers-and-beta.md:17, docs/design/flutter-3-50.md, ADR 0008, docs/slides/flutter-3-50.html.
+  > How to verify:
+  > 1. In Terminal: `cd /private/tmp/claude-501/-Users-williamnasoni-Developer-Personal-kusunga/bdcaa771-52a1-4433-b5f6-1f64c65a45f5/scratchpad/m110a-wt && export PATH=/Users/williamnasoni/Developer/flutter-3.50.1/bin:$PATH && flutter --version`. You should see "Flutter 3.50.1" and "Dart 3.14.0".
+  > 2. Check `pgrep -fl flutter_tester` prints nothing, then run `./tool/check.sh`. You should see "Formatted 335 files (0 changed)", "No issues found!" and, at the end, "+4399 ~10: All tests passed!". It takes about 7–9 minutes.
+  > 3. `grep -rn "package:flutter/material.dart" lib test`: no output. `grep -n "flutter-version" .github/workflows/check.yml`: two lines, both 3.50.1. `sed -n 13p CLAUDE.md` ends "Stack: Flutter 3.50.1 / Dart 3.14.0 (ADR 0001, 0008)".
+  > 4. Optional, to check the pin guard: `sed -i '' '37s/3.50.1/3.44.6/' .github/workflows/check.yml && flutter test test/ci/sdk_version_pins_test.dart`. It fails with "CI jobs disagree: [3.50.1, 3.44.6]". Then undo with `git checkout .github/workflows/check.yml`.
+  > 5. Before step 6, note what the qa profile holds now, using the last build made on 3.44.6 (the main checkout): the number of history items ("N of M items") and the snippet names and shortcuts.
+  > 6. `flutter build macos --debug`. You should see "✓ Built build/macos/Build/Products/Debug/Kusunga.app". Then start it in the qa profile only: `open -n build/macos/Build/Products/Debug/Kusunga.app --args -KusungaDataProfile qa`. The window shows "Test profile: qa".
+  >    - History shows the same items and count as in step 5. Snippets shows the same names and shortcuts.
+  >    - Copy a new made-up text (for example "qa-m110a-copy-1") in TextEdit. It appears at the top of History.
+  >    - Open the picker with its shortcut and paste a qa snippet into a TextEdit document of your own. The snippet text is pasted.
+  >    - Settings → About → View licences: the list includes material_ui (also cupertino_ui, intl, listen), Kusunga and the SQLite3 Multiple Ciphers notice.
+  >    - Quit Kusunga from the menu-bar icon.
+  > 7. Windows: after the lead pushes the branch, the "check" workflow on the pull request shows both jobs (macos, windows) green. The windows job log shows Flutter 3.50.1, check.ps1 passing and "flutter build windows --debug" succeeding.
+- Gates: developer pass (handed off; 8ecbc72, 019eb3e, not pushed) · tester next · reviewer pending · QA pending · CI pending · PM merge n/a yet
+- Open findings: none. For the reviewer: analysis_options.yaml analyzer exclude added by Flutter 3.50 pub get; 13 test files reformatted by Dart 3.14; three tests adapted to 3.50 behaviour; the docs/licences.md Flutter SDK row ("MPL-2.0 data") and the new transitive packages need a licence re-check.
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-24 — M1.10a Flutter 3.50.1 — SDK installed side by side
 - Changed: lead ran `git clone --depth 1 --branch 3.50.1 https://github.com/flutter/flutter.git /Users/williamnasoni/Developer/flutter-3.50.1`. HEAD is `ae9b586f34a8443573f82ef57c3bf914a908cbf7`, the same commit as the upstream tag `refs/tags/3.50.1` (checked before the install). `flutter --version`: "Flutter 3.50.1 • channel [user-branch]", framework revision ae9b586f34, engine hash 51379e6df48ea8ee7205623b90fe66491cad8df3, Dart 3.14.0, DevTools 2.61.0. "[user-branch]" only means the clone is on a detached tag, not a channel. /Users/williamnasoni/Developer/flutter is unchanged (Flutter 3.44.6, channel stable). Nothing added to PATH. Recorded under "Approved tools" in CLAUDE.md.
 - Gates: developer next · tester pending · reviewer pending · QA pending · PM merge n/a yet
