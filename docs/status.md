@@ -1,5 +1,55 @@
 # Status log
 
+## 2026-11-24 — M1.10b sqlite3 3.9.2 — tester pass; reviewer briefed
+- Changed: tester (sonnet) committed f26d292 on `chore/sqlite3-3-9`: 37 tests, no production code, no bugs found; suite 4474 passed, 10 skipped. Lead briefed the reviewer (Mode: branch).
+- Tester report (word for word; one path shortened to the repo-relative path):
+  > Branch: chore/sqlite3-3-9 (1 test commit: f26d292, on top of 5c36dd3)
+  > Added: 37 tests in test/data/old_library_file_edge_test.dart (31) and test/ci/sqlite3mc_version_consistency_test.dart (6)
+  > - old_library_file_edge_test.dart, on copies of the 2.5.0 fixtures:
+  >   - 10 wrong-key cases: five right-length wrong keys on the v6 file and on the v3 file. Each throws SqliteException and the file bytes and folder listing are unchanged.
+  >   - 1 test of 25 random wrong keys in a row, then the right key still opens the file.
+  >   - 5 key-format tests: empty, short, long, non-hex, quote and whitespace keys give ArgumentError without echoing the key; the capital-letter hex of the right key opens; `PRAGMA key` and the x'..' form do not read the file; no key reads nothing.
+  >   - 8 damage cases: cut to 100 bytes, to one page, to half, mid-page; one byte flipped; last page zeroed; a v3 page spliced in. Each fails to open and leaves the bytes unchanged.
+  >   - `openHistory` end to end: the damaged file is kept aside byte for byte with readError and no overwrite; the right key gives no notice, no log line and an unchanged file; a wrong key keeps the file aside, equal to the pinned v6 hash; a same-day repeat is kept as `-2`.
+  >   - 2 leftover cases: empty `-journal`/`-wal`, and a garbage `-wal`.
+  >   - 3 new-library tests: 25 open/close cycles leave the file byte-identical; a write on a copy re-opens, the file stays encrypted and the kept fixture is untouched; the file written by the new library rejects a wrong key and no key.
+  > - sqlite3mc_version_consistency_test.dart (6):
+  >   - The licences.md SHA table has exactly the 4 desktop files, each lower-case 64-hex, no duplicates.
+  >   - The first-line version in both notice assets equals the loaded library (2.7.1, SQLite 3.54.1).
+  >   - Neither notice asset nor any lib/*.dart contains 3.53.4, 2.5.0 or 2.7.0.
+  >   - The new parts and the full ISC text are in the user-visible notice.
+  >   - The NoticeEntry model renders the ISC block with its own line breaks.
+  >   - Notices and licences.md have LF only, and every `*.db` fixture is `binary` in git check-attr.
+  > E2E tests added: 0 (n/a — no user flow; data and licence-text checks only)
+  > Fail-then-pass:
+  > - "every first-line version in a bundled notice is the loaded library's" — old code (main's pubspec.yaml and pubspec.lock, sqlite3 3.5.2, run via `flutter pub get --offline`) failed with `Expected 'SQLite3 Multiple Ciphers 2.7.1' Actual 'SQLite3 Multiple Ciphers 2.5.0'`. It passes on the branch. pubspec.yaml and pubspec.lock were restored with `git checkout HEAD`; git status is clean.
+  > - The other 36 tests passed on both libraries; see regression locks.
+  > Regression locks (36 tests passed on both main and the branch):
+  > - Wrong or odd key fails, damaged or cut file fails, bytes unchanged after a failed open, `openHistory` keeps the unreadable file aside byte for byte, and 25 reopens do not rewrite the file. These hold on 2.5.0 and 2.7.1 alike and could break if a future sqlite3mc changes failure or write behaviour on open.
+  > - The notice-asset, ISC-text, LF-only and `*.db binary` tests are checks on files in the tree, so they pass on both. They stop later drift in the licence text and the line-ending attributes.
+  > Mutation checks, not committed tests (run by hand):
+  > - Changing one hex digit of the `sqlite3mc.x64.windows.dll` row in docs/licences.md makes the developer's `docs/licences.md records the 4 desktop ... SHA-256 values` test fail. I restored the file.
+  > - Not run by hand: the lock check rejecting 3.7.x/3.8.x (the developer's test has the regex), and a regenerated fixture (the pinned hash test covers it).
+  > Diff review:
+  > - `git diff main..HEAD` shows pubspec.lock moved only sqlite3, hooks and record_use.
+  > - pubspec.yaml changed only the sqlite3 constraint.
+  > - There is no lib/ change.
+  > Bugs found: none
+  > Abuse cases covered: 3/3 data and licence-text abuse cases. The sqlite3mc SHA-256 swap case is covered by the 4-value table checks plus the hand mutation above. The wrong-key and damaged-file cases from the "Data" section are covered. The nativeapi and window-hook cases belong to M1.10c and are not in this item.
+  > UI states covered: n/a — no UI change
+  > Gaps not covered:
+  > - Windows is proven by CI only; I used package:path for paths and closed stores before deleting.
+  > - A real WAL or hot journal written by the 2.5.0 library: the app does not set WAL, so only empty and garbage stand-ins are tested.
+  > - The rollback claim "2.5.0 reads files written by 2.7.1" (QA opens the qa profile with the old build).
+  > - The binary's SHA-256 against the release page (QA).
+  > Production code changed: none
+  > Suite: 4474 passing / 0 failing, 10 skipped (was 4437 passing, 10 skipped, before my commit). `./tool/check.sh` passed: format clean, analyzer "No issues found!", no new `ignore` comments.
+  > Blockers: none
+- Gates: developer pass · tester pass · reviewer in progress · QA pending · PM merge n/a yet
+- Open findings: none
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — push of local main (docs only); Apple Developer account (M1.9c, M1.9e); Microsoft Store account (M1.9d); DPIA section 7 (M1.9f)
+
 ## 2026-11-24 — M1.10b sqlite3 3.9.2 — developer hand-off; tester briefed
 - Changed: developer (opus) committed ad1111e and 5c36dd3 on `chore/sqlite3-3-9`; check passes (4437 passed, 10 skipped). The bundled library is SQLite3 Multiple Ciphers 2.7.1, not 2.7.0 as the sqlite3 CHANGELOG, plan and design note said; lead corrected PLAN (M1.10 and the M1.10b AC) and the design note to 2.7.1 (a fact correction; same sqlite3 3.9.2 the PM approved). The deck keeps its approved text. Lead note on deviation 3: the developer read public upstream source through `gh api` as data (nothing downloaded into the repo, nothing run); told the PM. Lead briefed the tester.
 - Developer report (condensed by lead; key lines quoted as written):
