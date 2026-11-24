@@ -114,8 +114,13 @@ Everything stays on the device. No account, no server.
   - AC: the release script passes `--dart-define=KUSUNGA_VERSION` and `KUSUNGA_BUILD` taken from the release tag, and fails if they are missing or differ from the tag, so no release shows "version unknown" or links the wrong source (reviewer note R5, M1.9a review, 2026-11-21).
   - Before start: decide whether to build sqlite3mc from source instead of the SHA-256-pinned prebuilt download (reviewer note, 2026-11-03). Decided 2026-11-19: keep the pinned prebuilt (D2 A).
 
-- [ ] **M1.10 Dependency updates** — size set at start (large if the sqlite3 update changes the bundled SQLite3 Multiple Ciphers). Starts after M1.9a merges (PM 2026-11-23: "Close, plan one item"). Replaces Dependabot PRs 6, 7 and 8, closed 2026-11-23.
-  - AC: sqlite3 3.5.2 → 3.9.1 (or the latest at start), window_manager 0.5.2 → 0.7.0, tray_manager 0.5.3 → 0.9.0 are updated on one branch, with each breaking change handled.
+- [ ] **M1.10 Dependency updates** — large (the sqlite3 update changes the bundled SQLite3 Multiple Ciphers 2.5.0 → 2.7.0). Split into M1.10a and M1.10b, in that order (PM 2026-11-24: "Flutter first, then pkgs"): the latest versions need Flutter >=3.50. Starts after M1.9a merges (PM 2026-11-23: "Close, plan one item"). Replaces Dependabot PRs 6, 7 and 8, closed 2026-11-23.
+  - M1.10a Flutter 3.50.1 — large (SDK change for the whole app; new ADR superseding the version in ADR 0001). Design note, ADR and deck approved by the PM before the developer starts; the PM approves the SDK install.
+    - AC: the app builds, `./tool/check.sh` and `.\tool\check.ps1` pass, and both CI jobs pass on Flutter 3.50.1, with every Flutter/Dart version pin (CI, CLAUDE.md, ADR, docs) changed together.
+    - AC: no package version changes except those 3.50.1 forces; existing history and snippets open unchanged.
+    - AC: QA runs the main flows on Mac (and Windows through CI) in the qa profile.
+  - M1.10b package updates (the ACs below) — starts after M1.10a merges. Never sqlite3 3.7.0–3.8.x (they carry SQLite3 Multiple Ciphers 2.6.x with a ChaCha20 counter bug).
+  - AC: sqlite3 3.5.2 → 3.9.2 (or the latest at start), window_manager 0.5.2 → 0.7.1, tray_manager 0.5.3 → 0.9.1 are updated on one branch, with each breaking change handled.
   - AC: the encrypted database still opens with the existing key, and the sqlite3mc SHA-256 pin and the licence notice (version, texts) match the new bundled SQLite3 Multiple Ciphers.
   - AC: tray menu, window show/hide and the picker work on Mac and Windows; both CI jobs pass; developer, tester, reviewer and QA gates as usual.
 

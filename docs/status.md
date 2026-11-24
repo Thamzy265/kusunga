@@ -1,5 +1,12 @@
 # Status log
 
+## 2026-11-24 — M1.10 Dependency updates — PM decision: Flutter first, then packages
+- Changed: M1.10 split in docs/PLAN.md into M1.10a Flutter 3.50.1 (large) and M1.10b package updates (large), in that order. Lead started a read-only lookup on Flutter 3.44.6 → 3.50.1 breaking changes for the M1.10a design note.
+- Gates: M1.10a developer pending (waits for the deck and the SDK install approval) · tester pending · reviewer pending · QA pending · PM merge n/a yet
+- Open findings: none
+- Decisions: PM said: "Flutter first, then pkgs" (2026-11-24), choosing between "Flutter first, then packages" and "Defer M1.10".
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — deck and SDK install approval (coming); Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-23 — M1.10 Dependency updates — started: sized large, blocked on a Flutter SDK decision
 - Changed: PM said: "Yes" (2026-11-23) to starting M1.10. Size: large — the sqlite3 update changes the bundled SQLite3 Multiple Ciphers (2.5.0 on SQLite 3.53.4 → 2.7.0 on SQLite 3.54.1), which encrypts the history database (plan rule). Lead research (a lookup agent, sonnet; report at scratchpad/m110_research.txt, nothing in the repo changed):
   - The latest versions cannot be installed on Flutter 3.44.6 / Dart 3.12.2 (ADR 0001). window_manager >=0.6.0 and tray_manager >=0.7.0 need Dart >=3.13; 0.7.x and 0.9.x need Dart ^3.14 / Flutter >=3.50. sqlite3 >=3.6.0 needs meta ^1.19.0 through hooks/record_use, which only Flutter 3.50 allows. Latest: sqlite3 3.9.2, window_manager 0.7.1, tray_manager 0.9.1. Flutter 3.50.0 (2026-11-09) and 3.50.1 are stable tags.
