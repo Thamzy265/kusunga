@@ -123,7 +123,7 @@ SOFTWARE.
   Licence: No licence text in the file (27 lines, typedefs and macros only). It falls under the project `LICENSE` (MIT).
 
 * ChaCha20 and Poly1305 (chacha20poly1305.c), entropy and random numbers (csprng_entropy.c)
-  Licence: Public domain. csprng_entropy.c has no licence text; it says it was taken out of the ChaCha20-Poly1305 code above.
+  Licence: chacha20poly1305.c: public domain. csprng_entropy.c is public domain or MIT, an inference: it has no licence text, it says it was taken out of the public-domain ChaCha20-Poly1305 code above, and the project `LICENSE` is MIT.
 
   Text of src/chacha20poly1305.c, lines 1 to 8:
 
@@ -143,7 +143,7 @@ SOFTWARE.
     The code was separated from the ChaCha20-Poly1305 implementation.
 
 * ChaCha20 and Poly1305 from libsodium (src/chacha20): stream_chacha20.c, onetimeauth_poly1305.c and the ref, dolbeau, donna, sse2 and private files they include; libchacha20.c (wrapper)
-  Licence: ISC (Frank Denis), per src/chacha20/src/LICENSE; ref/chacha20_ref.c is public domain (D. J. Bernstein). libchacha20.c has no licence text and falls under the project `LICENSE` (MIT).
+  Licence: ISC (Frank Denis), per src/chacha20/src/LICENSE; ref/chacha20_ref.c is public domain (D. J. Bernstein). libchacha20.c is MIT or ISC, an inference: it has no licence text, the project `LICENSE` is MIT, and `filelist.md` at v2.7.1 says files in the `chacha20` directory are ISC.
 
   Text of src/chacha20/src/LICENSE, lines 1 to 18:
 

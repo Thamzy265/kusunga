@@ -211,6 +211,79 @@ void main() {
     },
   );
 
+  test('csprng_entropy.c and libchacha20.c are stated as an inference, the '
+      'same way in the row, the notice and flag 6', () {
+    // Review note L4 (M1.10b): neither file has licence text. csprng_entropy.c
+    // came out of the public-domain ChaCha20-Poly1305 code in an MIT project;
+    // filelist.md at v2.7.1 puts the chacha20 directory under ISC, the
+    // project LICENSE is MIT.
+    final licences = File('docs/licences.md').readAsStringSync();
+    final lines = licences.split('\n');
+    final notice = File('assets/licences/sqlite3mc.txt').readAsStringSync();
+    String block(String head) {
+      final start = notice.indexOf(head);
+      expect(start, isNot(-1), reason: head);
+      final end = notice.indexOf('\n* ', start + 1);
+      return notice.substring(start, end == -1 ? notice.length : end);
+    }
+
+    final places = {
+      'csprng row': lines.firstWhere(
+        (l) => l.startsWith('| ChaCha20 and Poly1305 (chacha20poly1305.c)'),
+      ),
+      'csprng notice': block('* ChaCha20 and Poly1305 (chacha20poly1305.c)'),
+      'libchacha20 row': lines.firstWhere(
+        (l) => l.startsWith('| ChaCha20 and Poly1305 from libsodium'),
+      ),
+      'libchacha20 notice': block(
+        '* ChaCha20 and Poly1305 from libsodium (src/chacha20)',
+      ),
+    };
+    final flag6 = flag6Line(licences);
+    for (final (where, text) in [
+      ('csprng row', places['csprng row']!),
+      ('csprng notice', places['csprng notice']!),
+      ('flag 6', flag6),
+    ]) {
+      expect(
+        text,
+        contains('csprng_entropy.c is public domain or MIT'),
+        reason: where,
+      );
+    }
+    for (final (where, text) in [
+      ('libchacha20 row', places['libchacha20 row']!),
+      ('libchacha20 notice', places['libchacha20 notice']!),
+      ('flag 6', flag6),
+    ]) {
+      expect(text, contains('libchacha20.c is MIT or ISC'), reason: where);
+      expect(text, contains('filelist.md'), reason: where);
+    }
+    // No place states either file's licence as a plain fact.
+    for (final e in places.entries) {
+      expect(
+        e.value,
+        isNot(
+          contains(
+            'libchacha20.c has no licence text and '
+            'falls under',
+          ),
+        ),
+        reason: e.key,
+      );
+      expect(
+        e.value,
+        isNot(contains('| Public domain. csprng')),
+        reason: e.key,
+      );
+      expect(
+        e.value,
+        isNot(contains('Licence: Public domain. csprng')),
+        reason: e.key,
+      );
+    }
+  });
+
   _testerGuards();
 }
 
