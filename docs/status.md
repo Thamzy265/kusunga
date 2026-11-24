@@ -1,5 +1,26 @@
 # Status log
 
+## 2026-11-24 — M1.10b sqlite3 3.9.2 — QA pass on Mac (real auto-paste not run: needs PM permission)
+- Changed: QA (sonnet) ran the branch build (8851112) and the main build (sqlite3 3.5.2) in the qa profile only; evidence committed in 8e741b3 on `chore/sqlite3-3-9` (docs/qa/m1.md "M1.10b sqlite3 3.9.2 (2026-11-24)", 11 screenshots m1.10b-*.png). Lead checked the screenshots: qa-profile data and licence text only, no PM history. Video qa-artifacts/m110b-rollback-flow.mov (92 s, git-ignored) sent to the PM.
+- QA report (condensed by lead; key lines quoted as written):
+  > 1 Existing data opens: PASS. The branch build showed "4 of 200 items" … and 5 snippets …, identical to the end state recorded in the M1.10a section. Settings were unchanged … No "can't open your history" notice.
+  > 2 New write: PASS. I copied `qa-m110b-1721` from TextEdit. History showed "5 of 200 items" with the new clip on top.
+  > 3 Rollback: PASS. The main build (sqlite3 3.5.2, confirmed by process path) opened with no notice and showed the new clip, 5 items and 5 snippets. After quitting it, the branch build opened again with the same 5 items.
+  > 4a SHA: PASS for the new library, with a caveat. The glob `download-*/libsqlite3mc.dylib` prints TWO lines in this worktree … `download-f9cb9a5c` is f9cb9a5c884f6af6171fa04f44d270b3a3bb96fe6ae5ef59983cb58f69872372 … `download-b237b5ba` … a leftover from the earlier 3.5.2 build in the same worktree cache … it is not in the built app.
+  > 4b check_sqlite3mc.sh: PASS. On the f9cb file it prints "ok … no extensionfunctions.c code", exit 0.
+  > 4c App dylib: PASS, same code but not the same bytes. … Flutter's native-assets step re-wrapped it as a framework with a new install name and ad-hoc re-signed it. Its __TEXT,__text and __TEXT,__cstring sections are byte-identical to the downloaded file, and it contains "SQLite3 Multiple Ciphers 2.7.1".
+  > 5 Licence page: PASS on all three.
+  > 6 Smoke: tray menu PASS … The picker opens from the tray and with ⇧⌘V from TextEdit, and shows the qa items and snippets: PASS. Snippet paste into TextEdit: NOT RUN, needs the PM. … As a control, the main build (3.5.2) gave the identical result in the same session. So this is the missing macOS Accessibility permission for these debug builds, not the library update, and it matches M1.10a.
+  > Not observed: `kusunga.log` and the qa profile folder listing … The folder is in the app's sandbox container, and `ls` from the shell returns "Operation not permitted". I did not route around it.
+  > Dialogs seen: none on screen. … No keychain or trust dialog appeared.
+  > Incidents: I sent a plain `q` key to Kusunga once, by mistake … No visible effect. … For the TextEdit copy I used an existing plain-text file in the scratch folder … nothing went to iCloud. … I took one menu-bar crop that included other windows. I deleted it and did not commit it.
+  > Blockers: none
+- Lead note: CI will prove Windows and the Windows DLL hash; the 4a "one line" wording in the developer's How-to-verify was for a clean checkout (QA explained the extra cache folder); no change needed.
+- Gates: developer pass · tester pass · reviewer approve (CI condition pending) · QA pass (real auto-paste not run, as in M1.10a) · CI pending · PM merge waiting
+- Open findings: none
+- Decisions: open for PM: push the branch and local main and open a pull request for CI; whether real auto-paste must be proven on this build before merge.
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — push and pull request for M1.10b; auto-paste proof decision; Apple Developer account (M1.9c, M1.9e); Microsoft Store account (M1.9d); DPIA section 7 (M1.9f)
+
 ## 2026-11-24 — M1.10b sqlite3 3.9.2 — PM unlocked the Mac; QA briefed
 - Changed: screen unlocked (IOConsoleLocked false); no flutter_tester running. Lead briefed QA (qa profile only).
 - Gates: developer pass · tester pass · reviewer approve (CI and QA conditions) · QA in progress · PM merge n/a yet
