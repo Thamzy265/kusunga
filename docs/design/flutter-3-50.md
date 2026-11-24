@@ -1,6 +1,6 @@
 # Flutter 3.50.1 (M1.10a) — design note
 
-Date: 2026-11-24 — Size: large — the SDK change touches the whole app, the build on both platforms and CI — Phase: MVP — Status: draft, waiting for PM (deck `docs/slides/flutter-3-50.html`)
+Date: 2026-11-24 — Size: large — the SDK change touches the whole app, the build on both platforms and CI — Phase: MVP — Status: approved by PM 2026-11-24 ("Approve, all A"; deck `docs/slides/flutter-3-50.html`)
 
 ## Context
 
@@ -50,7 +50,7 @@ No schema, store or format change. The SQLite library (sqlite3 3.5.2, SQLite3 Mu
 
 ## Decision
 
-Waiting for PM (F1, F2, F3 below). Recommendation: A. ADR 0008 (proposed) records the version change and supersedes the version line in ADR 0001.
+Option A. PM approved F1 A, F2 A and F3 A on 2026-11-24 ("Approve, all A"). ADR 0008 (proposed) records the version change and supersedes the version line in ADR 0001.
 
 ## Failure plan
 
