@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:ui' show SemanticsRole;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../privacy/ui/privacy_screen.dart';
 import '../../settings/ui/your_data_section.dart';

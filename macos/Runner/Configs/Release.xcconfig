@@ -2,9 +2,9 @@
 #include "Warnings.xcconfig"
 
 // Release and Profile (both use this file as the project base; Debug does not).
-// Apple silicon only for the beta (M1.9 D3 A). One architecture also avoids the
-// Flutter 3.44.6 failure on macOS 27, where the new `lipo` takes one
-// architecture per `-verify_arch`.
+// Apple silicon only for the beta (M1.9 D3 A, kept in M1.10a F3 A). It was also
+// the workaround for the macOS 27 `lipo` failure in Flutter 3.44.6; Flutter
+// 3.47.0 and later (ADR 0008) fix that, so this is now a product choice only.
 ARCHS = arm64
 // Notarisation needs the Hardened Runtime. Debug stays without it so local
 // `flutter run` and unit-test hosts keep loading unsigned code.

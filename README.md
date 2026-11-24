@@ -6,7 +6,7 @@ Status: early setup (desktop first). The app currently opens a window and a menu
 
 ## Requirements
 
-Flutter 3.44.6 (Dart 3.12.2). On Mac, Xcode. On Windows, Visual Studio with the "Desktop development with C++" workload.
+Flutter 3.50.1 (Dart 3.14.0). On Mac, Xcode. On Windows, Visual Studio with the "Desktop development with C++" workload.
 
 ## Run
 

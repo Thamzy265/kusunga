@@ -1,6 +1,6 @@
 // O6: the announcer speaks only on a user pause or resume, or when a timed
 // pause ends; a clock-back cut of the end time on a tick says nothing.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/pause_service.dart';
 import 'package:kusunga/privacy/ui/privacy_screen.dart';

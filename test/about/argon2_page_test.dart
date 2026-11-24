@@ -5,7 +5,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show LicenseRegistry;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/about/licences.dart';
 
@@ -68,6 +68,19 @@ void main() {
       });
       await tester.pumpWidget(
         MaterialApp(
+          // On Flutter 3.50 the default page transition in tests snapshots
+          // the whole 900 x 20000 view into one bitmap, which the test engine
+          // cannot make (PictureRasterizationException; it passed on 3.44.6).
+          // A transition without the snapshot keeps the tall view, so the
+          // page still builds every paragraph.
+          theme: ThemeData(
+            pageTransitionsTheme: PageTransitionsTheme(
+              builders: {
+                for (final p in TargetPlatform.values)
+                  p: const ZoomPageTransitionsBuilder(allowSnapshotting: false),
+              },
+            ),
+          ),
           home: Builder(
             builder: (c) => TextButton(
               onPressed: () => Navigator.of(c).push(

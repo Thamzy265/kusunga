@@ -1,6 +1,6 @@
 // M1.9a round 5, B4 (QA): Esc or Back on the licences page returns the focus
 // to View licences after a mouse click, as it does after the keyboard.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 

@@ -146,11 +146,9 @@ void main() {
       expect(json.containsKey('history'), isFalse);
       final names = dir.listSync().map((e) => p.basename(e.path)).toSet();
       expect(names, contains('out.json'));
-      expect(
-        names.where((n) => n.contains('tmp') || n.endsWith('.json')),
-        {'out.json'},
-        reason: 'no temp file and no other export next to it',
-      );
+      expect(names.where((n) => n.contains('tmp') || n.endsWith('.json')), {
+        'out.json',
+      }, reason: 'no temp file and no other export next to it');
       expect(File('${files.savePath}.kusunga-tmp').existsSync(), isFalse);
     });
 

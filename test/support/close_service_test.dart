@@ -34,7 +34,20 @@ void main() {
     await closeAndDispose(service);
     expect(store.closes, 1);
     // Disposed: a second dispose is a no-op and a listener cannot be added.
-    expect(() => service.addListener(() {}), throwsFlutterError);
+    // Since Flutter 3.50 ChangeNotifier lives in package:listen. Without a
+    // binding (a plain test(), as here) its debug check throws a StateError.
+    // With a binding (the app, or a testWidgets test) Flutter turns it into a
+    // FlutterError, as before.
+    expect(
+      () => service.addListener(() {}),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          contains('was used after being disposed'),
+        ),
+      ),
+    );
   });
 
   test('closeAndDispose after the service was already closed (for example '

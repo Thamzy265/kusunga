@@ -1,7 +1,7 @@
 // M1.6 tester, round 4: the apply error while paused (N1): one banner only,
 // announced once and not on every tick, focus order, narrow layout at large
 // text, and clearing on the user's next pause or resume.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/history_service.dart';

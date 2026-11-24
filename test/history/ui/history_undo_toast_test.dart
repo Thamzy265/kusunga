@@ -1,6 +1,6 @@
 // TB-4 on the History screen: a later toast must not take the Undo away
 // before its 5 seconds are over.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/memory_history_store.dart';

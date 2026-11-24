@@ -37,6 +37,8 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   flutter_secure_storage: ^11.2.0
+  # Material widgets, moved out of the Flutter SDK in 3.47 (ADR 0008).
+  material_ui: ^1.11.1
   path: ^1.9.1
   path_provider: ^2.1.6
   sqlite3: ^3.5.2

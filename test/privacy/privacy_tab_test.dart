@@ -1,7 +1,7 @@
 // M1.6 UI spec (docs/ui/sensitive-content.md): the Privacy tab in the main
 // window, its Pause history states, the History banner while paused, and
 // the moved ignored-apps list with the "Edit ignored apps" link.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/history_opener.dart';
 import 'package:kusunga/history/history_service.dart';

@@ -120,52 +120,48 @@ void main() {
       expect(File(path).readAsStringSync(), '{"ok":1}');
     });
 
-    test(
-      'leftovers of earlier exports to this name go; nothing else does',
-      () {
-        final path = p.join(dir.path, 'my (1)+x[2].json');
-        final outside = File(p.join(dir.path, 'outside.txt'))
-          ..writeAsStringSync('precious');
-        final hex = 'a' * 32;
-        final goes = [
-          '$path.kusunga-tmp',
-          '$path.kusunga-tmp-$hex',
-          '$path.kusunga-tmp-${'0123456789abcdef' * 2}',
-        ];
-        final stays = <String>[
-          '$path.kusunga-tmp-${'a' * 31}', // not Kusunga's length
-          '$path.kusunga-tmp-${'F' * 32}', // not lower-case hex
-          '$path.kusunga-tmp-$hex.bak',
-          '$path.kusunga-tmpx',
-          '${p.join(dir.path, 'other.json')}.kusunga-tmp-$hex', // another export
-          p.join(dir.path, 'unrelated.txt'),
-        ];
-        for (final f in [...goes, ...stays]) {
-          File(f).writeAsStringSync('x');
-        }
-        File(path).writeAsStringSync('the user\'s earlier export');
-        Directory('$path.kusunga-tmp-${'b' * 32}').createSync();
-        Link('$path.kusunga-tmp-${'c' * 32}').createSync(outside.path);
-        Link(
-          '$path.kusunga-tmp-${'d' * 32}',
-        ).createSync(p.join(dir.path, 'nowhere'));
+    test('leftovers of earlier exports to this name go; nothing else does', () {
+      final path = p.join(dir.path, 'my (1)+x[2].json');
+      final outside = File(p.join(dir.path, 'outside.txt'))
+        ..writeAsStringSync('precious');
+      final hex = 'a' * 32;
+      final goes = [
+        '$path.kusunga-tmp',
+        '$path.kusunga-tmp-$hex',
+        '$path.kusunga-tmp-${'0123456789abcdef' * 2}',
+      ];
+      final stays = <String>[
+        '$path.kusunga-tmp-${'a' * 31}', // not Kusunga's length
+        '$path.kusunga-tmp-${'F' * 32}', // not lower-case hex
+        '$path.kusunga-tmp-$hex.bak',
+        '$path.kusunga-tmpx',
+        '${p.join(dir.path, 'other.json')}.kusunga-tmp-$hex', // another export
+        p.join(dir.path, 'unrelated.txt'),
+      ];
+      for (final f in [...goes, ...stays]) {
+        File(f).writeAsStringSync('x');
+      }
+      File(path).writeAsStringSync('the user\'s earlier export');
+      Directory('$path.kusunga-tmp-${'b' * 32}').createSync();
+      Link('$path.kusunga-tmp-${'c' * 32}').createSync(outside.path);
+      Link(
+        '$path.kusunga-tmp-${'d' * 32}',
+      ).createSync(p.join(dir.path, 'nowhere'));
 
-        writeExportFile(path, utf8.encode('new'));
+      writeExportFile(path, utf8.encode('new'));
 
-        expect(File(path).readAsStringSync(), 'new');
-        for (final f in goes) {
-          expect(File(f).existsSync(), isFalse, reason: f);
-        }
-        for (final f in stays) {
-          expect(File(f).existsSync(), isTrue, reason: f);
-        }
-        expect(Directory('$path.kusunga-tmp-${'b' * 32}').existsSync(), isTrue);
-        expect(Link('$path.kusunga-tmp-${'c' * 32}').existsSync(), isTrue);
-        expect(Link('$path.kusunga-tmp-${'d' * 32}').existsSync(), isTrue);
-        expect(outside.readAsStringSync(), 'precious');
-      },
-      skip: Platform.isWindows,
-    );
+      expect(File(path).readAsStringSync(), 'new');
+      for (final f in goes) {
+        expect(File(f).existsSync(), isFalse, reason: f);
+      }
+      for (final f in stays) {
+        expect(File(f).existsSync(), isTrue, reason: f);
+      }
+      expect(Directory('$path.kusunga-tmp-${'b' * 32}').existsSync(), isTrue);
+      expect(Link('$path.kusunga-tmp-${'c' * 32}').existsSync(), isTrue);
+      expect(Link('$path.kusunga-tmp-${'d' * 32}').existsSync(), isTrue);
+      expect(outside.readAsStringSync(), 'precious');
+    }, skip: Platform.isWindows);
 
     test('a leftover that is a hard link: its name goes, the other name and '
         'its content stay', () {

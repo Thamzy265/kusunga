@@ -73,4 +73,37 @@ void main() {
     // A failed test step still fails the job: nothing swallows its failure.
     expect(yaml, isNot(contains('continue-on-error')));
   });
+
+  test('both CI jobs get packages with --enforce-lockfile, so CI fails on a '
+      'lock that does not match pubspec.yaml or a package hash instead of '
+      'rewriting pubspec.lock (M1.10a review R3)', () {
+    final yaml = readSource('.github/workflows/check.yml');
+    final macos = yaml.indexOf('\n  macos:');
+    final windows = yaml.indexOf('\n  windows:');
+    expect(macos, greaterThan(0));
+    expect(windows, greaterThan(macos));
+    final jobs = {
+      'macos': yaml.substring(macos, windows),
+      'windows': yaml.substring(windows),
+    };
+    for (final job in jobs.entries) {
+      expect(
+        RegExp(
+          r'^\s+- run: flutter pub get --enforce-lockfile$',
+          multiLine: true,
+        ).allMatches(job.value),
+        hasLength(1),
+        reason: '${job.key} job',
+      );
+    }
+    // No other step gets or upgrades packages without the flag.
+    final gets = [
+      for (final m in RegExp(
+        r'\b(flutter|dart) pub (get|upgrade|downgrade)\b[^\n]*',
+      ).allMatches(yaml))
+        m.group(0)!,
+    ];
+    expect(gets, hasLength(2));
+    expect(gets, everyElement(contains('--enforce-lockfile')));
+  });
 }

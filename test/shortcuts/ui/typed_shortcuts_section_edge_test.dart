@@ -1,7 +1,7 @@
 // Tester edge cases for the "Typed shortcuts" section (M1.5 UI spec): focus
 // order, accessible names, Undo timing, long names, the narrow window at 200%
 // text in every status, dark theme, and the Add app dialog's keyboard paths.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/shortcuts/ignored_apps.dart';

@@ -1,7 +1,7 @@
 // M1.6 tester re-check of the fix round: O5 (a pause error stays until the
 // user's next pause or resume), O6 (a clock-back cut announces nothing), O2
 // (one retry of setCaptureIgnored, then a code-only log).
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/memory_history_store.dart';

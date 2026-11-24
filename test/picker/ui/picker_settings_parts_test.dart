@@ -1,6 +1,6 @@
 // M1.7 (D1 A): the picker shortcut row moved to the Settings tab; the
 // shortcut-taken banner and the Mac permission card stay in History.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/memory_history_store.dart';

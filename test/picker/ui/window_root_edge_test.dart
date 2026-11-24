@@ -1,6 +1,6 @@
 // Tester probes: what the user loses when the picker replaces the history
 // screen and gives it back (the one window is rebuilt).
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/app.dart';

@@ -1,6 +1,6 @@
 // M1.8 tester, R2 re-check: the waiting Undo after clears that come from
 // outside the History screen. Memory store only.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/history_service.dart';
@@ -66,22 +66,20 @@ void main() {
     expect(shown(), isNot(contains('row three')));
   }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
 
-  testWidgets(
-    'a clear that fails keeps the Undo waiting and working',
-    (t) async {
-      await show(t);
-      await t.sendKeyEvent(LogicalKeyboardKey.delete);
-      await t.pump();
-      store.failClear = true;
-      expect(service.deleteAllHistory(), isNull);
-      await t.pump();
-      expect(find.text('Undo'), findsOneWidget);
-      store.failClear = false;
-      await cmdZ(t);
-      expect(shown(), hasLength(3));
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.macOS),
-  );
+  testWidgets('a clear that fails keeps the Undo waiting and working', (
+    t,
+  ) async {
+    await show(t);
+    await t.sendKeyEvent(LogicalKeyboardKey.delete);
+    await t.pump();
+    store.failClear = true;
+    expect(service.deleteAllHistory(), isNull);
+    await t.pump();
+    expect(find.text('Undo'), findsOneWidget);
+    store.failClear = false;
+    await cmdZ(t);
+    expect(shown(), hasLength(3));
+  }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
 
   testWidgets('tapping the toast\'s Undo button works before a clear, and '
       'there is no button after it', (t) async {

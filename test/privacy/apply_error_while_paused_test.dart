@@ -4,7 +4,7 @@
 // paused although Kusunga says it is. The Privacy tab shows the error under
 // the paused line, next to Resume; the History tab shows it inside the
 // paused banner, as one live region, with no second banner.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/memory_history_store.dart';
