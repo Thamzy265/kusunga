@@ -1,5 +1,30 @@
 # Status log
 
+## 2026-11-24 — M1.10b sqlite3 3.9.2 — reviewer: approve with notes (6 Low/cleanup); developer fixes L1–L6
+- Changed: reviewer (opus, Mode: branch) on ad1111e, 5c36dd3, f26d292. Lead sends L1–L6 to the developer to fix on this branch (none skipped). Lead note for the PM: the reviewer downloaded the 4 sqlite3-3.9.2 release binaries with `gh release download` into scratch to check them, then deleted them; this was not asked of the reviewer and no PM approval covered it; told the PM.
+- Reviewer report (condensed by lead; key lines quoted as written):
+  > Verdict: approve with notes, on the conditions under "Open items". I found only Low and cleanup findings.
+  > Checks: `./tool/check.sh` was not run by me. Each time I checked, `pgrep -f 'bin/cache/artifacts/engine/.*/flutter_tester'` found the PM's processes (from flutter-3.47.9 / CGA), so I left them alone as instructed.
+  > Design review: 0 findings. Nothing drifts from docs/design/package-updates.md or ADR 0002. There is no lib/ change. No new analyzer ignores.
+  > Security review: 0 findings. A03 supply chain: the lockfile hashes for sqlite3 3.9.2 (1ae2e821…), hooks 2.2.0 (eaac480a…) and record_use 1.1.1 (1cb8564a…) are the same as the pub cache's hosted-hashes and as `archive_sha256` from the pub.dev API. Only these 3 packages moved, and the move is forced. The 4 SHA-256 values in docs/licences.md are the same as the package's `lib/src/hook/asset_hashes.dart` (releaseTag 'sqlite3-3.9.2'). They are also the same as the 4 files I downloaded with `gh release download sqlite3-3.9.2` into scratch (deleted afterwards). A10: a failed open fails closed, and openHistory moves the file aside, it never overwrites it.
+  > Privacy review: no issues. The fixtures hold synthetic data only (example.invalid addresses, the 07700 900000 drama phone number, a zeroed account) and the made-up key a1b2…8f90.
+  > L1 — Low — docs/licences.md flag 1 still says the x86_64 Mac and Windows 2.7.1 binaries are still to be checked; on 2026-11-24 I ran `tool/check_sqlite3mc.sh` on all 4 desktop 2.7.1 release binaries, each with the expected SHA-256; all 4 printed "ok … no extensionfunctions.c code". Fix: update flag 1.
+  > L2 — Low — docs/licences.md flag 5 still says licence_test.dart checks against the sqlite3 CHANGELOG. Fix: reword flag 5.
+  > L3 — Low — docs/licences.md flag 4 does not cover hooks 2.0.2→2.2.0 or record_use 0.6.0→1.1.1. Fix: add them as BSD-3-Clause (Dart project authors), checked 2026-11-24.
+  > L4 — Low — csprng_entropy.c ("Public domain" row vs flag 6 MIT inference) and libchacha20.c (MIT vs filelist.md ISC). Fix: state both as an inference ("public domain or MIT", "MIT or ISC", per filelist.md), the same way in the row, the notice and flag 6.
+  > L5 — Low — test/data/old_library_file_edge_test.dart:227 damaged-file cases accept any error (`throwsA(isA<Object>())`). Fix: require `SqliteException` or the `StateError` from `_checkIntact`.
+  > L6 — cleanup — test/data/frozen_db_fixture_test.dart:515 name overclaims provenance. Fix: rename to "the kept files are unchanged since they were made (pinned SHA-256), and are encrypted".
+  > 2.7.0→2.7.1 claims: all hold. The ChaCha20 page path is untouched: cipher_chacha20.c and chacha20poly1305.c did not change between 2.7.0 and 2.7.1.
+  > Rollback at library level (copies in scratch, deleted): 2.7.1 wrote to a copy of the v6 file; 2.5.0 then read all 7 rows, and quick_check and integrity_check both returned "ok". QA's app-level rollback step is still required.
+  > Licences: every one of the 26 quoted blocks matches the named lines at upstream tag v2.7.1. Keeping CC0 for Argon2 is sound.
+  > Flakiness: none seen.
+  > Open items: a clean `./tool/check.sh` run on the head; both CI jobs pass with the named new tests passing on Windows and the Windows DLL download matching c8013fb5…; QA opens the earlier qa profile on this build, does the app-level rollback and checks the licence page; L1–L6.
+  > Blockers: none.
+- Gates: developer fixing L1–L6 · tester pass · reviewer approve with notes · QA pending · PM merge n/a yet
+- Open findings: 6 (Low 5, cleanup 1), being fixed
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — push of local main (docs only); Apple Developer account (M1.9c, M1.9e); Microsoft Store account (M1.9d); DPIA section 7 (M1.9f)
+
 ## 2026-11-24 — M1.10b sqlite3 3.9.2 — tester pass; reviewer briefed
 - Changed: tester (sonnet) committed f26d292 on `chore/sqlite3-3-9`: 37 tests, no production code, no bugs found; suite 4474 passed, 10 skipped. Lead briefed the reviewer (Mode: branch).
 - Tester report (word for word; one path shortened to the repo-relative path):
