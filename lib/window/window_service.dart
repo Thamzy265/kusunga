@@ -47,6 +47,20 @@ class WindowService {
 
   Future<void> show() => port.show();
 
+  /// The tray item "Open Kusunga": [prepare] first puts the picker or the
+  /// toast away (they use the same window), then the window is shown.
+  /// Nothing awaits this (the tray starts it), so a failure is logged here
+  /// with its error type only, rather than left as an uncaught error with
+  /// native text. The next "Open Kusunga" tries again.
+  Future<void> openFromTray(Future<void> Function() prepare) async {
+    try {
+      await prepare();
+      await port.show();
+    } catch (error) {
+      debugPrint('Kusunga: window show failed (${error.runtimeType})');
+    }
+  }
+
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
