@@ -1,5 +1,13 @@
 # Status log
 
+## 2026-11-24 — M1.10a Flutter 3.50.1 — design note, ADR 0008 (proposed) and deck ready for the PM
+- Changed: lead lookup on Flutter 3.44.6 → 3.50.1 (sonnet; report at scratchpad/m110a_research.txt; nothing in the repo or the SDK changed): 3.50.1 is the current stable (2026-11-20, Dart 3.14.0); `package:flutter/material.dart` is deprecated in 3.50 (moved to `material_ui`), and 118 files import it (lib 22, test 96), so `flutter analyze` would fail on the deprecation infos; the macOS 27 lipo bug is fixed in 3.47.0+ (Flutter PR 188625); no other breaking change hits the repo; every current direct dependency resolves on 3.50.1. Wrote docs/design/flutter-3-50.md, docs/adr/0008-flutter-3-50.md (proposed) and docs/slides/flutter-3-50.html.
+- Lead process note: in the scratch main worktree a temp cleanup had deleted 9 tracked files, and the lead's `git commit -a` recorded the deletions in the local commit that split M1.10. The lead restored the files and amended that commit before any push (now 15934fd; diff only docs/PLAN.md and docs/status.md). No pushed commit deletes a file. The lead now stages named files only.
+- Gates: developer pending (waits for deck approval and the SDK install) · tester pending · reviewer pending · QA pending · PM merge n/a yet
+- Open findings: none
+- Decisions: open for PM: deck approval and F1 (where Flutter 3.50.1 goes), F2 (Material deprecation), F3 (Mac architectures).
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — M1.10a deck and F1–F3; Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-24 — M1.10 Dependency updates — PM decision: Flutter first, then packages
 - Changed: M1.10 split in docs/PLAN.md into M1.10a Flutter 3.50.1 (large) and M1.10b package updates (large), in that order. Lead started a read-only lookup on Flutter 3.44.6 → 3.50.1 breaking changes for the M1.10a design note.
 - Gates: M1.10a developer pending (waits for the deck and the SDK install approval) · tester pending · reviewer pending · QA pending · PM merge n/a yet
