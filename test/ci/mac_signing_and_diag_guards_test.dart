@@ -196,35 +196,27 @@ void main() {
       return copy;
     }
 
-    test(
-      'a build without Local.xcconfig is ad-hoc signed with no team',
-      () {
-        final macos = copyMacos();
-        for (final config in ['Debug', 'Release', 'Profile']) {
-          final s = settings(macos, config);
-          expect(s['CODE_SIGN_IDENTITY'], '-', reason: config);
-          expect(s['DEVELOPMENT_TEAM'], isNull, reason: config);
-          expect(s['MACOSX_DEPLOYMENT_TARGET'], '12.0', reason: config);
-        }
-      },
-      skip: xcodebuild ? false : 'needs xcodebuild on a Mac',
-    );
+    test('a build without Local.xcconfig is ad-hoc signed with no team', () {
+      final macos = copyMacos();
+      for (final config in ['Debug', 'Release', 'Profile']) {
+        final s = settings(macos, config);
+        expect(s['CODE_SIGN_IDENTITY'], '-', reason: config);
+        expect(s['DEVELOPMENT_TEAM'], isNull, reason: config);
+        expect(s['MACOSX_DEPLOYMENT_TARGET'], '12.0', reason: config);
+      }
+    }, skip: xcodebuild ? false : 'needs xcodebuild on a Mac');
 
-    test(
-      'with a Local.xcconfig the team and identity are picked up',
-      () {
-        final macos = copyMacos();
-        File('${macos.path}/Runner/Configs/Local.xcconfig').writeAsStringSync(
-          'DEVELOPMENT_TEAM = TESTTEAM00\n'
-          'CODE_SIGN_STYLE = Automatic\n'
-          'CODE_SIGN_IDENTITY = Apple Development\n',
-        );
-        final s = settings(macos, 'Debug');
-        expect(s['DEVELOPMENT_TEAM'], 'TESTTEAM00');
-        expect(s['CODE_SIGN_IDENTITY'], 'Apple Development');
-      },
-      skip: xcodebuild ? false : 'needs xcodebuild on a Mac',
-    );
+    test('with a Local.xcconfig the team and identity are picked up', () {
+      final macos = copyMacos();
+      File('${macos.path}/Runner/Configs/Local.xcconfig').writeAsStringSync(
+        'DEVELOPMENT_TEAM = TESTTEAM00\n'
+        'CODE_SIGN_STYLE = Automatic\n'
+        'CODE_SIGN_IDENTITY = Apple Development\n',
+      );
+      final s = settings(macos, 'Debug');
+      expect(s['DEVELOPMENT_TEAM'], 'TESTTEAM00');
+      expect(s['CODE_SIGN_IDENTITY'], 'Apple Development');
+    }, skip: xcodebuild ? false : 'needs xcodebuild on a Mac');
   });
 
   group('debug-only force-post switch (6e24bed)', () {

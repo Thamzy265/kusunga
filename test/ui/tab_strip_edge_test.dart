@@ -1,7 +1,7 @@
 // QA-M14-1 edge tests for the shared TabStrip (main window and picker): size,
 // layout, focus ring, selected marker, tap target, long labels, RTL, themes
 // and keyboard. Complements test/snippets/ui/main_tabs_layout_test.dart.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/history_service.dart';

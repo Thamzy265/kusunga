@@ -2,6 +2,15 @@
 # non-zero on any issue, including infos, so it works as a gate.
 include: package:flutter_lints/flutter.yaml
 
+# Flutter 3.50's `pub get` adds these excludes (its analysis_options migration)
+# and adds them back if they are removed. They hold build output and native
+# platform code; no project Dart file is in them.
+analyzer:
+  exclude:
+    - build/**
+    - windows/**
+    - macos/**
+
 linter:
   rules:
     - prefer_single_quotes

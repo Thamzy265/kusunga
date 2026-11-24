@@ -1,6 +1,6 @@
 // F9: history rows switch at a 600 px window, as the UI spec says (not at
 // 600 px of row width, which is 32 px less).
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/history_service.dart';
 import 'package:kusunga/history/memory_history_store.dart';

@@ -34,7 +34,18 @@ void main() {
     await closeAndDispose(service);
     expect(store.closes, 1);
     // Disposed: a second dispose is a no-op and a listener cannot be added.
-    expect(() => service.addListener(() {}), throwsFlutterError);
+    // Since Flutter 3.50 (ChangeNotifier in package:listen) the debug check
+    // throws a StateError, no longer a FlutterError.
+    expect(
+      () => service.addListener(() {}),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          contains('was used after being disposed'),
+        ),
+      ),
+    );
   });
 
   test('closeAndDispose after the service was already closed (for example '

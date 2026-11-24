@@ -10,6 +10,7 @@ Kusunga is licensed under the GNU General Public License, version 3 only (SPDX: 
 | ffi | 2.2.0 | BSD-3-Clause | pub cache LICENSE (Dart project authors) | Yes. Permissive. |
 | file_selector | 1.1.0 | BSD-3-Clause | pub cache LICENSE (Flutter Authors) | Yes. Permissive. |
 | flutter_secure_storage | 11.2.0 | BSD-3-Clause | pub cache LICENSE (German Saprykin) | Yes. Permissive. |
+| material_ui | 1.11.1 | BSD-3-Clause | pub cache LICENSE (Flutter Authors); publisher flutter.dev (pub.dev, checked 2026-11-24) | Yes. Permissive. |
 | path | 1.9.1 | BSD-3-Clause | pub cache LICENSE (Dart project authors) | Yes. Permissive. |
 | path_provider | 2.1.6 | BSD-3-Clause | pub cache LICENSE (Flutter Authors) | Yes. Permissive. |
 | sqlite3 (Dart package) | 3.5.2 | MIT | pub cache LICENSE (Simon Binder) | Yes. Permissive. |
@@ -18,8 +19,8 @@ Kusunga is licensed under the GNU General Public License, version 3 only (SPDX: 
 | window_manager | 0.5.2 | MIT | pub cache LICENSE (LiJianying) | Yes. Permissive. |
 | SQLite3 Multiple Ciphers | 2.5.0 | MIT, plus bundled third-party parts (table below) | Upstream `LICENSE`, `LICENSE.spdx`, `src/filelist.md` and source headers at tag v2.5.0 (read 2026-11-19). The version comes from the sqlite3 3.5.2 CHANGELOG and `SQLITE3MC_VERSION_STRING`. | Yes; extensionfunctions.c is unclear (flag 1) and 14 files' licence is inferred (flag 6). See the table below. |
 | SQLite | 3.53.4 | blessing (public domain) | `SQLITE_VERSION` in upstream `src/sqlite3.h` at v2.5.0; public-domain dedication confirmed at https://www.sqlite.org/copyright.html (read 2026-11-19); SPDX `blessing` | Yes. Public domain, no restriction. |
-| Flutter SDK | 3.44.6 | BSD-3-Clause (framework); the engine bundles third-party components (see `sky_engine/LICENSE`: Apache-2.0, MPL-2.0 data, FTL, ICU/Unicode, zlib, libpng, CC0); Material Icons font CC-BY-4.0 | `LICENSE` at the SDK root (framework); the rest from the reviewer's scan 2026-11-19 | Yes. None incompatible (reviewer scan 2026-11-19). |
-| Dart SDK | 3.12.2 | BSD-3-Clause | `LICENSE` in `bin/cache/dart-sdk` (Dart project authors) | Yes. Permissive. |
+| Flutter SDK | 3.50.1 | BSD-3-Clause (framework); the engine bundles third-party components (see `sky_engine/LICENSE`: Apache-2.0, MPL-2.0 data, FTL, ICU/Unicode, zlib, libpng, CC0); Material Icons font CC-BY-4.0 | `LICENSE` at the SDK root (framework); the rest from the reviewer's scan 2026-11-19 | Yes. None incompatible (reviewer scan 2026-11-19). |
+| Dart SDK | 3.14.0 | BSD-3-Clause | `LICENSE` in `bin/cache/dart-sdk` (Dart project authors) | Yes. Permissive. |
 
 All the BSD files were checked for the three clauses (source and binary redistribution, and the no-endorsement clause); none has an advertising clause.
 

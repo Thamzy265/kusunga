@@ -1,7 +1,7 @@
 // Independent edge cases for the VoiceOver / Narrator announcements added in
 // 97a3665 (count: polite, throttled 500 ms, no repeats; row: assertive, only
 // when the selection changes).
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/history_service.dart';

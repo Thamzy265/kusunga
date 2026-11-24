@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/log/app_log.dart';
@@ -497,97 +497,78 @@ void main() {
     String nameText(WidgetTester tester) =>
         tester.widget<TextField>(field('snippet-editor-name')).controller!.text;
 
-    testWidgets(
-      'the paste key turns line breaks into spaces',
-      (tester) async {
-        final mac = defaultTargetPlatform == TargetPlatform.macOS;
-        mockClipboard(tester, 'Line one\nLine two\r\nLine\u2028three');
-        await open(tester, const SnippetEditorStart.create());
-        final modifier = mac
-            ? LogicalKeyboardKey.metaLeft
-            : LogicalKeyboardKey.controlLeft;
-        await tester.sendKeyDownEvent(modifier);
-        await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
-        await tester.sendKeyUpEvent(modifier);
-        await tester.pumpAndSettle();
-        expect(nameText(tester), 'Line one Line two Line three');
-      },
-      variant: TargetPlatformVariant.only(TargetPlatform.macOS),
-    );
+    testWidgets('the paste key turns line breaks into spaces', (tester) async {
+      final mac = defaultTargetPlatform == TargetPlatform.macOS;
+      mockClipboard(tester, 'Line one\nLine two\r\nLine\u2028three');
+      await open(tester, const SnippetEditorStart.create());
+      final modifier = mac
+          ? LogicalKeyboardKey.metaLeft
+          : LogicalKeyboardKey.controlLeft;
+      await tester.sendKeyDownEvent(modifier);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+      await tester.sendKeyUpEvent(modifier);
+      await tester.pumpAndSettle();
+      expect(nameText(tester), 'Line one Line two Line three');
+    }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
 
-    testWidgets(
-      'Ctrl+V on Windows does the same',
-      (tester) async {
-        mockClipboard(tester, 'Line one\nLine two');
-        await open(tester, const SnippetEditorStart.create());
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-        await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-        await tester.pumpAndSettle();
-        expect(nameText(tester), 'Line one Line two');
-      },
-      variant: TargetPlatformVariant.only(TargetPlatform.windows),
-    );
+    testWidgets('Ctrl+V on Windows does the same', (tester) async {
+      mockClipboard(tester, 'Line one\nLine two');
+      await open(tester, const SnippetEditorStart.create());
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+      expect(nameText(tester), 'Line one Line two');
+    }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
 
-    testWidgets(
-      'the Paste item of the right-click menu does the same',
-      (tester) async {
-        mockClipboard(tester, 'Line one\nLine two');
-        await open(tester, const SnippetEditorStart.create());
-        await tester.tap(
-          field('snippet-editor-name'),
-          buttons: kSecondaryButton,
-        );
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Paste'));
-        await tester.pumpAndSettle();
-        expect(nameText(tester), 'Line one Line two');
-      },
-      variant: TargetPlatformVariant.only(TargetPlatform.macOS),
-    );
+    testWidgets('the Paste item of the right-click menu does the same', (
+      tester,
+    ) async {
+      mockClipboard(tester, 'Line one\nLine two');
+      await open(tester, const SnippetEditorStart.create());
+      await tester.tap(field('snippet-editor-name'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Paste'));
+      await tester.pumpAndSettle();
+      expect(nameText(tester), 'Line one Line two');
+    }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
 
-    testWidgets(
-      'the paste goes where the caret is and replaces a selection',
-      (tester) async {
-        mockClipboard(tester, 'mid\ndle');
-        await open(tester, const SnippetEditorStart.create());
-        await tester.enterText(field('snippet-editor-name'), 'start end');
-        final c = tester
-            .widget<TextField>(field('snippet-editor-name'))
-            .controller!;
-        c.selection = const TextSelection(baseOffset: 6, extentOffset: 9);
-        await tester.pump();
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
-        await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
-        await tester.pumpAndSettle();
-        expect(c.text, 'start mid dle');
-        expect(c.selection, const TextSelection.collapsed(offset: 13));
-      },
-      variant: TargetPlatformVariant.only(TargetPlatform.macOS),
-    );
+    testWidgets('the paste goes where the caret is and replaces a selection', (
+      tester,
+    ) async {
+      mockClipboard(tester, 'mid\ndle');
+      await open(tester, const SnippetEditorStart.create());
+      await tester.enterText(field('snippet-editor-name'), 'start end');
+      final c = tester
+          .widget<TextField>(field('snippet-editor-name'))
+          .controller!;
+      c.selection = const TextSelection(baseOffset: 6, extentOffset: 9);
+      await tester.pump();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+      await tester.pumpAndSettle();
+      expect(c.text, 'start mid dle');
+      expect(c.selection, const TextSelection.collapsed(offset: 13));
+    }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
 
-    testWidgets(
-      'Content keeps its line breaks',
-      (tester) async {
-        mockClipboard(tester, 'Line one\nLine two');
-        await open(tester, const SnippetEditorStart.create());
-        await tester.tap(field('snippet-editor-content'));
-        await tester.pump();
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
-        await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
-        await tester.pumpAndSettle();
-        expect(
-          tester
-              .widget<TextField>(field('snippet-editor-content'))
-              .controller!
-              .text,
-          'Line one\nLine two',
-        );
-      },
-      variant: TargetPlatformVariant.only(TargetPlatform.macOS),
-    );
+    testWidgets('Content keeps its line breaks', (tester) async {
+      mockClipboard(tester, 'Line one\nLine two');
+      await open(tester, const SnippetEditorStart.create());
+      await tester.tap(field('snippet-editor-content'));
+      await tester.pump();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<TextField>(field('snippet-editor-content'))
+            .controller!
+            .text,
+        'Line one\nLine two',
+      );
+    }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
   });
 
   testWidgets('a name of only invisible characters gets "Enter a name." (R3)', (

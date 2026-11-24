@@ -85,18 +85,14 @@ void main() {
       }
     });
 
-    test(
-      'in an in-bundle symlink target, reported once via the real file',
-      () {
-        final dir = app({'Contents/Resources/real.bin': bin(needle)});
-        Link('${dir.path}/Contents/Resources/alias.bin').createSync('real.bin');
-        Link('${dir.path}/Contents/Frameworks').createSync('Resources');
-        final r = guard(['binary', dir.path]);
-        expect(r.exitCode, 1);
-        expect(r.stderr, contains('real.bin'));
-      },
-      skip: skipOnWindows(_symlinks),
-    );
+    test('in an in-bundle symlink target, reported once via the real file', () {
+      final dir = app({'Contents/Resources/real.bin': bin(needle)});
+      Link('${dir.path}/Contents/Resources/alias.bin').createSync('real.bin');
+      Link('${dir.path}/Contents/Frameworks').createSync('Resources');
+      final r = guard(['binary', dir.path]);
+      expect(r.exitCode, 1);
+      expect(r.stderr, contains('real.bin'));
+    }, skip: skipOnWindows(_symlinks));
 
     test(
       'a dangling symlink does not hide a marker or fail a clean bundle',
@@ -113,28 +109,18 @@ void main() {
       skip: skipOnWindows(_symlinks),
     );
 
-    test(
-      'a bundle of only symlinks has nothing to scan (2)',
-      () {
-        final target = File('${tmp.path}/outside.txt')
-          ..writeAsStringSync(needle);
-        final dir = Directory('${tmp.path}/S.app')..createSync();
-        Link('${dir.path}/l').createSync(target.path);
-        expect(guard(['binary', dir.path]).exitCode, 2);
-      },
-      skip: skipOnWindows(_symlinks),
-    );
+    test('a bundle of only symlinks has nothing to scan (2)', () {
+      final target = File('${tmp.path}/outside.txt')..writeAsStringSync(needle);
+      final dir = Directory('${tmp.path}/S.app')..createSync();
+      Link('${dir.path}/l').createSync(target.path);
+      expect(guard(['binary', dir.path]).exitCode, 2);
+    }, skip: skipOnWindows(_symlinks));
 
-    test(
-      'a top-level symlink to a file has nothing to scan (2)',
-      () {
-        final target = File('${tmp.path}/outside.txt')
-          ..writeAsStringSync(needle);
-        final link = Link('${tmp.path}/top')..createSync(target.path);
-        expect(guard(['binary', link.path]).exitCode, 2);
-      },
-      skip: skipOnWindows(_symlinks),
-    );
+    test('a top-level symlink to a file has nothing to scan (2)', () {
+      final target = File('${tmp.path}/outside.txt')..writeAsStringSync(needle);
+      final link = Link('${tmp.path}/top')..createSync(target.path);
+      expect(guard(['binary', link.path]).exitCode, 2);
+    }, skip: skipOnWindows(_symlinks));
 
     test('a directory that is not an .app is still scanned', () {
       final dir = app({'f': bin(needle)}, name: 'plain');
@@ -215,18 +201,14 @@ void main() {
       expect(guard(['binary', lower.path]).exitCode, 0);
     });
 
-    test(
-      'documented limit: a symlink to a file outside the bundle',
-      () {
-        // find -type f skips symlinks. codesign rejects such a bundle anyway, so
-        // it cannot be notarised, but the guard itself does not follow it.
-        final out = File('${tmp.path}/outside.txt')..writeAsStringSync(needle);
-        final dir = app({'Contents/MacOS/Kusunga': bin('ok')});
-        Link('${dir.path}/Contents/Resources').createSync(out.path);
-        expect(guard(['binary', dir.path]).exitCode, 0);
-      },
-      skip: skipOnWindows(_symlinks),
-    );
+    test('documented limit: a symlink to a file outside the bundle', () {
+      // find -type f skips symlinks. codesign rejects such a bundle anyway, so
+      // it cannot be notarised, but the guard itself does not follow it.
+      final out = File('${tmp.path}/outside.txt')..writeAsStringSync(needle);
+      final dir = app({'Contents/MacOS/Kusunga': bin('ok')});
+      Link('${dir.path}/Contents/Resources').createSync(out.path);
+      expect(guard(['binary', dir.path]).exitCode, 0);
+    }, skip: skipOnWindows(_symlinks));
   });
 
   group('guard exit codes and usage', () {

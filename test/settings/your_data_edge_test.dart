@@ -6,7 +6,7 @@
 // and backup-failed / memory-only sessions. Fakes and temp folders only.
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/data/data_eraser.dart';

@@ -1,6 +1,6 @@
 // Regression tests for the tester's UI findings on M1.5: U1 (a long app name
 // overflowed the chip row) and U2 (a second removal hid the first Undo).
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/shortcuts/ignored_apps.dart';
 import 'package:kusunga/shortcuts/shortcut_service.dart';

@@ -31,23 +31,19 @@ void main() {
   // one can never be typed. Native tests lock that behaviour:
   // testAShortcutInsideAnotherOneFiresBeforeTheLongerOneIsFinished (Swift) and
   // TestEdgeBounds (C++). The editor should refuse the second shortcut.
-  test(
-    'T1 a shortcut that contains another one in its middle is refused',
-    () {
-      final s = _service();
-      s.save(name: 'Ma', content: 'x', type: SnippetType.other, shortcut: 'ma');
-      // ";email" contains "ma": typing it fires "ma" at the letter a.
-      expect(s.shortcutIssue(';email'), isNotNull);
-      final r = s.save(
-        name: 'Work email',
-        content: 'will@example.com',
-        type: SnippetType.email,
-        shortcut: ';email',
-      );
-      expect(r.outcome, isNot(SnippetSave.saved));
-    },
-    skip: _skip,
-  );
+  test('T1 a shortcut that contains another one in its middle is refused', () {
+    final s = _service();
+    s.save(name: 'Ma', content: 'x', type: SnippetType.other, shortcut: 'ma');
+    // ";email" contains "ma": typing it fires "ma" at the letter a.
+    expect(s.shortcutIssue(';email'), isNotNull);
+    final r = s.save(
+      name: 'Work email',
+      content: 'will@example.com',
+      type: SnippetType.email,
+      shortcut: ';email',
+    );
+    expect(r.outcome, isNot(SnippetSave.saved));
+  }, skip: _skip);
 
   test('T1b the same the other way round: adding an inner shortcut after the '
       'longer one exists', () {

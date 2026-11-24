@@ -75,9 +75,17 @@ void main() {
     // The check is made here, so the test needs no other test to run first.
     tearDown(() {
       expect(_heldOpen(db), isFalse, reason: 'open at folder deletion');
+      // Since Flutter 3.50 (ChangeNotifier in package:listen) the debug
+      // check throws a StateError, no longer a FlutterError.
       expect(
         () => h.addListener(() {}),
-        throwsFlutterError,
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('was used after being disposed'),
+          ),
+        ),
         reason: 'it was disposed too',
       );
     });

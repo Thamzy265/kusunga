@@ -1,6 +1,6 @@
 // F10: "Save as snippet" on a history item whose whole text can't be read
 // does not open the editor; it says "Couldn't open the snippet. Try again."
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/history/history_service.dart';

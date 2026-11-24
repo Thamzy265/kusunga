@@ -1,6 +1,6 @@
 // M1.9a UI spec (docs/ui/about-and-licences.md): the About section at the
 // bottom of Settings, its states, breakpoints and accessibility notes.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/about/build_info.dart';

@@ -102,19 +102,15 @@ void main() {
       expect(File(path).readAsStringSync(), 'new');
     }, skip: links);
 
-    test(
-      'a hard link at the temp name: its other name keeps its content',
-      () {
-        final victim = File(p.join(dir.path, 'victim.txt'))
-          ..writeAsStringSync('keep');
-        final path = p.join(dir.path, 'out.json');
-        expect(Process.runSync('ln', [victim.path, tempOf(path)]).exitCode, 0);
-        export(path, 'new');
-        expect(victim.readAsStringSync(), 'keep');
-        expect(File(path).readAsStringSync(), 'new');
-      },
-      skip: Platform.isWindows,
-    );
+    test('a hard link at the temp name: its other name keeps its content', () {
+      final victim = File(p.join(dir.path, 'victim.txt'))
+        ..writeAsStringSync('keep');
+      final path = p.join(dir.path, 'out.json');
+      expect(Process.runSync('ln', [victim.path, tempOf(path)]).exitCode, 0);
+      export(path, 'new');
+      expect(victim.readAsStringSync(), 'keep');
+      expect(File(path).readAsStringSync(), 'new');
+    }, skip: Platform.isWindows);
 
     test('the Windows answer over a link to a folder or a file: still '
         'written in place, nothing behind the link changes', () {
@@ -279,29 +275,25 @@ void main() {
       expect(File(path).readAsStringSync(), 'the user\'s export');
     }, skip: links);
 
-    test(
-      'a dangling link wins the race: nothing is created at its target',
-      () {
-        final nowhere = p.join(dir.path, 'nowhere');
-        final path = p.join(dir.path, 'out.json');
-        File(path).writeAsStringSync('the user\'s export');
-        expect(
-          () => export(
-            path,
-            'new',
-            createTemp: (f) => Link(f.path).createSync(nowhere),
-          ),
-          throwsA(isA<FileSystemException>()),
-        );
-        expect(
-          FileSystemEntity.typeSync(nowhere),
-          FileSystemEntityType.notFound,
-          reason: 'opening for append creates a missing file through a link',
-        );
-        expect(File(path).readAsStringSync(), 'the user\'s export');
-      },
-      skip: links,
-    );
+    test('a dangling link wins the race: nothing is created at its target', () {
+      final nowhere = p.join(dir.path, 'nowhere');
+      final path = p.join(dir.path, 'out.json');
+      File(path).writeAsStringSync('the user\'s export');
+      expect(
+        () => export(
+          path,
+          'new',
+          createTemp: (f) => Link(f.path).createSync(nowhere),
+        ),
+        throwsA(isA<FileSystemException>()),
+      );
+      expect(
+        FileSystemEntity.typeSync(nowhere),
+        FileSystemEntityType.notFound,
+        reason: 'opening for append creates a missing file through a link',
+      );
+      expect(File(path).readAsStringSync(), 'the user\'s export');
+    }, skip: links);
 
     test('the real exclusive create loses to a file made after the check: '
         'the export falls back to writing in place', () {

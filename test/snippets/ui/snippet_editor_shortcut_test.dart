@@ -1,6 +1,6 @@
 // The editor's Shortcut field (M1.5 UI spec, "Editor Shortcut field" and
 // "Copy").
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kusunga/snippets/memory_snippet_store.dart';

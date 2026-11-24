@@ -65,19 +65,15 @@ void main() {
     }
   }, skip: posix);
 
-  test(
-    'a log file that is a link at the start is never written',
-    () {
-      final target = File(p.join(dir.path, 'real.log'))
-        ..writeAsStringSync('real\n');
-      Link(file.path).createSync(target.path);
-      final log = FileErrorLog(file);
-      log.log(LogCode.flushFailed);
-      log.close();
-      expect(target.readAsStringSync(), 'real\n');
-    },
-    skip: Platform.isWindows ? 'needs symlink rights' : null,
-  );
+  test('a log file that is a link at the start is never written', () {
+    final target = File(p.join(dir.path, 'real.log'))
+      ..writeAsStringSync('real\n');
+    Link(file.path).createSync(target.path);
+    final log = FileErrorLog(file);
+    log.log(LogCode.flushFailed);
+    log.close();
+    expect(target.readAsStringSync(), 'real\n');
+  }, skip: Platform.isWindows ? 'needs symlink rights' : null);
 
   test('a link put in place of the log after the first line is not written '
       'through, and the lines go on to the file that was opened', () {
