@@ -1,5 +1,26 @@
 # Status log
 
+## 2026-11-24 — M1.10a Flutter 3.50.1 — QA session 2: blocked again by a macOS security dialog
+- Changed: PM said: "Done, re-run QA" (2026-11-24), after answering the session 1 dialog. QA report (sonnet, medium), word for word:
+  > Milestone: M1.10a Flutter 3.50.1 - 0/3 criteria pass (nothing could run; STOPPED) - Date: 2026-11-24 - Environment: macOS 27.2, branch chore/flutter-3-50 (docs commit 6ca1266 on cacfcfc, not pushed), qa profile
+  > Automated: 0/3 - manual: runs and flows - no desktop E2E tool approved; and stopped by a security dialog
+  > Fail: none
+  > Spec gaps: none
+  > Re-verified: none
+  > Needs PM: 1. A macOS SecurityAgent process (pid 23057) is running again, started when the 3.44.6 baseline build opened. I did not read, click or screenshot it. Please answer it yourself (it may ask for the Mac login password or keychain access for the database key). 2. Tell the lead when done; QA re-runs. Expect it may appear once more for the 3.50.1 build (different path).
+  > Not observed: everything in steps 1-3 (history count, snippets, 3.50.1 comparison, copy/search/picker/snippet edit, Settings, licences, menu-bar quit, AX on 3.50.1); Windows (CI, pending push); live screen reader
+  > Accessibility: not run (blocked); same loading-screen labels as session 1 seen via AX
+  > Privacy: n/a - qa profile only, no PM data touched
+  > Claims: n/a
+  > Evidence: docs/qa/m1.md (section "M1.10a session 2"); screens: none (0 files); videos: none - blocked before any flow
+  > PM check steps: n/a - only the dialog needs the PM
+  > Blockers: SecurityAgent dialog on the baseline build - PM - answer it (the app stays on "Opening your history..." until then) - impact: all run steps blocked.
+  > Notes: Baseline app pid 23023 started and quit by pid; branch build never started. No Kusunga or flutter_tester process left; SecurityAgent 23057 is a system process, left untouched. Worktrees clean apart from docs commit 6ca1266 (m110a-wt) and git-ignored build/.
+- Gates: developer pass · tester pass · reviewer approve (CI conditions pending) · QA blocked (security dialog, PM) · CI pending · PM merge n/a yet
+- Open findings: none
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA security dialog (PM) · Marketer none · Lead none · PM — answer the SecurityAgent dialog; push approval for CI; Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-24 — M1.10a Flutter 3.50.1 — QA session 1: blocked by a macOS security dialog
 - Changed: QA report (sonnet, medium), word for word:
   > Milestone: M1.10a Flutter 3.50.1 — 0/3 criteria pass (build part of criterion 1 passes; the run is NOT RUN) — Date: 2026-11-24 — Environment: macOS 27.2 Apple silicon, branch chore/flutter-3-50 5fc417c (docs commit cacfcfc, not pushed), Flutter 3.50.1 (branch) and 3.44.6 (main baseline), qa profile
