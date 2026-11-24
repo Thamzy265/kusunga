@@ -4,7 +4,6 @@
 // done, nothing throws out of a retry, and every log line carries the error
 // type or a count, never native text. Plain tests with a 1 ms retry (a
 // testWidgets dispose can hang under the fake clock).
-import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 
