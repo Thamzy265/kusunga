@@ -18,7 +18,7 @@ jobs:
           flutter-version: 3.50.1
           channel: stable
           cache: true
-      - run: flutter pub get
+      - run: flutter pub get --enforce-lockfile
       - run: ./tool/check.sh
       - run: flutter build macos --debug
       - name: Swift tests (clipboard watcher, quit flow, paste flow)
@@ -37,7 +37,7 @@ jobs:
           flutter-version: 3.50.1
           channel: stable
           cache: true
-      - run: flutter pub get
+      - run: flutter pub get --enforce-lockfile
       - run: ./tool/check.ps1
         shell: pwsh
       # Runs even when the tests fail, so one run shows both; the job still
