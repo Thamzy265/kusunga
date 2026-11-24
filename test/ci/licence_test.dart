@@ -135,8 +135,9 @@ void main() {
         for (final part in [
           'must not be compiled in',
           'tool/check_sqlite3mc.sh',
-          'macOS checked 2026-11-24',
-          'Windows checked before release',
+          // Review note L1 (M1.10b): all 4 desktop 2.7.1 binaries checked.
+          'macOS and Windows 2.7.1 binaries checked 2026-11-24',
+          'each shipped binary is checked again before release',
         ]) {
           expect(text, contains(part), reason: '$name: $part');
         }
@@ -145,6 +146,27 @@ void main() {
       }
     },
   );
+
+  test('flag 1 records the check of all 4 desktop 2.7.1 binaries', () {
+    // Review note L1 (M1.10b): the reviewer ran tool/check_sqlite3mc.sh on
+    // the 4 release files, each with the SHA-256 in the table, on
+    // 2026-11-24. Flag 1 says so and keeps the rule for each release.
+    final flag1 = File(
+      'docs/licences.md',
+    ).readAsLinesSync().firstWhere((l) => l.startsWith('1. '));
+    for (final file in [
+      'libsqlite3mc.arm64.macos.dylib',
+      'libsqlite3mc.x64.macos.dylib',
+      'sqlite3mc.x64.windows.dll',
+      'sqlite3mc.arm64.windows.dll',
+    ]) {
+      expect(flag1, contains(file), reason: file);
+    }
+    expect(flag1, contains('the SHA-256 in the table above'));
+    expect(flag1, contains('by the reviewer on 2026-11-24'));
+    expect(flag1, contains('before each release'));
+    expect(flag1, isNot(contains('still to be checked')));
+  });
 
   _testerGuards();
 }

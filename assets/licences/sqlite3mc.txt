@@ -503,4 +503,4 @@ THE SOFTWARE.
 
 * extensionfunctions.c
   Licence: No licence text. Upstream `filelist.md` only assumes it is public domain.
-  It is only compiled with SQLITE_ENABLE_EXTFUNC. It must not be compiled in; enforced by tool/check_sqlite3mc.sh (macOS checked 2026-11-24; Windows checked before release).
+  It is only compiled with SQLITE_ENABLE_EXTFUNC. It must not be compiled in; enforced by tool/check_sqlite3mc.sh (macOS and Windows 2.7.1 binaries checked 2026-11-24; each shipped binary is checked again before release).
