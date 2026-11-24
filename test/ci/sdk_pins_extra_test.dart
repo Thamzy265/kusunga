@@ -21,6 +21,14 @@ List<String> ciVersions() => [
     m.group(1)!,
 ];
 
+/// Whether version [need] is not above [have] (both x.y.z).
+bool notAbove(List<int> need, List<int> have) {
+  for (var i = 0; i < 3; i++) {
+    if (have[i] != need[i]) return have[i] > need[i];
+  }
+  return true;
+}
+
 void main() {
   test('every flutter-action step has one flutter-version, a full x.y.z', () {
     final steps = RegExp('subosito/flutter-action@').allMatches(_ci).length;
@@ -84,18 +92,31 @@ void main() {
   test('the Dart and Flutter the lockfile needs are not above what CI '
       'installs', () {
     final lock = File('pubspec.lock').readAsStringSync();
-    final flutter = RegExp(
-      r'flutter: ">=(\d+)\.(\d+)\.(\d+)"',
-    ).firstMatch(lock)!;
-    final need = [for (var i = 1; i <= 3; i++) int.parse(flutter.group(i)!)];
-    final have = ciVersions().first.split('.').map(int.parse).toList();
-    var ok = true;
-    for (var i = 0; i < 3; i++) {
-      if (have[i] != need[i]) {
-        ok = have[i] > need[i];
-        break;
-      }
+    List<int> lower(String sdk) {
+      final m = RegExp(
+        '^  $sdk: ">=(\\d+)\\.(\\d+)\\.(\\d+)',
+        multiLine: true,
+      ).firstMatch(lock);
+      expect(m, isNotNull, reason: 'pubspec.lock has no $sdk lower bound');
+      return [for (var i = 1; i <= 3; i++) int.parse(m!.group(i)!)];
     }
-    expect(ok, isTrue, reason: 'lock needs Flutter $need, CI has $have');
+
+    // CI installs the Flutter in check.yml. Its Dart is the one CLAUDE.md
+    // names (sdk_version_pins_test and licence_test tie that to the SDK that
+    // runs the tests).
+    final dart = RegExp(
+      r'Stack: Flutter \d+\.\d+\.\d+ / Dart (\d+\.\d+\.\d+)',
+    ).firstMatch(File('CLAUDE.md').readAsStringSync());
+    expect(dart, isNotNull, reason: 'CLAUDE.md no longer names the Dart');
+    for (final (sdk, need, have) in [
+      ('Flutter', lower('flutter'), ciVersions().first),
+      ('Dart', lower('dart'), dart!.group(1)!),
+    ]) {
+      expect(
+        notAbove(need, have.split('.').map(int.parse).toList()),
+        isTrue,
+        reason: 'lock needs $sdk $need, CI has $have',
+      );
+    }
   });
 }

@@ -2,8 +2,9 @@
 // (ADR 0008). The old `package:flutter/material.dart` still compiles but is
 // deprecated and is a different library from `material_ui`, so one file on
 // the old import and another on the new one is a mix the analyzer accepts.
-// Every Dart file we own (lib, test, tool, and any other folder) uses
-// material_ui only.
+// Every Dart file in lib, test, tool and integration_test uses material_ui
+// only. Those are the folders scanned; today every tracked Dart file is in lib
+// or test.
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
