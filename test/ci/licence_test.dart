@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 /// Guards for the licence (PM decision D8, GPL-3.0): the licence file stays
 /// the unchanged GNU text and the README keeps the licence notice.
@@ -66,6 +66,21 @@ void main() {
     for (final f in ['aes_hardware.c', 'memory_secure.c', 'libargon2.c']) {
       expect(licences, contains(f));
     }
+    // M1.10b: files new in SQLite3 Multiple Ciphers 2.7.x. The libsodium
+    // ChaCha20/Poly1305 copy is ISC; libchacha20.c and csprng_entropy.c have
+    // no licence text and are counted in flag 6.
+    for (final f in [
+      'src/chacha20',
+      'libchacha20.c',
+      'csprng_entropy.c',
+      'btreecopyfile.c',
+      'hwcheck.c',
+      'ISC',
+    ]) {
+      expect(licences, contains(f), reason: f);
+    }
+    expect(flag6Line(licences), contains('libchacha20.c'));
+    expect(flag6Line(licences), contains('csprng_entropy.c'));
     expect(licences, contains('src/ascon'));
     expect(licences, contains('aead.c'));
     // The headerless files, and the flag that says their licence is inferred.
@@ -75,9 +90,7 @@ void main() {
     // Review note L5: mystdint.h also has no header and must stay listed,
     // in its table row and in flag 6.
     expect(licences, contains('mystdint.h'));
-    final flag6 = licences
-        .split('\n')
-        .firstWhere((l) => l.startsWith('6. '), orElse: () => '');
+    final flag6 = flag6Line(licences);
     expect(flag6, contains('mystdint.h'));
     expect(flag6, contains('12 files in `src/ascon`'));
     // The count of headerless files is the same in the row, flag 1, flag 6.
@@ -85,12 +98,12 @@ void main() {
         .split('\n')
         .where(
           (l) =>
-              l.startsWith('| SQLite3 Multiple Ciphers | 2.5.0') ||
+              l.startsWith('| SQLite3 Multiple Ciphers | 2.7.1') ||
               l.startsWith('1. ') ||
               l.startsWith('6. '),
         );
     for (final l in rowAndFlags) {
-      expect(l, contains('14 files'));
+      expect(l, contains('16 files'));
     }
   });
 
@@ -122,8 +135,9 @@ void main() {
         for (final part in [
           'must not be compiled in',
           'tool/check_sqlite3mc.sh',
-          'macOS checked 2026-11-21',
-          'Windows checked before release',
+          // Review note L1 (M1.10b): all 4 desktop 2.7.1 binaries checked.
+          'macOS and Windows 2.7.1 binaries checked 2026-11-24',
+          'each shipped binary is checked again before release',
         ]) {
           expect(text, contains(part), reason: '$name: $part');
         }
@@ -133,6 +147,143 @@ void main() {
     },
   );
 
+  test('flag 1 records the check of all 4 desktop 2.7.1 binaries', () {
+    // Review note L1 (M1.10b): the reviewer ran tool/check_sqlite3mc.sh on
+    // the 4 release files, each with the SHA-256 in the table, on
+    // 2026-11-24. Flag 1 says so and keeps the rule for each release.
+    final flag1 = File(
+      'docs/licences.md',
+    ).readAsLinesSync().firstWhere((l) => l.startsWith('1. '));
+    for (final file in [
+      'libsqlite3mc.arm64.macos.dylib',
+      'libsqlite3mc.x64.macos.dylib',
+      'sqlite3mc.x64.windows.dll',
+      'sqlite3mc.arm64.windows.dll',
+    ]) {
+      expect(flag1, contains(file), reason: file);
+    }
+    expect(flag1, contains('the SHA-256 in the table above'));
+    expect(flag1, contains('by the reviewer on 2026-11-24'));
+    expect(flag1, contains('before each release'));
+    expect(flag1, isNot(contains('still to be checked')));
+  });
+
+  test('flag 5 names the loaded library as the version source, not the '
+      'CHANGELOG', () {
+    // Review note L2 (M1.10b): licence_test.dart reads the versions from the
+    // library the test run loads; the sqlite3 CHANGELOG is not used.
+    final flag5 = File(
+      'docs/licences.md',
+    ).readAsLinesSync().firstWhere((l) => l.startsWith('5. '));
+    expect(flag5, contains('sqlite3mc_version()'));
+    expect(flag5, contains('sqlite3.version.libVersion'));
+    expect(flag5, isNot(contains('CHANGELOG')));
+  });
+
+  test(
+    'flag 4 covers the transitive packages that moved with sqlite3 3.9.2',
+    () {
+      // Review note L3 (M1.10b): hooks and record_use moved with sqlite3.
+      final flag4 = File(
+        'docs/licences.md',
+      ).readAsLinesSync().firstWhere((l) => l.startsWith('4. '));
+      for (final part in [
+        'hooks 2.0.2 to 2.2.0',
+        'record_use 0.6.0 to 1.1.1',
+        'BSD-3-Clause (Dart project authors)',
+        'checked by the developer on 2026-11-24',
+      ]) {
+        expect(flag4, contains(part), reason: part);
+      }
+      final lock = File('pubspec.lock').readAsStringSync();
+      for (final (name, version) in [
+        ('hooks', '2.2.0'),
+        ('record_use', '1.1.1'),
+      ]) {
+        expect(
+          RegExp(
+            '  $name:\\n(?:    .*\\n|      .*\\n)*?    version: "$version"',
+          ).hasMatch(lock),
+          isTrue,
+          reason: '$name $version is no longer the locked version',
+        );
+      }
+    },
+  );
+
+  test('csprng_entropy.c and libchacha20.c are stated as an inference, the '
+      'same way in the row, the notice and flag 6', () {
+    // Review note L4 (M1.10b): neither file has licence text. csprng_entropy.c
+    // came out of the public-domain ChaCha20-Poly1305 code in an MIT project;
+    // filelist.md at v2.7.1 puts the chacha20 directory under ISC, the
+    // project LICENSE is MIT.
+    final licences = File('docs/licences.md').readAsStringSync();
+    final lines = licences.split('\n');
+    final notice = File('assets/licences/sqlite3mc.txt').readAsStringSync();
+    String block(String head) {
+      final start = notice.indexOf(head);
+      expect(start, isNot(-1), reason: head);
+      final end = notice.indexOf('\n* ', start + 1);
+      return notice.substring(start, end == -1 ? notice.length : end);
+    }
+
+    final places = {
+      'csprng row': lines.firstWhere(
+        (l) => l.startsWith('| ChaCha20 and Poly1305 (chacha20poly1305.c)'),
+      ),
+      'csprng notice': block('* ChaCha20 and Poly1305 (chacha20poly1305.c)'),
+      'libchacha20 row': lines.firstWhere(
+        (l) => l.startsWith('| ChaCha20 and Poly1305 from libsodium'),
+      ),
+      'libchacha20 notice': block(
+        '* ChaCha20 and Poly1305 from libsodium (src/chacha20)',
+      ),
+    };
+    final flag6 = flag6Line(licences);
+    for (final (where, text) in [
+      ('csprng row', places['csprng row']!),
+      ('csprng notice', places['csprng notice']!),
+      ('flag 6', flag6),
+    ]) {
+      expect(
+        text,
+        contains('csprng_entropy.c is public domain or MIT'),
+        reason: where,
+      );
+    }
+    for (final (where, text) in [
+      ('libchacha20 row', places['libchacha20 row']!),
+      ('libchacha20 notice', places['libchacha20 notice']!),
+      ('flag 6', flag6),
+    ]) {
+      expect(text, contains('libchacha20.c is MIT or ISC'), reason: where);
+      expect(text, contains('filelist.md'), reason: where);
+    }
+    // No place states either file's licence as a plain fact.
+    for (final e in places.entries) {
+      expect(
+        e.value,
+        isNot(
+          contains(
+            'libchacha20.c has no licence text and '
+            'falls under',
+          ),
+        ),
+        reason: e.key,
+      );
+      expect(
+        e.value,
+        isNot(contains('| Public domain. csprng')),
+        reason: e.key,
+      );
+      expect(
+        e.value,
+        isNot(contains('Licence: Public domain. csprng')),
+        reason: e.key,
+      );
+    }
+  });
+
   _testerGuards();
 }
 
@@ -141,6 +292,11 @@ void main() {
 // with pubspec.yaml / pubspec.lock. Offline: the pinned hash is the SHA-256
 // of https://www.gnu.org/licenses/gpl-3.0.txt, checked once by hand.
 // ---------------------------------------------------------------------------
+
+/// Flag 6 of docs/licences.md: the files whose licence is inferred.
+String flag6Line(String licences) => licences
+    .split('\n')
+    .firstWhere((l) => l.startsWith('6. '), orElse: () => '');
 
 const _gplSha256 =
     '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986';
@@ -284,44 +440,22 @@ void _testerGuards() {
     }
   });
 
-  test(
-    'SQLite and SQLite3 Multiple Ciphers rows match the sqlite3 package',
-    () {
-      final lock = _lockDirectMain()['sqlite3']!;
-      final config = jsonDecode(
-        File('.dart_tool/package_config.json').readAsStringSync(),
-      );
-      final entry = (config['packages'] as List).firstWhere(
-        (p) => p['name'] == 'sqlite3',
-      );
-      final dir = Directory.fromUri(
-        File(
-          '.dart_tool/package_config.json',
-        ).absolute.uri.resolve(entry['rootUri'] as String),
-      );
-      final lines = File('${dir.path}/CHANGELOG.md').readAsLinesSync();
-      // Walk down from the locked version's section; the newest line that names
-      // each library is the version that build bundles.
-      var i = lines.indexWhere((l) => l.trim() == '## $lock');
-      expect(
-        i,
-        isNonNegative,
-        reason: 'no CHANGELOG section for sqlite3 $lock',
-      );
-      String? sqlite, mc;
-      for (; i < lines.length && (sqlite == null || mc == null); i++) {
-        sqlite ??= RegExp(
-          r'SQLite (?:to |version |to version )?(3\.\d+\.\d+)',
-        ).firstMatch(lines[i])?.group(1);
-        mc ??= RegExp(
-          r'Multiple Ciphers (?:to |version )?(\d+\.\d+\.\d+)',
-        ).firstMatch(lines[i])?.group(1);
-      }
-      final rows = _licenceRows();
-      expect(rows['SQLite3'], mc, reason: 'SQLite3 Multiple Ciphers row');
-      expect(rows['SQLite'], sqlite, reason: 'SQLite row');
-    },
-  );
+  test('SQLite and SQLite3 Multiple Ciphers rows match the loaded library', () {
+    // M1.10b: the sqlite3 CHANGELOG is not a reliable source. 3.9.2 moved to
+    // SQLite3 Multiple Ciphers 2.7.1, which is built on SQLite 3.54.1, but its
+    // CHANGELOG names no SQLite version (the last one it names is 3.54.0).
+    // The library the test run loads says which versions it is.
+    final db = sqlite3.openInMemory();
+    addTearDown(db.close);
+    final mc = db.select('SELECT sqlite3mc_version() AS v').single['v'];
+    final rows = _licenceRows();
+    expect(
+      'SQLite3 Multiple Ciphers ${rows['SQLite3']}',
+      mc,
+      reason: 'SQLite3 Multiple Ciphers row',
+    );
+    expect(rows['SQLite'], sqlite3.version.libVersion, reason: 'SQLite row');
+  });
 
   test('Flutter and Dart rows match the SDK the project pins', () {
     final rows = _licenceRows();

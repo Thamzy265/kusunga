@@ -5,10 +5,18 @@
 // to 6, as written on Flutter 3.44.6 / sqlite3 3.5.2), not built from
 // `kMigrations`. A file is made with the plain sqlite3 package (ChaCha20
 // through `hexkey`, the way the store opens it) and filled with SYNTHETIC
-// rows, closed, and then opened by the current store. It does not prove that
-// a file written by the 3.44.6 app binary opens (the SQLite3 Multiple
-// Ciphers build is the same 2.5.0 in both SDKs; QA opens the real qa
-// profile).
+// rows, closed, and then opened by the current store.
+//
+// M1.10b (sqlite3 3.5.2 -> 3.9.2, SQLite3 Multiple Ciphers 2.5.0 -> 2.7.1):
+// the files made above are written by whatever library the test runs on, so
+// they cannot show that a file written by the OLD library opens on the new
+// one. The group "files written by SQLite3 Multiple Ciphers 2.5.0" does: it
+// opens two files kept in test/data/fixtures, made once by `_create` (the
+// same schema and rows) on sqlite3 3.5.2 / SQLite3 Multiple Ciphers 2.5.0 /
+// SQLite 3.53.4, at commit e972d51, with Flutter 3.50.1. Their SHA-256 is
+// pinned so they cannot be re-made on a newer library by mistake. It still
+// does not prove that a file written by the app binary opens (QA opens the
+// real qa profile).
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -307,6 +315,121 @@ void main() {
       'com.1password.1password',
       'com.bitwarden.desktop',
       'com.example.mine',
+    });
+  });
+
+  group('files written by SQLite3 Multiple Ciphers 2.5.0 (sqlite3 3.5.2)', () {
+    const v3 = 'test/data/fixtures/frozen_v3_sqlite3mc_2_5_0.db';
+    const v6 = 'test/data/fixtures/frozen_v6_sqlite3mc_2_5_0.db';
+
+    /// A copy in the test's temporary folder, so an open never changes the
+    /// kept file.
+    String copy(String fixture) {
+      File(fixture).copySync(path);
+      return path;
+    }
+
+    test('the kept files are unchanged since they were made (pinned '
+        'SHA-256), and are encrypted', () {
+      for (final (file, hash) in [
+        (
+          v3,
+          '974b81794bf7f72344734f384ed5248bc9cfadb9055a635c20266268d254dcfb',
+        ),
+        (
+          v6,
+          '5423421838e41f0e35df93de79832aca4ff706b1448a1445eb4dcc321ab24709',
+        ),
+      ]) {
+        final bytes = File(file).readAsBytesSync();
+        expect(sha256.convert(bytes).toString(), hash, reason: file);
+        // A plain SQLite file starts with "SQLite format 3"; these do not.
+        expect(
+          ascii.decode(bytes.sublist(0, 15), allowInvalid: true),
+          isNot('SQLite format 3'),
+          reason: file,
+        );
+      }
+    });
+
+    test('the version 6 file opens with the existing key, every item, '
+        'snippet and setting unchanged, and is not rewritten', () {
+      final file = copy(v6);
+      final before = File(file).readAsBytesSync();
+      final store = SqliteHistoryStore.open(path: file, keyHex: _key);
+      addTearDown(store.close);
+
+      expect(store.limit, 321);
+      expect(store.count, _clips.length);
+      final byContent = {for (final r in store.records()) r.content: r};
+      for (final c in _clips) {
+        final r = byContent[c.$1];
+        expect(r, isNotNull, reason: 'lost: ${c.$1.substring(0, 10)}');
+        expect(r!.kind.name, c.$2);
+        expect(r.createdAt, c.$3);
+        expect(r.lastCopiedAt, c.$4);
+      }
+      expect(store.readSetting('typed_shortcuts_on'), '1');
+      expect(store.readSetting('history_expiry_days'), '7');
+      final snippets = store.snippetStore();
+      final list = snippets.list();
+      expect(list.map((s) => s.name), _snips.map((s) => s.$1));
+      expect(list.map((s) => s.shortcut), ['ph1', 'em1', null, 'ln']);
+      for (final s in list) {
+        expect(
+          snippets.contentOf(s.id),
+          _snips.firstWhere((x) => x.$1 == s.name).$2,
+        );
+      }
+      expect(File('$file.bak').existsSync(), isFalse);
+      store.close();
+      expect(File(file).readAsBytesSync(), before);
+    });
+
+    test('the version 6 file takes new writes on this library and opens '
+        'again with them', () {
+      final file = copy(v6);
+      var store = SqliteHistoryStore.open(path: file, keyHex: _key);
+      store.insertOrBump('written by the new library', ClipKind.text, 9500);
+      store.close();
+      store = SqliteHistoryStore.open(path: file, keyHex: _key);
+      addTearDown(store.close);
+      expect(store.count, _clips.length + 1);
+      expect(store.list().first.preview, 'written by the new library');
+    });
+
+    test('the version 3 file upgrades to the latest schema with all rows '
+        'kept', () {
+      final file = copy(v3);
+      final store = SqliteHistoryStore.open(path: file, keyHex: _key);
+      addTearDown(store.close);
+      expect(store.count, _clips.length);
+      expect(store.limit, 321);
+      expect(store.readSetting('history_expiry_days'), '0');
+      final list = store.snippetStore().list();
+      expect(list.map((s) => s.name), _snips.map((s) => s.$1));
+      expect(list.every((s) => s.shortcut == null), isTrue);
+      expect(File('$file.bak').existsSync(), isFalse);
+      store.close();
+      final raw = sqlite3.open(file)..execute("PRAGMA hexkey = '$_key'");
+      addTearDown(raw.close);
+      expect(raw.select('PRAGMA user_version').single.values.single, 6);
+    });
+
+    test('a wrong key fails on both files and leaves them unchanged', () {
+      const wrong =
+          'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
+      for (final fixture in [v3, v6]) {
+        final file = copy(fixture);
+        final before = File(file).readAsBytesSync();
+        expect(
+          () => SqliteHistoryStore.open(path: file, keyHex: wrong),
+          throwsA(isA<SqliteException>()),
+          reason: fixture,
+        );
+        expect(File(file).readAsBytesSync(), before, reason: fixture);
+        expect(File('$file.bak').existsSync(), isFalse, reason: fixture);
+      }
     });
   });
 }

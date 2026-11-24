@@ -583,7 +583,7 @@ void main() {
       // Multiple Ciphers notice quotes it too (csv.c, rekeyvacuum.c), so it
       // would be found even without the SQLite row (B5).
       for (final text in [
-        'SQLite3 Multiple Ciphers 2.5.0 and the parts it bundles',
+        'SQLite3 Multiple Ciphers 2.7.1 and the parts it bundles',
         'SQLite is in the public domain',
       ]) {
         final found = find.textContaining(text);

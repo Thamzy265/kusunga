@@ -51,7 +51,7 @@ Source code: https://github.com/Thamzy265/kusunga/tree/v0.9.0
   - `applicationName` "Kusunga", `applicationVersion` as above, `applicationLegalese` = the copyright and GPL sentence.
 - **Notices added with `LicenseRegistry.addLicense`:**
   - "Kusunga": the full GPL-3.0 text from `LICENSE`;
-  - "SQLite3 Multiple Ciphers": its MIT licence, plus the notice for each bundled part listed in `docs/licences.md` (AEGIS, Ascon, ChaCha20/Poly1305, SHA-1/2, MD5, fastpbkdf2, Argon2, AES, miniz, and the inferred-MIT files). Each text is copied word for word from the project at tag v2.5.0, with the file and lines named (only the comment marks at the start of lines, and decorative lines made only of comment characters, are left out). The files name CC0 1.0 and Apache 2.0 by address and do not contain those two texts.
+  - "SQLite3 Multiple Ciphers": its MIT licence, plus the notice for each bundled part listed in `docs/licences.md` (AEGIS, Ascon, ChaCha20/Poly1305 including the ISC libsodium copy, SHA-1/2, MD5, fastpbkdf2, Argon2, AES, miniz, and the inferred-MIT files). Each text is copied word for word from the project at the bundled tag (v2.7.1 since M1.10b; v2.5.0 before), with the file and lines named (only the comment marks at the start of lines, and decorative lines made only of comment characters, are left out). The files name CC0 1.0 and Apache 2.0 by address and do not contain those two texts.
   - "SQLite": the public-domain blessing.
   - The texts are bundled as assets, never fetched.
 

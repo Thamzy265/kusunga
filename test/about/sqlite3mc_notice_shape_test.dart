@@ -1,7 +1,8 @@
 // M1.9a round 5 (tester): the shape of assets/licences/sqlite3mc.txt. Checked
-// by hand once against the v2.5.0 sources (every quoted block equals the named
-// lines of the named file once comment marks are taken off; checked with a
-// script outside the repo). These tests keep the shape from drifting.
+// by hand against the v2.5.0 sources, and again at v2.7.1 in M1.10b (every
+// quoted block equals the named lines of the named file once comment marks
+// are taken off; checked with a script outside the repo). These tests keep
+// the shape from drifting.
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -40,9 +41,9 @@ void main() {
     return out;
   }
 
-  test('there are 22 quoted blocks, each with a valid line range', () {
+  test('there are 26 quoted blocks, each with a valid line range', () {
     final all = header.allMatches(notice).toList();
-    expect(all, hasLength(22));
+    expect(all, hasLength(26));
     for (final m in all) {
       final a = int.parse(m.group(2)!);
       final b = int.parse(m.group(3)!);
