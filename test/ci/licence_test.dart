@@ -168,6 +168,18 @@ void main() {
     expect(flag1, isNot(contains('still to be checked')));
   });
 
+  test('flag 5 names the loaded library as the version source, not the '
+      'CHANGELOG', () {
+    // Review note L2 (M1.10b): licence_test.dart reads the versions from the
+    // library the test run loads; the sqlite3 CHANGELOG is not used.
+    final flag5 = File(
+      'docs/licences.md',
+    ).readAsLinesSync().firstWhere((l) => l.startsWith('5. '));
+    expect(flag5, contains('sqlite3mc_version()'));
+    expect(flag5, contains('sqlite3.version.libVersion'));
+    expect(flag5, isNot(contains('CHANGELOG')));
+  });
+
   _testerGuards();
 }
 
