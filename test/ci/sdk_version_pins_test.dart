@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart' show FlutterVersion;
 import 'package:flutter_test/flutter_test.dart';
 
 /// Every place that names the Flutter / Dart version the project builds with
@@ -72,4 +73,20 @@ void main() {
     expect(m, isNotNull, reason: 'windows-runner.md no longer names Flutter');
     expect(m!.group(1), ciFlutter());
   });
+
+  // M1.10a review R7: ties a local run to the pin. `flutter test` passes the
+  // version it runs as the FLUTTER_VERSION define.
+  test(
+    'the Flutter running the tests is the CI Flutter',
+    () {
+      expect(
+        FlutterVersion.version,
+        ciFlutter(),
+        reason: 'run the check with the Flutter CI uses (ADR 0008)',
+      );
+    },
+    skip: FlutterVersion.version == null
+        ? 'flutter test did not say which Flutter runs it'
+        : false,
+  );
 }
