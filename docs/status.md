@@ -1,5 +1,78 @@
 # Status log
 
+## 2026-11-24 — M1.10a Flutter 3.50.1 — reviewer round 2: approve
+- Changed: reviewer report (opus, high), word for word:
+  > Mode: branch
+  > Branch: chore/flutter-3-50 (re-check of the round 1 findings: 6928b50..5fc417c, 7 commits: b932ede R1, 40c2750 R2, e5f1f8c R3, 11d2b25 R4, 8994a96 R5, e0e9a52 R6, 5fc417c R7) — Verdict: approve
+  > Checks: ./tool/check.sh on Flutter 3.50.1 (ae9b586f34) — pass on Mac — my own full run at 5fc417c (scratchpad/rev_m110a_r2_check.txt): "Formatted 340 files (0 changed)", "No issues found! (ran in 2.9s)", "06:43 +4424 ~10: All tests passed!", exit=0. Same as the developer's run (check_m110a_r1fix.txt). The 10 skips are the same 10 as before, so the new R7 test ran and was not skipped. Windows check.ps1 has not run (nothing pushed); see the CI conditions.
+  > Code review: 4 findings (4 fixed, 0 open): R1, R4, R6, R7
+  > Design review: 2 findings (2 fixed, 0 open): R2, R5
+  > Security review: 1 finding — R3, Low (no CVSS score: band + basis — needs a compromised pub.dev or broken TLS to reach; the impact is build integrity, no user data) — fixed: both jobs now run `flutter pub get --enforce-lockfile`. The fix round adds no new risk. Its changes are 2 CI lines, tests, comments and docs. No lib/ change (git diff 6928b50..5fc417c -- lib is empty). The actions are still pinned to 40-hex SHAs, with `permissions: contents: read` and hosted runners only. No new package; pubspec.lock is unchanged in this round. A01, A02, A04, A05, A07, A08, A09, A10, AI: n/a — no endpoint, config, crypto, input sink, auth, update, logging, error-handling or AI code changed. The security-review skill was not run: it diffs the main checkout's branch (fix/windows-ci) against origin/HEAD, not this worktree's branch. I worked through the checklist by hand, as in round 1.
+  > Privacy review: no issues. n/a — no personal data, store, schema, log or network change in this round. The new tests use synthetic paths only.
+  > Later lines: ok — the existing Intel-build line (docs/PLAN.md:152) has a new why (R5). It keeps the format and the measurable trigger ("≥ 1 tester or user asks for an Intel build"), and it is not on the never-deferred list. The added "why updated 2026-11-24 by developer" tag is fine. — added by reviewer: none
+  > Findings (most severe first): none new. The round 1 findings R1 to R7 are all closed (see Fix outcomes).
+  > Fix outcomes:
+  > - R1 — fixed (b932ede).
+  >   - What changed: projectPath() = p.posix.joinAll(c.split(c.relative(listed))). Every listed path goes through it before the filters, hiddenIn() and the startsWith('lib/') / ('test/') checks. I read the whole file: no other place splits on '/' before normalising.
+  >   - Red, then green: r1fix_red.txt has the old logic, extracted unchanged, failing both new tests ("Actual: '.\\lib\\main.dart'"). r1fix_green.txt has "+6: All tests passed!".
+  >   - Correct on a real Windows layout. I ran the function with a Windows context whose current directory is D:\a\kusunga\kusunga, the GitHub runner's form (probe in scratchpad/rev_m110a_r2_probe/probe.dart). Every form gives a project path:
+  >     - r'.\lib\app.dart', r'./lib\app.dart', r'lib\app.dart', r'D:\a\kusunga\kusunga\lib\app.dart' and r'.\lib\..\lib\x.dart' all give 'lib/app.dart' (or 'lib/x.dart');
+  >     - r'.\windows\flutter\ephemeral\.plugin_symlinks\x\y.dart' gives a path whose parts include 'ephemeral', so it is skipped;
+  >     - r'.\.dart_tool\a.dart' gives '.dart_tool/a.dart', which is skipped.
+  >     So the fix does not depend on whether dart:io lists '.\' or './' or an absolute path.
+  >   - package:path is a direct dependency (pubspec.yaml:42).
+  >   - Left unproven until CI: this is the only test that lists the whole project root recursively on Windows. That listing is unchanged from round 1 and has never run on a Windows runner. Links are not followed (followLinks: false), and the folders it reads are .git, .dart_tool, build and windows/flutter/ephemeral. I see no concrete way for it to fail, so it is a CI condition, not a finding.
+  > - R2 — fixed (40c2750). The deviation is accepted. "90 package entries" is right and my 92 was wrong. The 2 extra lines were the `sdks:` entries (dart, flutter).
+  >   - My recount: 90 entries under `packages:` on the branch and 85 on main. Version diff (scratchpad/rev_r2_main.txt vs rev_r2_branch.txt): 5 new (cupertino_ui, flutter_localizations, intl, listen, material_ui) and 6 changed (clock, matcher, meta, stack_trace, test_api, vector_math), so 79 are unchanged and none were removed.
+  >   - main's pubspec.lock has had no commit since 2026-11-18, so "since 2026-11-19" is accurate.
+  >   - The Flutter SDK row no longer says "MPL-2.0 data", and it names fallback_root_certificates (dropped) and `ai` (added). The licences in Flag 4 match my round 1 results word for word.
+  >   - Docs only, so no failing test is possible.
+  > - R3 — fixed (e5f1f8c).
+  >   - Red, then green: r3_red.txt fails with the flag missing on macos, and r3_red_windows_only.txt fails with it missing on windows only. The new build_config_test also checks that no other pub get, upgrade or downgrade step lacks the flag.
+  >   - Locally, `flutter pub get --enforce-lockfile` printed "Got dependencies!", exit=0, and changed no file (r3_enforce_lockfile.txt).
+  >   - The later implicit pub gets in `flutter test` and `flutter build` do not re-resolve: the enforced step has already proved the lock satisfies pubspec.yaml. My full check left git status empty.
+  > - R4 — fixed (11d2b25). The comments now say: StateError without a binding, FlutterError with one. r4_probe.txt confirms this on 3.50.1 ("WITH BINDING: FlutterError", "NO BINDING: StateError"). The flutterErrorLock comment is reworded the same way. Comments only.
+  > - R5 — fixed (8994a96). The why now says it is a PM product choice (D3 A, kept by F3 A on 2026-11-24), and that the lipo bug is fixed in Flutter 3.47.0 and later. The trigger and the noted tags are kept. Docs only.
+  > - R6 — fixed (e0e9a52). The deviation is accepted.
+  >   - Lock test: it now compares the Dart lower bound too. r6_gap_old_test.txt shows the old test passing with dart ">=3.15.0". The new test fails on the same mutation ("lock needs Dart [3, 15, 0], CI has 3.14.0", r6_red_dart.txt) and on flutter ">=3.51.0" (r6_red_flutter.txt).
+  >   - The regex '^  <sdk>: ">=' cannot match the `  flutter:` package entry, because that entry has no `: ">=` after the name.
+  >   - material_imports_test: fixing the comment, not widening the scan, is acceptable. R6 was cleanup, and I offered "reword" as a fix in round 1. `git ls-files '*.dart'` gives 76 in lib and 264 in test, nothing elsewhere, so the 4-folder scan covers every tracked Dart file today. The comment now names the folders it scans.
+  > - R7 — fixed (5fc417c). The deviation is accepted.
+  >   - The test compares FlutterVersion.version with ciFlutter(). `flutter test` always passes FLUTTER_VERSION=<frameworkVersion>: in flutter_command.dart:233, :258 and :1188 of 3.50.1, the local SDK's flutter.version.json says "frameworkVersion": "3.50.1".
+  >   - So the skip only applies when a test is run outside `flutter test`, which this project never does. My full run still has exactly 10 skips, so the test ran.
+  >   - If a future Flutter stopped passing the define, the skip count would go from 10 to 11 and show the reason. That is visible, not silent.
+  >   - Red, then green: r7_red.txt (pins at 3.50.2: "Expected: '3.50.2' Actual: '3.50.1'") and r7_green.txt.
+  > Risk accepted by PM: none. No finding was skipped, so none was needed. The PM's item decision is in docs/status.md (2026-11-24): 'PM said: "Approve, all A" (2026-11-24), approving the M1.10a deck with F1 A …, F2 A …, F3 A (keep Apple silicon only).'
+  > Open items: none. Before merge, the lead must confirm the first CI run against the conditions below. The windows job is the real proof of R1, and both jobs prove R3 and R7 on CI.
+  > Blockers: none
+  >
+  > CI CONDITIONS FOR THE LEAD (first CI run after the push; check each text in the job log)
+  > macos job:
+  >   - Step "Run subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2": the text `key: flutter-macos-stable-3.50.1-arm64-ae9b586f34a8443573f82ef57c3bf914a908cbf7`. Any other revision means the release archive is not the tagged commit, so stop.
+  >   - Step "Run flutter pub get --enforce-lockfile": `Got dependencies!`. It must NOT show `Changed ` (as in "Changed N dependencies!"), `Upgrading analysis_options.yaml`, or any pub error naming the lockfile, "content-hash" or "--enforce-lockfile".
+  >   - Step "Run ./tool/check.sh": `(0 changed)`, `No issues found!` and `All tests passed!`, with `~10` in the final count line (exactly 10 skipped; 11 means the R7 test skipped).
+  >   - Step "Run flutter build macos --debug": `✓ Built build/macos/Build/Products/Debug/Kusunga.app`.
+  >   - Step "Swift tests (clipboard watcher, quit flow, paste flow)": `** TEST SUCCEEDED **`.
+  >   - Steps "C++ tests (Windows clipboard and picker policy, built on the Mac runner)" and "Swift typed-shortcut core tests, compiled as Release (no DEBUG)": green (exit 0).
+  > windows job:
+  >   - Step "Run subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2": `key: flutter-windows-stable-3.50.1-x64-ae9b586f34a8443573f82ef57c3bf914a908cbf7`.
+  >   - Step "Run flutter pub get --enforce-lockfile": `Got dependencies!`. It must NOT show `Changed `, `Upgrading analysis_options.yaml`, or a lockfile or content-hash error.
+  >   - Step "Run ./tool/check.ps1": `(0 changed)`, `No issues found!` and `All tests passed!`, with `~10` in the final count line. In particular, no failure in:
+  >     - test/ci/analyzer_exclude_test.dart: "no project Dart file is inside an excluded folder" and "the check sees our code: lib and test Dart files exist outside every excluded folder". This is the real-Windows proof of R1, including the whole-root listing.
+  >     - test/ci/sdk_version_pins_test.dart: "the Flutter running the tests is the CI Flutter". This is R7 on the archive install.
+  >   - Step "Run flutter build windows --debug": `√ Built build\windows\x64\runner\Debug\kusunga.exe`.
+  > Both jobs show a green check on the pull request.
+  >
+  > Evidence files (all in the scratchpad):
+  >   - rev_m110a_r2_check.txt: the full check.
+  >   - rev_m110a_r2_probe/probe.dart: the Windows path probe.
+  >   - rev_r2_main.txt and rev_r2_branch.txt: the lock versions.
+  > The worktree was left clean at 5fc417c, and no flutter_tester is running.
+- Gates: developer pass · tester pass · reviewer approve (CI conditions listed above, checked by the lead on the first CI run) · QA next · CI pending (needs PM approval to push) · PM merge n/a yet
+- Open findings: none
+- Decisions: none
+- Blockers: Developer none · Tester none · Reviewer none · QA none · Marketer none · Lead none · PM — push approval for CI (coming); Apple Developer account (M1.9c, M1.9e)
+
 ## 2026-11-24 — M1.10a Flutter 3.50.1 — developer fix round for R1–R7
 - Changed: developer report (opus, xhigh), word for word:
   > Branch: chore/flutter-3-50 (10 commits on main; this round added 7 on top of 6928b50: b932ede R1, 40c2750 R2, e5f1f8c R3, 11d2b25 R4, 8994a96 R5, e0e9a52 R6, 5fc417c R7; not pushed; worktree /private/tmp/claude-501/-Users-williamnasoni-Developer-Personal-kusunga/bdcaa771-52a1-4433-b5f6-1f64c65a45f5/scratchpad/m110a-wt, clean at 5fc417c)
