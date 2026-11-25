@@ -44,3 +44,12 @@ jobs:
       # fails if they did.
       - run: flutter build windows --debug
         if: ${{ !cancelled() }}
+      # The PM runs this build before merge (PM decision 2026-11-25). The whole
+      # folder: the exe needs its DLLs and data/. Not after a failed build.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ success() }}
+        with:
+          name: kusunga-windows-debug-${{ github.sha }}
+          path: build/windows/x64/runner/Debug/
+          retention-days: 3
+          if-no-files-found: error

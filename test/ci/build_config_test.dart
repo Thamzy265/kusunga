@@ -106,4 +106,58 @@ void main() {
     expect(gets, hasLength(2));
     expect(gets, everyElement(contains('--enforce-lockfile')));
   });
+
+  group(
+    'Windows CI keeps the debug build for the PM (PM decision 2026-11-25)',
+    () {
+      String windowsJob() {
+        final yaml = readSource('.github/workflows/check.yml');
+        return yaml.substring(yaml.indexOf('\n  windows:'));
+      }
+
+      test('the windows job uploads the whole Debug folder with a SHA-pinned '
+          'upload-artifact, kept 3 days, failing when nothing is found', () {
+        final job = windowsJob();
+        final step = RegExp(
+          r'- uses: actions/upload-artifact@[0-9a-f]{40} # v\d+[^\n]*\n'
+          r'(?:\s+[^\n]*\n?)*',
+        ).firstMatch(job);
+        expect(step, isNotNull, reason: 'upload-artifact pinned to 40-hex SHA');
+        final text = step!.group(0)!;
+        expect(text, contains('path: build/windows/x64/runner/Debug/'));
+        expect(text, contains('retention-days: 3'));
+        expect(text, contains('if-no-files-found: error'));
+        expect(text, contains(r'kusunga-windows-debug-${{ github.sha }}'));
+      });
+
+      test(
+        'the upload comes after the build and runs only when it succeeded',
+        () {
+          final job = windowsJob();
+          final build = job.indexOf('flutter build windows --debug');
+          final upload = job.indexOf('actions/upload-artifact@');
+          expect(build, greaterThan(0));
+          expect(upload, greaterThan(build));
+          final step = job.substring(upload);
+          // The build step runs after failed tests (!cancelled()); the upload
+          // must not run after a failed build.
+          expect(step, contains(r'if: ${{ success() }}'));
+        },
+      );
+
+      test('the macOS job has no upload step', () {
+        final yaml = readSource('.github/workflows/check.yml');
+        final macos = yaml.substring(
+          yaml.indexOf('\n  macos:'),
+          yaml.indexOf('\n  windows:'),
+        );
+        expect(macos, isNot(contains('upload-artifact')));
+        expect(
+          RegExp('upload-artifact').allMatches(yaml),
+          hasLength(1),
+          reason: 'only the windows job uploads',
+        );
+      });
+    },
+  );
 }

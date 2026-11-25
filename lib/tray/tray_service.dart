@@ -180,10 +180,17 @@ class TrayService {
     // the tray "unknown", so the next change sets all of it again (B2).
     _shown = null;
     try {
+      // A dispose during any step has destroyed the tray: stop, so a late
+      // step does not make the native icon again or build a menu that
+      // nothing frees.
       if (was?.$1 != state.$1) {
         await port.setIcon(state.$1 ? pausedIconPath : iconPath);
+        if (_disposed) return;
       }
-      if (was?.$2 != state.$2) await port.setToolTip(state.$2);
+      if (was?.$2 != state.$2) {
+        await port.setToolTip(state.$2);
+        if (_disposed) return;
+      }
       if (menuChanged || was == null) await port.setMenu(_menu(state.$1));
       _menuHasPause = _pause != null;
       _shown = state;

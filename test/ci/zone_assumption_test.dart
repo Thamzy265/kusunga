@@ -7,6 +7,12 @@ import 'package:kusunga/history/memory_history_store.dart';
 
 import '../support/fakes.dart';
 
+/// A call in lib/ that creates a timer, with or without type arguments.
+final _timerCall = RegExp(
+  r'\bTimer(\.periodic|\.run)?\s*\(|\bFuture(<[^>]*>+)?\.delayed\s*\(|'
+  r'\bStream(<[^>]*>+)?\.periodic\s*\(',
+);
+
 /// BUG-F1 (tester round 12, confirmed independently in round 13): the History
 /// footer froze in a test, not in the app. A service started in `setUp`
 /// listens to the fake clipboard outside the test's fake-async zone, so a
@@ -19,6 +25,31 @@ import '../support/fakes.dart';
 ///    a listener never runs in a different zone from the one that armed its
 ///    timers.
 void main() {
+  test('the timer pattern sees every way lib/ creates a timer, with or '
+      'without type arguments (reviewer F5: Timer.run was missed)', () {
+    for (final call in [
+      'Timer(const Duration(seconds: 2), f)',
+      'Timer.periodic(every, f)',
+      'Timer.run(() => _free(menu))',
+      'Timer.run (f)',
+      'Future.delayed(Duration.zero)',
+      'Future<void>.delayed(Duration.zero)',
+      'Future<List<int>>.delayed(d, f)',
+      'Stream.periodic(every)',
+      'Stream<int>.periodic(every)',
+    ]) {
+      expect(_timerCall.hasMatch(call), isTrue, reason: call);
+    }
+    for (final other in [
+      'Timer? _timer;',
+      '_timer?.cancel();',
+      'Future<void> start() async {',
+      'MyTimer(1)',
+    ]) {
+      expect(_timerCall.hasMatch(other), isFalse, reason: other);
+    }
+  });
+
   late FakeClipboardSource source;
   late HistoryService fromSetUp;
 
@@ -124,6 +155,16 @@ void main() {
       // shows for one frame. Widget Timers, started from the widget's own
       // button callbacks.
       'lib/settings/ui/your_data_section.dart',
+      // M1.10c: the window lookup's retry on a hidden start (design note
+      // API-A), started by init(), which main() calls in the root zone
+      // (WindowService.start).
+      'lib/window/window_manager_port.dart',
+      // M1.10c: a replaced or removed tray menu is freed on the next turn
+      // (Timer.run), by setMenu and destroy. They run from TrayService, which
+      // main() starts in the root zone, and from root-zone callbacks: the
+      // pause tick that main() starts, and the tray and menu clicks, which
+      // nativeapi delivers in the zone that added the listener (the tray's).
+      'lib/tray/tray_manager_port.dart',
     };
     final seen = <String>{};
     for (final e in Directory('lib').listSync(recursive: true)) {
@@ -132,10 +173,7 @@ void main() {
           .readAsLinesSync()
           .where((l) => !l.trimLeft().startsWith('//'))
           .join('\n');
-      if (RegExp(
-        r'\bTimer(\.periodic)?\s*\(|\bFuture\.delayed\s*\(|'
-        r'\bStream\.periodic\s*\(',
-      ).hasMatch(text)) {
+      if (_timerCall.hasMatch(text)) {
         seen.add(e.path.replaceAll('\\', '/'));
       }
     }

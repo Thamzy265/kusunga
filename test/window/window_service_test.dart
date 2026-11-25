@@ -58,9 +58,11 @@ void main() {
 
     await service.start();
 
+    // The port can still set the window up later (M1.10c), so a close
+    // request after a failed init still hides the window.
     port.closes.add(null);
     await Future<void>.delayed(Duration.zero);
-    expect(port.calls, ['init'], reason: 'no close handler after a failure');
+    expect(port.calls, ['init', 'hide']);
   });
 
   test('dispose stops handling close and disposes the port once', () async {

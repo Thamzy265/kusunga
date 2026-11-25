@@ -268,6 +268,26 @@ inline double ScaleFromDpi(unsigned dpi) {
   return dpi == 0 ? 1.0 : static_cast<double>(dpi) / 96.0;
 }
 
+// ---- The window's minimum size (WM_GETMINMAXINFO, reviewer F2) ----
+
+// The history window's minimum, in points; the Mac window has the same one
+// (lib/window/window_manager_port.dart).
+constexpr double kHistoryMinWidth = 360;
+constexpr double kHistoryMinHeight = 400;
+
+struct TrackSize {
+  int width, height;
+};
+
+// The smallest the whole window may be made, in pixels at [scale], for
+// MINMAXINFO.ptMinTrackSize: the history window's minimum, or none (0 x 0)
+// while the picker or the toast shows ([small_shape]), as both are smaller.
+inline TrackSize MinTrackSize(bool small_shape, double scale) {
+  if (small_shape) return TrackSize{0, 0};
+  return TrackSize{static_cast<int>(std::lround(kHistoryMinWidth * scale)),
+                   static_cast<int>(std::lround(kHistoryMinHeight * scale))};
+}
+
 // ---- The paste flow ----
 
 // What the flow needs from Windows. Window handles are plain numbers here.
