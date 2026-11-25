@@ -28,6 +28,10 @@ set -euo pipefail
 # environment bash starts with it off, and the framework loop would check
 # nothing and still print ok (reviewer F4).
 set +f
+# Tracing off, whatever the caller exported (SHELLOPTS=xtrace, or bash -x): a
+# trace would print the Team ID that codesign reports and that the signing
+# example sets. Before anything below reads either.
+set +x
 # Byte-wise text tools whatever the caller's locale: under UTF-8, grep skips
 # lines with invalid UTF-8, so a marker next to a stray byte would be missed.
 export LC_ALL=C
